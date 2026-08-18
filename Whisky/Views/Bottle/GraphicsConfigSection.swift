@@ -75,6 +75,25 @@ struct GraphicsConfigSection: View {
                 runningProcessWarning
             }
 
+            // Frame rate cap -- always visible. Uncapped rendering is the single
+            // biggest avoidable source of GPU power draw and heat.
+            VStack(alignment: .leading, spacing: 4) {
+                Picker("config.frameRateLimit", selection: $bottle.settings.frameRateLimit) {
+                    ForEach(FrameRateLimit.allCases, id: \.self) { limit in
+                        Text(limit.label).tag(limit)
+                    }
+                }
+                if resolvedBackend.supportsFrameRateLimit {
+                    Text("config.frameRateLimit.info")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text("config.frameRateLimit.unsupported")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
             // MetalFX rides on D3DMetal's DLSS bridge and Metal 4 is D3DMetal's
             // own command-encoding backend, so both are meaningless under any
             // other backend rather than merely inactive.

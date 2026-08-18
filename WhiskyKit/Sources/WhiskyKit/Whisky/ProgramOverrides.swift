@@ -44,6 +44,9 @@ public struct ProgramOverrides: Codable, Equatable, Sendable {
     /// The DXVK HUD display mode. `nil` inherits from bottle.
     public var dxvkHud: DXVKHUD?
 
+    /// Per-program frame rate cap. `nil` inherits the bottle's setting.
+    public var frameRateLimit: FrameRateLimit?
+
     // MARK: - Sync
 
     /// The synchronization mode. `nil` inherits from bottle.
@@ -118,6 +121,7 @@ public struct ProgramOverrides: Codable, Equatable, Sendable {
             && dxvk == nil
             && dxvkAsync == nil
             && dxvkHud == nil
+            && frameRateLimit == nil
             && enhancedSync == nil
             && metal4Enabled == nil
             && metalHud == nil
@@ -143,6 +147,9 @@ public struct ProgramOverrides: Codable, Equatable, Sendable {
         self.dxvk = try container.decodeIfPresent(Bool.self, forKey: .dxvk)
         self.dxvkAsync = try container.decodeIfPresent(Bool.self, forKey: .dxvkAsync)
         self.dxvkHud = try container.decodeIfPresent(DXVKHUD.self, forKey: .dxvkHud)
+        // Int-raw enum: an unknown value falls back to inheriting the bottle.
+        let rawLimit = try container.decodeIfPresent(Int.self, forKey: .frameRateLimit)
+        self.frameRateLimit = rawLimit.flatMap(FrameRateLimit.init(rawValue:))
         self.enhancedSync = try container.decodeIfPresent(EnhancedSync.self, forKey: .enhancedSync)
         self.metal4Enabled = try container.decodeIfPresent(Bool.self, forKey: .metal4Enabled)
         self.metalHud = try container.decodeIfPresent(Bool.self, forKey: .metalHud)

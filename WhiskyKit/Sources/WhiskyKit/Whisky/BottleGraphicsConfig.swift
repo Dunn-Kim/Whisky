@@ -177,6 +177,13 @@ public struct BottleGraphicsConfig: Codable, Equatable {
     /// it. Two unrelated processes were parked in the same driver at the same
     /// instant, so this is not something a bottle can be trusted to contain.
     var frameGeneration: Bool = false
+    /// How many frames a game may present per second.
+    ///
+    /// New bottles cap at the display's refresh rate, since frames rendered past
+    /// it are discarded before they are shown and only cost power. Bottles
+    /// written before this setting existed decode to ``FrameRateLimit/unlimited``
+    /// so their behaviour does not change underneath them.
+    var frameRateLimit: FrameRateLimit = .matchDisplay
 
     /// Creates a new graphics config with the default `.recommended` backend.
     public init() {}
@@ -190,5 +197,9 @@ public struct BottleGraphicsConfig: Codable, Equatable {
         // Off for a bottle written before the key existed, which is the same
         // answer the property default gives a new one.
         self.frameGeneration = (try? container.decodeIfPresent(Bool.self, forKey: .frameGeneration)) ?? false
+        // Int-raw enum, so the String-only lenient helper does not apply. An
+        // unknown value decodes to `.unlimited` rather than failing the bottle.
+        let rawLimit = try container.decodeIfPresent(Int.self, forKey: .frameRateLimit)
+        self.frameRateLimit = rawLimit.flatMap(FrameRateLimit.init(rawValue:)) ?? .unlimited
     }
 }
