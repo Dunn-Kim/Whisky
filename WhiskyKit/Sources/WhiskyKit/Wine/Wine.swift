@@ -267,6 +267,14 @@ public class Wine {
             programOverrides = pinned
         }
 
+        // Backends only ever add their own files, so a switch used to leave the
+        // previous backend's natives behind: DXVK ships no dxgi, so a bottle
+        // moved from DXMT to DXVK kept DXMT's native dxgi and loaded it under
+        // DXVK's `dxgi=n,b` override — measured as a working D3D11 device that
+        // then failed the first swapchain mode switch. Restore Wine's builtin
+        // for every translation DLL the chosen backend will not install itself.
+        try restoreUnmanagedTranslationDLLs(bottle: bottle, for: effectiveBackend)
+
         // DXMT first: if launcher auto-DXVK also fires below (e.g. Rockstar),
         // DXVK's file copy deterministically wins, matching the override-layer
         // order where launcher-managed entries land after bottle-managed ones.
@@ -661,6 +669,72 @@ public class Wine {
         )
     }
 
+    /// Every DLL a translation backend may install natively into a prefix.
+    ///
+    /// The union across backends, so a restore can neutralize whichever one ran
+    /// last without knowing which that was.
+    static let translationPrefixDLLNames = [
+        "d3d9.dll", "d3d10core.dll", "d3d11.dll", "d3d12.dll", "dxgi.dll", "winemetal.dll"
+    ]
+
+    /// The prefix files `backend` installs itself, and so must not be restored
+    /// out from under it.
+    ///
+    /// DXVK's set is read from the payload rather than hardcoded: the runtime
+    /// carries whichever files its base build shipped, and that set has changed
+    /// across runtimes.
+    static func prefixDLLNames(installedBy backend: GraphicsBackend) -> Set<String> {
+        switch backend {
+        case .dxvk:
+            let payload = dxvkFolder.appending(path: "x64")
+            let names = (try? FileManager.default.contentsOfDirectory(atPath: payload.path(percentEncoded: false)))
+            return Set((names ?? []).filter { $0.hasSuffix(".dll") })
+        case .dxmt:
+            return Set(dxmtPrefixDLLs)
+        case .d3dMetal, .wined3d, .recommended:
+            return []
+        }
+    }
+
+    /// Restores Wine's builtin PE for each translation DLL `backend` does not
+    /// install itself, clearing whatever a previously selected backend left in
+    /// the prefix.
+    static func restoreUnmanagedTranslationDLLs(bottle: Bottle, for backend: GraphicsBackend) throws {
+        try restoreUnmanagedTranslationDLLs(
+            prefixRoot: bottle.url,
+            wineLibRoot: WhiskyWineInstaller.libraryFolder.appending(path: "Wine").appending(path: "lib"),
+            keeping: prefixDLLNames(installedBy: backend)
+        )
+    }
+
+    /// Performs the restore against explicit roots, so it can be tested against
+    /// temporary directories (mirrors the ``enableDXMT(payloadRoot:prefixRoot:)`` seam).
+    static func restoreUnmanagedTranslationDLLs(
+        prefixRoot: URL, wineLibRoot: URL, keeping managed: Set<String>
+    ) throws {
+        let fileManager = FileManager.default
+        let windows = prefixRoot.appending(path: "drive_c").appending(path: "windows")
+        let builtins = wineLibRoot.appending(path: "wine")
+        let pairs = [
+            (windows.appending(path: "system32"), builtins.appending(path: "x86_64-windows")),
+            (windows.appending(path: "syswow64"), builtins.appending(path: "i386-windows"))
+        ]
+
+        for (prefixDir, builtinDir) in pairs {
+            guard fileManager.fileExists(atPath: prefixDir.path(percentEncoded: false)) else { continue }
+            for name in translationPrefixDLLNames where !managed.contains(name) {
+                let builtin = builtinDir.appending(path: name)
+                // A runtime that ships no builtin for this name (winemetal on a
+                // pre-DXMT runtime) leaves the prefix alone rather than deleting
+                // a file it cannot put back.
+                guard fileManager.fileExists(atPath: builtin.path(percentEncoded: false)) else { continue }
+                _ = try fileManager.installFileIfContentDiffers(
+                    at: prefixDir.appending(path: name), from: builtin
+                )
+            }
+        }
+    }
+
     /// Errors thrown by ``enableDXMT(bottle:)``.
     public enum DXMTError: LocalizedError, Equatable {
         /// The installed runtime has no usable DXMT payload — either absent
@@ -686,7 +760,7 @@ public class Wine {
     /// import resolves to the runtime's `winemetal.dll` builtin in `lib/wine`.
     /// The NVIDIA extras (nvapi64/nvngx) in the payload are deliberately not
     /// deployed — DXMT's vendor spoofing is out of scope.
-    private static let dxmtPrefixDLLs = dxmtNativeTrio + ["winemetal.dll"]
+    static let dxmtPrefixDLLs = dxmtNativeTrio + ["winemetal.dll"]
 
     /// Whether the installed runtime carries a DXMT payload that can actually be
     /// activated per-bottle: present **and** the *native* variant. A
