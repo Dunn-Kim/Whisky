@@ -54,12 +54,23 @@ public struct WhiskyWineVersion: Codable {
     public var sha256: String?
 
     /// Whether this runtime's Wine build can execute Apple's GPTK/D3DMetal
-    /// payload. The payload's forwarder DLLs are C++ with exception handling,
-    /// and unwinding them requires personality-routine support for builtin
-    /// modules that upstream Wine lacks — on a build without it, every process
-    /// that runs D3DMetal code dies on its first internal throw. Absent (all
-    /// runtimes to date) means not capable; a future GPTK-ready runtime build
-    /// advertises `true` here.
+    /// payload.
+    ///
+    /// Apple's forwarder DLLs reach their unix side through
+    /// `ntdll.dll.__wine_unix_call`, which they expect the way CrossOver's Wine
+    /// exports it. Deploying the payload onto a runtime without it was measured
+    /// against Wine Libraries 3.1.1 (upstream Wine 11.0): the forwarders load
+    /// as builtins and `D3DMetal.framework` dlopens, then every call aborts with
+    /// `Call from … to unimplemented function ntdll.dll.__wine_unix_call`, and
+    /// D3D11 device creation fails. C++ unwinding through the forwarders was
+    /// *not* the blocker in that measurement — `RtlUnwindEx` completed normally.
+    ///
+    /// Absent (all runtimes to date) means not capable; a runtime built on a
+    /// Wine that provides the entry point advertises `true` here. To re-test a
+    /// runtime: import the payload, set this key to `true` in the installed
+    /// runtime plist so deployment runs, launch a D3D11 title, and grep the Wine
+    /// output for `__wine_unix_call`. ``GPTKImporter`` backs the replaced Wine
+    /// forwarders up in its store, so the runtime restores cleanly.
     public var gptkCapable: Bool?
 
     enum CodingKeys: String, CodingKey {
