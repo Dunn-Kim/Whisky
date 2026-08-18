@@ -81,7 +81,12 @@ extension Wine {
         }
 
         // Layer 3: Bottle managed -- settings-derived env vars (DXVK, sync, Metal, perf)
-        let managedOverrides = bottle.settings.populateBottleManagedLayer(builder: &builder)
+        // Resolved on the main actor here so the nonisolated settings layer does
+        // not have to reach for NSScreen itself.
+        let displayRefreshRate = FrameRateLimit.mainDisplayRefreshRate()
+        let managedOverrides = bottle.settings.populateBottleManagedLayer(
+            builder: &builder, displayRefreshRate: displayRefreshRate
+        )
         dllResolver.managed.append(contentsOf: managedOverrides)
 
         // Layer 4: Launcher managed -- launcher compatibility overrides
@@ -116,7 +121,12 @@ extension Wine {
 
         // Apply per-program overrides to the programUser layer
         if let overrides = programOverrides {
-            applyProgramOverrides(overrides, builder: &builder, dllResolver: &dllResolver)
+            applyProgramOverrides(
+                overrides, builder: &builder, dllResolver: &dllResolver,
+                bottleBackend: bottle.settings.graphicsBackend,
+                bottleFrameRateLimit: bottle.settings.frameRateLimit,
+                displayRefreshRate: displayRefreshRate
+            )
         }
 
         // Layer 8: featureRuntime -- diagnostic WINEDEBUG preset override
@@ -164,7 +174,10 @@ extension Wine {
     static func applyProgramOverrides(
         _ overrides: ProgramOverrides,
         builder: inout EnvironmentBuilder,
-        dllResolver: inout DLLOverrideResolver
+        dllResolver: inout DLLOverrideResolver,
+        bottleBackend: GraphicsBackend = .recommended,
+        bottleFrameRateLimit: FrameRateLimit = .unlimited,
+        displayRefreshRate: Int? = nil
     ) {
         // Graphics backend override: replaces bottle-level backend entirely
         if let backend = overrides.graphicsBackend {
@@ -309,6 +322,26 @@ extension Wine {
                 builder.remove("SDL_JOYSTICK_HIDAPI", layer: .programUser)
                 builder.remove("SDL_JOYSTICK_ALLOW_BACKGROUND_EVENTS", layer: .programUser)
                 builder.remove("SDL_GAMECONTROLLER_USE_BUTTON_LABELS", layer: .programUser)
+            }
+        }
+
+        // Frame rate cap. Re-resolved here whenever the program overrides either
+        // the cap or the backend, because the two are coupled: each backend uses
+        // a different variable, so switching backend at program level would
+        // otherwise leave the bottle's cap set on the wrong one.
+        if overrides.graphicsBackend != nil || overrides.frameRateLimit != nil {
+            let effectiveBackend: GraphicsBackend = {
+                let chosen = overrides.graphicsBackend ?? bottleBackend
+                return chosen == .recommended ? GraphicsBackendResolver.resolve() : chosen
+            }()
+            for key in GraphicsBackend.allFrameRateLimitKeys {
+                builder.remove(key, layer: .programUser)
+            }
+            let limit = overrides.frameRateLimit ?? bottleFrameRateLimit
+            if let fps = limit.resolved(displayRefreshRate: displayRefreshRate) {
+                for (key, value) in effectiveBackend.frameRateLimitEnvironment(fps: fps) {
+                    builder.set(key, value, layer: .programUser)
+                }
             }
         }
 

@@ -274,6 +274,16 @@ struct ProgramOverrideSettingsView: View {
                     }
                 }
 
+                // Frame cap applies to every backend that ships a limiter, not
+                // just DXVK, so it sits outside the DXVK-only controls below.
+                if resolvedOverriddenBackend.supportsFrameRateLimit {
+                    Picker("config.frameRateLimit", selection: frameRateLimitBinding) {
+                        ForEach(FrameRateLimit.allCases, id: \.self) { limit in
+                            Text(limit.label).tag(limit)
+                        }
+                    }
+                }
+
                 // Resolved, so a program on Recommended that runs DXVK does
                 // not hide the controls that are in effect.
                 if resolvedOverriddenBackend == .dxvk {
@@ -288,6 +298,7 @@ struct ProgramOverrideSettingsView: View {
                 inheritedSummary(
                     // Resolved, or a bottle on Recommended reports "Recommended".
                     "\(resolvedBottleBackend.displayName), "
+                        + "\(bottle.settings.frameRateLimit.label), "
                         + "DXVK Async \(bottle.settings.dxvkAsync ? "On" : "Off"), "
                         + "HUD \(hudDescription(bottle.settings.dxvkHud))"
                 )
@@ -745,6 +756,13 @@ struct ProgramOverrideSettingsView: View {
         Binding(
             get: { program.settings.overrides?.dxvkHud ?? bottle.settings.dxvkHud },
             set: { program.settings.overrides?.dxvkHud = $0 }
+        )
+    }
+
+    private var frameRateLimitBinding: Binding<FrameRateLimit> {
+        Binding(
+            get: { program.settings.overrides?.frameRateLimit ?? bottle.settings.frameRateLimit },
+            set: { program.settings.overrides?.frameRateLimit = $0 }
         )
     }
 

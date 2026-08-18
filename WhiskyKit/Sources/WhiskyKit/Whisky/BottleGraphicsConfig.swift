@@ -151,11 +151,23 @@ public struct BottleGraphicsConfig: Codable, Equatable {
     /// The selected graphics backend. Defaults to `.recommended`.
     var backend: GraphicsBackend = .recommended
 
+    /// How many frames a game may present per second.
+    ///
+    /// New bottles cap at the display's refresh rate, since frames rendered past
+    /// it are discarded before they are shown and only cost power. Bottles
+    /// written before this setting existed decode to ``FrameRateLimit/unlimited``
+    /// so their behaviour does not change underneath them.
+    var frameRateLimit: FrameRateLimit = .matchDisplay
+
     /// Creates a new graphics config with the default `.recommended` backend.
     public init() {}
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.backend = container.decodeLenientIfPresent(GraphicsBackend.self, forKey: .backend) ?? .recommended
+        // Int-raw enum, so the String-only lenient helper does not apply. An
+        // unknown value decodes to `.unlimited` rather than failing the bottle.
+        let rawLimit = try container.decodeIfPresent(Int.self, forKey: .frameRateLimit)
+        self.frameRateLimit = rawLimit.flatMap(FrameRateLimit.init(rawValue:)) ?? .unlimited
     }
 }

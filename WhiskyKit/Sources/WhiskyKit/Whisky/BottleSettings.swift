@@ -341,6 +341,15 @@ public struct BottleSettings: Codable, Equatable {
         set { graphicsConfig.backend = newValue }
     }
 
+    /// The cap on how many frames a game may present per second.
+    ///
+    /// Only backends with a limiter honour this -- see
+    /// ``GraphicsBackend/supportsFrameRateLimit``.
+    public var frameRateLimit: FrameRateLimit {
+        get { graphicsConfig.frameRateLimit }
+        set { graphicsConfig.frameRateLimit = newValue }
+    }
+
     /// Whether DXVK is the active graphics backend.
     ///
     /// This property now derives from ``graphicsBackend``. Setting it to `true`
@@ -797,7 +806,8 @@ public struct BottleSettings: Codable, Equatable {
     /// - Returns: Managed DLL override entries with their sources for the DLLOverrideResolver.
     public func populateBottleManagedLayer(
         builder: inout EnvironmentBuilder,
-        resolvedBackend: GraphicsBackend? = nil
+        resolvedBackend: GraphicsBackend? = nil,
+        displayRefreshRate: Int? = nil
     ) -> [(entry: DLLOverrideEntry, source: DLLOverrideSource)] {
         var managedDLLOverrides: [(entry: DLLOverrideEntry, source: DLLOverrideSource)] = []
 
@@ -844,6 +854,18 @@ public struct BottleSettings: Codable, Equatable {
         case .wined3d:
             // Disable D3DMetal, forcing Wine's OpenGL-based wined3d path
             builder.set("WINED3DMETAL", "0", layer: .bottleManaged)
+        }
+
+        // Frame rate cap. Rendering past the display's refresh rate produces
+        // frames that are discarded before they are shown, so the work only
+        // burns power -- an uncapped game pins the GPU at its maximum clock.
+        if let fps = frameRateLimit.resolved(displayRefreshRate: displayRefreshRate) {
+            for (key, value) in resolvedBackend.frameRateLimitEnvironment(fps: fps) {
+                builder.set(
+                    key, value, layer: .bottleManaged,
+                    reason: "Frame rate limited to \(fps) FPS"
+                )
+            }
         }
 
         // Enhanced sync mode

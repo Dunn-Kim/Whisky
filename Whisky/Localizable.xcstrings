@@ -34837,6 +34837,86 @@
         }
       }
     },
+    "config.frameRateLimit" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Frame Rate Limit"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "프레임 레이트 제한"
+          }
+        }
+      }
+    },
+    "config.frameRateLimit.info" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Frames rendered past the display's refresh rate are discarded before they are shown. Capping cuts GPU power draw and heat with no visible difference."
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "디스플레이 주사율을 넘겨 렌더링한 프레임은 화면에 표시되기 전에 버려집니다. 제한을 걸면 화면 차이 없이 GPU 전력과 발열이 줄어듭니다."
+          }
+        }
+      }
+    },
+    "config.frameRateLimit.matchDisplay" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Match Display Refresh Rate"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "디스플레이 주사율에 맞춤"
+          }
+        }
+      }
+    },
+    "config.frameRateLimit.unlimited" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unlimited"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "제한 없음"
+          }
+        }
+      }
+    },
+    "config.frameRateLimit.unsupported" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The active graphics backend has no frame limiter. This setting applies to DXVK and DXMT only."
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "현재 그래픽 백엔드에는 프레임 제한 기능이 없습니다. 이 설정은 DXVK와 DXMT에서만 적용됩니다."
+          }
+        }
+      }
+    },
     "config.inspect" : {
       "localizations" : {
         "ar" : {

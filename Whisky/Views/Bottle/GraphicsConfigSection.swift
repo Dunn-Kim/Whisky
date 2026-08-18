@@ -63,6 +63,25 @@ struct GraphicsConfigSection: View {
                 runningProcessWarning
             }
 
+            // Frame rate cap -- always visible. Uncapped rendering is the single
+            // biggest avoidable source of GPU power draw and heat.
+            VStack(alignment: .leading, spacing: 4) {
+                Picker("config.frameRateLimit", selection: $bottle.settings.frameRateLimit) {
+                    ForEach(FrameRateLimit.allCases, id: \.self) { limit in
+                        Text(limit.label).tag(limit)
+                    }
+                }
+                if resolvedBackend.supportsFrameRateLimit {
+                    Text("config.frameRateLimit.info")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text("config.frameRateLimit.unsupported")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
             // Force DX11 toggle -- always visible (Simple + Advanced)
             Toggle(isOn: $bottle.settings.forceD3D11) {
                 Text("config.forceD3D11")
