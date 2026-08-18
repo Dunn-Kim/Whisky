@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Bottles and individual programs can now cap the frame rate. A game with no
+  limiter of its own renders as fast as the GPU allows: measured here at
+  ~186 FPS on a 144 Hz display, which held an M3 Pro's GPU at its maximum
+  clock drawing 26 W, while every frame past the refresh rate was discarded
+  before it was ever shown. New bottles default to matching the display's
+  refresh rate; bottles created before this setting existed keep running
+  uncapped until it is changed. The cap is applied by DXVK
+  (`DXVK_FRAME_RATE`) and DXMT (`d3d11.preferredMaxFrameRate`) — D3DMetal and
+  WineD3D ship no limiter, and the setting says so rather than pretending it
+  took effect.
+
+### Fixed
+- Switching a bottle's graphics backend no longer leaves the previous
+  backend's DLLs in the prefix. DXVK ships no `dxgi`, so a bottle moved from
+  DXMT to DXVK kept DXMT's native `dxgi.dll` and loaded it under DXVK's
+  `dxgi=n,b` override — measured as a D3D11 device that came up and then
+  failed its first swapchain resolution switch. Every translation DLL the
+  chosen backend does not install itself is now restored to Wine's builtin
+  before launch.
+
+### Changed
+- `gptkCapable` now documents the measured reason a runtime cannot execute
+  Apple's D3DMetal payload. Deploying it onto Wine Libraries 3.1.1 (upstream
+  Wine 11.0) loads the forwarders and dlopens `D3DMetal.framework`, then
+  aborts every call with `unimplemented function ntdll.dll.__wine_unix_call`;
+  C++ unwinding through the forwarders, the previously documented blocker,
+  completed normally. The note records how to re-test a future runtime.
+
 ## [3.6.1] - 2026-08-13 (App)
 
 ### Changed
