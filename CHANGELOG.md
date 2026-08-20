@@ -29,6 +29,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   before launch.
 
 ### Changed
+- The Processes page no longer spawns a Wine process for every 3-second
+  refresh. Each `tasklist.exe` round trip measured 2.5 s of wall time and
+  1.6 billion retired instructions on an M3 Pro — and against an idle
+  bottle it also booted a throwaway wineserver session per tick. A native
+  scan (`proc_listpids`/`proc_pidpath`, about a millisecond) now watches
+  the set of running Wine processes; the tasklist query runs only when
+  that set changes, or every 15 seconds while processes are listed so the
+  memory column stays fresh. Process starts and exits still surface
+  within one tick, and an idle bottle costs no Wine spawns at all after
+  the page loads. Matching is by kernel-reported executable path, because
+  Wine rewrites each Windows process's visible command to its Windows
+  image path (`C:\windows\system32\…`), which name-based matching would
+  miss entirely.
 - `gptkCapable` now documents the measured reason a runtime cannot execute
   Apple's D3DMetal payload. Deploying it onto Wine Libraries 3.1.1 (upstream
   Wine 11.0) loads the forwarders and dlopens `D3DMetal.framework`, then
