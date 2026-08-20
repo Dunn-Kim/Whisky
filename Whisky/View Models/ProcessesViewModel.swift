@@ -41,6 +41,15 @@ class ProcessesViewModel: ObservableObject {
     private var pollingTask: Task<Void, Never>?
     private let bottle: Bottle
     private let pollingInterval: TimeInterval = 3.0
+    /// While the native PID set is stable, full tasklist refreshes are throttled to
+    /// this cadence so the memory column stays reasonably fresh without paying the
+    /// Wine process spawn cost (seconds of wall time) on every tick.
+    private let staleRefreshInterval: TimeInterval = 15.0
+    /// Wine PIDs seen by the native scanner on the previous tick; `nil` before the
+    /// first scan so the initial tick always runs a full refresh.
+    private var lastScannedPIDs: Set<pid_t>?
+    /// When the last full tasklist refresh was started by the polling loop.
+    private var lastRefreshDate: Date = .distantPast
 
     private let logger = Logger(
         subsystem: Bundle.whiskyBundleIdentifier,
@@ -86,13 +95,40 @@ class ProcessesViewModel: ObservableObject {
     func startPolling() {
         guard pollingTask == nil else { return }
         isPolling = true
+        // Force a full refresh on the first tick even if the view model is reused.
+        lastScannedPIDs = nil
 
         pollingTask = Task { [weak self] in
             while !Task.isCancelled {
-                await self?.refreshProcessList()
+                await self?.refreshIfNeeded()
                 try? await Task.sleep(for: .seconds(self?.pollingInterval ?? 3.0))
             }
         }
+    }
+
+    /// Runs the expensive tasklist refresh only when the cheap native scan reports a
+    /// change in Wine process membership, or on ``staleRefreshInterval`` while
+    /// processes are listed (memory column freshness). An idle bottle therefore costs
+    /// no Wine process spawns after the initial refresh, and an active one refreshes
+    /// immediately on process starts and exits. Falls back to refreshing every tick
+    /// when native enumeration is unavailable.
+    private func refreshIfNeeded() async {
+        guard shutdownState == .idle else { return }
+
+        guard let scanned = WineProcessScanner.runningWinePIDs() else {
+            lastRefreshDate = Date()
+            await refreshProcessList()
+            return
+        }
+
+        let membershipChanged = scanned != lastScannedPIDs
+        let staleWhileActive = !processes.isEmpty &&
+            Date().timeIntervalSince(lastRefreshDate) >= staleRefreshInterval
+        if membershipChanged || staleWhileActive {
+            lastRefreshDate = Date()
+            await refreshProcessList()
+        }
+        lastScannedPIDs = scanned
     }
 
     /// Stops the polling loop and cleans up.
