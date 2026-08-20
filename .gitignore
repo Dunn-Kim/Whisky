@@ -109,4 +109,3 @@ mise.toml
 sparkle_ed25519_private.key*
 developer_id.p12*
 *.age
-.omc/
