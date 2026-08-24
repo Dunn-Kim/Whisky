@@ -73,11 +73,6 @@ extension LauncherType {
         case .rockstar:
             [
                 LauncherFixDetail(
-                    key: "DXVK_REQUIRED", value: "1",
-                    reason: "DXVK required for logo screen rendering",
-                    category: .graphics
-                ),
-                LauncherFixDetail(
                     key: "D3DM_FORCE_D3D11", value: "1",
                     reason: "Forces D3D11 mode for launcher compatibility",
                     category: .graphics

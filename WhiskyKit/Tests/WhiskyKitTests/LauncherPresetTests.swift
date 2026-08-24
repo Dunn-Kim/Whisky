@@ -64,11 +64,12 @@ final class LauncherPresetTests: XCTestCase {
     func testRockstarRequiresDXVK() {
         let launcher = LauncherType.rockstar
 
-        // Rockstar Launcher requires DXVK to display logo
+        // Rockstar Launcher requires DXVK to display logo — the requirement
+        // lives in requiresDXVK; nothing consumes a "DXVK_REQUIRED" env var.
         XCTAssertTrue(launcher.requiresDXVK)
 
         let env = launcher.environmentOverrides()
-        XCTAssertEqual(env["DXVK_REQUIRED"], "1")
+        XCTAssertNil(env["DXVK_REQUIRED"])
         XCTAssertEqual(env["D3DM_FORCE_D3D11"], "1")
     }
 

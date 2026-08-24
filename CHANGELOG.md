@@ -31,17 +31,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   is serial by default; on an 11-core M3 Pro that is ten cores idle while a
   new shader stutters the frame.
 - DXVK's pipeline state cache now lives outside the bottle, keyed by
-  executable name — the same arrangement the d3dm/dxmt caches already had —
-  so deleting a bottle no longer costs the game its compiled-shader history.
-  A user-set `DXVK_STATE_CACHE_PATH` still wins.
+  executable name and file size — the survival the d3dm/dxmt caches already
+  had, without two games that share a filename sharing a cache — so deleting
+  a bottle no longer costs the game its compiled-shader history. The path is
+  handed to DXVK through the prefix's `z:` drive, since the consumer is a
+  Windows-side DLL. A user-set `DXVK_STATE_CACHE_PATH` still wins.
 
 ### Changed
-- The `wine start` launch process now runs at user-interactive quality of
-  service. On Apple Silicon the QoS class decides whether the scheduler
-  offers performance or efficiency cores first; the boost covers the launch
-  process and what it spawns directly — how far it propagates into the
-  wineserver-parented game process has not been measured. Utility Wine
-  invocations and wineserver keep user-initiated.
+- The `wine start` launch process and wineserver now run at user-interactive
+  quality of service. On Apple Silicon the QoS class decides whether the
+  scheduler offers performance or efficiency cores first, and it is inherited
+  down the process tree — the game continues as a child of wineserver after
+  the launch shim exits, so wineserver at a lower class would hand that class
+  to every game it parents. Utility Wine invocations keep user-initiated.
 - App Nap prevention is on by default for new bottles. An occluded Wine
   process gets demoted to the efficiency cores with its timers coalesced,
   which reads as a background download stalling or audio hitching when the

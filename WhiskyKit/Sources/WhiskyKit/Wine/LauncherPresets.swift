@@ -192,9 +192,8 @@ public enum LauncherType: String, Codable, CaseIterable, Sendable, Identifiable 
 
         case .rockstar:
             // Rockstar Launcher fixes (whisky-app/whisky#1335, #835, #1120)
-            // DXVK is REQUIRED for logo screen to render
-            env["DXVK_REQUIRED"] = "1"
-
+            // DXVK is REQUIRED for the logo screen to render — expressed by
+            // `requiresDXVK`, not an env var; nothing reads "DXVK_REQUIRED".
             // Note: CEF_DISABLE_SANDBOX is set globally in MacOSCompatibility.swift
 
             // Force D3D11 mode for better compatibility

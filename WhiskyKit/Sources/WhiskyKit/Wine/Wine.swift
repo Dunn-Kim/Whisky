@@ -122,13 +122,18 @@ public class Wine {
     }
 
     /// Run a `wineserver` process with the given arguments and environment variables returning a stream of output
+    ///
+    /// Runs user-interactive, matching game launches: the game continues as a
+    /// child of wineserver after the `wine start` shim exits, and QoS is
+    /// inherited down the process tree — a wineserver left at a lower class
+    /// would hand that class to every game it parents.
     private static func runWineserverProcess(
         name: String? = nil, args: [String], environment: [String: String] = [:],
         fileHandle: FileHandle?
     ) throws -> AsyncStream<ProcessOutput> {
         try runProcess(
             name: name, args: args, environment: environment, executableURL: wineserverBinary,
-            fileHandle: fileHandle
+            fileHandle: fileHandle, qualityOfService: .userInteractive
         )
     }
 
@@ -336,9 +341,7 @@ public class Wine {
         // auto-enable and the legacy per-program flag also render through
         // DXVK. A user-provided DXVK_STATE_CACHE_PATH wins.
         if shouldEnableDXVK, wineEnvironment["DXVK_STATE_CACHE_PATH"] == nil {
-            if let cachePath = dxvkStateCacheWindowsPath(
-                forProgram: url.lastPathComponent, bottle: bottle
-            ) {
+            if let cachePath = dxvkStateCacheWindowsPath(forProgram: url, bottle: bottle) {
                 wineEnvironment["DXVK_STATE_CACHE_PATH"] = cachePath
             }
         }
@@ -410,14 +413,19 @@ public class Wine {
     /// Windows-visible path to a program's DXVK state cache, outside any bottle.
     ///
     /// The directory lives under the user's Caches directory keyed by
-    /// executable name, so it survives bottle deletion the way the d3dm/dxmt
-    /// shader caches do. The consumer is DXVK — a Windows-side DLL — which
-    /// resolves a bare `/Users/...` path against the current drive, so the
-    /// value must be spelled through the prefix's `z:` drive (Wine's standard
-    /// mapping of the Unix root). Returns `nil` when the directory cannot be
-    /// created or the bottle has no `z:` mapping — DXVK then falls back to its
-    /// default next-to-the-executable location, which is what shipped before.
-    static func dxvkStateCacheWindowsPath(forProgram programName: String, bottle: Bottle) -> String? {
+    /// executable name plus the executable's file size, so it survives bottle
+    /// deletion the way the d3dm/dxmt shader caches do without two different
+    /// games that happen to share a filename ("Game.exe") sharing a cache.
+    /// The size is stable across a reinstall of the same build and changes
+    /// with a game update — at which point a fresh cache is correct anyway.
+    ///
+    /// The consumer is DXVK — a Windows-side DLL — which resolves a bare
+    /// `/Users/...` path against the current drive, so the value must be
+    /// spelled through the prefix's `z:` drive (Wine's standard mapping of
+    /// the Unix root). Returns `nil` when the directory cannot be created or
+    /// the bottle has no `z:` mapping — DXVK then falls back to its default
+    /// next-to-the-executable location, which is what shipped before.
+    static func dxvkStateCacheWindowsPath(forProgram programURL: URL, bottle: Bottle) -> String? {
         guard let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else {
             return nil
         }
@@ -425,7 +433,14 @@ public class Wine {
         guard FileManager.default.fileExists(atPath: zDrive.path(percentEncoded: false)) else {
             return nil
         }
-        let dir = caches.appending(path: "dxvk-state").appending(path: programName)
+        var key = programURL.lastPathComponent
+        let attributes = try? FileManager.default.attributesOfItem(
+            atPath: programURL.path(percentEncoded: false)
+        )
+        if let size = attributes?[.size] as? Int64 {
+            key += "-\(size)"
+        }
+        let dir = caches.appending(path: "dxvk-state").appending(path: key)
         do {
             try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         } catch {
