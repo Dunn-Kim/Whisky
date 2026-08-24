@@ -291,6 +291,15 @@ public enum GameConfigApplicator {
             ))
         }
 
+        if let frameRateLimit = settings.frameRateLimit, frameRateLimit != bottle.settings.frameRateLimit {
+            changes.append(ConfigChange(
+                category: "Graphics",
+                settingName: "Frame Rate Limit",
+                currentValue: bottle.settings.frameRateLimit.label,
+                newValue: frameRateLimit.label
+            ))
+        }
+
         // Performance settings
         if let enhancedSync = settings.enhancedSync, enhancedSync != bottle.settings.enhancedSync {
             changes.append(ConfigChange(
@@ -424,6 +433,10 @@ public enum GameConfigApplicator {
 
         if let avxEnabled = settings.avxEnabled {
             bottle.settings.avxEnabled = avxEnabled
+        }
+
+        if let frameRateLimit = settings.frameRateLimit {
+            bottle.settings.frameRateLimit = frameRateLimit
         }
     }
 
