@@ -46,7 +46,11 @@ public struct BottlePerformanceConfig: Codable, Equatable {
     var forceD3D11: Bool = false // Force D3D11 instead of D3D12 for compatibility
     var disableShaderOptimizations: Bool = false // For debugging FPS issues
     var vcRedistInstalled: Bool = false // Track if VC++ runtime is installed
-    var disableAppNap: Bool = false // Prevent macOS from throttling Wine processes
+    // Default on: App Nap demotes an occluded Wine process to the efficiency
+    // cores and coalesces its timers — for a game that is frame pacing ruin.
+    // Existing bottles keep whatever they have stored (the decode fallback
+    // stays false so a bottle that never chose is not silently changed).
+    var disableAppNap: Bool = true
 
     public init() {}
 
