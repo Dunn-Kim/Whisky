@@ -184,6 +184,16 @@ public enum LauncherFixes {
         case .paradox:
             // Paradox's fix is environment-only (see LauncherPresets)
             break
+
+        case .zfGame:
+            // ZFGame Browser needs DXVK to render at all. Setting dxvk is a
+            // bottle-wide backend switch, so honor the user's autoEnableDXVK
+            // choice the way Rockstar does. The locale is left alone so its CJK
+            // UI keeps its font.
+            if bottle.settings.autoEnableDXVK {
+                bottle.settings.dxvk = true
+                bottle.settings.dxvkAsync = true
+            }
         }
 
         // Save settings synchronously to disk

@@ -108,6 +108,7 @@ public struct LauncherFixDetail: Sendable {
 /// - ``ubisoft``
 /// - ``battleNet``
 /// - ``paradox``
+/// - ``zfGame``
 ///
 /// ### Configuration
 /// - ``environmentOverrides()``
@@ -128,6 +129,8 @@ public enum LauncherType: String, Codable, CaseIterable, Sendable, Identifiable 
     case battleNet = "Battle.net"
     /// Paradox Launcher
     case paradox = "Paradox Launcher"
+    /// ZFGame Browser, the Chromium launcher shell several Chinese publishers ship
+    case zfGame = "ZFGame Browser"
 
     public var id: String {
         rawValue
@@ -150,6 +153,8 @@ public enum LauncherType: String, Codable, CaseIterable, Sendable, Identifiable 
             "Battle.net"
         case .paradox:
             "Paradox Launcher"
+        case .zfGame:
+            "ZFGame Browser"
         }
     }
 
@@ -233,6 +238,13 @@ public enum LauncherType: String, Codable, CaseIterable, Sendable, Identifiable 
             // No environment fix: the old resource lookup workaround
             // (whisky-app/whisky#1091) set a variable no runtime reads.
             break
+
+        case .zfGame:
+            // ZFGame Browser is Chromium-based and will not paint on D3DMetal.
+            // Reduces stuttering while the launcher's web view animates. No
+            // locale override on purpose: these launchers render a CJK UI, and
+            // forcing en_US replaces their text with boxes.
+            env["DXVK_ASYNC"] = "1"
         }
 
         return env
@@ -243,7 +255,7 @@ public enum LauncherType: String, Codable, CaseIterable, Sendable, Identifiable 
     /// Some launchers (notably Rockstar) will not render their UI without DXVK enabled.
     public var requiresDXVK: Bool {
         switch self {
-        case .rockstar:
+        case .rockstar, .zfGame:
             true
         default:
             false
@@ -271,7 +283,7 @@ public enum LauncherType: String, Codable, CaseIterable, Sendable, Identifiable 
             ["EABackgroundService.exe"]
         case .battleNet:
             ["Battle.net Helper.exe"]
-        case .rockstar, .ubisoft, .paradox:
+        case .rockstar, .ubisoft, .paradox, .zfGame:
             []
         }
     }
@@ -291,7 +303,7 @@ public enum LauncherType: String, Codable, CaseIterable, Sendable, Identifiable 
         switch self {
         case .rockstar:
             ["Launcher.exe", "SocialClubHelper.exe"]
-        case .steam, .epicGames, .eaApp, .battleNet, .ubisoft, .paradox:
+        case .steam, .epicGames, .eaApp, .battleNet, .ubisoft, .paradox, .zfGame:
             []
         }
     }
@@ -342,6 +354,8 @@ public enum LauncherType: String, Codable, CaseIterable, Sendable, Identifiable 
             String(localized: "launcher.fixes.description.battleNet")
         case .paradox:
             String(localized: "launcher.fixes.description.paradox")
+        case .zfGame:
+            "Fixes the blank launcher window caused by D3DMetal"
         }
     }
 }

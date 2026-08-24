@@ -107,6 +107,15 @@ extension LauncherType {
 
         case .paradox:
             []
+
+        case .zfGame:
+            [
+                LauncherFixDetail(
+                    key: "DXVK_ASYNC", value: "1",
+                    reason: "Reduces stuttering in the launcher's web view",
+                    category: .graphics
+                )
+            ]
         }
     }
 
