@@ -73,11 +73,6 @@ extension LauncherType {
         case .rockstar:
             [
                 LauncherFixDetail(
-                    key: "DXVK_REQUIRED", value: "1",
-                    reason: "DXVK required for logo screen rendering",
-                    category: .graphics
-                ),
-                LauncherFixDetail(
                     key: "D3DM_FORCE_D3D11", value: "1",
                     reason: "Forces D3D11 mode for launcher compatibility",
                     category: .graphics
@@ -124,11 +119,6 @@ extension LauncherType {
                     key: "D3DM_FORCE_D3D11", value: "1",
                     reason: "Improves launcher UI rendering stability",
                     category: .graphics
-                ),
-                LauncherFixDetail(
-                    key: "WINE_DISABLE_NTDLL_THREAD_REGS", value: "1",
-                    reason: "Fixes thread safety for Epic web views",
-                    category: .threading
                 )
             ]
 
@@ -152,24 +142,23 @@ extension LauncherType {
                     key: "LC_ALL", value: "en_US.UTF-8",
                     reason: "Fixes Chromium-based launcher locale issues",
                     category: .locale
-                ),
-                LauncherFixDetail(
-                    key: "WINE_CPU_TOPOLOGY", value: "8:8",
-                    reason: "Configures threading for Battle.net authentication",
-                    category: .threading
                 )
             ]
 
         case .paradox:
             [
                 LauncherFixDetail(
-                    key: "WINE_DISABLE_FAST_PATH", value: "1",
-                    reason: "Fixes recursive resource lookup bug",
-                    category: .compatibility
-                ),
-                LauncherFixDetail(
                     key: "D3DM_FORCE_D3D11", value: "1",
                     reason: "Improves launcher initialization",
+                    category: .graphics
+                )
+            ]
+
+        case .zfGame:
+            [
+                LauncherFixDetail(
+                    key: "DXVK_ASYNC", value: "1",
+                    reason: "Reduces stuttering in the launcher's web view",
                     category: .graphics
                 )
             ]

@@ -201,6 +201,13 @@ public struct GameConfigVariantSettings: Codable, Sendable, Equatable {
     public let avxEnabled: Bool?
     /// Whether macOS Sequoia compatibility mode should be enabled.
     public let sequoiaCompatMode: Bool?
+    /// The frame rate cap to apply.
+    ///
+    /// Uncapped rendering is the single biggest avoidable source of GPU power
+    /// draw and heat, so an entry can pin a game to a sane cap. The cap only
+    /// takes effect on backends that implement one — see
+    /// ``GraphicsBackend/supportsFrameRateLimit``.
+    public let frameRateLimit: FrameRateLimit?
 
     public init(
         graphicsBackend: GraphicsBackend? = nil,
@@ -211,7 +218,8 @@ public struct GameConfigVariantSettings: Codable, Sendable, Equatable {
         performancePreset: String? = nil,
         shaderCacheEnabled: Bool? = nil,
         avxEnabled: Bool? = nil,
-        sequoiaCompatMode: Bool? = nil
+        sequoiaCompatMode: Bool? = nil,
+        frameRateLimit: FrameRateLimit? = nil
     ) {
         self.graphicsBackend = graphicsBackend
         self.dxvk = dxvk
@@ -222,6 +230,7 @@ public struct GameConfigVariantSettings: Codable, Sendable, Equatable {
         self.shaderCacheEnabled = shaderCacheEnabled
         self.avxEnabled = avxEnabled
         self.sequoiaCompatMode = sequoiaCompatMode
+        self.frameRateLimit = frameRateLimit
     }
 
     public init(from decoder: Decoder) throws {
@@ -247,6 +256,21 @@ public struct GameConfigVariantSettings: Codable, Sendable, Equatable {
         self.shaderCacheEnabled = try container.decodeIfPresent(Bool.self, forKey: .shaderCacheEnabled)
         self.avxEnabled = try container.decodeIfPresent(Bool.self, forKey: .avxEnabled)
         self.sequoiaCompatMode = try container.decodeIfPresent(Bool.self, forKey: .sequoiaCompatMode)
+        // FrameRateLimit accepts either its integer raw value (60) or a readable
+        // string ("60", "unlimited", "matchDisplay"), since the database is
+        // hand-edited JSON. An unrecognised value decodes to nil — "do not
+        // change this setting" — rather than failing the whole entry.
+        if let raw = try? container.decodeIfPresent(Int.self, forKey: .frameRateLimit) {
+            self.frameRateLimit = FrameRateLimit(rawValue: raw)
+        } else if let name = try? container.decodeIfPresent(String.self, forKey: .frameRateLimit) {
+            switch name {
+            case "unlimited": self.frameRateLimit = .unlimited
+            case "matchDisplay", "match-display": self.frameRateLimit = .matchDisplay
+            default: self.frameRateLimit = Int(name).flatMap(FrameRateLimit.init(rawValue:))
+            }
+        } else {
+            self.frameRateLimit = nil
+        }
     }
 }
 

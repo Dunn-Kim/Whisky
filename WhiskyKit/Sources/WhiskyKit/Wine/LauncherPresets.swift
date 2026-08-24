@@ -90,6 +90,7 @@ public struct LauncherFixDetail: Sendable {
 /// - ``ubisoft``
 /// - ``battleNet``
 /// - ``paradox``
+/// - ``zfGame``
 ///
 /// ### Configuration
 /// - ``environmentOverrides()``
@@ -110,6 +111,8 @@ public enum LauncherType: String, Codable, CaseIterable, Sendable, Identifiable 
     case battleNet = "Battle.net"
     /// Paradox Launcher
     case paradox = "Paradox Launcher"
+    /// ZFGame Browser, the Chromium launcher shell several Chinese publishers ship
+    case zfGame = "ZFGame Browser"
 
     public var id: String {
         rawValue
@@ -132,6 +135,8 @@ public enum LauncherType: String, Codable, CaseIterable, Sendable, Identifiable 
             "Battle.net"
         case .paradox:
             "Paradox Launcher"
+        case .zfGame:
+            "ZFGame Browser"
         }
     }
 
@@ -187,9 +192,8 @@ public enum LauncherType: String, Codable, CaseIterable, Sendable, Identifiable 
 
         case .rockstar:
             // Rockstar Launcher fixes (whisky-app/whisky#1335, #835, #1120)
-            // DXVK is REQUIRED for logo screen to render
-            env["DXVK_REQUIRED"] = "1"
-
+            // DXVK is REQUIRED for the logo screen to render — expressed by
+            // `requiresDXVK`, not an env var; nothing reads "DXVK_REQUIRED".
             // Note: CEF_DISABLE_SANDBOX is set globally in MacOSCompatibility.swift
 
             // Force D3D11 mode for better compatibility
@@ -220,9 +224,6 @@ public enum LauncherType: String, Codable, CaseIterable, Sendable, Identifiable 
             // Epic launcher stability improvements
             env["D3DM_FORCE_D3D11"] = "1"
 
-            // Thread safety for Epic's web views
-            env["WINE_DISABLE_NTDLL_THREAD_REGS"] = "1"
-
         case .ubisoft:
             // Ubisoft Connect fixes (whisky-app/whisky#1004)
             // Requires D3D11 mode
@@ -239,16 +240,22 @@ public enum LauncherType: String, Codable, CaseIterable, Sendable, Identifiable 
             // Note: CEF_DISABLE_SANDBOX is set globally in MacOSCompatibility.swift
             env["LC_ALL"] = "en_US.UTF-8"
 
-            // Battle.net requires specific threading
-            env["WINE_CPU_TOPOLOGY"] = "8:8"
-
         case .paradox:
             // Paradox Launcher fixes (whisky-app/whisky#1091)
-            // Resource lookup bug workaround
-            env["WINE_DISABLE_FAST_PATH"] = "1"
-
-            // Launcher initialization
             env["D3DM_FORCE_D3D11"] = "1"
+
+        case .zfGame:
+            // ZFGame Browser is Chromium-based and will not paint on D3DMetal:
+            // the window comes up and stays blank. The DXVK requirement itself
+            // is expressed by `requiresDXVK`, not an env var — nothing reads
+            // a "DXVK_REQUIRED" variable.
+            // Note: CEF_DISABLE_SANDBOX is set globally in MacOSCompatibility.swift
+
+            // Reduces stuttering while the launcher's web view animates
+            env["DXVK_ASYNC"] = "1"
+
+            // No locale override here on purpose: these launchers render a CJK
+            // UI, and forcing en_US replaces their text with boxes.
         }
 
         return env
@@ -259,7 +266,7 @@ public enum LauncherType: String, Codable, CaseIterable, Sendable, Identifiable 
     /// Some launchers (notably Rockstar) will not render their UI without DXVK enabled.
     public var requiresDXVK: Bool {
         switch self {
-        case .rockstar:
+        case .rockstar, .zfGame:
             true
         default:
             false
@@ -281,7 +288,7 @@ public enum LauncherType: String, Codable, CaseIterable, Sendable, Identifiable 
             ["EABackgroundService.exe"]
         case .battleNet:
             ["Battle.net Helper.exe"]
-        case .rockstar, .ubisoft, .paradox:
+        case .rockstar, .ubisoft, .paradox, .zfGame:
             []
         }
     }
@@ -313,9 +320,11 @@ public enum LauncherType: String, Codable, CaseIterable, Sendable, Identifiable 
         case .ubisoft:
             "Improves launcher stability and game compatibility"
         case .battleNet:
-            "Fixes authentication and launcher rendering issues"
+            "Fixes launcher locale and rendering issues"
         case .paradox:
-            "Fixes recursive resource lookup bugs and initialization"
+            "Forces D3D11 mode for launcher stability"
+        case .zfGame:
+            "Fixes the blank launcher window caused by D3DMetal"
         }
     }
 }

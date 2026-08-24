@@ -227,7 +227,10 @@ public enum GameConfigApplicator {
             ))
         }
 
-        if let dxvk = settings.dxvk, dxvk != bottle.settings.dxvk {
+        // Preview must match apply: the legacy dxvk flag is ignored when the
+        // variant sets an explicit backend, so don't show a change that
+        // applyVariantSettings will not make.
+        if let dxvk = settings.dxvk, settings.graphicsBackend == nil, dxvk != bottle.settings.dxvk {
             changes.append(ConfigChange(
                 category: "Graphics",
                 settingName: "DXVK",
@@ -252,6 +255,15 @@ public enum GameConfigApplicator {
                 settingName: "Sequoia Compatibility Mode",
                 currentValue: bottle.settings.sequoiaCompatMode ? "Enabled" : "Disabled",
                 newValue: sequoiaCompat ? "Enabled" : "Disabled"
+            ))
+        }
+
+        if let frameRateLimit = settings.frameRateLimit, frameRateLimit != bottle.settings.frameRateLimit {
+            changes.append(ConfigChange(
+                category: "Graphics",
+                settingName: "Frame Rate Limit",
+                currentValue: bottle.settings.frameRateLimit.label,
+                newValue: frameRateLimit.label
             ))
         }
 
@@ -374,7 +386,11 @@ public enum GameConfigApplicator {
             bottle.settings.graphicsBackend = graphicsBackend
         }
 
-        if let dxvk = settings.dxvk {
+        // The legacy dxvk flag is honored only without an explicit backend:
+        // the setter rewrites the backend (false means .recommended), so with
+        // both fields present it would silently discard the backend the entry
+        // just chose. Mirrors applyProgramOverrides' handling of the same pair.
+        if let dxvk = settings.dxvk, settings.graphicsBackend == nil {
             bottle.settings.dxvk = dxvk
         }
 
@@ -405,6 +421,10 @@ public enum GameConfigApplicator {
 
         if let sequoiaCompatMode = settings.sequoiaCompatMode {
             bottle.settings.sequoiaCompatMode = sequoiaCompatMode
+        }
+
+        if let frameRateLimit = settings.frameRateLimit {
+            bottle.settings.frameRateLimit = frameRateLimit
         }
     }
 

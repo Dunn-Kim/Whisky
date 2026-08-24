@@ -8,6 +8,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- ZFGame Browser (`ZFGameBrowser.exe`), the Chromium launcher shell several
+  Chinese publishers ship, is now recognised as a launcher. It was not, so it
+  resolved to D3DMetal — where a Chromium client brings its window up and never
+  paints — and left the user switching backends by hand to get a picture. It
+  now resolves to DXVK like every other launcher, and its preset enables DXVK
+  with async shader compilation. Its locale is deliberately left alone: these
+  launchers render a CJK UI that an `en_US` override turns into boxes.
+- Game database entry for Mecharashi, a Unity client ported from a mobile build
+  that ships no frame limiter of its own. It is rated unverified and carries no
+  `testedWith` block: the settings are what the client was observed running
+  with, plus a cap that has not been measured on this title yet.
+- Game database variants can now set `frameRateLimit`, so an entry can cap a
+  game that ships no limiter of its own. It accepts either the integer
+  (`60`) or a readable string (`"60"`, `"unlimited"`, `"matchDisplay"`), and an
+  unrecognised value leaves the setting alone rather than failing the entry.
+  Until now the most thermally significant setting in the app was the one
+  setting a database entry could not express except as a raw environment
+  variable.
+- DXVK bottles now compile Metal shaders in parallel
+  (`MVK_CONFIG_SHOULD_MAXIMIZE_CONCURRENT_COMPILATION=1`). MoltenVK's compile
+  is serial by default; on an 11-core M3 Pro that is ten cores idle while a
+  new shader stutters the frame.
+- DXVK's pipeline state cache now lives outside the bottle, keyed by
+  executable name and file size — the survival the d3dm/dxmt caches already
+  had, without two games that share a filename sharing a cache — so deleting
+  a bottle no longer costs the game its compiled-shader history. The path is
+  handed to DXVK through the prefix's `z:` drive, since the consumer is a
+  Windows-side DLL. A user-set `DXVK_STATE_CACHE_PATH` still wins.
+
+### Changed
+- The `wine start` launch process and wineserver now run at user-interactive
+  quality of service. On Apple Silicon the QoS class decides whether the
+  scheduler offers performance or efficiency cores first, and it is inherited
+  down the process tree — the game continues as a child of wineserver after
+  the launch shim exits, so wineserver at a lower class would hand that class
+  to every game it parents. Utility Wine invocations keep user-initiated.
+- App Nap prevention is on by default for new bottles. An occluded Wine
+  process gets demoted to the efficiency cores with its timers coalesced,
+  which reads as a background download stalling or audio hitching when the
+  game window is covered. Existing bottles keep their stored choice.
+- The Unity preset's `WINE_LARGE_ADDRESS_AWARE` is now `1` rather than
+  `65536` — ntdll reads it as a flag, so the old value worked by accident
+  and its comment ("file descriptor limit") described something else.
+
+### Removed
+- Twelve environment variables that the shipped WhiskyWine 2.5.0 runtime
+  never reads, verified by sweeping its binaries (ntdll.so, wineserver,
+  wine64, the preloader): the `WINE_CPU_TOPOLOGY=8:8` topology fix and nine
+  other `WINE_*` "macOS 15.4 stability" knobs from the platform layer, plus
+  `WINE_HEAP_REUSE`/`WINE_DISABLE_NTDLL_THREAD_REGS`/`WINEPRELOADRESERVE`
+  from the Unity preset and per-launcher presets. `WINEPRELOADRESERVE=1` was
+  worse than inert — the preloader parses that variable as a hex address
+  range. Launch logs and the diagnostics exporter reported all of these as
+  active fixes; none of them ever did anything. The keys that survive have
+  real consumers: `WINEFSYNC` is read by libd3dshared, the CEF and Steam
+  variables by the Windows-side programs themselves.
 - Bottles and individual programs can now cap the frame rate. A game with no
   limiter of its own renders as fast as the GPU allows: measured here at
   ~186 FPS on a 144 Hz display, which held an M3 Pro's GPU at its maximum

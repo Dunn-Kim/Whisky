@@ -433,6 +433,27 @@ final class LauncherDetectionTests: XCTestCase {
         }
     }
 
+    // MARK: - ZFGame Browser Detection Tests
+
+    func testDetectZFGameBrowserFromExecutable() {
+        let url = URL(fileURLWithPath: "C:/Program Files/Mecharashi/ZFGameBrowser.exe")
+        let detected = LauncherType.detect(from: url)
+        XCTAssertEqual(detected, .zfGame, "Should detect ZFGame Browser from its executable")
+    }
+
+    func testDetectZFGameBrowserFromDirectory() {
+        let url = URL(fileURLWithPath: "C:/Games/ZFGame/launcher.exe")
+        let detected = LauncherType.detect(from: url)
+        XCTAssertEqual(detected, .zfGame, "Should detect ZFGame Browser from its directory")
+    }
+
+    /// The point of detecting it at all: the resolver only steers a client away
+    /// from D3DMetal when it knows the client is a launcher.
+    func testZFGameBrowserResolvesToDXVK() {
+        let backend = GraphicsBackendResolver.resolve(for: .zfGame, d3dMetalInstalled: true)
+        XCTAssertEqual(backend, .dxvk, "ZFGame Browser is Chromium and never paints on D3DMetal")
+    }
+
     // MARK: - Performance Tests
 
     func testDetectionPerformance() {

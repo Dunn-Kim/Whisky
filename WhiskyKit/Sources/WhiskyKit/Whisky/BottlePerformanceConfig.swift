@@ -46,7 +46,22 @@ public struct BottlePerformanceConfig: Codable, Equatable {
     var forceD3D11: Bool = false // Force D3D11 instead of D3D12 for compatibility
     var disableShaderOptimizations: Bool = false // For debugging FPS issues
     var vcRedistInstalled: Bool = false // Track if VC++ runtime is installed
-    var disableAppNap: Bool = false // Prevent macOS from throttling Wine processes
+    // Default on: App Nap demotes an occluded Wine process to the efficiency
+    // cores and coalesces its timers — for a game that is frame pacing ruin.
+    // Existing bottles keep whatever they have stored: the per-key decode
+    // fallback stays false, and a bottle whose plist predates this struct
+    // entirely decodes through `legacyDecodeDefault` below.
+    var disableAppNap: Bool = true
+
+    /// The value an existing bottle gets when its plist has no
+    /// `performanceConfig` block at all. The memberwise default above is for
+    /// new bottles; using it as the decode fallback would silently flip
+    /// `disableAppNap` on for every pre-existing bottle from older builds.
+    static var legacyDecodeDefault: BottlePerformanceConfig {
+        var config = BottlePerformanceConfig()
+        config.disableAppNap = false
+        return config
+    }
 
     public init() {}
 

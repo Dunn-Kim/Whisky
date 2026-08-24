@@ -224,6 +224,37 @@ final class GameDatabaseTests: XCTestCase {
         XCTAssertNil(settings.shaderCacheEnabled)
         XCTAssertNil(settings.avxEnabled)
         XCTAssertNil(settings.sequoiaCompatMode)
+        XCTAssertNil(settings.frameRateLimit)
+    }
+
+    // MARK: - Frame Rate Limit Decoding
+
+    private func decodeSettings(_ json: String) throws -> GameConfigVariantSettings {
+        let data = try XCTUnwrap(json.data(using: .utf8))
+        return try JSONDecoder().decode(GameConfigVariantSettings.self, from: data)
+    }
+
+    func testFrameRateLimitDecodesFromInteger() throws {
+        let settings = try decodeSettings(#"{"frameRateLimit": 60}"#)
+        XCTAssertEqual(settings.frameRateLimit, .fps60)
+    }
+
+    func testFrameRateLimitDecodesFromNumericString() throws {
+        let settings = try decodeSettings(#"{"frameRateLimit": "120"}"#)
+        XCTAssertEqual(settings.frameRateLimit, .fps120)
+    }
+
+    func testFrameRateLimitDecodesNamedCases() throws {
+        XCTAssertEqual(try decodeSettings(#"{"frameRateLimit": "unlimited"}"#).frameRateLimit, .unlimited)
+        XCTAssertEqual(try decodeSettings(#"{"frameRateLimit": "matchDisplay"}"#).frameRateLimit, .matchDisplay)
+        XCTAssertEqual(try decodeSettings(#"{"frameRateLimit": "match-display"}"#).frameRateLimit, .matchDisplay)
+    }
+
+    /// An unusable value means "leave the setting alone", not "reject the entry":
+    /// one typo must not drop a whole game from the database.
+    func testUnrecognisedFrameRateLimitDecodesToNil() throws {
+        XCTAssertNil(try decodeSettings(#"{"frameRateLimit": 47}"#).frameRateLimit)
+        XCTAssertNil(try decodeSettings(#"{"frameRateLimit": "vsync"}"#).frameRateLimit)
     }
 
     // MARK: - Test 6: Default Variant Returns First isDefault

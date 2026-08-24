@@ -96,14 +96,14 @@ public class Wine {
     /// Run a process on a executable file given by the `executableURL`
     private static func runProcess(
         name: String? = nil, args: [String], environment: [String: String], executableURL: URL, directory: URL? = nil,
-        fileHandle: FileHandle?
+        fileHandle: FileHandle?, qualityOfService: QualityOfService = .userInitiated
     ) throws -> AsyncStream<ProcessOutput> {
         let process = Process()
         process.executableURL = executableURL
         process.arguments = args
         process.currentDirectoryURL = directory ?? executableURL.deletingLastPathComponent()
         process.environment = environment
-        process.qualityOfService = .userInitiated
+        process.qualityOfService = qualityOfService
 
         return try process.runStream(
             name: name ?? args.joined(separator: " "), fileHandle: fileHandle
@@ -122,13 +122,18 @@ public class Wine {
     }
 
     /// Run a `wineserver` process with the given arguments and environment variables returning a stream of output
+    ///
+    /// Runs user-interactive, matching game launches: the game continues as a
+    /// child of wineserver after the `wine start` shim exits, and QoS is
+    /// inherited down the process tree — a wineserver left at a lower class
+    /// would hand that class to every game it parents.
     private static func runWineserverProcess(
         name: String? = nil, args: [String], environment: [String: String] = [:],
         fileHandle: FileHandle?
     ) throws -> AsyncStream<ProcessOutput> {
         try runProcess(
             name: name, args: args, environment: environment, executableURL: wineserverBinary,
-            fileHandle: fileHandle
+            fileHandle: fileHandle, qualityOfService: .userInteractive
         )
     }
 
@@ -327,6 +332,20 @@ public class Wine {
             applyToDescendants: overridesApplyToDescendants
         )
 
+        // DXVK's pipeline state cache defaults to a file next to the
+        // executable — inside the bottle, so deleting the bottle deletes the
+        // cache and the next install recompiles every shader it had already
+        // seen. The Metal-side caches (d3dm/dxmt) already live outside the
+        // bottle keyed by executable name; park DXVK's cache the same way.
+        // Gated on shouldEnableDXVK, not the effective backend: launcher
+        // auto-enable and the legacy per-program flag also render through
+        // DXVK. A user-provided DXVK_STATE_CACHE_PATH wins.
+        if shouldEnableDXVK, wineEnvironment["DXVK_STATE_CACHE_PATH"] == nil {
+            if let cachePath = dxvkStateCacheWindowsPath(forProgram: url, bottle: bottle) {
+                wineEnvironment["DXVK_STATE_CACHE_PATH"] = cachePath
+            }
+        }
+
         // Create a run log entry to track this session
         let programName = url.lastPathComponent
         var runLogEntry = RunLogEntry(programName: programName, logFileName: logFileURL.lastPathComponent)
@@ -362,11 +381,15 @@ public class Wine {
         }
 
         var exitCode: Int32 = 0
+        // Game launches run user-interactive: on Apple Silicon the QoS class
+        // decides whether the scheduler offers performance or efficiency
+        // cores first, and a frame-producing process belongs on the former.
+        // Utility Wine invocations and wineserver stay at .userInitiated.
         for await output in try runProcess(
             name: programName,
             args: launchArgs,
             environment: wineEnvironment, executableURL: wineBinary,
-            fileHandle: fileHandle
+            fileHandle: fileHandle, qualityOfService: .userInteractive
         ) {
             if case let .terminated(code) = output {
                 exitCode = code
@@ -386,6 +409,45 @@ public class Wine {
     }
 
     // swiftlint:enable function_body_length
+
+    /// Windows-visible path to a program's DXVK state cache, outside any bottle.
+    ///
+    /// The directory lives under the user's Caches directory keyed by
+    /// executable name plus the executable's file size, so it survives bottle
+    /// deletion the way the d3dm/dxmt shader caches do without two different
+    /// games that happen to share a filename ("Game.exe") sharing a cache.
+    /// The size is stable across a reinstall of the same build and changes
+    /// with a game update — at which point a fresh cache is correct anyway.
+    ///
+    /// The consumer is DXVK — a Windows-side DLL — which resolves a bare
+    /// `/Users/...` path against the current drive, so the value must be
+    /// spelled through the prefix's `z:` drive (Wine's standard mapping of
+    /// the Unix root). Returns `nil` when the directory cannot be created or
+    /// the bottle has no `z:` mapping — DXVK then falls back to its default
+    /// next-to-the-executable location, which is what shipped before.
+    static func dxvkStateCacheWindowsPath(forProgram programURL: URL, bottle: Bottle) -> String? {
+        guard let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else {
+            return nil
+        }
+        let zDrive = bottle.url.appending(path: "dosdevices").appending(path: "z:")
+        guard FileManager.default.fileExists(atPath: zDrive.path(percentEncoded: false)) else {
+            return nil
+        }
+        var key = programURL.lastPathComponent
+        let attributes = try? FileManager.default.attributesOfItem(
+            atPath: programURL.path(percentEncoded: false)
+        )
+        if let size = attributes?[.size] as? Int64 {
+            key += "-\(size)"
+        }
+        let dir = caches.appending(path: "dxvk-state").appending(path: key)
+        do {
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        } catch {
+            return nil
+        }
+        return "Z:" + dir.path(percentEncoded: false)
+    }
 
     /// Resolves the virtual desktop resolution string from per-program overrides.
     ///

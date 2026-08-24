@@ -125,12 +125,6 @@ public enum MacOSCompatibilityFixes {
             reason: "Improves D3DMetal stability on macOS 15.3+",
             appliesFrom: .sequoia15_3, category: .graphics
         ),
-        MacOSFix(
-            key: "WINE_DISABLE_NTDLL_THREAD_REGS", value: "1",
-            reason: "Fixes Wine preloader issues on Sequoia 15.3+",
-            appliesFrom: .sequoia15_3, category: .threading
-        ),
-
         // macOS 15.4+ fixes
         MacOSFix(
             key: "WINEFSYNC", value: "0",
@@ -138,57 +132,20 @@ public enum MacOSCompatibilityFixes {
             appliesFrom: .sequoia15_4, category: .threading
         ),
         MacOSFix(
-            key: "WINE_ENABLE_PIPE_SYNC_FOR_APP", value: "0",
-            reason: "Disables pipe sync that conflicts with 15.4 security changes",
-            appliesFrom: .sequoia15_4, category: .threading
-        ),
-        MacOSFix(
             key: "STEAM_RUNTIME", value: "0",
             reason: "Disables Steam Runtime (incompatible with Wine on macOS 15.4+)",
             appliesFrom: .sequoia15_4, category: .compatibility
-        ),
-        MacOSFix(
-            key: "WINE_CPU_TOPOLOGY", value: "8:8",
-            reason: "Configures thread topology for M-series compatibility on macOS 15.4+",
-            appliesFrom: .sequoia15_4, category: .threading
-        ),
-        MacOSFix(
-            key: "WINE_THREAD_PRIORITY_PRESERVE", value: "1",
-            reason: "Preserves thread priorities for wine-preloader stability",
-            appliesFrom: .sequoia15_4, category: .threading
-        ),
-        MacOSFix(
-            key: "WINE_ENABLE_POSIX_SIGNALS", value: "1",
-            reason: "Improves signal handling on macOS 15.4+",
-            appliesFrom: .sequoia15_4, category: .threading
-        ),
-        MacOSFix(
-            key: "WINE_SIGPIPE_IGNORE", value: "1",
-            reason: "Prevents SIGPIPE crashes on macOS 15.4+",
-            appliesFrom: .sequoia15_4, category: .threading
-        ),
-        MacOSFix(
-            key: "WINE_PRELOADER_DEBUG", value: "0",
-            reason: "Disables preloader debug for process creation reliability on 15.4+",
-            appliesFrom: .sequoia15_4, category: .compatibility
-        ),
-        MacOSFix(
-            key: "WINE_DISABLE_FAST_PATH", value: "1",
-            reason: "Disables fast path for process creation reliability on macOS 15.4+",
-            appliesFrom: .sequoia15_4, category: .compatibility
-        ),
-
-        // macOS 15.4.1+ fixes
-        MacOSFix(
-            key: "WINE_MACH_PORT_TIMEOUT", value: "30000",
-            reason: "Compensates for changed mach port handling in macOS 15.4.1",
-            appliesFrom: .sequoia15_4_1, category: .threading
-        ),
-        MacOSFix(
-            key: "WINE_MACH_PORT_RETRY_COUNT", value: "5",
-            reason: "Adds mach port retry resilience for macOS 15.4.1 regression",
-            appliesFrom: .sequoia15_4_1, category: .threading
         )
+
+        // A larger set of WINE_* knobs used to live here (CPU topology, thread
+        // priority, signal handling, mach port timeouts, preloader flags).
+        // Sweeping the shipped WhiskyWine 2.5.0 binaries — ntdll.so, wineserver,
+        // wine64, the preloader — shows none of those variable names anywhere:
+        // this Wine never reads them, so every launch was carrying dead weight
+        // that logs and diagnostics then reported as active fixes. The keys
+        // kept above are the ones something real consumes: WINEFSYNC by
+        // libd3dshared.dylib, STEAM_RUNTIME and the CEF variables by the
+        // Windows-side programs themselves, and the Metal variables by Metal.
     ]
 
     /// Returns only fixes applicable to the current macOS version.

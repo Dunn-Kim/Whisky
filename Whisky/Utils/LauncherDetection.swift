@@ -42,9 +42,17 @@ enum LauncherDetection {
     static func validateBottleForLauncher(_ bottle: Bottle, launcher: LauncherType) -> [String] {
         var warnings: [String] = []
 
+        // On .recommended the resolver already steers a detected launcher to
+        // DXVK, and .dxvk needs no warning — only a pinned backend the
+        // launcher cannot use deserves one.
+        let pinnedAwayFromDXVK: Bool = switch bottle.settings.graphicsBackend {
+        case .d3dMetal, .wined3d, .dxmt: true
+        case .recommended, .dxvk: false
+        }
+
         switch launcher {
         case .steam:
-            if !bottle.settings.dxvk {
+            if pinnedAwayFromDXVK {
                 warnings.append("⚠️ DXVK should be enabled for best Steam performance")
             }
             if bottle.settings.launcherLocale != .english, bottle.settings.launcherLocale != .auto {
@@ -55,7 +63,7 @@ enum LauncherDetection {
             }
 
         case .rockstar:
-            if !bottle.settings.dxvk {
+            if pinnedAwayFromDXVK {
                 warnings.append("❌ DXVK REQUIRED for Rockstar Launcher (logo won't display without it)")
             }
             if !bottle.settings.forceD3D11 {
@@ -88,6 +96,11 @@ enum LauncherDetection {
         case .paradox:
             if !bottle.settings.forceD3D11 {
                 warnings.append("⚠️ D3D11 mode recommended for Paradox Launcher")
+            }
+
+        case .zfGame:
+            if pinnedAwayFromDXVK {
+                warnings.append("❌ DXVK REQUIRED for ZFGame Browser (window will never paint)")
             }
         }
 
