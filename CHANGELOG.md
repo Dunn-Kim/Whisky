@@ -8,6 +8,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- DXVK bottles now compile Metal shaders in parallel
+  (`MVK_CONFIG_SHOULD_MAXIMIZE_CONCURRENT_COMPILATION=1`). MoltenVK's compile
+  is serial by default; on an 11-core M3 Pro that is ten cores idle while a
+  new shader stutters the frame.
+- DXVK's pipeline state cache now lives outside the bottle, keyed by
+  executable name — the same arrangement the d3dm/dxmt caches already had —
+  so deleting a bottle no longer costs the game its compiled-shader history.
+  A user-set `DXVK_STATE_CACHE_PATH` still wins.
+
+### Changed
+- Game launches now run at user-interactive quality of service. On Apple
+  Silicon the QoS class decides whether the scheduler offers performance or
+  efficiency cores first; utility Wine invocations and wineserver stay at
+  user-initiated.
+- App Nap prevention is on by default for new bottles. An occluded Wine
+  process gets demoted to the efficiency cores with its timers coalesced,
+  which reads as a background download stalling or audio hitching when the
+  game window is covered. Existing bottles keep their stored choice.
+- The Unity preset's `WINE_LARGE_ADDRESS_AWARE` is now `1` rather than
+  `65536` — ntdll reads it as a flag, so the old value worked by accident
+  and its comment ("file descriptor limit") described something else.
+
+### Removed
+- Twelve environment variables that the shipped WhiskyWine 2.5.0 runtime
+  never reads, verified by sweeping its binaries (ntdll.so, wineserver,
+  wine64, the preloader): the `WINE_CPU_TOPOLOGY=8:8` topology fix and nine
+  other `WINE_*` "macOS 15.4 stability" knobs from the platform layer, plus
+  `WINE_HEAP_REUSE`/`WINE_DISABLE_NTDLL_THREAD_REGS`/`WINEPRELOADRESERVE`
+  from the Unity preset and per-launcher presets. `WINEPRELOADRESERVE=1` was
+  worse than inert — the preloader parses that variable as a hex address
+  range. Launch logs and the diagnostics exporter reported all of these as
+  active fixes; none of them ever did anything. The keys that survive have
+  real consumers: `WINEFSYNC` is read by libd3dshared, the CEF and Steam
+  variables by the Windows-side programs themselves.
 - ZFGame Browser (`ZFGameBrowser.exe`), the Chromium launcher shell several
   Chinese publishers ship, is now recognised as a launcher. It was not, so it
   resolved to D3DMetal — where a Chromium client brings its window up and never
