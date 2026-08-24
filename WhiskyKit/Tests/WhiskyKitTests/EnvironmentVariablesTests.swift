@@ -102,6 +102,50 @@ final class EnvironmentVariablesTests: XCTestCase {
         XCTAssertEqual(env["DXVK_ASYNC"], "1")
     }
 
+    func testDXVKBackendEnablesConcurrentMetalShaderCompilation() {
+        var settings = BottleSettings()
+        settings.graphicsBackend = .dxvk
+
+        var env: [String: String] = [:]
+        settings.environmentVariables(wineEnv: &env)
+
+        // MoltenVK compiles Metal shaders serially unless told otherwise;
+        // Apple Silicon has the cores for it.
+        XCTAssertEqual(env["MVK_CONFIG_SHOULD_MAXIMIZE_CONCURRENT_COMPILATION"], "1")
+    }
+
+    func testOtherBackendsDoNotSetMoltenVKConfig() {
+        var settings = BottleSettings()
+        settings.graphicsBackend = .d3dMetal
+
+        var env: [String: String] = [:]
+        settings.environmentVariables(wineEnv: &env)
+
+        XCTAssertNil(env["MVK_CONFIG_SHOULD_MAXIMIZE_CONCURRENT_COMPILATION"])
+    }
+
+    func testPlatformFixesCarryNoUnreadWineKnobs() {
+        // Sweeping the shipped WhiskyWine 2.5.0 binaries (ntdll.so, wineserver,
+        // wine64, the preloader) showed none of these names anywhere. They must
+        // not come back: every launch exports the platform layer, and inert
+        // keys turn launch logs and diagnostics into fiction.
+        let unread = [
+            "WINE_CPU_TOPOLOGY", "WINE_THREAD_PRIORITY_PRESERVE",
+            "WINE_ENABLE_POSIX_SIGNALS", "WINE_SIGPIPE_IGNORE",
+            "WINE_PRELOADER_DEBUG", "WINE_DISABLE_FAST_PATH",
+            "WINE_MACH_PORT_TIMEOUT", "WINE_MACH_PORT_RETRY_COUNT",
+            "WINE_ENABLE_PIPE_SYNC_FOR_APP", "WINE_DISABLE_NTDLL_THREAD_REGS"
+        ]
+        let exported = Set(MacOSCompatibilityFixes.allFixes.map(\.key))
+        for key in unread {
+            XCTAssertFalse(exported.contains(key), "\(key) is not read by the shipped runtime")
+        }
+        // The survivors have real consumers: libd3dshared reads WINEFSYNC, the
+        // Windows-side programs read the CEF/Steam variables.
+        XCTAssertTrue(exported.contains("WINEFSYNC"))
+        XCTAssertTrue(exported.contains("CEF_DISABLE_SANDBOX"))
+    }
+
     // MARK: - Enhanced Sync Environment Variables
 
     func testEnvironmentVariablesWithESyncOnly() {
@@ -260,13 +304,14 @@ final class EnvironmentVariablesTests: XCTestCase {
         var env: [String: String] = [:]
         settings.environmentVariables(wineEnv: &env)
 
-        // Unity preset - il2cpp and threading optimizations
+        // Unity preset - il2cpp and address space fixes
         XCTAssertEqual(env["MONO_THREADS_SUSPEND"], "1")
-        XCTAssertEqual(env["WINE_LARGE_ADDRESS_AWARE"], "65536")
+        XCTAssertEqual(env["WINE_LARGE_ADDRESS_AWARE"], "1")
         XCTAssertEqual(env["D3DM_FORCE_D3D11"], "1")
-        XCTAssertEqual(env["WINE_HEAP_REUSE"], "0")
-        XCTAssertEqual(env["WINE_DISABLE_NTDLL_THREAD_REGS"], "1")
-        XCTAssertEqual(env["WINEPRELOADRESERVE"], "1")
+        // Verified unread by the shipped runtime; must no longer be exported
+        XCTAssertNil(env["WINE_HEAP_REUSE"])
+        XCTAssertNil(env["WINE_DISABLE_NTDLL_THREAD_REGS"])
+        XCTAssertNil(env["WINEPRELOADRESERVE"])
     }
 
     // MARK: - D3D11 and Shader Cache

@@ -842,6 +842,15 @@ public struct BottleSettings: Codable, Equatable {
             if dxvkAsync {
                 builder.set("DXVK_ASYNC", "1", layer: .bottleManaged)
             }
+            // DXVK renders through MoltenVK, whose Metal shader compilation is
+            // serial unless told otherwise. Apple Silicon has cores to spare
+            // for it, and spreading the compile across them is the difference
+            // between a stutter and a hitch on first sight of a new shader.
+            builder.set(
+                "MVK_CONFIG_SHOULD_MAXIMIZE_CONCURRENT_COMPILATION", "1",
+                layer: .bottleManaged,
+                reason: "Parallel Metal shader compilation on Apple Silicon"
+            )
 
         case .dxmt:
             // DXMT: native overrides for the D3D11 trio plus the builtin
@@ -1117,21 +1126,19 @@ public struct BottleSettings: Codable, Equatable {
 
             // Fix for il2cpp loading issues
             builder.set("MONO_THREADS_SUSPEND", "1", layer: .bottleManaged)
-            // Increase file descriptor limit for Unity games
-            builder.set("WINE_LARGE_ADDRESS_AWARE", "65536", layer: .bottleManaged)
+            // Lets 32-bit Unity titles use a 4GB address space. ntdll treats
+            // any non-zero value as "on"; the flag value keeps that honest.
+            builder.set("WINE_LARGE_ADDRESS_AWARE", "1", layer: .bottleManaged)
 
             // Unity games often work better with D3D11
             if !forceD3D11 {
                 builder.set("D3DM_FORCE_D3D11", "1", layer: .bottleManaged)
             }
 
-            // Disable features that can cause issues with Unity's IL2CPP runtime
-            builder.set("WINE_HEAP_REUSE", "0", layer: .bottleManaged)
-            // Help with thread management for Unity's job system
-            builder.set("WINE_DISABLE_NTDLL_THREAD_REGS", "1", layer: .bottleManaged)
-
-            // Unity games may need more virtual memory
-            builder.set("WINEPRELOADRESERVE", "1", layer: .bottleManaged)
+            // WINE_HEAP_REUSE, WINE_DISABLE_NTDLL_THREAD_REGS and
+            // WINEPRELOADRESERVE used to be set here. The shipped runtime reads
+            // none of them — and WINEPRELOADRESERVE is worse than inert: the
+            // preloader parses it as a hex address range, which "1" is not.
         }
     }
 
