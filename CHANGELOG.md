@@ -8,6 +8,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- ZFGame Browser (`ZFGameBrowser.exe`), the Chromium launcher shell several
+  Chinese publishers ship, is now recognised as a launcher. It was not, so it
+  resolved to D3DMetal — where a Chromium client brings its window up and never
+  paints — and left the user switching backends by hand to get a picture. It
+  now resolves to DXVK like every other launcher, and its preset enables DXVK
+  with async shader compilation. Its locale is deliberately left alone: these
+  launchers render a CJK UI that an `en_US` override turns into boxes.
+- Game database entry for Mecharashi, a Unity client ported from a mobile build
+  that ships no frame limiter of its own. It is rated unverified and carries no
+  `testedWith` block: the settings are what the client was observed running
+  with, plus a cap that has not been measured on this title yet.
+- Game database variants can now set `frameRateLimit`, so an entry can cap a
+  game that ships no limiter of its own. It accepts either the integer
+  (`60`) or a readable string (`"60"`, `"unlimited"`, `"matchDisplay"`), and an
+  unrecognised value leaves the setting alone rather than failing the entry.
+  Until now the most thermally significant setting in the app was the one
+  setting a database entry could not express except as a raw environment
+  variable.
 - DXVK bottles now compile Metal shaders in parallel
   (`MVK_CONFIG_SHOULD_MAXIMIZE_CONCURRENT_COMPILATION=1`). MoltenVK's compile
   is serial by default; on an 11-core M3 Pro that is ten cores idle while a
@@ -18,10 +36,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   A user-set `DXVK_STATE_CACHE_PATH` still wins.
 
 ### Changed
-- Game launches now run at user-interactive quality of service. On Apple
-  Silicon the QoS class decides whether the scheduler offers performance or
-  efficiency cores first; utility Wine invocations and wineserver stay at
-  user-initiated.
+- The `wine start` launch process now runs at user-interactive quality of
+  service. On Apple Silicon the QoS class decides whether the scheduler
+  offers performance or efficiency cores first; the boost covers the launch
+  process and what it spawns directly — how far it propagates into the
+  wineserver-parented game process has not been measured. Utility Wine
+  invocations and wineserver keep user-initiated.
 - App Nap prevention is on by default for new bottles. An occluded Wine
   process gets demoted to the efficiency cores with its timers coalesced,
   which reads as a background download stalling or audio hitching when the
@@ -42,24 +62,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   active fixes; none of them ever did anything. The keys that survive have
   real consumers: `WINEFSYNC` is read by libd3dshared, the CEF and Steam
   variables by the Windows-side programs themselves.
-- ZFGame Browser (`ZFGameBrowser.exe`), the Chromium launcher shell several
-  Chinese publishers ship, is now recognised as a launcher. It was not, so it
-  resolved to D3DMetal — where a Chromium client brings its window up and never
-  paints — and left the user switching backends by hand to get a picture. It
-  now resolves to DXVK like every other launcher, and its preset enables DXVK
-  with async shader compilation. Its locale is deliberately left alone: these
-  launchers render a CJK UI that an `en_US` override turns into boxes.
-- Game database entry for Mecharashi, a Unity client ported from a mobile build
-  that ships no frame limiter of its own. It is rated unverified and carries no
-  `testedWith` block: the settings are what the client was observed running
-  with, plus a cap that has not been measured on this title yet.
-- Game database variants can now set `frameRateLimit`, so an entry can cap a
-  game that ships no limiter of its own. It accepts either the integer
-  (`60`) or a readable string (`"60"`, `"unlimited"`, `"matchDisplay"`), and an
-  unrecognised value leaves the setting alone rather than failing the entry.
-  Until now the most thermally significant setting in the app was the one
-  setting a database entry could not express except as a raw environment
-  variable.
 - Bottles and individual programs can now cap the frame rate. A game with no
   limiter of its own renders as fast as the GPU allows: measured here at
   ~186 FPS on a 144 Hz display, which held an M3 Pro's GPU at its maximum

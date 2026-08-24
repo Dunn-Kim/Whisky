@@ -383,6 +383,9 @@ extension GameEntryDetailView {
                 value: sequoia ? "Enabled" : "Disabled"
             ))
         }
+        if let frameRateLimit = settings.frameRateLimit {
+            items.append(SettingDisplay(name: "Frame Rate Limit", value: frameRateLimit.label))
+        }
         return items
     }
 

@@ -156,15 +156,12 @@ All Versions:
 - CEF_DISABLE_SANDBOX=1
 
 macOS 15.4+:
-- WINE_CPU_TOPOLOGY=8:8
-- WINE_THREAD_PRIORITY_PRESERVE=1
-- WINE_ENABLE_POSIX_SIGNALS=1
-- WINE_DISABLE_FAST_PATH=1
-
-macOS 15.4.1+:
-- WINE_MACH_PORT_TIMEOUT=30000
-- WINE_MACH_PORT_RETRY_COUNT=5
+- WINEFSYNC=0
+- STEAM_RUNTIME=0
 ```
+
+(A larger `WINE_*` set — CPU topology, thread priority, signals, mach port
+timeouts — used to be exported here; these were removed after a binary sweep of WhiskyWine 2.5.0 showed the runtime never reads them.)
 
 #### Wine.swift (Modified)
 **Changes:** Auto-enable DXVK for launcher requirements

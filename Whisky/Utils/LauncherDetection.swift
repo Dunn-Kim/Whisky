@@ -91,8 +91,14 @@ enum LauncherDetection {
             }
 
         case .zfGame:
-            if !bottle.settings.dxvk {
+            // On .recommended the resolver already steers a detected launcher
+            // to DXVK, and .dxvk is fine by definition — warn only when the
+            // user pinned a backend the Chromium window cannot paint on.
+            switch bottle.settings.graphicsBackend {
+            case .d3dMetal, .wined3d, .dxmt:
                 warnings.append("❌ DXVK REQUIRED for ZFGame Browser (window will never paint)")
+            case .recommended, .dxvk:
+                break
             }
         }
 

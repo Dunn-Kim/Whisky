@@ -193,9 +193,11 @@ public enum LauncherFixes {
             bottle.settings.forceD3D11 = true
 
         case .zfGame:
-            // ZFGame Browser needs DXVK to render at all. The locale is left
-            // alone so its CJK UI keeps its font.
-            if force || !bottle.settings.dxvk {
+            // ZFGame Browser needs DXVK to render at all. Setting dxvk is a
+            // bottle-wide backend switch (the setter rewrites graphicsBackend),
+            // so honor the user's autoEnableDXVK choice the way Rockstar does.
+            // The locale is left alone so its CJK UI keeps its font.
+            if bottle.settings.autoEnableDXVK {
                 bottle.settings.dxvk = true
                 bottle.settings.dxvkAsync = true
             }

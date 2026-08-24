@@ -247,9 +247,10 @@ public enum LauncherType: String, Codable, CaseIterable, Sendable, Identifiable 
 
         case .zfGame:
             // ZFGame Browser is Chromium-based and will not paint on D3DMetal:
-            // the window comes up and stays blank.
+            // the window comes up and stays blank. The DXVK requirement itself
+            // is expressed by `requiresDXVK`, not an env var — nothing reads
+            // a "DXVK_REQUIRED" variable.
             // Note: CEF_DISABLE_SANDBOX is set globally in MacOSCompatibility.swift
-            env["DXVK_REQUIRED"] = "1"
 
             // Reduces stuttering while the launcher's web view animates
             env["DXVK_ASYNC"] = "1"
@@ -320,9 +321,9 @@ public enum LauncherType: String, Codable, CaseIterable, Sendable, Identifiable 
         case .ubisoft:
             "Improves launcher stability and game compatibility"
         case .battleNet:
-            "Fixes authentication and launcher rendering issues"
+            "Fixes launcher locale and rendering issues"
         case .paradox:
-            "Fixes recursive resource lookup bugs and initialization"
+            "Forces D3D11 mode for launcher stability"
         case .zfGame:
             "Fixes the blank launcher window caused by D3DMetal"
         }

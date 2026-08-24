@@ -199,7 +199,7 @@ public struct BottleSettings: Codable, Equatable {
         self.performanceConfig = try container.decodeIfPresent(
             BottlePerformanceConfig.self,
             forKey: .performanceConfig
-        ) ?? BottlePerformanceConfig()
+        ) ?? .legacyDecodeDefault
         self.launcherConfig = try container.decodeIfPresent(
             BottleLauncherConfig.self,
             forKey: .launcherConfig

@@ -133,6 +133,25 @@ final class GameApplicatorTests: XCTestCase {
         XCTAssertTrue(bottle.settings.dxvkAsync, "DXVK async should be enabled")
     }
 
+    @MainActor
+    func testLegacyDXVKFlagDoesNotClobberExplicitBackend() throws {
+        let bottle = try makeTestBottle()
+        defer { cleanupBottle(bottle) }
+
+        // The dxvk setter rewrites the backend (false -> .recommended), so an
+        // entry carrying both fields used to lose the backend it just chose —
+        // and with it, the frame cap that only DXMT/DXVK can apply.
+        let variant = makeTestVariant(graphicsBackend: .dxmt, dxvk: false)
+        let entry = makeTestEntry(variant: variant)
+
+        _ = try GameConfigApplicator.apply(entry: entry, variant: variant, to: bottle)
+
+        XCTAssertEqual(
+            bottle.settings.graphicsBackend, .dxmt,
+            "Explicit backend must survive the legacy dxvk flag"
+        )
+    }
+
     // MARK: - Test 3: Apply Adds DLL Overrides
 
     @MainActor

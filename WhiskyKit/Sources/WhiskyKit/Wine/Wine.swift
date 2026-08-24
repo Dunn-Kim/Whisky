@@ -332,10 +332,14 @@ public class Wine {
         // cache and the next install recompiles every shader it had already
         // seen. The Metal-side caches (d3dm/dxmt) already live outside the
         // bottle keyed by executable name; park DXVK's cache the same way.
-        // A user-provided DXVK_STATE_CACHE_PATH wins.
-        if effectiveBackend == .dxvk, wineEnvironment["DXVK_STATE_CACHE_PATH"] == nil {
-            if let cacheDir = dxvkStateCacheDirectory(forProgram: url.lastPathComponent) {
-                wineEnvironment["DXVK_STATE_CACHE_PATH"] = cacheDir.path(percentEncoded: false)
+        // Gated on shouldEnableDXVK, not the effective backend: launcher
+        // auto-enable and the legacy per-program flag also render through
+        // DXVK. A user-provided DXVK_STATE_CACHE_PATH wins.
+        if shouldEnableDXVK, wineEnvironment["DXVK_STATE_CACHE_PATH"] == nil {
+            if let cachePath = dxvkStateCacheWindowsPath(
+                forProgram: url.lastPathComponent, bottle: bottle
+            ) {
+                wineEnvironment["DXVK_STATE_CACHE_PATH"] = cachePath
             }
         }
 
@@ -403,23 +407,31 @@ public class Wine {
 
     // swiftlint:enable function_body_length
 
-    /// Directory for a program's DXVK pipeline state cache, outside any bottle.
+    /// Windows-visible path to a program's DXVK state cache, outside any bottle.
     ///
-    /// Lives under the user's Caches directory keyed by executable name, so it
-    /// survives bottle deletion the way the d3dm/dxmt shader caches do. Returns
-    /// `nil` if the directory cannot be created — DXVK then falls back to its
-    /// default next-to-the-executable location.
-    static func dxvkStateCacheDirectory(forProgram programName: String) -> URL? {
+    /// The directory lives under the user's Caches directory keyed by
+    /// executable name, so it survives bottle deletion the way the d3dm/dxmt
+    /// shader caches do. The consumer is DXVK — a Windows-side DLL — which
+    /// resolves a bare `/Users/...` path against the current drive, so the
+    /// value must be spelled through the prefix's `z:` drive (Wine's standard
+    /// mapping of the Unix root). Returns `nil` when the directory cannot be
+    /// created or the bottle has no `z:` mapping — DXVK then falls back to its
+    /// default next-to-the-executable location, which is what shipped before.
+    static func dxvkStateCacheWindowsPath(forProgram programName: String, bottle: Bottle) -> String? {
         guard let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else {
+            return nil
+        }
+        let zDrive = bottle.url.appending(path: "dosdevices").appending(path: "z:")
+        guard FileManager.default.fileExists(atPath: zDrive.path(percentEncoded: false)) else {
             return nil
         }
         let dir = caches.appending(path: "dxvk-state").appending(path: programName)
         do {
             try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-            return dir
         } catch {
             return nil
         }
+        return "Z:" + dir.path(percentEncoded: false)
     }
 
     /// Resolves the virtual desktop resolution string from per-program overrides.

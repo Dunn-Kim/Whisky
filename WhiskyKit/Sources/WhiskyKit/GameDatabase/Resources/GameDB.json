@@ -6121,8 +6121,6 @@
           ],
           "settings": {
             "graphicsBackend": "dxmt",
-            "dxvk": false,
-            "dxvkAsync": false,
             "enhancedSync": "msync",
             "forceD3D11": false,
             "performancePreset": "unity",
@@ -6138,7 +6136,7 @@
       ],
       "notes": [
         "No testedWith block on purpose. These settings are what the client was observed running with plus the frame cap, and the cap has not been measured on this title yet. The rating stays unverified until it has been.",
-        "The launcher, ZFGameBrowser.exe, is Chromium-based and never paints on D3DMetal. It is detected as a launcher now, so it resolves to DXVK on its own; the game executable keeps the DXMT settings above.",
+        "The launcher, ZFGameBrowser.exe, is Chromium-based and never paints on D3DMetal. It is detected as a launcher now, so on the Recommended backend it resolves to DXVK on its own. Launcher auto-detection with Auto-enable DXVK on switches the whole bottle to DXVK; to keep the game on DXMT alongside the launcher, pin DXVK on ZFGameBrowser.exe with a per-program override instead.",
         "This is a mobile-origin client. Its own graphics menu tops out well below what the Mac can draw, so lowering in-game settings does little for heat. The frame cap is what moves it."
       ],
       "knownIssues": [
