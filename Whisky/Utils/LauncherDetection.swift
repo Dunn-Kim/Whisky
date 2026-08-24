@@ -89,6 +89,11 @@ enum LauncherDetection {
             if !bottle.settings.forceD3D11 {
                 warnings.append("⚠️ D3D11 mode recommended for Paradox Launcher")
             }
+
+        case .zfGame:
+            if !bottle.settings.dxvk {
+                warnings.append("❌ DXVK REQUIRED for ZFGame Browser (window will never paint)")
+            }
         }
 
         // General warnings

@@ -173,6 +173,20 @@ extension LauncherType {
                     category: .graphics
                 )
             ]
+
+        case .zfGame:
+            [
+                LauncherFixDetail(
+                    key: "DXVK_REQUIRED", value: "1",
+                    reason: "Chromium launcher will not paint on D3DMetal",
+                    category: .graphics
+                ),
+                LauncherFixDetail(
+                    key: "DXVK_ASYNC", value: "1",
+                    reason: "Reduces stuttering in the launcher's web view",
+                    category: .graphics
+                )
+            ]
         }
     }
 
