@@ -225,9 +225,6 @@ public enum LauncherType: String, Codable, CaseIterable, Sendable, Identifiable 
             // Epic launcher stability improvements
             env["D3DM_FORCE_D3D11"] = "1"
 
-            // Thread safety for Epic's web views
-            env["WINE_DISABLE_NTDLL_THREAD_REGS"] = "1"
-
         case .ubisoft:
             // Ubisoft Connect fixes (whisky-app/whisky#1004)
             // Requires D3D11 mode
@@ -244,15 +241,8 @@ public enum LauncherType: String, Codable, CaseIterable, Sendable, Identifiable 
             // Note: CEF_DISABLE_SANDBOX is set globally in MacOSCompatibility.swift
             env["LC_ALL"] = "en_US.UTF-8"
 
-            // Battle.net requires specific threading
-            env["WINE_CPU_TOPOLOGY"] = "8:8"
-
         case .paradox:
             // Paradox Launcher fixes (whisky-app/whisky#1091)
-            // Resource lookup bug workaround
-            env["WINE_DISABLE_FAST_PATH"] = "1"
-
-            // Launcher initialization
             env["D3DM_FORCE_D3D11"] = "1"
 
         case .zfGame:

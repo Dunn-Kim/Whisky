@@ -90,8 +90,8 @@ final class LauncherPresetTests: XCTestCase {
 
         // Epic-specific settings
         XCTAssertEqual(env["LC_ALL"], "en_US.UTF-8")
-        XCTAssertEqual(env["WINE_DISABLE_NTDLL_THREAD_REGS"], "1")
         XCTAssertEqual(env["D3DM_FORCE_D3D11"], "1")
+        XCTAssertNil(env["WINE_DISABLE_NTDLL_THREAD_REGS"], "Unread by the shipped runtime")
     }
 
     func testUbisoftPreset() {
@@ -110,15 +110,14 @@ final class LauncherPresetTests: XCTestCase {
 
         // Battle.net-specific settings
         XCTAssertEqual(env["LC_ALL"], "en_US.UTF-8")
-        XCTAssertEqual(env["WINE_CPU_TOPOLOGY"], "8:8")
+        XCTAssertNil(env["WINE_CPU_TOPOLOGY"], "Unread by the shipped runtime")
     }
 
     func testParadoxPreset() {
         let env = LauncherType.paradox.environmentOverrides()
 
-        // Paradox Launcher resource lookup workaround
-        XCTAssertEqual(env["WINE_DISABLE_FAST_PATH"], "1")
         XCTAssertEqual(env["D3DM_FORCE_D3D11"], "1")
+        XCTAssertNil(env["WINE_DISABLE_FAST_PATH"], "Unread by the shipped runtime")
     }
 
     func testRecommendedLocales() {

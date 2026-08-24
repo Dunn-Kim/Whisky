@@ -124,11 +124,6 @@ extension LauncherType {
                     key: "D3DM_FORCE_D3D11", value: "1",
                     reason: "Improves launcher UI rendering stability",
                     category: .graphics
-                ),
-                LauncherFixDetail(
-                    key: "WINE_DISABLE_NTDLL_THREAD_REGS", value: "1",
-                    reason: "Fixes thread safety for Epic web views",
-                    category: .threading
                 )
             ]
 
@@ -152,21 +147,11 @@ extension LauncherType {
                     key: "LC_ALL", value: "en_US.UTF-8",
                     reason: "Fixes Chromium-based launcher locale issues",
                     category: .locale
-                ),
-                LauncherFixDetail(
-                    key: "WINE_CPU_TOPOLOGY", value: "8:8",
-                    reason: "Configures threading for Battle.net authentication",
-                    category: .threading
                 )
             ]
 
         case .paradox:
             [
-                LauncherFixDetail(
-                    key: "WINE_DISABLE_FAST_PATH", value: "1",
-                    reason: "Fixes recursive resource lookup bug",
-                    category: .compatibility
-                ),
                 LauncherFixDetail(
                     key: "D3DM_FORCE_D3D11", value: "1",
                     reason: "Improves launcher initialization",
