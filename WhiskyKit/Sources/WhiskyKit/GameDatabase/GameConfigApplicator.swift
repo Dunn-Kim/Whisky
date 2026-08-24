@@ -255,6 +255,15 @@ public enum GameConfigApplicator {
             ))
         }
 
+        if let frameRateLimit = settings.frameRateLimit, frameRateLimit != bottle.settings.frameRateLimit {
+            changes.append(ConfigChange(
+                category: "Graphics",
+                settingName: "Frame Rate Limit",
+                currentValue: bottle.settings.frameRateLimit.label,
+                newValue: frameRateLimit.label
+            ))
+        }
+
         // Performance settings
         if let enhancedSync = settings.enhancedSync, enhancedSync != bottle.settings.enhancedSync {
             changes.append(ConfigChange(
@@ -405,6 +414,10 @@ public enum GameConfigApplicator {
 
         if let sequoiaCompatMode = settings.sequoiaCompatMode {
             bottle.settings.sequoiaCompatMode = sequoiaCompatMode
+        }
+
+        if let frameRateLimit = settings.frameRateLimit {
+            bottle.settings.frameRateLimit = frameRateLimit
         }
     }
 
