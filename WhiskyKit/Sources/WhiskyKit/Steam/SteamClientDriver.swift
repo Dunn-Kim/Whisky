@@ -104,10 +104,7 @@ public final class WineSteamClientDriver: SteamClientDriver {
     }
 
     public func processList() async -> [WineProcess] {
-        guard let output = try? await Wine.runWine(["tasklist.exe", "/FO", "CSV"], bottle: bottle) else {
-            return []
-        }
-        return Wine.parseTasklistOutput(output)
+        await (try? Wine.listProcesses(for: bottle)) ?? []
     }
 
     /// `steam.exe -silent` runs for the whole session, so the run is never awaited.

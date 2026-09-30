@@ -124,11 +124,14 @@ public class Wine {
     /// - Throws: An error if the process cannot be started.
     @MainActor
     public static func runWineProcess(
-        name: String? = nil, args: [String], bottle: Bottle, environment: [String: String] = [:]
+        name: String? = nil, args: [String], bottle: Bottle, environment: [String: String] = [:],
+        createsLogFile: Bool = true
     ) throws -> AsyncStream<ProcessOutput> {
-        let fileHandle = try makeFileHandle()
-        fileHandle.writeApplicationInfo()
-        fileHandle.writeInfo(for: bottle)
+        // No log for polls whose output is parsed rather than read (tasklist.exe):
+        // a file per poll buries the launch logs people are asked to attach.
+        let fileHandle = try createsLogFile ? makeFileHandle() : nil
+        fileHandle?.writeApplicationInfo()
+        fileHandle?.writeInfo(for: bottle)
 
         WineUserProfile.reconcile(bottleURL: bottle.url)
         let wineEnvironment = constructWineEnvironment(for: bottle, environment: environment)
@@ -581,10 +584,12 @@ public class Wine {
     @discardableResult
     @MainActor
     public static func runWine(
-        _ args: [String], bottle: Bottle?, environment: [String: String] = [:]
+        _ args: [String], bottle: Bottle?, environment: [String: String] = [:], createsLogFile: Bool = true
     ) async throws -> String {
         if let bottle {
-            return try await collectOutput(runWineProcess(args: args, bottle: bottle, environment: environment))
+            return try await collectOutput(runWineProcess(
+                args: args, bottle: bottle, environment: environment, createsLogFile: createsLogFile
+            ))
         }
         let fileHandle = try makeFileHandle()
         fileHandle.writeApplicationInfo()
@@ -1140,18 +1145,71 @@ public extension Wine {
     /// - Returns: A tuple of the open `FileHandle` and its log file `URL`.
     /// - Throws: An error if the log directory or file cannot be created.
     static func makeFileHandleWithURL() throws -> (FileHandle, URL) {
-        if !FileManager.default.fileExists(atPath: logsFolder.path) {
-            try FileManager.default.createDirectory(at: logsFolder, withIntermediateDirectories: true)
+        try makeLogFile(in: logsFolderOverride ?? logsFolder, date: .now)
+    }
+
+    /// The folder ``makeFileHandleWithURL()`` creates logs in, instead of ``logsFolder``,
+    /// for as long as a task binds it. Tests bind a temporary folder of their own, so the
+    /// helper runs they make never write under `~/Library/Logs`, and test processes
+    /// running in parallel never share a logs folder.
+    @TaskLocal internal static var logsFolderOverride: URL?
+
+    /// Creates a new log file in `folder`, named for `date`, and opens it for writing.
+    ///
+    /// The name is the ISO 8601 timestamp to the millisecond, with `-2`, `-3` and so on
+    /// appended while that name is taken, and the file is only ever created, never
+    /// replaced. Names used to stop at the second and the file was written atomically,
+    /// so a helper started in the same second as a launch, such as the DLL override
+    /// import, replaced the launch's log: the program went on writing to a file that
+    /// was no longer on disk, and the log recorded for the run held only the helper's
+    /// output.
+    ///
+    /// - Parameters:
+    ///   - folder: The directory to create the log in. It is created if missing.
+    ///   - date: The time the log is named for.
+    /// - Returns: A tuple of the open `FileHandle` and its log file `URL`.
+    /// - Throws: An error if the log directory or file cannot be created.
+    internal static func makeLogFile(in folder: URL, date: Date) throws -> (FileHandle, URL) {
+        if !FileManager.default.fileExists(atPath: folder.path) {
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         }
 
         // Enforce retention before creating a new log file.
         // This is best-effort and only impacts Whisky's own log directory.
-        enforceLogRetention(in: logsFolder, maxTotalBytes: maxLogsFolderBytes)
+        enforceLogRetention(in: folder, maxTotalBytes: maxLogsFolderBytes)
 
-        let dateString = Date.now.ISO8601Format()
-        let fileURL = Self.logsFolder.appending(path: dateString).appendingPathExtension("log")
-        try "".write(to: fileURL, atomically: true, encoding: .utf8)
-        return try (FileHandle(forWritingTo: fileURL), fileURL)
+        let timestamp = date.formatted(Date.ISO8601FormatStyle(includingFractionalSeconds: true))
+        for attempt in 1 ... maxLogNameAttempts {
+            let name = attempt == 1 ? timestamp : "\(timestamp)-\(attempt)"
+            let fileURL = folder.appending(path: name).appendingPathExtension("log")
+            if let handle = try createNewFile(at: fileURL) {
+                return (handle, fileURL)
+            }
+        }
+        throw POSIXError(.EEXIST)
+    }
+
+    /// How many names ``makeLogFile(in:date:)`` tries for one timestamp.
+    private static let maxLogNameAttempts = 100
+
+    /// Creates a file at `url` and opens it for writing, or returns `nil` when
+    /// something already exists there. `O_EXCL` makes the check and the creation
+    /// one step, so two writers can never end up sharing a path.
+    private static func createNewFile(at url: URL) throws -> FileHandle? {
+        let (descriptor, error) = url.withUnsafeFileSystemRepresentation { path -> (Int32, Int32) in
+            guard let path else {
+                return (-1, EINVAL)
+            }
+            let descriptor = open(path, O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0o644)
+            return (descriptor, descriptor < 0 ? errno : 0)
+        }
+        if descriptor >= 0 {
+            return FileHandle(fileDescriptor: descriptor, closeOnDealloc: true)
+        }
+        guard error == EEXIST else {
+            throw POSIXError(POSIXErrorCode(rawValue: error) ?? .EIO)
+        }
+        return nil
     }
 
     /// Classifies the output from a Wine process run for crash patterns.
