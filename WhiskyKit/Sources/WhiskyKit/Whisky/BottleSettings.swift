@@ -97,7 +97,7 @@ public struct BottleInfo: Codable, Equatable {
 /// - **Wine Config**: Windows version, AVX, enhanced sync
 /// - **Metal Config**: Metal HUD, DXR, validation
 /// - **DXVK Config**: DXVK enable, async, HUD
-/// - **Performance Config**: Presets, shader cache, D3D11 mode
+/// - **Performance Config**: Shader cache, D3D11 mode
 ///
 /// ## Example
 ///
@@ -989,7 +989,6 @@ public struct BottleSettings: Codable, Equatable {
         // fixes on every supported macOS, so the toggle's off position changed
         // nothing and its on position only hid the provenance.
 
-
         // Shader cache control. DXVK_STATE_CACHE is the variable DXVK actually
         // reads; the previous pair (a compile-thread throttle and an NVIDIA GL
         // driver variable) changed nothing on this platform.
@@ -1134,7 +1133,6 @@ public struct BottleSettings: Codable, Equatable {
         }
     }
 
-    /// Populates performance preset environment variables into the bottleManaged layer.
     // MARK: - Deprecated Environment Variable API
 
     /// Populates a Wine environment dictionary based on these settings.
