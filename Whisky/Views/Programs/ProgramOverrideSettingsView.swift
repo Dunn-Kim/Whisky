@@ -369,8 +369,7 @@ struct ProgramOverrideSettingsView: View {
                 performanceControls
             } else {
                 inheritedSummary(
-                    "\(bottle.settings.performancePreset.description()), "
-                        + "Shader Cache \(bottle.settings.shaderCacheEnabled ? "On" : "Off"), "
+                    "Shader Cache \(bottle.settings.shaderCacheEnabled ? "On" : "Off"), "
                         + "Force D3D11 \(bottle.settings.forceD3D11 ? "On" : "Off")"
                 )
             }
@@ -379,14 +378,6 @@ struct ProgramOverrideSettingsView: View {
 
     @ViewBuilder
     private var performanceControls: some View {
-        Picker(
-            "config.performancePreset",
-            selection: override(\.performancePreset, fallback: bottle.settings.performancePreset)
-        ) {
-            ForEach(PerformancePreset.allCases, id: \.self) { preset in
-                Text(preset.description()).tag(preset)
-            }
-        }
         Toggle("config.shaderCache", isOn: override(\.shaderCacheEnabled, fallback: bottle.settings.shaderCacheEnabled))
         Toggle("config.forceD3D11", isOn: override(\.forceD3D11, fallback: bottle.settings.forceD3D11))
     }
@@ -601,7 +592,8 @@ struct ProgramOverrideSettingsView: View {
     }
 
     private var hasPerformanceOverride: Bool {
-        program.settings.overrides?.performancePreset != nil
+        program.settings.overrides?.shaderCacheEnabled != nil
+            || program.settings.overrides?.forceD3D11 != nil
     }
 
     private var hasInputOverride: Bool {
@@ -692,11 +684,9 @@ struct ProgramOverrideSettingsView: View {
             set: { isOn in
                 ensureOverrides()
                 if isOn {
-                    program.settings.overrides?.performancePreset = bottle.settings.performancePreset
                     program.settings.overrides?.shaderCacheEnabled = bottle.settings.shaderCacheEnabled
                     program.settings.overrides?.forceD3D11 = bottle.settings.forceD3D11
                 } else {
-                    program.settings.overrides?.performancePreset = nil
                     program.settings.overrides?.shaderCacheEnabled = nil
                     program.settings.overrides?.forceD3D11 = nil
                 }

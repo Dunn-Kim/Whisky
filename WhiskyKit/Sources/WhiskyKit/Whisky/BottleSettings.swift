@@ -106,7 +106,6 @@ public struct BottleInfo: Codable, Equatable {
 /// settings.name = "Gaming"
 /// settings.windowsVersion = .win10
 /// settings.dxvk = true
-/// settings.performancePreset = .performance
 /// ```
 ///
 /// ## Topics
@@ -135,7 +134,6 @@ public struct BottleInfo: Codable, Equatable {
 /// - ``dxvkHud``
 ///
 /// ### Performance
-/// - ``performancePreset``
 /// - ``shaderCacheEnabled``
 /// - ``forceD3D11``
 /// - ``vcRedistInstalled``
@@ -511,15 +509,6 @@ public struct BottleSettings: Codable, Equatable {
     }
 
     // MARK: - Performance settings
-
-    /// The performance optimization preset.
-    ///
-    /// Presets configure multiple settings at once for different
-    /// use cases like gaming, quality, or Unity games.
-    public var performancePreset: PerformancePreset {
-        get { performanceConfig.performancePreset }
-        set { performanceConfig.performancePreset = newValue }
-    }
 
     /// Whether shader caching is enabled.
     ///
@@ -1000,8 +989,6 @@ public struct BottleSettings: Codable, Equatable {
         // fixes on every supported macOS, so the toggle's off position changed
         // nothing and its on position only hid the provenance.
 
-        // Performance preset handling (whisky-app/whisky#1361 - FPS regression fix)
-        populatePerformancePreset(builder: &builder)
 
         // Shader cache control. DXVK_STATE_CACHE is the variable DXVK actually
         // reads; the previous pair (a compile-thread throttle and an NVIDIA GL
@@ -1148,53 +1135,6 @@ public struct BottleSettings: Codable, Equatable {
     }
 
     /// Populates performance preset environment variables into the bottleManaged layer.
-    private func populatePerformancePreset(builder: inout EnvironmentBuilder) {
-        switch performancePreset {
-        case .balanced:
-            // Default settings, no changes needed
-            break
-
-        case .performance:
-            // Performance mode - prioritize FPS over visual quality (whisky-app/whisky#1361 fix)
-            // Disable extra validation that can slow down rendering
-            builder.set("D3DM_VALIDATION", "0", layer: .bottleManaged)
-            builder.set("MTL_DEBUG_LAYER", "0", layer: .bottleManaged)
-            // Enable DXVK async if not already enabled via the DXVK setting
-            if !dxvkAsync {
-                builder.set("DXVK_ASYNC", "1", layer: .bottleManaged)
-            }
-            // Use more aggressive shader compilation
-            builder.set("DXVK_SHADER_OPT_LEVEL", "0", layer: .bottleManaged)
-            // Reduce Metal resource tracking overhead
-            builder.set("MTL_ENABLE_METAL_EVENTS", "0", layer: .bottleManaged)
-
-        case .quality:
-            // Quality mode - prioritize visuals over performance
-            // Enable shader optimizations
-            builder.set("DXVK_SHADER_OPT_LEVEL", "2", layer: .bottleManaged)
-
-        case .unity:
-            // Unity games optimization (whisky-app/whisky#1313, #1312 - il2cpp fix)
-            // Unity games often need specific memory and threading settings
-
-            // Fix for il2cpp loading issues
-            builder.set("MONO_THREADS_SUSPEND", "1", layer: .bottleManaged)
-            // Lets 32-bit Unity titles use a 4GB address space. ntdll treats
-            // any non-zero value as "on"; the flag value keeps that honest.
-            builder.set("WINE_LARGE_ADDRESS_AWARE", "1", layer: .bottleManaged)
-
-            // Unity games often work better with D3D11
-            if !forceD3D11 {
-                builder.set("D3DM_FORCE_D3D11", "1", layer: .bottleManaged)
-            }
-
-            // WINE_HEAP_REUSE, WINE_DISABLE_NTDLL_THREAD_REGS and
-            // WINEPRELOADRESERVE used to be set here. The shipped runtime reads
-            // none of them — and WINEPRELOADRESERVE is worse than inert: the
-            // preloader parses it as a hex address range, which "1" is not.
-        }
-    }
-
     // MARK: - Deprecated Environment Variable API
 
     /// Populates a Wine environment dictionary based on these settings.

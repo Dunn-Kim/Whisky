@@ -309,49 +309,6 @@ final class EnvironmentVariablesTests: XCTestCase {
 
     // MARK: - Performance Preset Environment Variables
 
-    func testEnvironmentVariablesWithPerformancePreset() {
-        var settings = BottleSettings()
-        settings.graphicsBackend = .dxvk
-        settings.performancePreset = .performance
-
-        var env: [String: String] = [:]
-        settings.environmentVariables(wineEnv: &env)
-
-        // Performance preset - prioritize FPS over visual quality
-        XCTAssertEqual(env["D3DM_VALIDATION"], "0")
-        XCTAssertEqual(env["MTL_DEBUG_LAYER"], "0")
-        XCTAssertEqual(env["DXVK_ASYNC"], "1")
-        XCTAssertEqual(env["DXVK_SHADER_OPT_LEVEL"], "0")
-        XCTAssertEqual(env["MTL_ENABLE_METAL_EVENTS"], "0")
-    }
-
-    func testEnvironmentVariablesWithQualityPreset() {
-        var settings = BottleSettings()
-        settings.performancePreset = .quality
-
-        var env: [String: String] = [:]
-        settings.environmentVariables(wineEnv: &env)
-
-        XCTAssertEqual(env["DXVK_SHADER_OPT_LEVEL"], "2")
-    }
-
-    func testEnvironmentVariablesWithUnityPreset() {
-        var settings = BottleSettings()
-        settings.performancePreset = .unity
-
-        var env: [String: String] = [:]
-        settings.environmentVariables(wineEnv: &env)
-
-        // Unity preset - il2cpp and address space fixes
-        XCTAssertEqual(env["MONO_THREADS_SUSPEND"], "1")
-        XCTAssertEqual(env["WINE_LARGE_ADDRESS_AWARE"], "1")
-        XCTAssertEqual(env["D3DM_FORCE_D3D11"], "1")
-        // Verified unread by the shipped runtime; must no longer be exported
-        XCTAssertNil(env["WINE_HEAP_REUSE"])
-        XCTAssertNil(env["WINE_DISABLE_NTDLL_THREAD_REGS"])
-        XCTAssertNil(env["WINEPRELOADRESERVE"])
-    }
-
     // MARK: - D3D11 and Shader Cache
 
     func testEnvironmentVariablesWithForceD3D11() {
