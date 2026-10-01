@@ -210,7 +210,9 @@ struct ContentView: View {
             // sheet over the main window and race every toolbar interaction.
             guard !WhiskyApp.isUITesting else { return }
 
-            if !WhiskyWineInstaller.isWhiskyWineInstalled() {
+            // Rosetta too: a major macOS update can remove it, and the x86_64 wine
+            // then fails every launch with "Bad CPU type in executable".
+            if !WhiskyWineInstaller.isWhiskyWineInstalled() || !Rosetta2.isRosettaInstalled {
                 showSetup = true
             }
             let task = Task.detached {

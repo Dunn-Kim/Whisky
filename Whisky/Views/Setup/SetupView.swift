@@ -68,8 +68,10 @@ struct SetupView: View {
             // still undecided) we must show it even when the runtime is missing —
             // otherwise the opt-in would be unreachable. The only call site
             // (ContentView) always passes `firstTime: false`, so the consent check,
-            // not `firstTime`, is what keeps the welcome screen reachable.
-            if !firstTime, Telemetry.consent != .undecided, !WhiskyWineInstaller.isWhiskyWineInstalled() {
+            // not `firstTime`, is what keeps the welcome screen reachable. A missing
+            // Rosetta also keeps it: the download stage skips the Rosetta step.
+            if !firstTime, Telemetry.consent != .undecided, Rosetta2.isRosettaInstalled,
+               !WhiskyWineInstaller.isWhiskyWineInstalled() {
                 path = [.whiskyWineDownload]
             }
         }
