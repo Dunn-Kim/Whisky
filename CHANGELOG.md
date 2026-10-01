@@ -83,6 +83,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   failed its first swapchain resolution switch. Every translation DLL the
   chosen backend does not install itself is now restored to Wine's builtin
   before launch.
+- A missing Rosetta 2 now opens setup at launch. A major macOS update (seen
+  going 26.6.2 → 27.0) can remove it, and the x86_64 wine then fails every
+  launch with "Bad CPU type in executable" — surfaced only as a log holding
+  the `reg import` header and nothing else, because setup was offered only
+  when the wine runtime itself was missing. Rosetta is now checked on each
+  read rather than once per app launch, so reinstalling it doesn't leave
+  setup reopening.
 
 ### Changed
 - The Processes page no longer spawns a Wine process for every 3-second
