@@ -265,7 +265,10 @@ struct ProgramOverrideSettingsView: View {
             )
             if hasGraphicsOverride {
                 // Backend picker
-                Picker("config.graphics.backend", selection: graphicsBackendBinding) {
+                Picker(
+                    "config.graphics.backend",
+                    selection: override(\.graphicsBackend, fallback: bottle.settings.graphicsBackend)
+                ) {
                     // Payload-gated backends (DXMT on an old runtime) are not
                     // offered — except when this program already uses one, so
                     // the picker can still display the current selection.
@@ -281,7 +284,10 @@ struct ProgramOverrideSettingsView: View {
                 // Frame cap applies to every backend that ships a limiter, not
                 // just DXVK, so it sits outside the DXVK-only controls below.
                 if resolvedOverriddenBackend.supportsFrameRateLimit {
-                    Picker("config.frameRateLimit", selection: frameRateLimitBinding) {
+                    Picker(
+                        "config.frameRateLimit",
+                        selection: override(\.frameRateLimit, fallback: bottle.settings.frameRateLimit)
+                    ) {
                         ForEach(FrameRateLimit.allCases, id: \.self) { limit in
                             Text(limit.label).tag(limit)
                         }
@@ -298,7 +304,7 @@ struct ProgramOverrideSettingsView: View {
                 // this is the one graphics setting a single title needs to be
                 // able to turn off while the bottle keeps it.
                 if resolvedOverriddenBackend == .d3dMetal {
-                    Toggle("config.metal4", isOn: metal4Binding)
+                    Toggle("config.metal4", isOn: override(\.metal4Enabled, fallback: bottle.settings.metal4Enabled))
                 }
 
                 // "Takes effect next launch" note
@@ -319,8 +325,8 @@ struct ProgramOverrideSettingsView: View {
 
     @ViewBuilder
     private var graphicsControls: some View {
-        Toggle("config.dxvk.async", isOn: dxvkAsyncBinding)
-        Picker("config.dxvkHud", selection: dxvkHudBinding) {
+        Toggle("config.dxvk.async", isOn: override(\.dxvkAsync, fallback: bottle.settings.dxvkAsync))
+        Picker("config.dxvkHud", selection: override(\.dxvkHud, fallback: bottle.settings.dxvkHud)) {
             Text("config.dxvkHud.full").tag(DXVKHUD.full)
             Text("config.dxvkHud.partial").tag(DXVKHUD.partial)
             Text("config.dxvkHud.fps").tag(DXVKHUD.fps)
@@ -337,7 +343,10 @@ struct ProgramOverrideSettingsView: View {
                 isOn: syncOverrideBinding
             )
             if hasSyncOverride {
-                Picker("config.enhancedSync", selection: enhancedSyncBinding) {
+                Picker(
+                    "config.enhancedSync",
+                    selection: override(\.enhancedSync, fallback: bottle.settings.enhancedSync)
+                ) {
                     Text("config.enhancedSync.none").tag(EnhancedSync.none)
                     Text("config.enhancedSync.esync").tag(EnhancedSync.esync)
                     Text("config.enhancedSync.msync").tag(EnhancedSync.msync)
@@ -370,13 +379,16 @@ struct ProgramOverrideSettingsView: View {
 
     @ViewBuilder
     private var performanceControls: some View {
-        Picker("config.performancePreset", selection: performancePresetBinding) {
+        Picker(
+            "config.performancePreset",
+            selection: override(\.performancePreset, fallback: bottle.settings.performancePreset)
+        ) {
             ForEach(PerformancePreset.allCases, id: \.self) { preset in
                 Text(preset.description()).tag(preset)
             }
         }
-        Toggle("config.shaderCache", isOn: shaderCacheBinding)
-        Toggle("config.forceD3D11", isOn: forceD3D11Binding)
+        Toggle("config.shaderCache", isOn: override(\.shaderCacheEnabled, fallback: bottle.settings.shaderCacheEnabled))
+        Toggle("config.forceD3D11", isOn: override(\.forceD3D11, fallback: bottle.settings.forceD3D11))
     }
 
     // MARK: - Input Group
@@ -400,11 +412,11 @@ struct ProgramOverrideSettingsView: View {
 
     @ViewBuilder
     private var inputControls: some View {
-        Toggle("config.controllerCompat", isOn: controllerCompatBinding)
-        Toggle("config.disableHIDAPI", isOn: disableHIDAPIBinding)
-        Toggle("config.allowBackgroundEvents", isOn: allowBackgroundBinding)
-        Toggle("config.disableControllerMapping", isOn: disableControllerMappingBinding)
-        Toggle("config.useButtonLabels", isOn: useButtonLabelsBinding)
+        Toggle("config.controllerCompat", isOn: override(\.controllerCompatibilityMode, fallback: false))
+        Toggle("config.disableHIDAPI", isOn: override(\.disableHIDAPI, fallback: false))
+        Toggle("config.allowBackgroundEvents", isOn: override(\.allowBackgroundEvents, fallback: false))
+        Toggle("config.disableControllerMapping", isOn: override(\.disableControllerMapping, fallback: false))
+        Toggle("config.useButtonLabels", isOn: override(\.useButtonLabels, fallback: false))
     }
 
     // MARK: - Display Group
@@ -436,9 +448,9 @@ struct ProgramOverrideSettingsView: View {
 
     @ViewBuilder
     private var displayControls: some View {
-        Toggle("config.virtualDesktop", isOn: virtualDesktopEnabledBinding)
+        Toggle("config.virtualDesktop", isOn: override(\.virtualDesktopEnabled, fallback: false))
         if program.settings.overrides?.virtualDesktopEnabled == true {
-            Picker("config.virtualDesktop.resolution", selection: displayPresetBinding) {
+            Picker("config.virtualDesktop.resolution", selection: override(\.resolutionPreset, fallback: .r1920x1080)) {
                 ForEach(ResolutionPreset.allCases, id: \.self) { preset in
                     Text(preset.label).tag(preset)
                 }
@@ -480,7 +492,7 @@ struct ProgramOverrideSettingsView: View {
             if hasDLLOverride {
                 DLLOverrideEditor(
                     managedOverrides: computedManagedOverrides,
-                    customOverrides: programDLLOverridesBinding,
+                    customOverrides: override(\.dllOverrides, fallback: []),
                     warnings: computedDLLWarnings
                 )
             } else {
@@ -751,115 +763,15 @@ struct ProgramOverrideSettingsView: View {
 
     // MARK: - Individual Setting Bindings
 
-    private var graphicsBackendBinding: Binding<GraphicsBackend> {
+    /// A program override that reads through to `fallback` while unset.
+    /// Writes are dropped while the program has no overrides at all.
+    private func override<T>(
+        _ keyPath: WritableKeyPath<ProgramOverrides, T?>,
+        fallback: @autoclosure @escaping () -> T
+    ) -> Binding<T> {
         Binding(
-            get: { program.settings.overrides?.graphicsBackend ?? bottle.settings.graphicsBackend },
-            set: { program.settings.overrides?.graphicsBackend = $0 }
-        )
-    }
-
-    private var dxvkAsyncBinding: Binding<Bool> {
-        Binding(
-            get: { program.settings.overrides?.dxvkAsync ?? bottle.settings.dxvkAsync },
-            set: { program.settings.overrides?.dxvkAsync = $0 }
-        )
-    }
-
-    private var metal4Binding: Binding<Bool> {
-        Binding(
-            get: { program.settings.overrides?.metal4Enabled ?? bottle.settings.metal4Enabled },
-            set: { program.settings.overrides?.metal4Enabled = $0 }
-        )
-    }
-
-    private var dxvkHudBinding: Binding<DXVKHUD> {
-        Binding(
-            get: { program.settings.overrides?.dxvkHud ?? bottle.settings.dxvkHud },
-            set: { program.settings.overrides?.dxvkHud = $0 }
-        )
-    }
-
-    private var frameRateLimitBinding: Binding<FrameRateLimit> {
-        Binding(
-            get: { program.settings.overrides?.frameRateLimit ?? bottle.settings.frameRateLimit },
-            set: { program.settings.overrides?.frameRateLimit = $0 }
-        )
-    }
-
-    private var enhancedSyncBinding: Binding<EnhancedSync> {
-        Binding(
-            get: { program.settings.overrides?.enhancedSync ?? bottle.settings.enhancedSync },
-            set: { program.settings.overrides?.enhancedSync = $0 }
-        )
-    }
-
-    private var performancePresetBinding: Binding<PerformancePreset> {
-        Binding(
-            get: { program.settings.overrides?.performancePreset ?? bottle.settings.performancePreset },
-            set: { program.settings.overrides?.performancePreset = $0 }
-        )
-    }
-
-    private var shaderCacheBinding: Binding<Bool> {
-        Binding(
-            get: { program.settings.overrides?.shaderCacheEnabled ?? bottle.settings.shaderCacheEnabled },
-            set: { program.settings.overrides?.shaderCacheEnabled = $0 }
-        )
-    }
-
-    private var forceD3D11Binding: Binding<Bool> {
-        Binding(
-            get: { program.settings.overrides?.forceD3D11 ?? bottle.settings.forceD3D11 },
-            set: { program.settings.overrides?.forceD3D11 = $0 }
-        )
-    }
-
-    private var controllerCompatBinding: Binding<Bool> {
-        Binding(
-            get: { program.settings.overrides?.controllerCompatibilityMode ?? false },
-            set: { program.settings.overrides?.controllerCompatibilityMode = $0 }
-        )
-    }
-
-    private var disableHIDAPIBinding: Binding<Bool> {
-        Binding(
-            get: { program.settings.overrides?.disableHIDAPI ?? false },
-            set: { program.settings.overrides?.disableHIDAPI = $0 }
-        )
-    }
-
-    private var allowBackgroundBinding: Binding<Bool> {
-        Binding(
-            get: { program.settings.overrides?.allowBackgroundEvents ?? false },
-            set: { program.settings.overrides?.allowBackgroundEvents = $0 }
-        )
-    }
-
-    private var disableControllerMappingBinding: Binding<Bool> {
-        Binding(
-            get: { program.settings.overrides?.disableControllerMapping ?? false },
-            set: { program.settings.overrides?.disableControllerMapping = $0 }
-        )
-    }
-
-    private var useButtonLabelsBinding: Binding<Bool> {
-        Binding(
-            get: { program.settings.overrides?.useButtonLabels ?? false },
-            set: { program.settings.overrides?.useButtonLabels = $0 }
-        )
-    }
-
-    private var virtualDesktopEnabledBinding: Binding<Bool> {
-        Binding(
-            get: { program.settings.overrides?.virtualDesktopEnabled ?? false },
-            set: { program.settings.overrides?.virtualDesktopEnabled = $0 }
-        )
-    }
-
-    private var displayPresetBinding: Binding<ResolutionPreset> {
-        Binding(
-            get: { program.settings.overrides?.resolutionPreset ?? .r1920x1080 },
-            set: { program.settings.overrides?.resolutionPreset = $0 }
+            get: { program.settings.overrides?[keyPath: keyPath] ?? fallback() },
+            set: { program.settings.overrides?[keyPath: keyPath] = $0 }
         )
     }
 
@@ -874,13 +786,6 @@ struct ProgramOverrideSettingsView: View {
         Binding(
             get: { program.settings.overrides?.customResolutionHeight ?? 1_080 },
             set: { program.settings.overrides?.customResolutionHeight = min(max($0, 480), 4_320) }
-        )
-    }
-
-    private var programDLLOverridesBinding: Binding<[DLLOverrideEntry]> {
-        Binding(
-            get: { program.settings.overrides?.dllOverrides ?? [] },
-            set: { program.settings.overrides?.dllOverrides = $0 }
         )
     }
 
