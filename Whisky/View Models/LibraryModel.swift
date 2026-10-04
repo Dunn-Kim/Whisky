@@ -220,21 +220,10 @@ extension LibraryModel {
     }
 
     private func launchProgram(at url: URL, in bottle: Bottle) {
-        // Through the bottle's own program list where possible, so the launch
-        // picks up that program's overrides rather than only the bottle's.
-        guard let program = bottle.programs.first(where: { $0.url == url }) else {
-            programLaunching.insert(url)
-            Task {
-                defer { programLaunching.remove(url) }
-                do {
-                    try await Wine.runProgram(at: url, bottle: bottle)
-                } catch {
-                    launchError = error.localizedDescription
-                }
-            }
-            return
-        }
-
+        // Through a Program even when the bottle's list doesn't carry one (a pin
+        // outside Program Files), so the launch picks up that program's saved
+        // locale and overrides rather than only the bottle's.
+        let program = bottle.program(at: url)
         programLaunching.insert(url)
         Telemetry.capture(.firstProgramLaunchAttempted)
         let useTerminal = NSEvent.modifierFlags.contains(.shift)

@@ -90,6 +90,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   when the wine runtime itself was missing. Rosetta is now checked on each
   read rather than once per app launch, so reinstalling it doesn't leave
   setup reopening.
+- An executable opened from Finder can now be given a locale, and keeps it.
+  The open sheet, the bottle's Run button and the library's launch of a
+  program outside the bottle's list all called Wine directly and skipped the
+  executable's saved settings, so a Korean installer in Downloads always ran
+  under the macOS language and drew its Hangul as boxes. They now launch
+  through the program like the program list does, and the open sheet has a
+  Locale picker. It no longer auto-runs with a single bottle, since there is
+  now a choice to make.
 
 ### Changed
 - The Processes page no longer spawns a Wine process for every 3-second

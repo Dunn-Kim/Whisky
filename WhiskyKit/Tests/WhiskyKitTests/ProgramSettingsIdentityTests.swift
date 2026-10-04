@@ -122,4 +122,22 @@ struct ProgramSettingsIdentityTests {
 
         #expect(program.settings.arguments == "-identity")
     }
+
+    @Test("An executable outside the bottle keeps its locale, readable without a Program")
+    @MainActor func persistedSettingsForOutsideExecutable() throws {
+        let (bottleURL, cleanup) = try makeBottle()
+        defer { cleanup() }
+        let (downloadsURL, cleanupDownloads) = try makeBottle()
+        defer { cleanupDownloads() }
+        let bottle = Bottle(bottleUrl: bottleURL, inFlight: false, isAvailable: true)
+        let exe = try makeExe(at: "Setup.exe", in: downloadsURL)
+
+        // Nothing persisted yet, and reading must not create the plist.
+        #expect(Program.persistedSettings(for: exe, bottleURL: bottleURL) == nil)
+        #expect(Program.persistedSettings(for: exe, bottleURL: bottleURL) == nil)
+
+        Program(url: exe, bottle: bottle, peFile: nil).settings.locale = .korean
+
+        #expect(Program.persistedSettings(for: exe, bottleURL: bottleURL)?.locale == .korean)
+    }
 }
