@@ -249,8 +249,7 @@ struct ProgramItemView: View {
 
     private func launchProgram() {
         isLaunching = true
-        Telemetry.capture(.firstProgramLaunchAttempted)
-        // Capture modifier flags synchronously before entering async context
+        // Read before the clipboard check, whose alert can outlast the click
         let useTerminal = NSEvent.modifierFlags.contains(.shift)
 
         // Check clipboard before launch (blocking alert for needsUserDecision is handled internally)
@@ -267,8 +266,7 @@ struct ProgramItemView: View {
             }
         }
 
-        Task {
-            let result = await program.launchWithUserMode(useTerminal: useTerminal)
+        program.launchFromUI(useTerminal: useTerminal) { result in
             withAnimation {
                 toast = result.toastData
             }

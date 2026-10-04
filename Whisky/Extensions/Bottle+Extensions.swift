@@ -278,6 +278,22 @@ extension Bottle {
     }
 }
 
+extension Program {
+    /// A launch from a click: counts the attempt and launches, in Terminal when
+    /// `useTerminal`. That defaults to Shift, read at the call, before anything
+    /// async, so it is the key state of the click.
+    @MainActor
+    func launchFromUI(
+        useTerminal: Bool = NSEvent.modifierFlags.contains(.shift),
+        completion: @escaping @MainActor (LaunchResult) -> Void
+    ) {
+        Telemetry.capture(.firstProgramLaunchAttempted)
+        Task {
+            completion(await launchWithUserMode(useTerminal: useTerminal))
+        }
+    }
+}
+
 // MARK: - BottleRegistry Conformance
 
 /// Bridges `BottleOperations` to the app's bottle list. The `loadBottles()`
