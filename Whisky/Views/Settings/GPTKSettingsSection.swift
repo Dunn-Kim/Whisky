@@ -139,7 +139,7 @@ struct GPTKSettingsSection: View {
 
     private func removePayload() {
         do {
-            // Unconditional: isDeployed() reads files written late in deploy, so
+            // Unconditional: deployment is marked by files written late, so
             // a half-finished deploy looks undeployed while forwarders are
             // already swapped, and skipping cleanup would delete originals/ with
             // the store. The removal is idempotent per file.
