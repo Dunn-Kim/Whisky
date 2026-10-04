@@ -130,7 +130,7 @@ final class FlowLoaderValidatorTests: XCTestCase {
         // registers, without running any of them (several probe hardware).
         let implemented: Set<String> = Set(
             ([
-                CrashLogCheck(), GraphicsBackendCheck(), DXVKSettingsCheck(),
+                CrashLogCheck(),
                 AudioDriverCheck(), AudioDeviceCheck(),
                 DependencyCheck(), WinetricksVerbCheck(),
                 LauncherTypeCheck(), ProcessRunningCheck(),
@@ -151,7 +151,7 @@ final class FlowLoaderValidatorTests: XCTestCase {
     private func makeNode(
         id: String,
         type: NodeType = .check,
-        checkId: String? = "graphics.backend_is",
+        checkId: String? = "setting.value_check",
         on: [String: String]? = nil // swiftlint:disable:this identifier_name
     ) -> FlowStepNode {
         FlowStepNode(id: id, type: type, phase: .checks, checkId: checkId, on: on)

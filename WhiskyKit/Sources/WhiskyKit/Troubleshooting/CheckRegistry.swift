@@ -30,8 +30,8 @@ import os.log
 /// ```swift
 /// let registry = CheckRegistry()  // All built-in checks pre-registered
 /// let result = await registry.run(
-///     checkId: "graphics.backend_is",
-///     params: ["expected": "dxvk"],
+///     checkId: "setting.value_check",
+///     params: ["setting": "graphicsBackend", "expected": "dxvk"],
 ///     context: checkContext
 /// )
 /// ```
@@ -113,10 +113,8 @@ public final class CheckRegistry: @unchecked Sendable {
     /// normalized ``CheckResult``. Check IDs are stable and match the
     /// references in flow definition JSON files.
     public func registerDefaults() {
-        // Graphics and crash diagnostics
+        // Crash diagnostics
         register(CrashLogCheck())
-        register(GraphicsBackendCheck())
-        register(DXVKSettingsCheck())
 
         // Audio diagnostics
         register(AudioDriverCheck())

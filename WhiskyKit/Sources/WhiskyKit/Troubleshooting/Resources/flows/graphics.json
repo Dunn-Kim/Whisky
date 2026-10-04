@@ -9,10 +9,10 @@
       "phase": "checks",
       "title": "Check graphics backend",
       "description": "Verifying your current graphics translation layer.",
-      "checkId": "graphics.backend_is",
+      "checkId": "setting.value_check",
       "params": {
-        "expected": "dxvk",
-        "scope": "program_or_bottle"
+        "setting": "graphicsBackend",
+        "expected": "dxvk"
       },
       "on": {
         "pass": "check_crash_log",
@@ -82,7 +82,7 @@
       "phase": "checks",
       "title": "Check DXVK settings",
       "description": "Checking whether DXVK async shader compilation is enabled for smoother rendering.",
-      "checkId": "dxvk.settings_check",
+      "checkId": "setting.value_check",
       "params": {
         "check": "async_enabled"
       },
