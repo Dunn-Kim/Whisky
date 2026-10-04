@@ -505,7 +505,7 @@ public enum FixApplicator { // swiftlint:disable:this type_body_length
             result: result,
             current: { settings in (display(settings[keyPath: keyPath]), settings[keyPath: keyPath].rawValue) },
             target: { params in
-                let value = params[param].flatMap(Value.init(rawValue:)) ?? fallback
+                let value = params[param].flatMap { Value(rawValue: $0) } ?? fallback
                 return (display(value), value.rawValue)
             },
             write: { bottle, raw in
