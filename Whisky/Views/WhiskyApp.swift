@@ -59,8 +59,11 @@ struct WhiskyApp: App {
     private let updaterController: SPUStandardUpdaterController
 
     init() {
+        // Never started: this fork takes upstream changes by hand, and Sparkle's
+        // feed is upstream's appcast, so an accepted update would replace the
+        // fork build. Unstarted, the Check for Updates item stays disabled.
         updaterController = SPUStandardUpdaterController(
-            startingUpdater: true,
+            startingUpdater: false,
             updaterDelegate: nil,
             userDriverDelegate: SparkleUpdaterDelegate.shared
         )

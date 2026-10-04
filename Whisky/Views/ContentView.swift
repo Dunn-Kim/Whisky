@@ -216,8 +216,9 @@ struct ContentView: View {
             if !WhiskyWineInstaller.isWhiskyWineInstalled() || !Rosetta2.isRosettaInstalled {
                 showSetup = true
             }
-            // The Settings toggle. Unset counts as on, its default there.
-            guard UserDefaults.standard.object(forKey: "checkWhiskyWineUpdates") as? Bool ?? true else { return }
+            // The Settings toggle. Unset counts as off, its default there: this fork
+            // takes upstream runtime updates by hand.
+            guard UserDefaults.standard.object(forKey: "checkWhiskyWineUpdates") as? Bool ?? false else { return }
             let task = Task.detached {
                 await WhiskyWineInstaller.shouldUpdateWhiskyWine()
             }
