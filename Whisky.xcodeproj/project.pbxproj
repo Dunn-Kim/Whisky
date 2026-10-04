@@ -141,7 +141,6 @@
 		J1A2B3C4E5F61301A9B0C1D6 /* StepCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = J1A2B3C4E5F61301A9B0C1D7 /* StepCardView.swift */; };
 		J1A2B3C4E5F61301A9B0C1D8 /* FixPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = J1A2B3C4E5F61301A9B0C1D9 /* FixPreviewView.swift */; };
 		J1A2B3C4E5F61301A9B0C2D0 /* FixVerifyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = J1A2B3C4E5F61301A9B0C2D1 /* FixVerifyView.swift */; };
-		J1A2B3C4E5F61301A9B0C2D2 /* BranchExplanationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = J1A2B3C4E5F61301A9B0C2D3 /* BranchExplanationView.swift */; };
 		J1A2B3C4E5F61301A9B0C2D4 /* SessionResumeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = J1A2B3C4E5F61301A9B0C2D5 /* SessionResumeView.swift */; };
 		J1A2B3C4E5F61301A9B0C2D6 /* EscalationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = J1A2B3C4E5F61301A9B0C2D7 /* EscalationView.swift */; };
 		K1A2B3C4E5F61401A9B0C1D0 /* TroubleshootingHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = K1A2B3C4E5F61401A9B0C1D1 /* TroubleshootingHistoryView.swift */; };
@@ -338,7 +337,6 @@
 		J1A2B3C4E5F61301A9B0C1D7 /* StepCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StepCardView.swift; sourceTree = "<group>"; };
 		J1A2B3C4E5F61301A9B0C1D9 /* FixPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FixPreviewView.swift; sourceTree = "<group>"; };
 		J1A2B3C4E5F61301A9B0C2D1 /* FixVerifyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FixVerifyView.swift; sourceTree = "<group>"; };
-		J1A2B3C4E5F61301A9B0C2D3 /* BranchExplanationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BranchExplanationView.swift; sourceTree = "<group>"; };
 		J1A2B3C4E5F61301A9B0C2D5 /* SessionResumeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionResumeView.swift; sourceTree = "<group>"; };
 		J1A2B3C4E5F61301A9B0C2D7 /* EscalationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EscalationView.swift; sourceTree = "<group>"; };
 		K1A2B3C4E5F61401A9B0C1D1 /* TroubleshootingHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TroubleshootingHistoryView.swift; sourceTree = "<group>"; };
@@ -737,7 +735,6 @@
 				J1A2B3C4E5F61301A9B0C1D7 /* StepCardView.swift */,
 				J1A2B3C4E5F61301A9B0C1D9 /* FixPreviewView.swift */,
 				J1A2B3C4E5F61301A9B0C2D1 /* FixVerifyView.swift */,
-				J1A2B3C4E5F61301A9B0C2D3 /* BranchExplanationView.swift */,
 				J1A2B3C4E5F61301A9B0C2D5 /* SessionResumeView.swift */,
 				J1A2B3C4E5F61301A9B0C2D7 /* EscalationView.swift */,
 				K1A2B3C4E5F61401A9B0C1D1 /* TroubleshootingHistoryView.swift */,
@@ -1081,7 +1078,6 @@
 				J1A2B3C4E5F61301A9B0C1D6 /* StepCardView.swift in Sources */,
 				J1A2B3C4E5F61301A9B0C1D8 /* FixPreviewView.swift in Sources */,
 				J1A2B3C4E5F61301A9B0C2D0 /* FixVerifyView.swift in Sources */,
-				J1A2B3C4E5F61301A9B0C2D2 /* BranchExplanationView.swift in Sources */,
 				J1A2B3C4E5F61301A9B0C2D4 /* SessionResumeView.swift in Sources */,
 				J1A2B3C4E5F61301A9B0C2D6 /* EscalationView.swift in Sources */,
 				K1A2B3C4E5F61401A9B0C1D0 /* TroubleshootingHistoryView.swift in Sources */,
