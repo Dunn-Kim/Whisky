@@ -116,21 +116,4 @@ public struct BottleDisplayConfig: Codable, Equatable {
             Int.self, forKey: .customHeight
         ) ?? 1_080
     }
-
-    /// The resolved pixel dimensions based on the current preset and custom values.
-    ///
-    /// For named presets, returns the preset's fixed dimensions.
-    /// For `.matchDisplay`, returns (1920, 1080) as a fallback; the actual
-    /// screen resolution query happens in the app layer.
-    /// For `.custom`, returns the user-provided width and height.
-    public var effectiveResolution: (width: Int, height: Int) {
-        switch resolutionPreset {
-        case .matchDisplay:
-            (width: 1_920, height: 1_080)
-        case .custom:
-            (width: customWidth, height: customHeight)
-        default:
-            resolutionPreset.dimensions ?? (width: 1_920, height: 1_080)
-        }
-    }
 }

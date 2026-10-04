@@ -50,12 +50,6 @@ public enum LegacyBottleImport {
         var paths: [URL]
     }
 
-    /// Whether the original app's container exists at all. Used to decide whether the
-    /// migration option is worth offering in the UI.
-    public static func legacyContainerExists(at container: URL = legacyContainerDirectory) -> Bool {
-        FileManager.default.fileExists(atPath: container.path(percentEncoded: false))
-    }
-
     /// URLs of original-app bottles that are valid (contain a `Metadata.plist`) and are
     /// not already registered in `existingPaths`.
     ///

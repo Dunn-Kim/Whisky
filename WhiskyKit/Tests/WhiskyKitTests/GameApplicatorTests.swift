@@ -56,7 +56,6 @@ final class GameApplicatorTests: XCTestCase {
         performancePreset: String? = nil,
         shaderCacheEnabled: Bool? = nil,
         avxEnabled: Bool? = nil,
-        sequoiaCompatMode: Bool? = nil,
         dllOverrides: [DLLOverrideEntry]? = nil,
         winetricksVerbs: [String]? = nil,
         environmentVariables: [String: String]? = nil
@@ -73,8 +72,7 @@ final class GameApplicatorTests: XCTestCase {
                 forceD3D11: forceD3D11,
                 performancePreset: performancePreset,
                 shaderCacheEnabled: shaderCacheEnabled,
-                avxEnabled: avxEnabled,
-                sequoiaCompatMode: sequoiaCompatMode
+                avxEnabled: avxEnabled
             ),
             environmentVariables: environmentVariables,
             dllOverrides: dllOverrides,
@@ -376,8 +374,7 @@ final class GameApplicatorTests: XCTestCase {
             forceD3D11: true,
             performancePreset: "performance",
             shaderCacheEnabled: false,
-            avxEnabled: true,
-            sequoiaCompatMode: true
+            avxEnabled: true
         )
         let entry = makeTestEntry(variant: variant)
 
@@ -390,7 +387,6 @@ final class GameApplicatorTests: XCTestCase {
         XCTAssertEqual(bottle.settings.performancePreset, .performance)
         XCTAssertFalse(bottle.settings.shaderCacheEnabled)
         XCTAssertTrue(bottle.settings.avxEnabled)
-        XCTAssertTrue(bottle.settings.sequoiaCompatMode)
     }
 }
 

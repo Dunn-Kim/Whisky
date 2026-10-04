@@ -119,7 +119,7 @@ final class DLLOverrideTests: XCTestCase {
         let result = resolver.resolve()
         XCTAssertEqual(result.warnings.count, 1)
         XCTAssertEqual(result.warnings.first?.dllName, "dxgi")
-        XCTAssertEqual(result.warnings.first?.overriddenSource, .dxvk)
+        XCTAssertTrue(result.warnings.first?.message.contains("DXVK") == true)
     }
 
     func testNoWarningWhenNoConflict() {
@@ -189,7 +189,6 @@ final class DLLOverrideTests: XCTestCase {
         )
         let result = resolver.resolve()
         XCTAssertEqual(result.warnings.count, 1)
-        XCTAssertEqual(result.warnings.first?.overriddenSource, .dxmt)
         XCTAssertTrue(result.warnings.first?.message.contains("DXMT") == true)
     }
 

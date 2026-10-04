@@ -74,7 +74,10 @@ struct LibraryCatalogueTests {
     func emptyBottleIsEmpty() {
         let (url, settings) = bottle()
 
-        #expect(LibraryCatalogue.items(inBottleAt: url, settings: settings).isEmpty)
+        let pinned = PinnedLibrarySource.items(inBottleAt: url, settings: settings)
+        let steam = SteamLibrarySource.entries(inBottleAt: url)
+
+        #expect(LibraryCatalogue.merge([pinned, steam]).isEmpty)
     }
 
     @Test("A pin with no resolvable url is skipped rather than crashing the list")
@@ -89,10 +92,16 @@ struct LibraryCatalogueTests {
         #expect(items.map(\.name) == ["Fine"])
     }
 
-    @Test("Sources are registered in order, and pins win a name collision")
+    @Test("Pins win a name collision")
     func pinsWinCollisions() {
-        #expect(LibraryCatalogue.sources.count >= 2)
-        #expect(LibraryCatalogue.sources.first?.id == .pinned)
+        var (url, settings) = bottle()
+        settings.pins = [pin("Portal", "/tmp/whisky-library-test/Bottle/drive_c/Portal/portal.exe")]
+        let pinned = PinnedLibrarySource.items(inBottleAt: url, settings: settings)
+        let steam = LibraryEntry(
+            id: "steam:400", name: "portal", iconURL: nil, bottleURL: url, source: .steam, launch: .steam(appID: 400)
+        )
+
+        #expect(LibraryCatalogue.merge([pinned, [steam]]).map(\.source) == [.pinned])
     }
 
     @Test("Steam artwork resolves the folder layout, then the flat one")

@@ -121,8 +121,6 @@ public struct SettingValueCheck: TroubleshootingCheck {
             settings.dxrEnabled ? "true" : "false"
         case "metalValidation":
             settings.metalValidation ? "true" : "false"
-        case "sequoiaCompatMode":
-            settings.sequoiaCompatMode ? "true" : "false"
         case "performancePreset":
             String(describing: settings.performancePreset)
         case "shaderCacheEnabled":

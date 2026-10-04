@@ -197,7 +197,6 @@ final class BottleMetalConfigTests: XCTestCase {
         XCTAssertFalse(config.metalTrace)
         XCTAssertFalse(config.dxrEnabled)
         XCTAssertFalse(config.metalValidation)
-        XCTAssertTrue(config.sequoiaCompatMode)
     }
 
     func testRoundTrip() throws {
@@ -206,7 +205,6 @@ final class BottleMetalConfigTests: XCTestCase {
         original.metalTrace = true
         original.dxrEnabled = true
         original.metalValidation = true
-        original.sequoiaCompatMode = false
 
         let encoder = PropertyListEncoder()
         encoder.outputFormat = .xml
@@ -218,7 +216,6 @@ final class BottleMetalConfigTests: XCTestCase {
         XCTAssertTrue(decoded.metalTrace)
         XCTAssertTrue(decoded.dxrEnabled)
         XCTAssertTrue(decoded.metalValidation)
-        XCTAssertFalse(decoded.sequoiaCompatMode)
     }
 
     func testDecodeWithMissingValuesUsesDefaults() throws {
@@ -231,7 +228,6 @@ final class BottleMetalConfigTests: XCTestCase {
         XCTAssertFalse(config.metalTrace)
         XCTAssertFalse(config.dxrEnabled)
         XCTAssertFalse(config.metalValidation)
-        XCTAssertTrue(config.sequoiaCompatMode)
     }
 }
 

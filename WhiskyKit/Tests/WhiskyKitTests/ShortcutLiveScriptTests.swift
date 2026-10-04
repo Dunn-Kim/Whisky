@@ -41,9 +41,11 @@ struct ShortcutLiveScriptTests {
 
     @Test("Hostile names survive shell quoting")
     func hostileQuoting() {
-        let quoted = ShortcutCreator.shellQuoted("Bo'ttle; rm -rf $HOME")
+        let script = ShortcutCreator.liveLaunchScript(
+            for: .program(bottleName: "Bo'ttle; rm -rf $HOME", windowsPath: #"C:\game.exe"#)
+        )
 
-        #expect(quoted == #"'Bo'\''ttle; rm -rf $HOME'"#)
+        #expect(script.contains(#"run 'Bo'\''ttle; rm -rf $HOME' 'C:\game.exe'"#))
     }
 
     @Test("Windows paths map from drive_c and reject outsiders")

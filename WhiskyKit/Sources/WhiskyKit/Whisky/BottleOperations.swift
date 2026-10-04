@@ -84,23 +84,7 @@ public enum BottleOperations {
 
         do {
             if let bottle {
-                for index in 0 ..< bottle.settings.pins.count {
-                    let pin = bottle.settings.pins[index]
-                    if let pinURL = pin.url {
-                        bottle.settings.pins[index].url = pinURL.updateParentBottle(
-                            old: url,
-                            new: destination
-                        )
-                    }
-                }
-
-                for index in 0 ..< bottle.settings.blocklist.count {
-                    let blockedUrl = bottle.settings.blocklist[index]
-                    bottle.settings.blocklist[index] = blockedUrl.updateParentBottle(
-                        old: url,
-                        new: destination
-                    )
-                }
+                rebasePinsAndBlocklist(of: bottle, from: url, to: destination)
             }
             try FileManager.default.moveItem(at: url, to: destination)
             if let path = registry.bottlePaths.firstIndex(of: url) {
@@ -216,21 +200,8 @@ public enum BottleOperations {
         let newBottle = Bottle(bottleUrl: newBottleDir)
         newBottle.settings.name = newName
 
-        // Update pin URLs to point to the new bottle
-        for index in 0 ..< newBottle.settings.pins.count {
-            if let pinURL = newBottle.settings.pins[index].url {
-                newBottle.settings.pins[index].url = pinURL.updateParentBottle(
-                    old: sourceURL,
-                    new: newBottleDir
-                )
-            }
-        }
-
-        // Update blocklist URLs to point to the new bottle
-        for index in 0 ..< newBottle.settings.blocklist.count {
-            newBottle.settings.blocklist[index] = newBottle.settings.blocklist[index]
-                .updateParentBottle(old: sourceURL, new: newBottleDir)
-        }
+        // Point pin and blocklist URLs at the new bottle
+        rebasePinsAndBlocklist(of: newBottle, from: sourceURL, to: newBottleDir)
 
         // Explicitly save settings to ensure all modifications are persisted
         // (modifying nested struct properties may not always trigger didSet)
@@ -244,6 +215,19 @@ public enum BottleOperations {
         registry.loadBottles()
 
         return newBottleDir
+    }
+
+    /// Rewrites every pin and blocklist URL inside `old` to sit inside `new`.
+    @MainActor
+    private static func rebasePinsAndBlocklist(of bottle: Bottle, from old: URL, to new: URL) {
+        for index in bottle.settings.pins.indices {
+            if let pinURL = bottle.settings.pins[index].url {
+                bottle.settings.pins[index].url = pinURL.updateParentBottle(old: old, new: new)
+            }
+        }
+        for index in bottle.settings.blocklist.indices {
+            bottle.settings.blocklist[index] = bottle.settings.blocklist[index].updateParentBottle(old: old, new: new)
+        }
     }
 
     /// Returns a duplicate name following the Finder convention.

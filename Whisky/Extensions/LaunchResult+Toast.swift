@@ -20,24 +20,19 @@ import WhiskyKit
 
 extension LaunchResult {
     /// Converts launch result to appropriate toast notification data.
-    /// Toast style and auto-dismiss behavior are derived from the testable properties
-    /// `notificationStyle` and `shouldAutoDismiss` defined in WhiskyKit.
+    /// Errors stay on screen until dismissed; everything else auto-dismisses.
     var toastData: ToastData {
-        let style: ToastStyle = switch notificationStyle {
-        case .success: .success
-        case .info: .info
-        case .error: .error
-        }
-
-        let message = switch self {
+        switch self {
         case let .launchedSuccessfully(name):
-            String(localized: "status.launched \(name)")
+            ToastData(message: String(localized: "status.launched \(name)"), style: .success, autoDismiss: true)
         case let .launchedInTerminal(name):
-            String(localized: "status.launchedTerminal \(name)")
+            ToastData(message: String(localized: "status.launchedTerminal \(name)"), style: .info, autoDismiss: true)
         case let .launchFailed(_, errorDescription):
-            String(localized: "status.launchFailed \(errorDescription)")
+            ToastData(
+                message: String(localized: "status.launchFailed \(errorDescription)"),
+                style: .error,
+                autoDismiss: false
+            )
         }
-
-        return ToastData(message: message, style: style, autoDismiss: shouldAutoDismiss)
     }
 }

@@ -172,15 +172,6 @@ extension FileHandle {
         }
     }
 
-    func write(line: String) {
-        do {
-            guard let data = line.data(using: .utf8) else { return }
-            try write(contentsOf: data)
-        } catch {
-            Logger.wineKit.info("Failed to write line: \(error)")
-        }
-    }
-
     /// Writes a line to a Whisky log file while enforcing the log size cap.
     ///
     /// This method is thread-safe across concurrent stdout/stderr writers for the same file handle.

@@ -42,7 +42,6 @@ final class BottleSettingsTests: XCTestCase {
         XCTAssertFalse(settings.avxEnabled)
         XCTAssertFalse(settings.dxrEnabled)
         XCTAssertFalse(settings.metalValidation)
-        XCTAssertTrue(settings.sequoiaCompatMode)
         XCTAssertEqual(settings.performancePreset, .balanced)
         XCTAssertTrue(settings.shaderCacheEnabled)
         XCTAssertFalse(settings.forceD3D11)
@@ -88,7 +87,6 @@ final class BottleSettingsTests: XCTestCase {
         var settings = BottleSettings()
         settings.name = "JSON Test"
         settings.windowsVersion = .win7
-        settings.sequoiaCompatMode = false
 
         // Encode to JSON
         let encoder = JSONEncoder()
@@ -100,7 +98,6 @@ final class BottleSettingsTests: XCTestCase {
 
         XCTAssertEqual(decoded.name, "JSON Test")
         XCTAssertEqual(decoded.windowsVersion, .win7)
-        XCTAssertFalse(decoded.sequoiaCompatMode)
     }
 
     // MARK: - WinVersion Tests
@@ -227,8 +224,6 @@ final class BottleSettingsTests: XCTestCase {
         XCTAssertFalse(config.metalTrace)
         XCTAssertFalse(config.dxrEnabled)
         XCTAssertFalse(config.metalValidation)
-        XCTAssertNil(config.forceGPUFamily)
-        XCTAssertTrue(config.sequoiaCompatMode)
     }
 
     // MARK: - BottleDXVKConfig Tests
@@ -248,9 +243,7 @@ final class BottleSettingsTests: XCTestCase {
 
         XCTAssertEqual(config.performancePreset, .balanced)
         XCTAssertTrue(config.shaderCacheEnabled)
-        XCTAssertNil(config.gpuMemoryLimit)
         XCTAssertFalse(config.forceD3D11)
-        XCTAssertFalse(config.disableShaderOptimizations)
         XCTAssertFalse(config.vcRedistInstalled)
     }
 
