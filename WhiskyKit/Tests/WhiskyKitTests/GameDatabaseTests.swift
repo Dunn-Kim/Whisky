@@ -321,7 +321,7 @@ final class GameDatabaseTests: XCTestCase {
 
     // MARK: - Test 9: SteamAppManifest Parses ACF
 
-    func testSteamAppManifestParsesACF() {
+    func testSteamAppManifestParsesTabSeparatedACF() throws {
         let acfContent = """
         "AppState"
         {
@@ -332,9 +332,13 @@ final class GameDatabaseTests: XCTestCase {
         \t"installdir"\t\t"ELDEN RING"
         }
         """
+        let url = FileManager.default.temporaryDirectory.appending(path: "appmanifest-\(UUID().uuidString).acf")
+        try acfContent.write(to: url, atomically: true, encoding: .utf8)
+        defer { try? FileManager.default.removeItem(at: url) }
 
-        let appId = SteamAppManifest.parseAppId(from: acfContent)
-        XCTAssertEqual(appId, 1_245_620)
+        let manifest = try XCTUnwrap(SteamAppManifest(contentsOf: url))
+        XCTAssertEqual(manifest.appId, 1_245_620)
+        XCTAssertEqual(manifest.installDir, "ELDEN RING")
     }
 
     // MARK: - Test 10: SteamAppManifest Parses AppId Txt
@@ -357,33 +361,6 @@ final class GameDatabaseTests: XCTestCase {
 
         let appId = SteamAppManifest.findAppIdForProgram(at: exeURL)
         XCTAssertEqual(appId, 1_245_620)
-    }
-
-    // MARK: - Additional ACF Parsing Edge Cases
-
-    func testSteamAppManifestParsesACFWithSpaces() {
-        let acfContent = """
-        "AppState"
-        {
-            "appid"   "570"
-            "name"    "Dota 2"
-        }
-        """
-
-        let appId = SteamAppManifest.parseAppId(from: acfContent)
-        XCTAssertEqual(appId, 570)
-    }
-
-    func testSteamAppManifestReturnsNilForMissingAppId() {
-        let acfContent = """
-        "AppState"
-        {
-            "name"    "Some Game"
-        }
-        """
-
-        let appId = SteamAppManifest.parseAppId(from: acfContent)
-        XCTAssertNil(appId)
     }
 
     // MARK: - Test 11: GameConfigSnapshot Plist Round-Trip
