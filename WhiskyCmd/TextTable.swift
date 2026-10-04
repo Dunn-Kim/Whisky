@@ -20,18 +20,11 @@ import Foundation
 
 // MARK: - Terminal Display Width Calculation
 
-/// Extension to calculate terminal display width for a string
-/// This accounts for East Asian wide characters and emojis that occupy
-/// two character cells in monospaced terminal output
 extension String {
-    /// Calculate the terminal display width of the string
-    /// - Returns: The number of character cells this string occupies in a terminal
+    /// The number of cells the string occupies in a terminal: `wcwidth` per
+    /// scalar, with non-printables (a negative width) counted as zero.
     var terminalWidth: Int {
-        var width = 0
-        for scalar in unicodeScalars {
-            width += scalar.terminalCellWidth
-        }
-        return width
+        unicodeScalars.reduce(0) { $0 + max(0, Int(wcwidth(wchar_t($1.value)))) }
     }
 
     /// Pad the string to a specific terminal width
@@ -46,132 +39,6 @@ extension String {
         }
         let paddingNeeded = targetWidth - currentWidth
         return self + String(repeating: padCharacter, count: paddingNeeded)
-    }
-}
-
-extension Unicode.Scalar {
-    /// Determine the terminal cell width of a Unicode scalar
-    /// Based on wcwidth behavior for terminal display
-    /// - Returns: 0 for non-printing, 1 for normal, 2 for wide characters
-    var terminalCellWidth: Int {
-        let value = self.value
-
-        // Non-printing characters (control characters, combining marks)
-        if value < 32 || (value >= 0x7F && value < 0xA0) {
-            return 0
-        }
-
-        // Combining diacritical marks and other zero-width characters
-        if isCombiningMark || isZeroWidth {
-            return 0
-        }
-
-        // East Asian Wide and Fullwidth characters
-        if isEastAsianWide {
-            return 2
-        }
-
-        // Default single-width
-        return 1
-    }
-
-    /// Check if this scalar is a combining mark (zero-width)
-    private var isCombiningMark: Bool {
-        let value = self.value
-        // Combining Diacritical Marks
-        if value >= 0x0300, value <= 0x036F { return true }
-        // Combining Diacritical Marks Extended
-        if value >= 0x1AB0, value <= 0x1AFF { return true }
-        // Combining Diacritical Marks Supplement
-        if value >= 0x1DC0, value <= 0x1DFF { return true }
-        // Combining Diacritical Marks for Symbols
-        if value >= 0x20D0, value <= 0x20FF { return true }
-        // Combining Half Marks
-        if value >= 0xFE20, value <= 0xFE2F { return true }
-        return false
-    }
-
-    /// Check if this scalar is a zero-width character
-    private var isZeroWidth: Bool {
-        let value = self.value
-        // Zero-width space, non-joiner, joiner
-        if value == 0x200B || value == 0x200C || value == 0x200D { return true }
-        // Word joiner
-        if value == 0x2060 { return true }
-        // Zero-width no-break space (BOM)
-        if value == 0xFEFF { return true }
-        // Variation selectors
-        if value >= 0xFE00, value <= 0xFE0F { return true }
-        // Variation selectors supplement
-        if value >= 0xE0100, value <= 0xE01EF { return true }
-        return false
-    }
-
-    /// Check if this scalar is East Asian Wide (occupies 2 cells)
-    private var isEastAsianWide: Bool {
-        let value = self.value
-
-        // CJK Radicals Supplement
-        if value >= 0x2E80, value <= 0x2EFF { return true }
-        // Kangxi Radicals
-        if value >= 0x2F00, value <= 0x2FDF { return true }
-        // CJK Symbols and Punctuation
-        if value >= 0x3000, value <= 0x303F { return true }
-        // Hiragana
-        if value >= 0x3040, value <= 0x309F { return true }
-        // Katakana
-        if value >= 0x30A0, value <= 0x30FF { return true }
-        // Bopomofo
-        if value >= 0x3100, value <= 0x312F { return true }
-        // Hangul Compatibility Jamo
-        if value >= 0x3130, value <= 0x318F { return true }
-        // Kanbun
-        if value >= 0x3190, value <= 0x319F { return true }
-        // Bopomofo Extended
-        if value >= 0x31A0, value <= 0x31BF { return true }
-        // CJK Strokes
-        if value >= 0x31C0, value <= 0x31EF { return true }
-        // Katakana Phonetic Extensions
-        if value >= 0x31F0, value <= 0x31FF { return true }
-        // Enclosed CJK Letters and Months
-        if value >= 0x3200, value <= 0x32FF { return true }
-        // CJK Compatibility
-        if value >= 0x3300, value <= 0x33FF { return true }
-        // CJK Unified Ideographs Extension A
-        if value >= 0x3400, value <= 0x4DBF { return true }
-        // CJK Unified Ideographs
-        if value >= 0x4E00, value <= 0x9FFF { return true }
-        // Yi Syllables
-        if value >= 0xA000, value <= 0xA48F { return true }
-        // Yi Radicals
-        if value >= 0xA490, value <= 0xA4CF { return true }
-        // Hangul Syllables
-        if value >= 0xAC00, value <= 0xD7AF { return true }
-        // CJK Compatibility Ideographs
-        if value >= 0xF900, value <= 0xFAFF { return true }
-        // Halfwidth and Fullwidth Forms (Fullwidth portion)
-        if value >= 0xFF00, value <= 0xFF60 { return true }
-        if value >= 0xFFE0, value <= 0xFFE6 { return true }
-        // CJK Unified Ideographs Extension B-G
-        if value >= 0x20000, value <= 0x2FFFF { return true }
-        // Supplementary Ideographic Plane
-        if value >= 0x30000, value <= 0x3FFFF { return true }
-
-        // Common emoji ranges (most render as double-width)
-        // Miscellaneous Symbols and Pictographs
-        if value >= 0x1F300, value <= 0x1F5FF { return true }
-        // Emoticons
-        if value >= 0x1F600, value <= 0x1F64F { return true }
-        // Transport and Map Symbols
-        if value >= 0x1F680, value <= 0x1F6FF { return true }
-        // Supplemental Symbols and Pictographs
-        if value >= 0x1F900, value <= 0x1F9FF { return true }
-        // Symbols and Pictographs Extended-A
-        if value >= 0x1FA00, value <= 0x1FA6F { return true }
-        // Symbols and Pictographs Extended-B
-        if value >= 0x1FA70, value <= 0x1FAFF { return true }
-
-        return false
     }
 }
 
@@ -196,6 +63,10 @@ struct TextTable {
     /// Initialize a new text table with the given headers
     /// - Parameter headers: An array of header strings for each column
     init(headers: [String]) {
+        // wcwidth answers for LC_CTYPE, which is "C" (every non-ASCII scalar
+        // unprintable) unless set. UTF-8 rather than the environment's, so CJK
+        // stays two cells wide when LANG is unset.
+        setlocale(LC_CTYPE, "UTF-8")
         self.columns = headers.map { Column(header: $0) }
         self.rows = []
     }
