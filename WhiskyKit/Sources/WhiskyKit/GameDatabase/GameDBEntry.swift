@@ -21,33 +21,6 @@ import Foundation
 
 // MARK: - Supporting Types
 
-/// A fingerprint for identifying a specific executable version.
-///
-/// Combines optional SHA-256 hash, file size, and PE timestamp to match
-/// against known game executables. At least one field should be non-nil
-/// for a meaningful fingerprint.
-public struct ExeFingerprint: Codable, Sendable, Equatable {
-    /// The SHA-256 hash of the executable file, if computed.
-    public let sha256: String?
-    /// The file size in bytes.
-    public let fileSize: Int64?
-    /// The PE COFF header timestamp.
-    public let peTimestamp: Date?
-
-    public init(sha256: String? = nil, fileSize: Int64? = nil, peTimestamp: Date? = nil) {
-        self.sha256 = sha256
-        self.fileSize = fileSize
-        self.peTimestamp = peTimestamp
-    }
-
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.sha256 = try container.decodeIfPresent(String.self, forKey: .sha256)
-        self.fileSize = try container.decodeIfPresent(Int64.self, forKey: .fileSize)
-        self.peTimestamp = try container.decodeIfPresent(Date.self, forKey: .peTimestamp)
-    }
-}
-
 /// Hardware and software constraints for a game configuration.
 ///
 /// Used both for filtering applicable entries and for auto-selecting
@@ -59,19 +32,15 @@ public struct GameConstraints: Codable, Sendable, Equatable {
     public let minMacOSVersion: String?
     /// Minimum Wine version required (e.g., "9.0").
     public let minWineVersion: String?
-    /// Backend capabilities required (e.g., ["dxr"]).
-    public let requiredBackendCapabilities: [String]?
 
     public init(
         cpuArchitectures: [String]? = nil,
         minMacOSVersion: String? = nil,
-        minWineVersion: String? = nil,
-        requiredBackendCapabilities: [String]? = nil
+        minWineVersion: String? = nil
     ) {
         self.cpuArchitectures = cpuArchitectures
         self.minMacOSVersion = minMacOSVersion
         self.minWineVersion = minWineVersion
-        self.requiredBackendCapabilities = requiredBackendCapabilities
     }
 
     public init(from decoder: Decoder) throws {
@@ -79,10 +48,6 @@ public struct GameConstraints: Codable, Sendable, Equatable {
         self.cpuArchitectures = try container.decodeIfPresent([String].self, forKey: .cpuArchitectures)
         self.minMacOSVersion = try container.decodeIfPresent(String.self, forKey: .minMacOSVersion)
         self.minWineVersion = try container.decodeIfPresent(String.self, forKey: .minWineVersion)
-        self.requiredBackendCapabilities = try container.decodeIfPresent(
-            [String].self,
-            forKey: .requiredBackendCapabilities
-        )
     }
 }
 
@@ -379,8 +344,6 @@ public struct GameDBEntry: Codable, Sendable, Equatable {
     public let rating: CompatibilityRating
     /// Known executable filenames for matching.
     public let exeNames: [String]?
-    /// Executable fingerprints for hard-identifier matching.
-    public let exeFingerprints: [ExeFingerprint]?
     /// Path patterns for heuristic matching (e.g., "elden ring/game").
     public let pathPatterns: [String]?
     /// Anti-cheat system name, if applicable.
@@ -414,7 +377,6 @@ public struct GameDBEntry: Codable, Sendable, Equatable {
         steamAppId: Int? = nil,
         rating: CompatibilityRating,
         exeNames: [String]? = nil,
-        exeFingerprints: [ExeFingerprint]? = nil,
         pathPatterns: [String]? = nil,
         antiCheat: String? = nil,
         constraints: GameConstraints? = nil,
@@ -431,7 +393,6 @@ public struct GameDBEntry: Codable, Sendable, Equatable {
         self.steamAppId = steamAppId
         self.rating = rating
         self.exeNames = exeNames
-        self.exeFingerprints = exeFingerprints
         self.pathPatterns = pathPatterns
         self.antiCheat = antiCheat
         self.constraints = constraints
@@ -454,7 +415,6 @@ public struct GameDBEntry: Codable, Sendable, Equatable {
             forKey: .rating
         ) ?? .unverified
         self.exeNames = try container.decodeIfPresent([String].self, forKey: .exeNames)
-        self.exeFingerprints = try container.decodeIfPresent([ExeFingerprint].self, forKey: .exeFingerprints)
         self.pathPatterns = try container.decodeIfPresent([String].self, forKey: .pathPatterns)
         self.antiCheat = try container.decodeIfPresent(String.self, forKey: .antiCheat)
         self.constraints = try container.decodeIfPresent(GameConstraints.self, forKey: .constraints)

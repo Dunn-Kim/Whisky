@@ -131,16 +131,9 @@ extension TroubleshootingWizardView {
 
 extension TroubleshootingWizardView {
     private var stepArea: some View {
-        VStack(spacing: 0) {
-            if engine.pathChanged {
-                BranchExplanationView(reason: engine.pathChangeReason) {
-                    engine.pathChanged = false
-                }
-            }
-            ScrollView {
-                stepContent
-                    .padding(20)
-            }
+        ScrollView {
+            stepContent
+                .padding(20)
         }
     }
 

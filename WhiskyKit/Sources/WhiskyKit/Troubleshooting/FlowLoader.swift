@@ -19,136 +19,46 @@
 import Foundation
 import os.log
 
-/// Loads troubleshooting flow definitions from bundled JSON resources.
-///
-/// Follows the ``PatternLoader`` and ``GameDBLoader`` pattern: a caseless enum
-/// with static methods for loading from URLs or from the default SPM resource bundle.
-/// Flow definitions are split into an index, per-category flow files, and shared fragments.
-///
-/// In debug builds, missing or invalid resources trigger assertions to surface issues
-/// early. In release builds, failures return nil or empty collections gracefully.
+/// Loads troubleshooting flow definitions from bundled JSON resources: one
+/// flow file per symptom category plus shared fragments. SPM `.process()`
+/// flattens resource directories, so each file loads by its bare name.
 public enum FlowLoader {
     private static let logger = Logger(
         subsystem: "com.franke.Whisky",
         category: "FlowLoader"
     )
 
-    // MARK: - Index Loading
-
-    /// Loads the flow index from the SPM resource bundle.
-    ///
-    /// The index maps symptom categories to their flow definition files
-    /// and provides metadata for the symptom picker UI.
-    ///
-    /// - Returns: The decoded flow index, or `nil` if loading fails.
-    public static func loadIndex() -> FlowIndex? {
-        guard let url = Bundle.module.url(forResource: "index", withExtension: "json") else {
-            logger.error("Missing resource: index.json in Bundle.module")
-            #if DEBUG
-            assertionFailure("Missing resource: index.json in Bundle.module")
-            #endif
-            return nil
-        }
-
-        do {
-            let data = try Data(contentsOf: url)
-            let decoder = JSONDecoder()
-            return try decoder.decode(FlowIndex.self, from: data)
-        } catch {
-            logger.error("Failed to decode index.json: \(error.localizedDescription)")
-            #if DEBUG
-            assertionFailure("Failed to decode index.json: \(error)")
-            #endif
-            return nil
-        }
-    }
-
-    // MARK: - Flow Loading
-
-    /// Loads a single flow definition from the SPM resource bundle.
-    ///
-    /// Since SPM `.process()` flattens resource directories, the file name
-    /// is used directly as the resource name (e.g., "launch-crash" for
-    /// "launch-crash.json").
-    ///
-    /// - Parameter fileName: The JSON file name including extension (e.g., "launch-crash.json").
-    /// - Returns: The decoded flow definition, or `nil` if loading fails.
-    public static func loadFlow(fileName: String) -> FlowDefinition? {
-        let resourceName = (fileName as NSString).deletingPathExtension
-        guard let url = Bundle.module.url(forResource: resourceName, withExtension: "json") else {
-            logger.error("Missing flow resource: \(fileName)")
-            return nil
-        }
-
-        do {
-            let data = try Data(contentsOf: url)
-            let decoder = JSONDecoder()
-            return try decoder.decode(FlowDefinition.self, from: data)
-        } catch {
-            logger.error("Failed to decode flow \(fileName): \(error.localizedDescription)")
-            #if DEBUG
-            assertionFailure("Failed to decode flow \(fileName): \(error)")
-            #endif
-            return nil
-        }
-    }
-
-    // MARK: - Bulk Loading
-
-    /// Loads all flow definitions referenced in the index, keyed by category ID.
-    ///
-    /// Iterates through the index categories and loads each flow file.
-    /// Flows that fail to load are skipped with a warning.
+    /// Loads every symptom category's flow, keyed by category ID (the flow
+    /// file name without ".json"). ``SymptomCategory/other`` has no flow by
+    /// design: selecting it escalates straight to the export fragment.
     ///
     /// - Returns: A dictionary of flow definitions keyed by category ID.
     public static func loadAllFlows() -> [String: FlowDefinition] {
-        guard let index = loadIndex() else {
-            return [:]
-        }
-
         var flows: [String: FlowDefinition] = [:]
-        for category in index.categories {
-            if let flow = loadFlow(fileName: category.flowFile) {
-                flows[category.id] = flow
-            } else {
-                logger.warning("Skipped flow for category \(category.id): failed to load \(category.flowFile)")
-            }
+        for category in SymptomCategory.allCases where category != .other {
+            let categoryId = String(category.flowFileName.dropLast(5)) // Remove ".json"
+            flows[categoryId] = loadFlow(categoryId)
         }
 
-        logger.debug("Loaded \(flows.count) of \(index.categories.count) flow definitions")
+        logger.debug("Loaded \(flows.count) flow definitions")
         return flows
     }
 
-    /// Loads all shared fragment flow definitions from the SPM resource bundle.
-    ///
-    /// Since SPM `.process()` flattens directories, fragment files are loaded
-    /// by their resource names (e.g., "export-escalation").
-    ///
-    /// - Returns: A dictionary of fragment definitions keyed by resource name.
+    /// Loads all shared fragment flow definitions, keyed by resource name
+    /// (e.g., "export-escalation").
     public static func loadFragments() -> [String: FlowDefinition] {
-        let fragmentNames = ["export-escalation"]
         var fragments: [String: FlowDefinition] = [:]
-
-        for name in fragmentNames {
-            guard let url = Bundle.module.url(forResource: name, withExtension: "json") else {
-                logger.warning("Missing fragment resource: \(name).json")
-                continue
-            }
-
-            do {
-                let data = try Data(contentsOf: url)
-                let decoder = JSONDecoder()
-                let fragment = try decoder.decode(FlowDefinition.self, from: data)
-                fragments[name] = fragment
-            } catch {
-                logger.error("Failed to decode fragment \(name): \(error.localizedDescription)")
-                #if DEBUG
-                assertionFailure("Failed to decode fragment \(name): \(error)")
-                #endif
-            }
+        for name in ["export-escalation"] {
+            fragments[name] = loadFlow(name)
         }
 
         logger.debug("Loaded \(fragments.count) fragment definitions")
         return fragments
+    }
+
+    private static func loadFlow(_ name: String) -> FlowDefinition? {
+        Bundle.module.decodeJSONResource(name) { url in
+            try JSONDecoder().decode(FlowDefinition.self, from: Data(contentsOf: url))
+        }
     }
 }

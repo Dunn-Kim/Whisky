@@ -96,9 +96,7 @@ public struct DiagnosisHistory: Codable, Sendable {
     /// - Parameter entry: The diagnosis entry to append.
     public mutating func append(_ entry: DiagnosisHistoryEntry) {
         entries.append(entry)
-        while entries.count > Self.maxEntries {
-            entries.removeFirst()
-        }
+        entries = Array(entries.suffix(Self.maxEntries))
     }
 
     /// Removes all entries from the history.

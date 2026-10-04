@@ -28,7 +28,7 @@ struct GameEntryDetailView: View {
     @ObservedObject var bottle: Bottle
     @State private var selectedVariant: GameConfigVariant?
     @State private var showPreviewSheet: Bool = false
-    @State private var stalenessResult: StalenessResult?
+    @State private var stalenessMessage: String?
     @State private var toast: ToastData?
 
     var body: some View {
@@ -62,14 +62,14 @@ struct GameEntryDetailView: View {
                 selectedVariant = entry.defaultVariant
             }
             if let variant = selectedVariant, let testedWith = variant.testedWith {
-                stalenessResult = StalenessChecker.check(testedWith: testedWith)
+                stalenessMessage = StalenessChecker.warning(for: testedWith)
             }
         }
         .onChange(of: selectedVariant?.id) { _, _ in
             if let variant = selectedVariant, let testedWith = variant.testedWith {
-                stalenessResult = StalenessChecker.check(testedWith: testedWith)
+                stalenessMessage = StalenessChecker.warning(for: testedWith)
             } else {
-                stalenessResult = nil
+                stalenessMessage = nil
             }
         }
     }
@@ -172,7 +172,7 @@ extension GameEntryDetailView {
 
     @ViewBuilder
     private var stalenessWarningBanner: some View {
-        if let result = stalenessResult, result.isStale, let message = result.warningMessage {
+        if let message = stalenessMessage {
             HStack(spacing: 8) {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .foregroundStyle(.yellow)

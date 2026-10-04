@@ -28,10 +28,6 @@ public struct ProgramMetadata: Sendable {
     public let exeName: String
     /// The URL to the executable file, if available.
     public let exeURL: URL?
-    /// The file size of the executable in bytes.
-    public let fileSize: Int64?
-    /// The PE COFF header timestamp of the executable.
-    public let peTimestamp: Date?
     /// The Steam App ID, if discovered from manifest or steam_appid.txt.
     public let steamAppId: Int?
     /// The install path of the program within the Wine prefix.
@@ -40,15 +36,11 @@ public struct ProgramMetadata: Sendable {
     public init(
         exeName: String,
         exeURL: URL? = nil,
-        fileSize: Int64? = nil,
-        peTimestamp: Date? = nil,
         steamAppId: Int? = nil,
         installPath: String? = nil
     ) {
         self.exeName = exeName
         self.exeURL = exeURL
-        self.fileSize = fileSize
-        self.peTimestamp = peTimestamp
         self.steamAppId = steamAppId
         self.installPath = installPath
     }
@@ -57,7 +49,7 @@ public struct ProgramMetadata: Sendable {
 /// Tiered matching algorithm for identifying games from program metadata.
 ///
 /// Scores programs against the game compatibility database using three tiers:
-/// - **Hard identifiers** (0.95-1.0): Steam App ID, SHA-256 hash, file size + PE timestamp
+/// - **Hard identifiers** (1.0): Steam App ID
 /// - **Strong heuristics** (0.7-0.9): Executable name, path pattern matching
 /// - **Fuzzy matching** (0.3-0.6): Tokenized name comparison against titles and aliases
 ///
@@ -234,9 +226,9 @@ public enum GameMatcher {
         return nil
     }
 
-    // MARK: - Hard Identifiers (0.95-1.0)
+    // MARK: - Hard Identifiers (1.0)
 
-    /// Checks Steam App ID, SHA-256 hash, and file size + PE timestamp matches.
+    /// Checks for a Steam App ID match.
     private static func scoreHardIdentifiers(
         metadata: ProgramMetadata,
         entry: GameDBEntry
@@ -245,20 +237,6 @@ public enum GameMatcher {
         if let metadataAppId = metadata.steamAppId, let entryAppId = entry.steamAppId {
             if metadataAppId == entryAppId {
                 return (1.0, "Steam App ID \(entryAppId) matches exactly")
-            }
-        }
-
-        // File size + PE timestamp match (0.95)
-        if let metaSize = metadata.fileSize, let metaTimestamp = metadata.peTimestamp {
-            if let fingerprints = entry.exeFingerprints {
-                for fingerprint in fingerprints {
-                    if let fpSize = fingerprint.fileSize, let fpTimestamp = fingerprint.peTimestamp {
-                        if metaSize == fpSize,
-                           abs(metaTimestamp.timeIntervalSince(fpTimestamp)) < 1.0 {
-                            return (0.95, "File size and PE timestamp match known fingerprint")
-                        }
-                    }
-                }
             }
         }
 

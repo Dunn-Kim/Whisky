@@ -64,47 +64,16 @@ public enum PatternLoader {
 
     /// Loads default patterns and remediations from the SPM resource bundle.
     ///
-    /// In debug builds, invalid JSON triggers `fatalError` to surface issues early.
+    /// In debug builds, a missing or invalid resource asserts to surface issues early.
     /// In release builds, returns empty collections on failure.
     ///
     /// - Returns: Tuple of patterns array and remediations dictionary.
     public static func loadDefaults() -> ([CrashPattern], [String: RemediationAction]) {
-        guard let patternsURL = Bundle.module.url(
-            forResource: "patterns",
-            withExtension: "json"
-        )
+        guard let patterns = Bundle.module.decodeJSONResource("patterns", with: loadPatterns),
+              let remediations = Bundle.module.decodeJSONResource("remediations", with: loadRemediations)
         else {
-            return handleMissingResource("patterns.json")
-        }
-
-        guard let remediationsURL = Bundle.module.url(
-            forResource: "remediations",
-            withExtension: "json"
-        )
-        else {
-            return handleMissingResource("remediations.json")
-        }
-
-        do {
-            let patterns = try loadPatterns(from: patternsURL)
-            let remediations = try loadRemediations(from: remediationsURL)
-            return (patterns, remediations)
-        } catch {
-            #if DEBUG
-            fatalError("Failed to load default crash patterns: \(error)")
-            #else
             return ([], [:])
-            #endif
         }
-    }
-
-    // MARK: - Private
-
-    private static func handleMissingResource(_ name: String) -> ([CrashPattern], [String: RemediationAction]) {
-        #if DEBUG
-        fatalError("Missing resource: \(name) in Bundle.module")
-        #else
-        return ([], [:])
-        #endif
+        return (patterns, remediations)
     }
 }

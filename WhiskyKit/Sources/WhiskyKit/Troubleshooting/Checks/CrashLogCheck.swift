@@ -43,12 +43,7 @@ public struct CrashLogCheck: TroubleshootingCheck {
         do {
             logText = try String(contentsOf: logURL, encoding: .utf8)
         } catch {
-            return CheckResult(
-                outcome: .error,
-                evidence: ["error": error.localizedDescription],
-                summary: "Failed to read log file",
-                confidence: nil
-            )
+            return .error("Failed to read log file", evidence: ["error": error.localizedDescription])
         }
 
         let classifier = CrashClassifier()

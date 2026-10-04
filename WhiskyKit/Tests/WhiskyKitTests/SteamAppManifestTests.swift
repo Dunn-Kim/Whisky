@@ -131,13 +131,6 @@ struct SteamAppManifestTests {
         #expect(SteamAppManifest(contentsOf: tempDir.appending(path: "missing.acf")) == nil)
     }
 
-    @Test("Legacy parseAppId fast path still works")
-    func parseAppIdCompat() {
-        let text = acf(appId: 1_245_620, name: "ELDEN RING", installDir: "ELDEN RING", stateFlags: 4)
-        #expect(SteamAppManifest.parseAppId(from: text) == 1_245_620)
-        #expect(SteamAppManifest.parseAppId(from: "no appid here") == nil)
-    }
-
     @Test("findAppIdForProgram walks parent directories")
     func findsAppIdNearExe() throws {
         let tempDir = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)

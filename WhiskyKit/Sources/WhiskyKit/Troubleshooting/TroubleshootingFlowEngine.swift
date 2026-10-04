@@ -74,12 +74,6 @@ public final class TroubleshootingFlowEngine: ObservableObject {
     /// The current flow step node being displayed.
     @Published public var currentNode: FlowStepNode?
 
-    /// Whether the flow path has changed due to branching.
-    @Published public var pathChanged: Bool = false
-
-    /// Explanation of why the flow path changed.
-    @Published public var pathChangeReason: String?
-
     /// The most recent check result, exposed so fix views can inherit
     /// evidence (e.g. which winetricks verb the check found missing).
     @Published public private(set) var lastCheckResult: CheckResult?
@@ -446,8 +440,6 @@ public final class TroubleshootingFlowEngine: ObservableObject {
         )
         currentNode = nil
         automatedStepCount = 0
-        pathChanged = false
-        pathChangeReason = nil
         autoSave()
     }
 
@@ -491,16 +483,5 @@ public final class TroubleshootingFlowEngine: ObservableObject {
     private func autoSave() {
         session.lastUpdatedAt = Date()
         sessionStore.save(session)
-    }
-
-    /// Records a path change with explanation for the UI.
-    ///
-    /// - Parameters:
-    ///   - oldPath: Description of the previous path.
-    ///   - newPath: Description of the new path.
-    ///   - reason: Why the path changed.
-    private func handleBranchChange(from oldPath: String, to newPath: String, reason: String) {
-        pathChanged = true
-        pathChangeReason = reason
     }
 }
