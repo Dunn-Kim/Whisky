@@ -225,10 +225,7 @@ extension LibraryModel {
         // locale and overrides rather than only the bottle's.
         let program = bottle.program(at: url)
         programLaunching.insert(url)
-        Telemetry.capture(.firstProgramLaunchAttempted)
-        let useTerminal = NSEvent.modifierFlags.contains(.shift)
-        Task {
-            let result = await program.launchWithUserMode(useTerminal: useTerminal)
+        program.launchFromUI { [self] result in
             programLaunching.remove(url)
             toast = result.toastData
         }
@@ -243,7 +240,7 @@ extension LibraryModel {
             return existing
         }
 
-        let made = SteamClientOrchestrator(bottle: bottle, driver: AppSteamClientDriver(bottle: bottle))
+        let made = SteamClientOrchestrator(bottle: bottle)
         let url = bottle.url
         made.$phases
             .sink { [weak self] phases in

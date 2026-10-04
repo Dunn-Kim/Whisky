@@ -28,10 +28,10 @@ import os.log
 /// ## Usage
 ///
 /// ```swift
-/// let registry = CheckRegistry()  // All 15 checks pre-registered
+/// let registry = CheckRegistry()  // All built-in checks pre-registered
 /// let result = await registry.run(
-///     checkId: "graphics.backend_is",
-///     params: ["expected": "dxvk"],
+///     checkId: "setting.value_check",
+///     params: ["setting": "graphicsBackend", "expected": "dxvk"],
 ///     context: checkContext
 /// )
 /// ```
@@ -48,7 +48,7 @@ public final class CheckRegistry: @unchecked Sendable {
 
     /// Creates a check registry with all built-in checks pre-registered.
     ///
-    /// All 15 default check implementations are registered automatically.
+    /// All default check implementations are registered automatically.
     /// Additional checks can be registered via ``register(_:)`` after
     /// construction.
     public init() {
@@ -93,12 +93,7 @@ public final class CheckRegistry: @unchecked Sendable {
 
         guard let check else {
             logger.error("Unknown check ID: \(checkId)")
-            return CheckResult(
-                outcome: .error,
-                evidence: ["error": "Unknown checkId: \(checkId)"],
-                summary: "Check not found: \(checkId)",
-                confidence: nil
-            )
+            return .error("Check not found: \(checkId)", evidence: ["error": "Unknown checkId: \(checkId)"])
         }
 
         logger.debug("Running check: \(checkId)")
@@ -107,21 +102,18 @@ public final class CheckRegistry: @unchecked Sendable {
 
     // MARK: - Default Registration
 
-    /// Registers all 15 built-in check implementations.
+    /// Registers all built-in check implementations.
     ///
     /// Each check wraps an existing diagnostic primitive and returns a
     /// normalized ``CheckResult``. Check IDs are stable and match the
     /// references in flow definition JSON files.
     public func registerDefaults() {
-        // Graphics and crash diagnostics
+        // Crash diagnostics
         register(CrashLogCheck())
-        register(GraphicsBackendCheck())
-        register(DXVKSettingsCheck())
 
         // Audio diagnostics
         register(AudioDriverCheck())
         register(AudioDeviceCheck())
-        register(AudioTestCheck())
 
         // Dependency and winetricks
         register(DependencyCheck())
@@ -131,8 +123,7 @@ public final class CheckRegistry: @unchecked Sendable {
         register(LauncherTypeCheck())
         register(ProcessRunningCheck())
 
-        // Environment and registry
-        register(EnvironmentCheck())
+        // Registry
         register(RegistryValueCheck())
 
         // Game config, settings, and diagnostics

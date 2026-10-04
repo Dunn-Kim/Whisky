@@ -78,11 +78,6 @@ class ProcessesViewModel: ObservableObject {
         }
     }
 
-    /// Count of app-kind processes, used for the navigation badge.
-    var appCount: Int {
-        processes.filter { $0.kind == .app }.count
-    }
-
     // MARK: - Init
 
     init(bottle: Bottle) {
@@ -206,14 +201,14 @@ class ProcessesViewModel: ObservableObject {
 
     /// Gracefully quits a single process via taskkill.exe.
     func quitProcess(_ process: WineProcess) async {
-        await Wine.gracefulKillProcess(winePID: process.winePID, bottle: bottle)
+        await Wine.killProcess(winePID: process.winePID, bottle: bottle, force: false)
         try? await Task.sleep(for: .seconds(1.0))
         await refreshProcessListDuringShutdown()
     }
 
     /// Force quits a single process via taskkill.exe /F.
     func forceQuitProcess(_ process: WineProcess) async {
-        await Wine.forceKillProcess(winePID: process.winePID, bottle: bottle)
+        await Wine.killProcess(winePID: process.winePID, bottle: bottle, force: true)
         try? await Task.sleep(for: .seconds(0.5))
         await refreshProcessListDuringShutdown()
     }
@@ -231,7 +226,7 @@ class ProcessesViewModel: ObservableObject {
         // Step 1: Graceful per-app kill
         let appProcesses = processes.filter { $0.kind == .app }
         for process in appProcesses {
-            await Wine.gracefulKillProcess(winePID: process.winePID, bottle: bottle)
+            await Wine.killProcess(winePID: process.winePID, bottle: bottle, force: false)
         }
         try? await Task.sleep(for: .seconds(4.0))
 

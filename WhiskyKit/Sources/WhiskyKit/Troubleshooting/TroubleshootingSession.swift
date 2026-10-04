@@ -120,8 +120,7 @@ public struct TroubleshootingSession: Codable, Sendable {
             nodeId: node.id,
             phase: SessionPhase(flowPhase: node.phase),
             title: node.title,
-            checkResult: nil,
-            isSuperseded: false
+            checkResult: nil
         )
         stepHistory.append(step)
         currentNodeId = node.id
@@ -220,21 +219,16 @@ public struct TroubleshootingSession: Codable, Sendable {
         /// The check result, if this was a check step.
         public var checkResult: CheckResult?
 
-        /// Whether this step has been superseded by a branch change.
-        public var isSuperseded: Bool
-
         public init(
             nodeId: String,
             phase: SessionPhase,
             title: String? = nil,
-            checkResult: CheckResult? = nil,
-            isSuperseded: Bool = false
+            checkResult: CheckResult? = nil
         ) {
             self.nodeId = nodeId
             self.phase = phase
             self.title = title
             self.checkResult = checkResult
-            self.isSuperseded = isSuperseded
         }
     }
 

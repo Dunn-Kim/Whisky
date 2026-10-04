@@ -98,7 +98,7 @@ struct GPTKVideoProcessorTests {
 
         try GPTKImporter.deploy(fromStore: store, intoLibraryFolder: runtime)
 
-        #expect(GPTKImporter.isVideoProcessorInstalled(inLibraryFolder: runtime))
+        #expect(GPTKImporter.isInstalled(GPTKImporter.videoProcessorInterposer, inLibraryFolder: runtime))
         let renamed = peDir(of: runtime).appending(path: "d3dmt.dll")
         #expect(FileManager.default.fileExists(atPath: renamed.path(percentEncoded: false)))
         #expect(try exportName(of: renamed) == "d3dmt.dll")
@@ -117,9 +117,9 @@ struct GPTKVideoProcessorTests {
         let (store, runtime) = try makeDeployableRuntime()
         try GPTKImporter.deploy(fromStore: store, intoLibraryFolder: runtime)
 
-        try GPTKImporter.installVideoProcessor(intoLibraryFolder: runtime)
+        try GPTKImporter.install(GPTKImporter.videoProcessorInterposer, intoLibraryFolder: runtime)
 
-        #expect(GPTKImporter.isVideoProcessorInstalled(inLibraryFolder: runtime))
+        #expect(GPTKImporter.isInstalled(GPTKImporter.videoProcessorInterposer, inLibraryFolder: runtime))
         // the second pass must not rename the interposer into d3dmt.dll
         let renamed = peDir(of: runtime).appending(path: "d3dmt.dll")
         #expect(try exportName(of: renamed) == "d3dmt.dll")
@@ -133,7 +133,7 @@ struct GPTKVideoProcessorTests {
 
         try GPTKImporter.deploy(fromStore: store, intoLibraryFolder: runtime)
 
-        #expect(GPTKImporter.isVideoProcessorInstalled(inLibraryFolder: runtime))
+        #expect(GPTKImporter.isInstalled(GPTKImporter.videoProcessorInterposer, inLibraryFolder: runtime))
         // the swap consumes the staged copy; nothing is left behind
         #expect(!FileManager.default.fileExists(atPath: staging.path(percentEncoded: false)))
     }
@@ -147,7 +147,7 @@ struct GPTKVideoProcessorTests {
 
         try GPTKImporter.deploy(fromStore: store, intoLibraryFolder: runtime)
 
-        #expect(!GPTKImporter.isVideoProcessorInstalled(inLibraryFolder: runtime))
+        #expect(!GPTKImporter.isInstalled(GPTKImporter.videoProcessorInterposer, inLibraryFolder: runtime))
         let renamed = peDir(of: runtime).appending(path: "d3dmt.dll")
         #expect(!FileManager.default.fileExists(atPath: renamed.path(percentEncoded: false)))
         // and the payload itself still landed
@@ -164,7 +164,7 @@ struct GPTKVideoProcessorTests {
         let backup = store.appending(path: "originals").appending(path: "d3d12.dll")
         let backupData = try Data(contentsOf: backup)
         #expect(backupData.suffix(13) == Data("wine original".utf8))
-        #expect(GPTKImporter.isVideoProcessorInstalled(inLibraryFolder: runtime))
+        #expect(GPTKImporter.isInstalled(GPTKImporter.videoProcessorInterposer, inLibraryFolder: runtime))
     }
 
     // MARK: - Remove
@@ -199,7 +199,9 @@ struct GPTKVideoProcessorTests {
             .appending(path: "system32")
         try FileManager.default.createDirectory(at: system32, withIntermediateDirectories: true)
 
-        GPTKImporter.seedVideoDevicePlaceholder(inBottle: bottle, fromLibraryFolder: runtime)
+        GPTKImporter.seedPlaceholder(
+            named: GPTKImporter.videoProcessorInterposer.renamedName, inBottle: bottle, fromLibraryFolder: runtime
+        )
 
         #expect(FileManager.default.fileExists(
             atPath: system32.appending(path: "d3dmt.dll").path(percentEncoded: false)
@@ -217,7 +219,9 @@ struct GPTKVideoProcessorTests {
         let placeholder = system32.appending(path: "d3dmt.dll")
         try Data("wineboot wrote this".utf8).write(to: placeholder)
 
-        GPTKImporter.seedVideoDevicePlaceholder(inBottle: bottle, fromLibraryFolder: runtime)
+        GPTKImporter.seedPlaceholder(
+            named: GPTKImporter.videoProcessorInterposer.renamedName, inBottle: bottle, fromLibraryFolder: runtime
+        )
 
         #expect(try Data(contentsOf: placeholder) == Data("wineboot wrote this".utf8))
     }
@@ -229,7 +233,9 @@ struct GPTKVideoProcessorTests {
         let bottle = tempDir.appending(path: "not-a-bottle")
         try FileManager.default.createDirectory(at: bottle, withIntermediateDirectories: true)
 
-        GPTKImporter.seedVideoDevicePlaceholder(inBottle: bottle, fromLibraryFolder: runtime)
+        GPTKImporter.seedPlaceholder(
+            named: GPTKImporter.videoProcessorInterposer.renamedName, inBottle: bottle, fromLibraryFolder: runtime
+        )
 
         #expect(!FileManager.default.fileExists(atPath: bottle.appending(path: "drive_c")
                 .path(percentEncoded: false)))

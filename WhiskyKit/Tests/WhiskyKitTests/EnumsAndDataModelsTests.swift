@@ -40,12 +40,6 @@ final class MagicEnumTests: XCTestCase {
         XCTAssertNil(PEFile.Magic(rawValue: 0xFFFF))
     }
 
-    func testMagicDescription() {
-        XCTAssertEqual(PEFile.Magic.unknown.description, "unknown")
-        XCTAssertEqual(PEFile.Magic.pe32.description, "PE32")
-        XCTAssertEqual(PEFile.Magic.pe32Plus.description, "PE32+")
-    }
-
     func testMagicHashable() {
         var set = Set<PEFile.Magic>()
         set.insert(.unknown)

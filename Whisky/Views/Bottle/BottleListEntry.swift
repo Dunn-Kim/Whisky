@@ -92,7 +92,7 @@ struct BottleListEntry: View {
         .sheet(isPresented: $showBottleRename) {
             RenameView("rename.bottle.title", name: name) { newName in
                 name = newName
-                bottle.rename(newName: newName)
+                bottle.settings.name = newName
             }
         }
         .sheet(isPresented: $showBottleDuplicate) {
@@ -106,7 +106,9 @@ struct BottleListEntry: View {
             ) { newName in
                 Task {
                     do {
-                        let newURL = try await bottle.duplicate(newName: newName) { phase in
+                        let newURL = try await BottleOperations.duplicate(
+                            bottleAt: bottle.url, newName: newName, registry: BottleVM.shared
+                        ) { phase in
                             Task { @MainActor in duplicationPhase = phase }
                         }
                         await MainActor.run {
@@ -163,7 +165,7 @@ struct BottleListEntry: View {
                             let newBottePath = url
                                 .appending(path: bottle.url.lastPathComponent)
 
-                            bottle.move(destination: newBottePath)
+                            BottleOperations.move(bottleAt: bottle.url, to: newBottePath, registry: BottleVM.shared)
                             selected = newBottePath
                         }
                     }
@@ -188,7 +190,9 @@ struct BottleListEntry: View {
                         if let url = panel.url {
                             Task {
                                 do {
-                                    try await bottle.exportAsArchive(destination: url)
+                                    try await BottleOperations.export(
+                                        bottleAt: bottle.url, to: url, registry: BottleVM.shared
+                                    )
                                     await MainActor.run {
                                         withAnimation {
                                             toast = ToastData(

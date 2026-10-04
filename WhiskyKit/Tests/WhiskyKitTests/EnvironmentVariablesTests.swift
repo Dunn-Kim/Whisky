@@ -231,7 +231,6 @@ final class EnvironmentVariablesTests: XCTestCase {
     func testEnvironmentVariablesWithMetalValidation() {
         var settings = BottleSettings()
         settings.metalValidation = true
-        settings.sequoiaCompatMode = false
 
         var env: [String: String] = [:]
         settings.environmentVariables(wineEnv: &env)
@@ -278,18 +277,16 @@ final class EnvironmentVariablesTests: XCTestCase {
 
     // MARK: - Sequoia Compatibility Mode
 
-    func testSequoiaToggleEmitsNothing() {
+    func testBottleLayerEmitsNoSequoiaFixes() {
         var settings = BottleSettings()
-        settings.sequoiaCompatMode = true
         settings.metalValidation = false
 
         var env: [String: String] = [:]
         settings.environmentVariables(wineEnv: &env)
 
-        // All three values the toggle used to set are platform-layer fixes on
-        // every supported macOS, carried with provenance by
-        // constructWineEnvironment; the bottle-layer duplicates meant the
-        // toggle's off position changed nothing.
+        // All three values the removed Sequoia toggle used to set are
+        // platform-layer fixes on every supported macOS, carried with
+        // provenance by constructWineEnvironment.
         XCTAssertNil(env["MTL_DEBUG_LAYER"])
         XCTAssertNil(env["D3DM_VALIDATION"])
         XCTAssertNil(env["WINEFSYNC"])
@@ -316,7 +313,6 @@ final class EnvironmentVariablesTests: XCTestCase {
         var settings = BottleSettings()
         settings.graphicsBackend = .dxvk
         settings.performancePreset = .performance
-        settings.sequoiaCompatMode = false // Disable to test performance preset in isolation
 
         var env: [String: String] = [:]
         settings.environmentVariables(wineEnv: &env)
@@ -332,7 +328,6 @@ final class EnvironmentVariablesTests: XCTestCase {
     func testEnvironmentVariablesWithQualityPreset() {
         var settings = BottleSettings()
         settings.performancePreset = .quality
-        settings.sequoiaCompatMode = false
 
         var env: [String: String] = [:]
         settings.environmentVariables(wineEnv: &env)
@@ -343,7 +338,6 @@ final class EnvironmentVariablesTests: XCTestCase {
     func testEnvironmentVariablesWithUnityPreset() {
         var settings = BottleSettings()
         settings.performancePreset = .unity
-        settings.sequoiaCompatMode = false
 
         var env: [String: String] = [:]
         settings.environmentVariables(wineEnv: &env)

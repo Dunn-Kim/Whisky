@@ -79,37 +79,15 @@ extension Bottle {
         let shellenv = ShellQuoting.commandLine([whiskyCmd, "shellenv", settings.name])
         let command = "eval \"$(\(shellenv))\""
         let scriptContent = "#!/bin/bash\n\(command)\n"
-
-        // Write to temp script file to handle all terminal apps consistently
-        let tempDir = FileManager.default.temporaryDirectory
-        let scriptURL = tempDir.appendingPathComponent("whisky-env-\(UUID().uuidString).sh")
-
-        do {
-            try scriptContent.write(to: scriptURL, atomically: true, encoding: .utf8)
-            try FileManager.default.setAttributes(
-                [.posixPermissions: 0o755],
-                ofItemAtPath: scriptURL.path
-            )
-        } catch {
-            Logger.wineKit.error("Failed to write terminal script: \(error)")
-            return
-        }
-
-        // Register temp script for tracking and cleanup
-        TempFileTracker.shared.register(file: scriptURL)
-
-        let terminal = TerminalApp.preferred
-        let appleScriptSource = terminal.generateAppleScript(for: scriptURL.path)
+        let subject = url.lastPathComponent
 
         Task.detached(priority: .userInitiated) {
-            var error: NSDictionary?
-            guard let appleScript = NSAppleScript(source: appleScriptSource) else { return }
-            appleScript.executeAndReturnError(&error)
-
-            if let error {
-                Logger.wineKit.error("Failed to run terminal script \(error)")
-                guard let description = error["NSAppleScriptErrorMessage"] as? String else { return }
-                await self.showRunError(message: String(describing: description))
+            let scriptURL: URL
+            do {
+                scriptURL = try await TerminalApp.runScript(scriptContent, namePrefix: "whisky-env", subject: subject)
+            } catch {
+                Logger.wineKit.error("Failed to write terminal script: \(error)")
+                return
             }
 
             // Clean up temp script after a delay to ensure the terminal has read it
@@ -238,49 +216,6 @@ extension Bottle {
         }
     }
 
-    /// Moves the bottle to a new location.
-    ///
-    /// Thin adapter over `BottleOperations.move`, which owns the
-    /// rewrite-before-move and rollback-on-failure semantics for pins and
-    /// blocklist URLs.
-    @MainActor
-    func move(destination: URL) {
-        BottleOperations.move(bottleAt: url, to: destination, registry: BottleVM.shared)
-    }
-
-    /// Exports the bottle as a gzip-compressed tar archive.
-    ///
-    /// Thin adapter over `BottleOperations.export`.
-    ///
-    /// - Parameter destination: The URL where the archive should be saved.
-    /// - Throws: `TarError` if the archive operation fails, or an error if the bottle is not found.
-    @MainActor
-    func exportAsArchive(destination: URL) async throws {
-        try await BottleOperations.export(bottleAt: url, to: destination, registry: BottleVM.shared)
-    }
-
-    /// Duplicates the bottle to a new directory with the given name.
-    ///
-    /// Thin adapter over `BottleOperations.duplicate`.
-    ///
-    /// - Parameters:
-    ///   - newName: The name for the duplicated bottle.
-    ///   - progress: Optional callback reporting `DuplicationPhase` updates.
-    /// - Returns: The URL of the newly created bottle directory.
-    /// - Throws: An error if the bottle is not found or the copy operation fails.
-    @MainActor
-    func duplicate(
-        newName: String,
-        progress: (@Sendable (DuplicationPhase) -> Void)? = nil
-    ) async throws -> URL {
-        try await BottleOperations.duplicate(
-            bottleAt: url,
-            newName: newName,
-            registry: BottleVM.shared,
-            progress: progress
-        )
-    }
-
     @MainActor
     func remove(delete: Bool) async {
         // Check for running processes before deletion
@@ -309,20 +244,52 @@ extension Bottle {
         BottleOperations.remove(bottleAt: url, deleteFiles: delete, registry: BottleVM.shared)
     }
 
-    @MainActor
-    func rename(newName: String) {
-        settings.name = newName
-    }
+}
 
-    @MainActor private func showRunError(message: String) {
-        let alert = NSAlert()
-        alert.messageText = String(localized: "alert.message")
-        alert.informativeText = String(localized: "alert.info")
-            + " \(self.url.lastPathComponent): "
-            + message
-        alert.alertStyle = .critical
-        alert.addButton(withTitle: String(localized: "button.ok"))
-        alert.runModal()
+extension Program {
+    /// A launch from a click: counts the attempt and launches, in Terminal when
+    /// `useTerminal`. That defaults to Shift, read at the call, before anything
+    /// async, so it is the key state of the click.
+    @MainActor
+    func launchFromUI(
+        useTerminal: Bool = NSEvent.modifierFlags.contains(.shift),
+        completion: @escaping @MainActor (LaunchResult) -> Void
+    ) {
+        Telemetry.capture(.firstProgramLaunchAttempted)
+        Task {
+            completion(await launchWithUserMode(useTerminal: useTerminal))
+        }
+    }
+}
+
+extension TerminalApp {
+    /// Has the preferred terminal `source` `script`, written to a temp `.sh`
+    /// tracked for cleanup. Throws when the script can't be written; an
+    /// AppleScript failure is shown as the run-error alert naming `subject`.
+    @discardableResult
+    static func runScript(_ script: String, namePrefix: String, subject: String) async throws -> URL {
+        let scriptURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("\(namePrefix)-\(UUID().uuidString).sh")
+        try script.write(to: scriptURL, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: scriptURL.path)
+        TempFileTracker.shared.register(file: scriptURL)
+
+        var error: NSDictionary?
+        NSAppleScript(source: preferred.generateAppleScript(for: scriptURL.path))?.executeAndReturnError(&error)
+        if let error {
+            Logger.wineKit.error("Failed to run terminal script \(error)")
+            if let description = error["NSAppleScriptErrorMessage"] as? String {
+                await MainActor.run {
+                    let alert = NSAlert()
+                    alert.messageText = String(localized: "alert.message")
+                    alert.informativeText = String(localized: "alert.info") + " \(subject): " + description
+                    alert.alertStyle = .critical
+                    alert.addButton(withTitle: String(localized: "button.ok"))
+                    alert.runModal()
+                }
+            }
+        }
+        return scriptURL
     }
 }
 

@@ -36,7 +36,6 @@ struct StubCheck: TroubleshootingCheck {
 /// Builds a hermetic check context: all inputs injected, nothing read from
 /// the machine running the tests.
 func makeCheckContext(
-    graphicsBackend: String = "dxmt",
     launcherType: String? = nil,
     programName: String? = nil
 ) -> CheckContext {
@@ -48,7 +47,7 @@ func makeCheckContext(
         launcherType: launcherType,
         isWineserverRunning: false,
         processCount: 0,
-        graphicsBackend: graphicsBackend
+        graphicsBackend: "dxmt"
     )
     return CheckContext(
         bottleURL: bottleURL,
@@ -102,34 +101,34 @@ final class TroubleshootingChecksTests: XCTestCase {
         XCTAssertEqual(result.outcome, .unknown)
     }
 
-    // MARK: - GraphicsBackendCheck
+    // MARK: - SettingValueCheck
 
-    func testGraphicsBackendCheckMissingParamIsError() async {
-        let result = await GraphicsBackendCheck().run(params: [:], context: makeCheckContext())
+    func testSettingValueCheckMissingParamIsError() async {
+        let result = await SettingValueCheck().run(params: ["expected": "dxvk"], context: makeCheckContext())
 
         XCTAssertEqual(result.outcome, .error)
     }
 
-    func testGraphicsBackendCheckMatchIsAlreadyConfigured() async {
-        let result = await GraphicsBackendCheck().run(
-            params: ["expected": "dxmt"],
-            context: makeCheckContext(graphicsBackend: "dxmt")
+    func testSettingValueCheckComparesTheSavedBackend() async throws {
+        let context = makeCheckContext()
+        try FileManager.default.createDirectory(at: context.bottleURL, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: context.bottleURL) }
+        var settings = BottleSettings()
+        settings.graphicsBackend = .wined3d
+        try settings.encode(to: context.bottleURL.appending(path: "Metadata.plist"))
+
+        let mismatch = await SettingValueCheck().run(
+            params: ["setting": "graphicsBackend", "expected": "dxvk"], context: context
         )
+        XCTAssertEqual(mismatch.outcome, .fail)
+        XCTAssertEqual(mismatch.evidence["current"], "wined3d")
+        XCTAssertEqual(mismatch.evidence["expected"], "dxvk")
 
-        XCTAssertEqual(result.outcome, .alreadyConfigured)
-        XCTAssertEqual(result.evidence["current"], "dxmt")
-        XCTAssertEqual(result.confidence, .high)
-    }
-
-    func testGraphicsBackendCheckMismatchIsFail() async {
-        let result = await GraphicsBackendCheck().run(
-            params: ["expected": "dxvk"],
-            context: makeCheckContext(graphicsBackend: "wined3d")
+        let match = await SettingValueCheck().run(
+            params: ["setting": "graphicsBackend", "expected": "wined3d"], context: context
         )
-
-        XCTAssertEqual(result.outcome, .fail)
-        XCTAssertEqual(result.evidence["current"], "wined3d")
-        XCTAssertEqual(result.evidence["expected"], "dxvk")
+        XCTAssertEqual(match.outcome, .alreadyConfigured)
+        XCTAssertEqual(match.confidence, .high)
     }
 
     // MARK: - LauncherTypeCheck

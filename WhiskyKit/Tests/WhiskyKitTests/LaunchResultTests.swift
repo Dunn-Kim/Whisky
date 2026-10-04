@@ -53,69 +53,6 @@ final class LaunchResultTests: XCTestCase {
         }
     }
 
-    // MARK: - programName Computed Property Tests
-
-    func testProgramNameForSuccessfulLaunch() {
-        let result = LaunchResult.launchedSuccessfully(programName: "Game.exe")
-        XCTAssertEqual(result.programName, "Game.exe")
-    }
-
-    func testProgramNameForTerminalLaunch() {
-        let result = LaunchResult.launchedInTerminal(programName: "Launcher.exe")
-        XCTAssertEqual(result.programName, "Launcher.exe")
-    }
-
-    func testProgramNameForFailedLaunch() {
-        let result = LaunchResult.launchFailed(programName: "App.exe", errorDescription: "Error")
-        XCTAssertEqual(result.programName, "App.exe")
-    }
-
-    func testProgramNameWithSpecialCharacters() {
-        let specialName = "My Game (2024) - Special Edition.exe"
-        let result = LaunchResult.launchedSuccessfully(programName: specialName)
-        XCTAssertEqual(result.programName, specialName)
-    }
-
-    func testProgramNameWithUnicode() {
-        let unicodeName = "ゲーム.exe"
-        let result = LaunchResult.launchedInTerminal(programName: unicodeName)
-        XCTAssertEqual(result.programName, unicodeName)
-    }
-
-    func testProgramNameWithEmptyString() {
-        let result = LaunchResult.launchedSuccessfully(programName: "")
-        XCTAssertEqual(result.programName, "")
-    }
-
-    // MARK: - errorDescription Computed Property Tests
-
-    func testErrorDescriptionForSuccessfulLaunchIsNil() {
-        let result = LaunchResult.launchedSuccessfully(programName: "App.exe")
-        XCTAssertNil(result.errorDescription)
-    }
-
-    func testErrorDescriptionForTerminalLaunchIsNil() {
-        let result = LaunchResult.launchedInTerminal(programName: "App.exe")
-        XCTAssertNil(result.errorDescription)
-    }
-
-    func testErrorDescriptionForFailedLaunch() {
-        let errorMessage = "Wine process failed with exit code 1"
-        let result = LaunchResult.launchFailed(programName: "App.exe", errorDescription: errorMessage)
-        XCTAssertEqual(result.errorDescription, errorMessage)
-    }
-
-    func testErrorDescriptionWithEmptyErrorString() {
-        let result = LaunchResult.launchFailed(programName: "App.exe", errorDescription: "")
-        XCTAssertEqual(result.errorDescription, "")
-    }
-
-    func testErrorDescriptionWithLongErrorMessage() {
-        let longError = String(repeating: "Error details. ", count: 100)
-        let result = LaunchResult.launchFailed(programName: "App.exe", errorDescription: longError)
-        XCTAssertEqual(result.errorDescription, longError)
-    }
-
     // MARK: - Sendable Conformance Tests
 
     func testSendableConformanceWithSuccessfulLaunch() async {
@@ -126,7 +63,10 @@ final class LaunchResultTests: XCTestCase {
             result
         }.value
 
-        XCTAssertEqual(capturedResult.programName, "App.exe")
+        guard case let .launchedSuccessfully(name) = capturedResult else {
+            return XCTFail("Expected launchedSuccessfully case")
+        }
+        XCTAssertEqual(name, "App.exe")
     }
 
     func testSendableConformanceWithTerminalLaunch() async {
@@ -136,7 +76,10 @@ final class LaunchResultTests: XCTestCase {
             result
         }.value
 
-        XCTAssertEqual(capturedResult.programName, "App.exe")
+        guard case let .launchedInTerminal(name) = capturedResult else {
+            return XCTFail("Expected launchedInTerminal case")
+        }
+        XCTAssertEqual(name, "App.exe")
     }
 
     func testSendableConformanceWithFailedLaunch() async {
@@ -146,8 +89,11 @@ final class LaunchResultTests: XCTestCase {
             result
         }.value
 
-        XCTAssertEqual(capturedResult.programName, "App.exe")
-        XCTAssertEqual(capturedResult.errorDescription, "Error")
+        guard case let .launchFailed(name, error) = capturedResult else {
+            return XCTFail("Expected launchFailed case")
+        }
+        XCTAssertEqual(name, "App.exe")
+        XCTAssertEqual(error, "Error")
     }
 
     // MARK: - Equality Tests (via switch matching)
@@ -175,53 +121,5 @@ final class LaunchResultTests: XCTestCase {
         } else {
             XCTFail("failed should match launchFailed")
         }
-    }
-
-    // MARK: - NotificationStyle Tests
-
-    func testNotificationStyleForSuccessfulLaunch() {
-        let result = LaunchResult.launchedSuccessfully(programName: "App.exe")
-        XCTAssertEqual(result.notificationStyle, .success)
-    }
-
-    func testNotificationStyleForTerminalLaunch() {
-        let result = LaunchResult.launchedInTerminal(programName: "App.exe")
-        XCTAssertEqual(result.notificationStyle, .info)
-    }
-
-    func testNotificationStyleForFailedLaunch() {
-        let result = LaunchResult.launchFailed(programName: "App.exe", errorDescription: "Error")
-        XCTAssertEqual(result.notificationStyle, .error)
-    }
-
-    // MARK: - shouldAutoDismiss Tests
-
-    func testShouldAutoDismissForSuccessfulLaunch() {
-        let result = LaunchResult.launchedSuccessfully(programName: "App.exe")
-        XCTAssertTrue(result.shouldAutoDismiss)
-    }
-
-    func testShouldAutoDismissForTerminalLaunch() {
-        let result = LaunchResult.launchedInTerminal(programName: "App.exe")
-        XCTAssertTrue(result.shouldAutoDismiss)
-    }
-
-    func testShouldNotAutoDismissForFailedLaunch() {
-        let result = LaunchResult.launchFailed(programName: "App.exe", errorDescription: "Error")
-        XCTAssertFalse(result.shouldAutoDismiss)
-    }
-
-    // MARK: - Edge Case Tests
-
-    func testLaunchResultWithVeryLongProgramName() {
-        let longName = String(repeating: "a", count: 1_000) + ".exe"
-        let result = LaunchResult.launchedSuccessfully(programName: longName)
-        XCTAssertEqual(result.programName, longName)
-    }
-
-    func testLaunchResultWithPathSeparators() {
-        let pathName = "C:\\Program Files\\Game\\app.exe"
-        let result = LaunchResult.launchedSuccessfully(programName: pathName)
-        XCTAssertEqual(result.programName, pathName)
     }
 }

@@ -83,7 +83,6 @@ extension ProgressRailView {
                 .font(.subheadline)
                 .fontWeight(state == .active ? .semibold : .regular)
                 .foregroundStyle(textColor(for: state))
-                .strikethrough(state == .superseded, color: .secondary.opacity(0.5))
         }
         .padding(.vertical, 4)
     }
@@ -103,10 +102,6 @@ extension ProgressRailView {
             Image(systemName: railPhase.sfSymbol)
                 .foregroundStyle(.secondary)
                 .font(.body)
-        case .superseded:
-            Image(systemName: railPhase.sfSymbol)
-                .foregroundStyle(.secondary.opacity(0.4))
-                .font(.body)
         }
     }
 
@@ -115,7 +110,6 @@ extension ProgressRailView {
         case .completed: .primary
         case .active: .accentColor
         case .upcoming: .secondary
-        case .superseded: .secondary.opacity(0.4)
         }
     }
 }
@@ -139,7 +133,6 @@ extension ProgressRailView {
         case completed
         case active
         case upcoming
-        case superseded
     }
 
     private func phaseState(for phase: TroubleshootingSession.SessionPhase) -> PhaseState {
@@ -153,11 +146,7 @@ extension ProgressRailView {
         }
 
         if phaseOrder < currentOrder {
-            // Check if superseded by branch changes
-            let hasSupersededSteps = session.stepHistory.contains { step in
-                step.phase == phase && step.isSuperseded
-            }
-            return hasSupersededSteps ? .superseded : .completed
+            return .completed
         } else if phaseOrder == currentOrder {
             return .active
         } else {

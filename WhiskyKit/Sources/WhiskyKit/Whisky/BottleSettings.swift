@@ -127,7 +127,6 @@ public struct BottleInfo: Codable, Equatable {
 /// - ``metalTrace``
 /// - ``metalValidation``
 /// - ``dxrEnabled``
-/// - ``sequoiaCompatMode``
 /// - ``metal4Enabled``
 ///
 /// ### DXVK Settings
@@ -329,15 +328,6 @@ public struct BottleSettings: Codable, Equatable {
     public var metalValidation: Bool {
         get { metalConfig.metalValidation }
         set { metalConfig.metalValidation = newValue }
-    }
-
-    /// Whether macOS Sequoia (15.x) compatibility mode is enabled.
-    ///
-    /// Applies additional fixes for graphics and launcher issues
-    /// specific to macOS 15.x. Enable if experiencing problems.
-    public var sequoiaCompatMode: Bool {
-        get { metalConfig.sequoiaCompatMode }
-        set { metalConfig.sequoiaCompatMode = newValue }
     }
 
     /// Whether D3DMetal uses the Metal 4 command encoding backend.
@@ -932,11 +922,7 @@ public struct BottleSettings: Codable, Equatable {
             // serial unless told otherwise. Apple Silicon has cores to spare
             // for it, and spreading the compile across them is the difference
             // between a stutter and a hitch on first sight of a new shader.
-            builder.set(
-                "MVK_CONFIG_SHOULD_MAXIMIZE_CONCURRENT_COMPILATION", "1",
-                layer: .bottleManaged,
-                reason: "Parallel Metal shader compilation on Apple Silicon"
-            )
+            builder.set("MVK_CONFIG_SHOULD_MAXIMIZE_CONCURRENT_COMPILATION", "1", layer: .bottleManaged)
 
         case .dxmt:
             // DXMT: native overrides for the D3D11 trio plus the builtin
@@ -948,10 +934,7 @@ public struct BottleSettings: Codable, Equatable {
             // Its own variable rather than a DXMT_CONFIG key, so it cannot clobber
             // the frame rate cap that DXMT_CONFIG carries.
             if dxmtMetalFXUpscale {
-                builder.set(
-                    "DXMT_METALFX_SPATIAL_SWAPCHAIN", "1", layer: .bottleManaged,
-                    reason: "MetalFX spatial upscaling of the DXMT swapchain"
-                )
+                builder.set("DXMT_METALFX_SPATIAL_SWAPCHAIN", "1", layer: .bottleManaged)
             }
 
         case .wined3d:
@@ -964,10 +947,7 @@ public struct BottleSettings: Codable, Equatable {
         // burns power -- an uncapped game pins the GPU at its maximum clock.
         if let fps = frameRateLimit.resolved(displayRefreshRate: displayRefreshRate) {
             for (key, value) in resolvedBackend.frameRateLimitEnvironment(fps: fps) {
-                builder.set(
-                    key, value, layer: .bottleManaged,
-                    reason: "Frame rate limited to \(fps) FPS"
-                )
+                builder.set(key, value, layer: .bottleManaged)
             }
         }
 
@@ -1065,7 +1045,7 @@ public struct BottleSettings: Codable, Equatable {
         if let launcher = detectedLauncher {
             let fixDetails = launcher.fixDetails()
             for detail in fixDetails {
-                builder.set(detail.key, detail.value, layer: .launcherManaged, reason: detail.reason)
+                builder.set(detail.key, detail.value, layer: .launcherManaged)
             }
             launcherProvidesLocale = fixDetails.contains { $0.key == "LC_ALL" }
 
@@ -1128,7 +1108,7 @@ public struct BottleSettings: Codable, Equatable {
     /// keys in would silently undo the setting that sits beside the spoof in
     /// the same screen.
     private func spoofEnvironment() -> [String: String] {
-        var gpuEnv = GPUDetection.spoofWithVendor(gpuVendor)
+        var gpuEnv = GPUDetection.spoofGPU(vendor: gpuVendor)
         if forceD3D11 {
             gpuEnv.removeValue(forKey: "D3DM_FEATURE_LEVEL_12_0")
             gpuEnv.removeValue(forKey: "D3DM_FEATURE_LEVEL_12_1")
@@ -1165,25 +1145,6 @@ public struct BottleSettings: Codable, Equatable {
         } else {
             builder.set("SDL_GAMECONTROLLER_USE_BUTTON_LABELS", "0", layer: .bottleManaged)
         }
-    }
-
-    /// Populates the audio layer of the environment builder.
-    ///
-    /// Audio configuration in Wine is **registry-backed**, not environment-variable-backed.
-    /// The audio driver (`HKCU\Software\Wine\Drivers\Audio`) and DirectSound buffer size
-    /// (`HKCU\Software\Wine\DirectSound\HelBuflen`) are applied via ``WineAudioRegistry``
-    /// methods, not through this layer populator.
-    ///
-    /// This method exists as the EnvironmentBuilder integration point for audio settings,
-    /// following the pattern of ``populateInputCompatibilityLayer(builder:)``. It is reserved
-    /// for future audio-related environment variables (e.g., `WINEDEBUG` channels for audio
-    /// debugging).
-    ///
-    /// - Parameter builder: The environment builder to populate.
-    public func populateAudioLayer(builder: inout EnvironmentBuilder) {
-        // Audio settings are applied via Wine registry (WineAudioRegistry), not env vars.
-        // This placeholder ensures the EnvironmentBuilder cascade has an audio integration
-        // point for future audio-related environment variables.
     }
 
     /// Populates performance preset environment variables into the bottleManaged layer.

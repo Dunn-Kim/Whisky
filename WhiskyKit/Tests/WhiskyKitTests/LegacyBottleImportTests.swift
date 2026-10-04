@@ -157,10 +157,5 @@ final class LegacyBottleImportTests: XCTestCase {
     func testReturnsEmptyWhenContainerMissing() {
         let missing = FileManager.default.temporaryDirectory.appending(path: "missing_\(UUID().uuidString)")
         XCTAssertEqual(LegacyBottleImport.importableBottleURLs(legacyContainer: missing, existingPaths: []), [])
-        XCTAssertFalse(LegacyBottleImport.legacyContainerExists(at: missing))
-    }
-
-    func testLegacyContainerExists() {
-        XCTAssertTrue(LegacyBottleImport.legacyContainerExists(at: container))
     }
 }

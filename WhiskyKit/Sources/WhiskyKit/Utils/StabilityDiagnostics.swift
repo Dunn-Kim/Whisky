@@ -125,8 +125,7 @@ public enum StabilityDiagnostics {
         summary += "Force D3D11: \(bottle.settings.forceD3D11 ? "✅ Yes" : "❌ No")\n"
         summary += "DXR Enabled: \(bottle.settings.dxrEnabled ? "✅ Yes" : "❌ No")\n"
         summary += "Metal HUD: \(bottle.settings.metalHud ? "✅ Yes" : "❌ No")\n"
-        summary += "Metal Validation: \(bottle.settings.metalValidation ? "✅ Yes" : "❌ No")\n"
-        summary += "Sequoia Compat Mode: \(bottle.settings.sequoiaCompatMode ? "✅ Yes" : "❌ No")\n\n"
+        summary += "Metal Validation: \(bottle.settings.metalValidation ? "✅ Yes" : "❌ No")\n\n"
 
         summary += "--- Sync/Performance ---\n"
         summary += "Enhanced Sync: \(bottle.settings.enhancedSync)\n"
@@ -245,11 +244,10 @@ public enum StabilityDiagnostics {
         }.value
     }
 
-    static func tailOfLogFile(_ url: URL) -> String {
-        // Keep this small and predictable: max 64 KiB, last 200 lines.
-        let maxBytesToRead = 64 * 1_024
-        let maxLines = 200
-
+    /// Reads the last `lineCount` lines of a log, looking at no more than its
+    /// final `maxBytes` so the cost stays small and predictable.
+    static func tailOfLogFile(_ url: URL, lineCount maxLines: Int = 200, maxBytes maxBytesToRead: Int = 64 * 1_024)
+        -> String {
         do {
             let handle = try FileHandle(forReadingFrom: url)
             defer { try? handle.close() }

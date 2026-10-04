@@ -19,6 +19,44 @@
 @testable import WhiskyKit
 import XCTest
 
+/// Every fixId `FixApplicator.apply` implements. A flow naming anything else
+/// would render a fix card whose Apply button does nothing.
+private let knownFixIds: Set<String> = [
+    "switch-backend", "enable-dxvk-async", "set-audio-driver",
+    "set-buffer-size", "enable-esync", "enable-controller-compat",
+    "install-winetricks-verb", "run-enhanced-diagnostics",
+    "restart-wineserver", "set-registry-value", "apply-launcher-fixes",
+    "apply-game-config"
+]
+
+/// Structural errors in flow graphs: a missing entry node, branch targets or
+/// fragment refs that resolve nowhere, and fix IDs with no implementation.
+private func validationErrors(
+    flows: [String: FlowDefinition],
+    fragments: [String: FlowDefinition] = [:]
+) -> [String] {
+    let all = Array(flows) + Array(fragments)
+    let allNodeIds = Set(all.flatMap(\.value.nodes.keys))
+    var errors: [String] = []
+    for (flowId, flow) in all {
+        if flow.nodes[flow.entryNodeId] == nil {
+            errors.append("\(flowId): entry node '\(flow.entryNodeId)' not found")
+        }
+        for (nodeId, node) in flow.nodes {
+            for target in (node.on ?? [:]).values where !allNodeIds.contains(target) {
+                errors.append("\(flowId)/\(nodeId): target '\(target)' not found")
+            }
+            if let fixId = node.fixId, !knownFixIds.contains(fixId) {
+                errors.append("\(flowId)/\(nodeId): fix '\(fixId)' has no implementation")
+            }
+            if let ref = node.fragmentRef, fragments[ref] == nil {
+                errors.append("\(flowId)/\(nodeId): fragment '\(ref)' not found")
+            }
+        }
+    }
+    return errors
+}
+
 /// Integration tests over the flow JSON actually shipped in the package
 /// resources: every flow must load, validate, and reference only checks
 /// that exist. These are the tests that catch a broken flow file at CI
@@ -26,35 +64,20 @@ import XCTest
 final class FlowLoaderValidatorTests: XCTestCase {
     // MARK: - Bundled resources
 
-    func testIndexLoadsAndCoversEveryCategory() throws {
-        let index = try XCTUnwrap(FlowLoader.loadIndex())
-        XCTAssertFalse(index.categories.isEmpty)
-
-        // Every SymptomCategory's flow file must be present in the index so
-        // selecting any symptom in the UI reaches a real flow — except .other,
-        // which by design has no flow: selecting it escalates directly to the
-        // export fragment (the engine's no-flow path).
-        let indexedFiles = Set(index.categories.map(\.flowFile))
-        for category in SymptomCategory.allCases where category != .other {
-            XCTAssertTrue(
-                indexedFiles.contains(category.flowFileName),
-                "index.json is missing \(category.flowFileName) for category \(category)"
-            )
-        }
-        XCTAssertFalse(
-            indexedFiles.contains(SymptomCategory.other.flowFileName),
-            ".other gained a flow file — update the engine's no-flow escalation expectations"
-        )
-    }
-
-    func testAllIndexedFlowsLoad() throws {
-        let index = try XCTUnwrap(FlowLoader.loadIndex())
+    func testEveryCategoryExceptOtherLoadsItsFlow() {
         let flows = FlowLoader.loadAllFlows()
 
-        XCTAssertEqual(
-            flows.count, index.categories.count,
-            "every category in index.json must load; a silently skipped flow means a dead symptom path"
-        )
+        // Selecting any symptom in the UI must reach a real flow, except
+        // .other, which by design has no flow: selecting it escalates
+        // directly to the export fragment (the engine's no-flow path).
+        for category in SymptomCategory.allCases where category != .other {
+            let categoryId = String(category.flowFileName.dropLast(5))
+            XCTAssertEqual(
+                flows[categoryId]?.categoryId, categoryId,
+                "\(category.flowFileName) must load; a silently skipped flow means a dead symptom path"
+            )
+        }
+        XCTAssertEqual(flows.count, SymptomCategory.allCases.count - 1)
     }
 
     func testFragmentsLoad() {
@@ -69,13 +92,9 @@ final class FlowLoaderValidatorTests: XCTestCase {
         let fragments = FlowLoader.loadFragments()
         XCTAssertFalse(flows.isEmpty)
 
-        let issues = FlowValidator.validate(flows: flows, fragments: fragments)
-        let errors = issues.filter { $0.severity == .error }
+        let errors = validationErrors(flows: flows, fragments: fragments)
 
-        XCTAssertTrue(
-            errors.isEmpty,
-            "bundled flows have validation errors: \(errors.map { "\($0.flowId)/\($0.nodeId ?? "-"): \($0.message)" })"
-        )
+        XCTAssertTrue(errors.isEmpty, "bundled flows have validation errors: \(errors)")
     }
 
     func testEveryReferencedCheckIdHasAnImplementation() {
@@ -96,11 +115,11 @@ final class FlowLoaderValidatorTests: XCTestCase {
         // registers, without running any of them (several probe hardware).
         let implemented: Set<String> = Set(
             ([
-                CrashLogCheck(), GraphicsBackendCheck(), DXVKSettingsCheck(),
-                AudioDriverCheck(), AudioDeviceCheck(), AudioTestCheck(),
+                CrashLogCheck(),
+                AudioDriverCheck(), AudioDeviceCheck(),
                 DependencyCheck(), WinetricksVerbCheck(),
                 LauncherTypeCheck(), ProcessRunningCheck(),
-                EnvironmentCheck(), RegistryValueCheck(),
+                RegistryValueCheck(),
                 GameConfigAvailableCheck(), SettingValueCheck(), DiagnosticsEnhanceCheck()
             ] as [any TroubleshootingCheck]).map(\.checkId)
         )
@@ -117,7 +136,7 @@ final class FlowLoaderValidatorTests: XCTestCase {
     private func makeNode(
         id: String,
         type: NodeType = .check,
-        checkId: String? = "graphics.backend_is",
+        checkId: String? = "setting.value_check",
         on: [String: String]? = nil // swiftlint:disable:this identifier_name
     ) -> FlowStepNode {
         FlowStepNode(id: id, type: type, phase: .checks, checkId: checkId, on: on)
@@ -131,12 +150,9 @@ final class FlowLoaderValidatorTests: XCTestCase {
             entryNodeId: "start"
         )
 
-        let issues = FlowValidator.validate(flows: ["test": flow], fragments: [:])
+        let errors = validationErrors(flows: ["test": flow])
 
-        XCTAssertTrue(
-            issues.contains { $0.severity == .error },
-            "a branch target that resolves nowhere must be a validation error, got: \(issues)"
-        )
+        XCTAssertFalse(errors.isEmpty, "a branch target that resolves nowhere must be a validation error")
     }
 
     func testValidatorFlagsUnknownFixId() {
@@ -152,11 +168,11 @@ final class FlowLoaderValidatorTests: XCTestCase {
             entryNodeId: "start"
         )
 
-        let issues = FlowValidator.validate(flows: ["test": flow], fragments: [:])
+        let errors = validationErrors(flows: ["test": flow])
 
         XCTAssertTrue(
-            issues.contains { $0.severity == .error && $0.message.contains("not-a-real-fix") },
-            "a fixId with no implementation must fail validation, got: \(issues)"
+            errors.contains { $0.contains("not-a-real-fix") },
+            "a fixId with no implementation must fail validation, got: \(errors)"
         )
     }
 
@@ -168,9 +184,7 @@ final class FlowLoaderValidatorTests: XCTestCase {
             entryNodeId: "nope"
         )
 
-        let issues = FlowValidator.validate(flows: ["test": flow], fragments: [:])
-
-        XCTAssertTrue(issues.contains { $0.severity == .error })
+        XCTAssertFalse(validationErrors(flows: ["test": flow]).isEmpty)
     }
 
     func testValidatorAcceptsWellFormedFlow() {
@@ -184,11 +198,8 @@ final class FlowLoaderValidatorTests: XCTestCase {
             entryNodeId: "start"
         )
 
-        let issues = FlowValidator.validate(flows: ["test": flow], fragments: [:])
+        let errors = validationErrors(flows: ["test": flow])
 
-        XCTAssertTrue(
-            issues.filter { $0.severity == .error }.isEmpty,
-            "well-formed flow should have no errors, got: \(issues)"
-        )
+        XCTAssertTrue(errors.isEmpty, "well-formed flow should have no errors, got: \(errors)")
     }
 }

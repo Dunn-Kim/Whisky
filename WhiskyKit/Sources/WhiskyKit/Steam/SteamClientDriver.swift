@@ -58,11 +58,8 @@ public protocol SteamClientDriver: AnyObject {
 }
 
 /// The production driver: Wine, `tasklist.exe`, `ps`, and ``SteamLauncher``.
-///
-/// `open` so the app can layer session-scoped behavior on the two lifecycle
-/// hooks (download monitoring) without the kit knowing about it.
 @MainActor
-open class WineSteamClientDriver: SteamClientDriver {
+public final class WineSteamClientDriver: SteamClientDriver {
     public let bottle: Bottle
 
     public init(bottle: Bottle) {
@@ -74,7 +71,7 @@ open class WineSteamClientDriver: SteamClientDriver {
     /// client spent dozens of them competing with the client it was waiting
     /// for. Wine's processes carry their Windows image name in the host
     /// process list, so this answers "nothing is running yet" for free.
-    open func hostWineImageNames() async -> Set<String> {
+    public func hostWineImageNames() async -> Set<String> {
         await Task.detached {
             let process = Process()
             process.executableURL = URL(filePath: "/bin/ps")
@@ -106,7 +103,7 @@ open class WineSteamClientDriver: SteamClientDriver {
         )
     }
 
-    open func processList() async -> [WineProcess] {
+    public func processList() async -> [WineProcess] {
         guard let output = try? await Wine.runWine(["tasklist.exe", "/FO", "CSV"], bottle: bottle) else {
             return []
         }
@@ -114,7 +111,7 @@ open class WineSteamClientDriver: SteamClientDriver {
     }
 
     /// `steam.exe -silent` runs for the whole session, so the run is never awaited.
-    open func startClient(steamExe: URL) {
+    public func startClient(steamExe: URL) {
         let bottle = self.bottle
         Task {
             _ = try? await Wine.runProgram(at: steamExe, args: ["-silent"], bottle: bottle)
@@ -123,7 +120,7 @@ open class WineSteamClientDriver: SteamClientDriver {
 
     /// Through the shared path, which carries the locale, DXVK and
     /// GPU-spoofing settings steamwebhelper needs and not just the compat flag.
-    open func applyLauncherFixes() {
+    public func applyLauncherFixes() {
         LauncherFixes.apply(to: bottle, launcher: .steam)
     }
 
@@ -131,15 +128,15 @@ open class WineSteamClientDriver: SteamClientDriver {
     /// overrides, records the bottle for this App ID, and hands `-applaunch`
     /// to the client. The returned task can outlive the game, so it is never
     /// awaited. The install URL is already known, which saves a library rescan.
-    open func launchGame(_ game: SteamGame) throws {
+    public func launchGame(_ game: SteamGame) throws {
         _ = try SteamLauncher.launch(appId: game.appId, bottle: bottle, installURL: game.installURL)
     }
 
-    open func killProcess(winePID: Int32) async {
-        await Wine.gracefulKillProcess(winePID: winePID, bottle: bottle)
+    public func killProcess(winePID: Int32) async {
+        await Wine.killProcess(winePID: winePID, bottle: bottle, force: false)
     }
 
-    open func clientDidBecomeReady() {}
+    public func clientDidBecomeReady() {}
 
-    open func shutdown() {}
+    public func shutdown() {}
 }

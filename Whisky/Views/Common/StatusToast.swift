@@ -23,14 +23,12 @@ enum ToastStyle: Equatable {
     case success
     case error
     case info
-    case launcherFixes
 
     var iconName: String {
         switch self {
         case .success: "checkmark.circle.fill"
         case .error: "xmark.circle.fill"
         case .info: "info.circle.fill"
-        case .launcherFixes: "wrench.and.screwdriver.fill"
         }
     }
 
@@ -39,7 +37,6 @@ enum ToastStyle: Equatable {
         case .success: .green
         case .error: .red
         case .info: .blue
-        case .launcherFixes: .orange
         }
     }
 
@@ -48,7 +45,6 @@ enum ToastStyle: Equatable {
         case .success: String(localized: "accessibility.toast.success")
         case .error: String(localized: "accessibility.toast.error")
         case .info: String(localized: "accessibility.toast.info")
-        case .launcherFixes: String(localized: "accessibility.toast.launcherFixes")
         }
     }
 }

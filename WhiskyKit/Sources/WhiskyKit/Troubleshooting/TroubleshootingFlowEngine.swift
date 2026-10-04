@@ -74,12 +74,6 @@ public final class TroubleshootingFlowEngine: ObservableObject {
     /// The current flow step node being displayed.
     @Published public var currentNode: FlowStepNode?
 
-    /// Whether the flow path has changed due to branching.
-    @Published public var pathChanged: Bool = false
-
-    /// Explanation of why the flow path changed.
-    @Published public var pathChangeReason: String?
-
     /// The most recent check result, exposed so fix views can inherit
     /// evidence (e.g. which winetricks verb the check found missing).
     @Published public private(set) var lastCheckResult: CheckResult?
@@ -373,8 +367,16 @@ public final class TroubleshootingFlowEngine: ObservableObject {
     /// Info nodes (a findings card between a check and its fix) only carry
     /// this transition. Nothing followed it, so every flow that reached one
     /// stopped there with Skip and Back as the only controls.
+    ///
+    /// A node keyed by launcher (`branch_by_launcher`: steam, ea, epic,
+    /// rockstar) routes on the launcher the preflight detected, whose name
+    /// starts with the key ("EA App" takes `ea`). Before this, every launcher
+    /// took `default`, so the launcher-specific steps were unreachable.
     public func continueStep() {
-        follow(["continue", "default"], reason: "Continue")
+        let launcher = session.preflightSnapshot?.launcherType?.lowercased() ?? ""
+        let routed = (currentNode?.on?.keys.filter { !launcher.isEmpty && launcher.hasPrefix($0) } ?? [])
+            .sorted { $0.count > $1.count }
+        follow(routed + ["continue", "default"], reason: "Continue")
     }
 
     /// Skips the current step. `continue` is the last fallback: skipping an
@@ -446,8 +448,6 @@ public final class TroubleshootingFlowEngine: ObservableObject {
         )
         currentNode = nil
         automatedStepCount = 0
-        pathChanged = false
-        pathChangeReason = nil
         autoSave()
     }
 
@@ -491,16 +491,5 @@ public final class TroubleshootingFlowEngine: ObservableObject {
     private func autoSave() {
         session.lastUpdatedAt = Date()
         sessionStore.save(session)
-    }
-
-    /// Records a path change with explanation for the UI.
-    ///
-    /// - Parameters:
-    ///   - oldPath: Description of the previous path.
-    ///   - newPath: Description of the new path.
-    ///   - reason: Why the path changed.
-    private func handleBranchChange(from oldPath: String, to newPath: String, reason: String) {
-        pathChanged = true
-        pathChangeReason = reason
     }
 }

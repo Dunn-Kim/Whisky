@@ -159,68 +159,6 @@ final class FileHandleExtractTests: XCTestCase {
     }
 }
 
-// MARK: - FileHandle.write(line:) Tests
-
-final class FileHandleWriteLineTests: XCTestCase {
-    var tempURL: URL!
-
-    override func setUp() {
-        super.setUp()
-        tempURL = FileManager.default.temporaryDirectory.appending(path: "test_\(UUID().uuidString).txt")
-    }
-
-    override func tearDown() {
-        try? FileManager.default.removeItem(at: tempURL)
-        super.tearDown()
-    }
-
-    func testWriteLine() throws {
-        FileManager.default.createFile(atPath: tempURL.path(percentEncoded: false), contents: nil)
-
-        let handle = try FileHandle(forWritingTo: tempURL)
-        handle.write(line: "Hello, World!")
-        try handle.close()
-
-        let content = try String(contentsOf: tempURL, encoding: .utf8)
-        XCTAssertEqual(content, "Hello, World!")
-    }
-
-    func testWriteMultipleLines() throws {
-        FileManager.default.createFile(atPath: tempURL.path(percentEncoded: false), contents: nil)
-
-        let handle = try FileHandle(forWritingTo: tempURL)
-        handle.write(line: "Line 1\n")
-        handle.write(line: "Line 2\n")
-        handle.write(line: "Line 3")
-        try handle.close()
-
-        let content = try String(contentsOf: tempURL, encoding: .utf8)
-        XCTAssertEqual(content, "Line 1\nLine 2\nLine 3")
-    }
-
-    func testWriteEmptyLine() throws {
-        FileManager.default.createFile(atPath: tempURL.path(percentEncoded: false), contents: nil)
-
-        let handle = try FileHandle(forWritingTo: tempURL)
-        handle.write(line: "")
-        try handle.close()
-
-        let content = try String(contentsOf: tempURL, encoding: .utf8)
-        XCTAssertEqual(content, "")
-    }
-
-    func testWriteUnicodeContent() throws {
-        FileManager.default.createFile(atPath: tempURL.path(percentEncoded: false), contents: nil)
-
-        let handle = try FileHandle(forWritingTo: tempURL)
-        handle.write(line: "日本語テスト 🎮")
-        try handle.close()
-
-        let content = try String(contentsOf: tempURL, encoding: .utf8)
-        XCTAssertEqual(content, "日本語テスト 🎮")
-    }
-}
-
 // MARK: - FileManager.replaceFile Tests
 
 final class FileManagerReplaceFileTests: XCTestCase {

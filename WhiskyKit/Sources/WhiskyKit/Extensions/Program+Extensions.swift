@@ -47,14 +47,6 @@ private let crashSignatures: Set<String> = [
 ]
 
 public extension Program {
-    func run() {
-        if NSEvent.modifierFlags.contains(.shift) {
-            self.runInTerminal()
-        } else {
-            self.runInWine()
-        }
-    }
-
     /// Checks the clipboard before launching a Wine program, applying the bottle's policy.
     ///
     /// For `.needsUserDecision` results, presents a blocking alert asking the user
@@ -304,7 +296,7 @@ public extension Program {
         }
     }
 
-    @MainActor private func showRunError(message: String) {
+    @MainActor func showRunError(message: String) {
         let alert = NSAlert()
         alert.messageText = String(localized: "alert.message")
         alert.informativeText = String(localized: "alert.info")
@@ -357,34 +349,5 @@ public extension Program {
             return .autoCleared(contentType: contentType, sizeBytes: sizeBytes)
         }
         return .safe
-    }
-}
-
-extension Program {
-    func runInWine() {
-        let arguments = settings.arguments.split { $0.isWhitespace }.map(String.init)
-        let environment = generateEnvironment()
-
-        Task {
-            do {
-                let result = try await Wine.runProgram(
-                    at: self.url, args: arguments, bottle: self.bottle, environment: environment,
-                    programOverrides: settings.overrides, programSettings: settings
-                )
-
-                // Track the log file URL
-                settings.lastLogFileURL = result.logFileURL
-
-                // Trigger classification on non-zero exit or crash signatures
-                if result.exitCode != 0 || logContainsCrashSignatures(result.logFileURL) {
-                    triggerCrashClassification(
-                        logFileURL: result.logFileURL,
-                        exitCode: result.exitCode
-                    )
-                }
-            } catch {
-                self.showRunError(message: error.localizedDescription)
-            }
-        }
     }
 }

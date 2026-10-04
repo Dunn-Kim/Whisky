@@ -18,7 +18,6 @@
 
 import Foundation
 import os.log
-import SemanticVersion
 
 private let logger = Logger(subsystem: Bundle.whiskyBundleIdentifier, category: "ResourceDirectoryTable")
 
@@ -65,12 +64,6 @@ private final class TraversalBudget {
 ///
 /// https://learn.microsoft.com/en-us/windows/win32/debug/pe-format#resource-directory-table
 public struct ResourceDirectoryTable: Hashable, Equatable {
-    public let characteristics: UInt32
-    public let timeDateStamp: Date
-    public let version: SemanticVersion
-    public let numberOfNameEntries: UInt16
-    public let numberOfIdEntries: UInt16
-
     public let subtables: [ResourceDirectoryTable]
     public let entries: [ResourceDataEntry]
 
@@ -146,27 +139,14 @@ public struct ResourceDirectoryTable: Hashable, Equatable {
         visited: inout Set<UInt64>,
         budget: TraversalBudget
     ) {
-        var offset = pointerToRawData + initialOffset
-        self.characteristics = handle.extract(UInt32.self, offset: offset) ?? 0
-        offset += 4
-        let timeDateStamp = handle.extract(UInt32.self, offset: offset) ?? 0
-        self.timeDateStamp = Date(timeIntervalSince1970: TimeInterval(timeDateStamp))
-        offset += 4
-        let majorVersion = handle.extract(UInt16.self, offset: offset) ?? 0
-        offset += 2
-        let minorVersion = handle.extract(UInt16.self, offset: offset) ?? 0
-        offset += 2
-        self.version = SemanticVersion(Int(majorVersion), Int(minorVersion), 0)
-        let numberOfNameEntries = handle.extract(UInt16.self, offset: offset) ?? 0
-        self.numberOfNameEntries = numberOfNameEntries
-        offset += 2
-        let numberOfIdEntries = handle.extract(UInt16.self, offset: offset) ?? 0
-        self.numberOfIdEntries = numberOfIdEntries
-        offset += 2
+        // Characteristics, TimeDateStamp and Major/MinorVersion (12 bytes) are not needed
+        let tableOffset = pointerToRawData + initialOffset
+        let numberOfNameEntries = handle.extract(UInt16.self, offset: tableOffset + 12) ?? 0
+        let numberOfIdEntries = handle.extract(UInt16.self, offset: tableOffset + 14) ?? 0
 
         // We don't care about named entries
         // the entries we're looking for are ID'd
-        offset += 8 * UInt64(numberOfNameEntries)
+        let offset = tableOffset + 16 + 8 * UInt64(numberOfNameEntries)
 
         (self.subtables, self.entries) = Self.readIDEntries(
             handle: handle,

@@ -80,17 +80,10 @@ final class WineTests: XCTestCase {
         XCTAssertEqual(MacOSVersion.sequoia15_4.major, 15)
         XCTAssertEqual(MacOSVersion.sequoia15_4.minor, 4)
         XCTAssertEqual(MacOSVersion.sequoia15_4.patch, 0)
-
-        XCTAssertEqual(MacOSVersion.sequoia15_4_1.major, 15)
-        XCTAssertEqual(MacOSVersion.sequoia15_4_1.minor, 4)
-        XCTAssertEqual(MacOSVersion.sequoia15_4_1.patch, 1)
     }
 
     func testMacOSVersionComparableWithPredefinedConstants() {
-        // sequoia15_3 < sequoia15_4 < sequoia15_4_1
         XCTAssertTrue(MacOSVersion.sequoia15_3 < MacOSVersion.sequoia15_4)
-        XCTAssertTrue(MacOSVersion.sequoia15_4 < MacOSVersion.sequoia15_4_1)
-        XCTAssertTrue(MacOSVersion.sequoia15_3 < MacOSVersion.sequoia15_4_1)
     }
 
     func testMacOSVersionCurrentExists() {
@@ -118,16 +111,6 @@ final class WineTests: XCTestCase {
         XCTAssertEqual(RegistryType.dword.rawValue, "REG_DWORD")
         XCTAssertEqual(RegistryType.qword.rawValue, "REG_QWORD")
         XCTAssertEqual(RegistryType.string.rawValue, "REG_SZ")
-    }
-
-    // MARK: - WineInterfaceError Tests
-
-    func testWineInterfaceErrorExists() {
-        let error = WineInterfaceError.invalidResponse
-
-        XCTAssertNotNil(error)
-        // Verify it conforms to Error protocol
-        let _: Error = error
     }
 
     // MARK: - Wine Static Properties Tests
@@ -232,53 +215,6 @@ final class WineTests: XCTestCase {
         XCTAssertFalse(Wine.isValidEnvKey("VAR\0NULL"))
         XCTAssertFalse(Wine.isValidEnvKey("VAR\tTAB"))
         XCTAssertFalse(Wine.isValidEnvKey("VAR\rCR"))
-    }
-
-    func testIsAsciiLetter() {
-        // Valid uppercase letters
-        XCTAssertTrue(Wine.isAsciiLetter("A"))
-        XCTAssertTrue(Wine.isAsciiLetter("M"))
-        XCTAssertTrue(Wine.isAsciiLetter("Z"))
-
-        // Valid lowercase letters
-        XCTAssertTrue(Wine.isAsciiLetter("a"))
-        XCTAssertTrue(Wine.isAsciiLetter("m"))
-        XCTAssertTrue(Wine.isAsciiLetter("z"))
-
-        // Invalid: digits
-        XCTAssertFalse(Wine.isAsciiLetter("0"))
-        XCTAssertFalse(Wine.isAsciiLetter("5"))
-        XCTAssertFalse(Wine.isAsciiLetter("9"))
-
-        // Invalid: special characters
-        XCTAssertFalse(Wine.isAsciiLetter("_"))
-        XCTAssertFalse(Wine.isAsciiLetter("-"))
-        XCTAssertFalse(Wine.isAsciiLetter(" "))
-
-        // Invalid: Unicode letters (looks like ASCII but isn't)
-        XCTAssertFalse(Wine.isAsciiLetter("é"))
-        XCTAssertFalse(Wine.isAsciiLetter("ñ"))
-        XCTAssertFalse(Wine.isAsciiLetter("А")) // Cyrillic A
-    }
-
-    func testIsAsciiDigit() {
-        // Valid digits
-        XCTAssertTrue(Wine.isAsciiDigit("0"))
-        XCTAssertTrue(Wine.isAsciiDigit("5"))
-        XCTAssertTrue(Wine.isAsciiDigit("9"))
-
-        // Invalid: letters
-        XCTAssertFalse(Wine.isAsciiDigit("A"))
-        XCTAssertFalse(Wine.isAsciiDigit("a"))
-
-        // Invalid: special characters
-        XCTAssertFalse(Wine.isAsciiDigit("_"))
-        XCTAssertFalse(Wine.isAsciiDigit("-"))
-        XCTAssertFalse(Wine.isAsciiDigit("."))
-
-        // Invalid: Unicode digits
-        XCTAssertFalse(Wine.isAsciiDigit("١")) // Arabic-Indic digit 1
-        XCTAssertFalse(Wine.isAsciiDigit("①")) // Circled digit 1
     }
 
     // MARK: - Prefix Repair Tests

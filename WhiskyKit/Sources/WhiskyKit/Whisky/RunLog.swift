@@ -119,14 +119,6 @@ public struct RunLogHistory: Codable, Equatable {
         entries[index].hasWineDebugOutput = hasWineDebug
     }
 
-    /// Resolves all log file names to full URLs in the given logs folder.
-    ///
-    /// - Parameter logsFolder: The URL to the logs directory.
-    /// - Returns: An array of resolved log file URLs.
-    public func logFileURLs(in logsFolder: URL) -> [URL] {
-        entries.map { logsFolder.appending(path: $0.logFileName) }
-    }
-
     /// Removes a specific entry by ID.
     ///
     /// - Parameter id: The UUID of the entry to remove.
@@ -216,28 +208,6 @@ public enum RunLogStore {
             try data.write(to: url)
         } catch {
             logger.error("Failed to save run history: \(error.localizedDescription)")
-        }
-    }
-
-    /// Calculates the total size of all `.log` files in a logs folder.
-    ///
-    /// - Parameter logsFolder: The URL to the logs directory.
-    /// - Returns: Total size in bytes, or 0 on failure.
-    public static func totalLogSize(in logsFolder: URL) -> Int64 {
-        do {
-            let urls = try FileManager.default.contentsOfDirectory(
-                at: logsFolder,
-                includingPropertiesForKeys: [.fileSizeKey],
-                options: [.skipsHiddenFiles]
-            )
-
-            return urls.reduce(Int64(0)) { total, url in
-                guard url.pathExtension.lowercased() == "log" else { return total }
-                let size = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
-                return total + Int64(size)
-            }
-        } catch {
-            return 0
         }
     }
 }

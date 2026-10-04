@@ -30,7 +30,13 @@ struct ProgramMenuView: View {
             // Program-list and pin launches historically skipped launcher
             // detection; only FileOpenView and the bottle Run button had it.
             LauncherFixes.detectAndApply(from: program.url, for: program.bottle)
-            program.run()
+            // Capture modifier flags synchronously before entering async context
+            let useTerminal = NSEvent.modifierFlags.contains(.shift)
+            Task {
+                if case let .launchFailed(_, error) = await program.launchWithUserMode(useTerminal: useTerminal) {
+                    program.showRunError(message: error)
+                }
+            }
         }
         .labelStyle(.titleAndIcon)
         Section("program.settings") {

@@ -23,7 +23,7 @@ final class BottleDataTests: XCTestCase {
     private var tempDir: URL!
     private var entriesFile: URL!
 
-    /// Mirror of the paths-only fallback shape `encodeFallback()` writes,
+    /// Mirror of the paths-only fallback shape older releases wrote,
     /// which the full decoder cannot read back on its own.
     private struct MinimalShape: Codable {
         var paths: [URL]
@@ -250,7 +250,7 @@ final class BottleDataTests: XCTestCase {
     // MARK: - Fallback-format salvage
 
     func testMinimalFallbackFormatIsSalvagedWithoutBackup() throws {
-        // Simulate a registry left behind by encodeFallback(): paths only,
+        // Simulate a registry left behind by the old fallback encoder: paths only,
         // no fileVersion, unreadable by the primary decoder.
         let bottle = tempDir.appendingPathComponent("SalvagedBottle")
         let encoder = PropertyListEncoder()

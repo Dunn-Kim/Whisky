@@ -31,12 +31,7 @@ public struct DependencyCheck: TroubleshootingCheck {
 
     public func run(params: [String: String], context: CheckContext) async -> CheckResult {
         guard let dllsParam = params["dlls"], !dllsParam.isEmpty else {
-            return CheckResult(
-                outcome: .error,
-                evidence: [:],
-                summary: "Missing 'dlls' parameter",
-                confidence: nil
-            )
+            return .error("Missing 'dlls' parameter")
         }
 
         let dlls = dllsParam.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }

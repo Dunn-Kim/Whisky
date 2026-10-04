@@ -32,12 +32,7 @@ public struct RegistryValueCheck: TroubleshootingCheck {
 
     public func run(params: [String: String], context: CheckContext) async -> CheckResult {
         guard let key = params["key"], let valueName = params["valueName"] else {
-            return CheckResult(
-                outcome: .error,
-                evidence: [:],
-                summary: "Missing 'key' or 'valueName' parameter",
-                confidence: nil
-            )
+            return .error("Missing 'key' or 'valueName' parameter")
         }
 
         // Parse the registry file directly from the bottle prefix

@@ -30,10 +30,10 @@
       "phase": "checks",
       "title": "Check graphics backend",
       "description": "The crash appears graphics-related. Checking the current graphics translation layer.",
-      "checkId": "graphics.backend_is",
+      "checkId": "setting.value_check",
       "params": {
-        "expected": "dxvk",
-        "scope": "program_or_bottle"
+        "setting": "graphicsBackend",
+        "expected": "dxvk"
       },
       "on": {
         "pass": "check_winetricks",

@@ -18,21 +18,6 @@
 
 import Foundation
 
-// MARK: - Dependency Category
-
-/// Grouping category for standard Windows dependencies.
-///
-/// Used to organize dependencies in the UI and to group related
-/// winetricks verbs by their functional purpose.
-public enum DependencyCategory: String, Codable, CaseIterable, Sendable {
-    /// Runtime libraries (Visual C++, .NET Framework).
-    case runtime = "Runtime"
-    /// DirectX graphics components.
-    case directx = "DirectX"
-    /// Audio middleware and codecs.
-    case audio = "Audio"
-}
-
 // MARK: - Dependency Definition
 
 /// Maps a user-facing dependency name to its underlying winetricks verbs.
@@ -57,8 +42,6 @@ public struct DependencyDefinition: Codable, Identifiable, Sendable {
     public let description: String
     /// The winetricks verb names required to install this dependency.
     public let winetricksVerbs: [String]
-    /// The functional category this dependency belongs to.
-    public let category: DependencyCategory
     /// Rough time estimate for installation, shown in the UI.
     public let estimatedInstallMinutes: Int
 
@@ -67,14 +50,12 @@ public struct DependencyDefinition: Codable, Identifiable, Sendable {
         displayName: String,
         description: String,
         winetricksVerbs: [String],
-        category: DependencyCategory,
         estimatedInstallMinutes: Int
     ) {
         self.id = id
         self.displayName = displayName
         self.description = description
         self.winetricksVerbs = winetricksVerbs
-        self.category = category
         self.estimatedInstallMinutes = estimatedInstallMinutes
     }
 }
@@ -91,7 +72,6 @@ extension DependencyDefinition {
             displayName: "Visual C++ Runtime",
             description: "Required by most Windows games and applications",
             winetricksVerbs: ["vcrun2019"],
-            category: .runtime,
             estimatedInstallMinutes: 2
         ),
         DependencyDefinition(
@@ -99,7 +79,6 @@ extension DependencyDefinition {
             displayName: ".NET Framework 4.8",
             description: "Required by .NET applications and some game launchers",
             winetricksVerbs: ["dotnet48"],
-            category: .runtime,
             estimatedInstallMinutes: 10
         ),
         DependencyDefinition(
@@ -107,7 +86,6 @@ extension DependencyDefinition {
             displayName: "DirectX Runtime",
             description: "DirectX 9/10/11 components for older games",
             winetricksVerbs: ["d3dx9", "d3dcompiler_47"],
-            category: .directx,
             estimatedInstallMinutes: 3
         ),
         DependencyDefinition(
@@ -115,7 +93,6 @@ extension DependencyDefinition {
             displayName: "DirectX Audio",
             description: "XACT audio framework for games using DirectX audio",
             winetricksVerbs: ["xact"],
-            category: .audio,
             estimatedInstallMinutes: 2
         )
     ]

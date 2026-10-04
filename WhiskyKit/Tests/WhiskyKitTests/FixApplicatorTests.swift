@@ -151,6 +151,36 @@ final class FixApplicatorTests: XCTestCase {
         XCTAssertEqual(bottle.settings.enhancedSync, .msync)
     }
 
+    func testToggleFixPreviewApplyUndoRoundTrip() throws {
+        bottle.settings.controllerCompatibilityMode = false
+
+        let preview = try XCTUnwrap(FixApplicator.preview(
+            fixId: "enable-controller-compat", params: [:], bottle: bottle, program: nil
+        ))
+        XCTAssertEqual(preview.settingName, "Controller Compatibility Mode")
+        XCTAssertEqual(preview.currentValue, "Disabled")
+        XCTAssertEqual(preview.newValue, "Enabled")
+
+        let attempt = FixApplicator.apply(
+            fixId: "enable-controller-compat", params: [:], bottle: bottle, program: nil
+        )
+        XCTAssertTrue(bottle.settings.controllerCompatibilityMode)
+        XCTAssertEqual(attempt.afterValue, "true")
+
+        XCTAssertTrue(FixApplicator.undo(attempt: attempt, bottle: bottle, program: nil))
+        XCTAssertFalse(bottle.settings.controllerCompatibilityMode)
+    }
+
+    func testUndoWithUnknownBeforeValueFailsWithoutWriting() {
+        bottle.settings.graphicsBackend = .dxmt
+        let attempt = FixAttempt(
+            fixId: "switch-backend", beforeValue: "not-a-backend", afterValue: "dxvk", result: .applied
+        )
+
+        XCTAssertFalse(FixApplicator.undo(attempt: attempt, bottle: bottle, program: nil))
+        XCTAssertEqual(bottle.settings.graphicsBackend, .dxmt)
+    }
+
     func testUndoWithMissingBeforeValueFails() {
         let attempt = FixAttempt(fixId: "switch-backend", beforeValue: nil, afterValue: "dxvk", result: .applied)
 

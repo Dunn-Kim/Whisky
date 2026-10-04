@@ -113,26 +113,9 @@ public struct ProgramOverrides: Codable, Equatable, Sendable {
     /// Note: `taggedVerbs` is excluded from this check since it is organizational metadata,
     /// not a settings override.
     public var isEmpty: Bool {
-        graphicsBackend == nil
-            && dxvk == nil
-            && dxvkAsync == nil
-            && dxvkHud == nil
-            && frameRateLimit == nil
-            && enhancedSync == nil
-            && forceD3D11 == nil
-            && metal4Enabled == nil
-            && performancePreset == nil
-            && shaderCacheEnabled == nil
-            && controllerCompatibilityMode == nil
-            && disableHIDAPI == nil
-            && allowBackgroundEvents == nil
-            && disableControllerMapping == nil
-            && useButtonLabels == nil
-            && virtualDesktopEnabled == nil
-            && resolutionPreset == nil
-            && customResolutionWidth == nil
-            && customResolutionHeight == nil
-            && dllOverrides == nil
+        var settingsOnly = self
+        settingsOnly.taggedVerbs = nil
+        return settingsOnly == ProgramOverrides()
     }
 
     /// Creates a new ProgramOverrides with all fields set to `nil` (inherit everything).

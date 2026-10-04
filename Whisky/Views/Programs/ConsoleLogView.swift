@@ -265,10 +265,11 @@ struct ConsoleLogView: View {
 
     private var liveIndicator: some View {
         HStack(spacing: 4) {
-            Circle()
-                .fill(.green)
+            Image(systemName: "circle.fill")
+                .resizable()
                 .frame(width: 6, height: 6)
-                .modifier(ConsoleLogPulseModifier())
+                .foregroundStyle(.green)
+                .symbolEffect(.pulse)
             Text("console.log.liveIndicator")
                 .font(.caption)
                 .foregroundStyle(.green)
@@ -451,19 +452,4 @@ enum ConsoleLogChannel {
     case stderr
     /// WINEDEBUG diagnostic output.
     case wineDebug
-}
-
-/// Pulse animation modifier for the live streaming indicator.
-private struct ConsoleLogPulseModifier: ViewModifier {
-    @State private var isPulsing = false
-
-    func body(content: Content) -> some View {
-        content
-            .opacity(isPulsing ? 0.4 : 1.0)
-            .animation(
-                .easeInOut(duration: 0.6).repeatForever(autoreverses: true),
-                value: isPulsing
-            )
-            .onAppear { isPulsing = true }
-    }
 }

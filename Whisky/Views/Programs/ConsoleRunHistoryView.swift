@@ -230,10 +230,11 @@ struct ConsoleRunHistoryView: View {
 
     private var runningBadge: some View {
         HStack(spacing: 4) {
-            Circle()
-                .fill(.green)
+            Image(systemName: "circle.fill")
+                .resizable()
                 .frame(width: 6, height: 6)
-                .modifier(PulseAnimationModifier())
+                .foregroundStyle(.green)
+                .symbolEffect(.pulse)
             Text("console.running")
                 .font(.caption)
                 .foregroundStyle(.green)
@@ -325,22 +326,5 @@ struct ConsoleRunHistoryView: View {
     private func stopRefreshTimer() {
         refreshTimer?.invalidate()
         refreshTimer = nil
-    }
-}
-
-// MARK: - Pulse Animation Modifier
-
-/// A simple pulse animation modifier for the "Running" indicator dot.
-private struct PulseAnimationModifier: ViewModifier {
-    @State private var isPulsing = false
-
-    func body(content: Content) -> some View {
-        content
-            .opacity(isPulsing ? 0.4 : 1.0)
-            .animation(
-                .easeInOut(duration: 0.8).repeatForever(autoreverses: true),
-                value: isPulsing
-            )
-            .onAppear { isPulsing = true }
     }
 }

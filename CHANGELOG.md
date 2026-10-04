@@ -45,6 +45,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Windows-side DLL. A user-set `DXVK_STATE_CACHE_PATH` still wins.
 
 ### Changed
+- Update checks are off. Sparkle's updater is never started, so it neither
+  checks nor offers an update, and Check for Updates stays disabled: its feed
+  is upstream's appcast, and an accepted update would replace this fork's
+  build. The WhiskyWine runtime update prompt now defaults to off; the
+  Settings toggle turns it back on. This fork takes upstream changes by hand.
+- The program menu's Run goes through the same launch path as every other run
+  button, so it now syncs the audio registry first and watches for a late crash.
+- Diagnostic export JSON is written by JSONSerialization: keys sort slightly
+  differently and control characters are escaped, so a newline in a value no
+  longer produces invalid JSON.
 - The `wine start` launch process and wineserver now run at user-interactive
   quality of service. On Apple Silicon the QoS class decides whether the
   scheduler offers performance or efficiency cores first, and it is inherited
@@ -60,6 +70,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and its comment ("file descriptor limit") described something else.
 
 ### Removed
+- About 6,000 lines that nothing called, found by a whole-tree audit and each
+  re-checked for callers before deletion: a second audio troubleshooting
+  path's unused pieces, the never-written remediation timeline, a preflight
+  collector nothing called, a download monitor nobody observed, a launch-time
+  banner never applied, two unregistered checks, test-only PE header fields,
+  environment provenance nothing read, the empty WhiskyCmd export/install
+  subcommands, and the leftovers of the no-op Sequoia Compatibility Mode
+  (stored field, diagnostics lines and the advice to enable it). Duplicated
+  launch, terminal-script, bridge-install and report code now share one helper
+  each.
 - Twelve environment variables that the shipped WhiskyWine 2.5.0 runtime
   never reads, verified by sweeping its binaries (ntdll.so, wineserver,
   wine64, the preloader): the `WINE_CPU_TOPOLOGY=8:8` topology fix and nine
@@ -113,6 +133,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Gothic Neo from the host. Every launch now maps those names onto it through
   `Software\Wine\Fonts\Replacements`, riding on the registry import the launch
   already runs, and only sets values, so replacements a user added survive.
+- Guided troubleshooting's checks see the bottle again. The wizard built its
+  preflight snapshot with no audio device, recent log, exit code or launcher,
+  so the audio device check always failed, the crash-log check always came
+  back unknown and the launcher check never matched. It now fills them from
+  the default output device, the program's last run and the detected launcher.
+  Continuing from a launcher branch node now follows the detected launcher's
+  route (Steam, EA, Epic, Rockstar) instead of always taking the default.
+- The graphics flow's DXVK settings check now checks `dxvkAsync`; it had no
+  setting to read and errored past every time, so it never offered async.
 
 ### Changed
 - The Processes page no longer spawns a Wine process for every 3-second

@@ -14,7 +14,6 @@
 		2E9E4AD3124BDF8D5238BE32 /* DPIConfigSheetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD3735C5328F7A6ABD2D1248 /* DPIConfigSheetView.swift */; };
 		484A57DAD0A7634094236533 /* DiagnosticsPickerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8797408D60F55718DFC61664 /* DiagnosticsPickerSheet.swift */; };
 		C16DA5430762A5F33C8714AA /* MigrateBottlesSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB85C8A3D3900AA9A7DDCE72 /* MigrateBottlesSheet.swift */; };
-		52513FA35312809A9760BCB2 /* MetalConfigSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2699006F97F862815633C9F /* MetalConfigSection.swift */; };
 		6330DD962B1B0EA4007A625A /* RenameView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6330DD952B1B0EA4007A625A /* RenameView.swift */; };
 		6365C4C12B1AA69D00AAE1FD /* Animation+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6365C4C02B1AA69D00AAE1FD /* Animation+Extensions.swift */; };
 		6365C4C32B1AA8CD00AAE1FD /* BottleListEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6365C4C22B1AA8CD00AAE1FD /* BottleListEntry.swift */; };
@@ -23,7 +22,6 @@
 		7A0510A52F5A000000000005 /* Telemetry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A0510A42F5A000000000004 /* Telemetry.swift */; };
 		F1A2B3C4E5F61601A9B0C1F2 /* SparkleUpdaterDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A2B3C4E5F61601A9B0C1F1 /* SparkleUpdaterDelegate.swift */; };
 		67D278512BC5907E006F9A1E /* ActionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67D278502BC5907E006F9A1E /* ActionView.swift */; };
-		689B4F6DF3B8006E89E1395F /* LauncherDiagnostics.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA88CFEB38031323229CD377 /* LauncherDiagnostics.swift */; };
 		6E064B1229DD32A200D9A2D2 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 6E064B1129DD32A200D9A2D2 /* Sparkle */; };
 		7A0510A32F5A000000000003 /* PostHog in Frameworks */ = {isa = PBXBuildFile; productRef = 7A0510A22F5A000000000002 /* PostHog */; };
 		6E064B1429DD331F00D9A2D2 /* SparkleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E064B1329DD331F00D9A2D2 /* SparkleView.swift */; };
@@ -130,18 +128,14 @@
 		AB5DECAF20260818000000D4 /* RemediationExecutor.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB5DECAF20260818000000D5 /* RemediationExecutor.swift */; };
 		AB5DECAF20260818000000D0 /* QuickLaunch.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB5DECAF20260818000000D1 /* QuickLaunch.swift */; };
 		G1A2B3C4E5F60901A9B0C1D2 /* Winetricks+Install.swift in Sources */ = {isa = PBXBuildFile; fileRef = G1A2B3C4E5F60901A9B0C1D3 /* Winetricks+Install.swift */; };
-		H1A2B3C4E5F61001A9B0C1D0 /* LaunchTimeBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = H1A2B3C4E5F61001A9B0C1D1 /* LaunchTimeBanner.swift */; };
 		H1A2B3C4E5F61101A9B0C1D0 /* DependencyConfigSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = H1A2B3C4E5F61101A9B0C1D1 /* DependencyConfigSection.swift */; };
 		H1A2B3C4E5F61101A9B0C1D2 /* DependencyInstallSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = H1A2B3C4E5F61101A9B0C1D3 /* DependencyInstallSheet.swift */; };
-		I1A2B3C4E5F61201A9B0C1D0 /* SteamDownloadMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = I1A2B3C4E5F61201A9B0C1D1 /* SteamDownloadMonitor.swift */; };
-		129146529D772EC1C559C0CB /* AppSteamClientDriver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B94A3D15B907CF55C906C9A /* AppSteamClientDriver.swift */; };
 		J1A2B3C4E5F61301A9B0C1D0 /* TroubleshootingWizardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = J1A2B3C4E5F61301A9B0C1D1 /* TroubleshootingWizardView.swift */; };
 		J1A2B3C4E5F61301A9B0C1D2 /* ProgressRailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = J1A2B3C4E5F61301A9B0C1D3 /* ProgressRailView.swift */; };
 		J1A2B3C4E5F61301A9B0C1D4 /* SymptomPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = J1A2B3C4E5F61301A9B0C1D5 /* SymptomPickerView.swift */; };
 		J1A2B3C4E5F61301A9B0C1D6 /* StepCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = J1A2B3C4E5F61301A9B0C1D7 /* StepCardView.swift */; };
 		J1A2B3C4E5F61301A9B0C1D8 /* FixPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = J1A2B3C4E5F61301A9B0C1D9 /* FixPreviewView.swift */; };
 		J1A2B3C4E5F61301A9B0C2D0 /* FixVerifyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = J1A2B3C4E5F61301A9B0C2D1 /* FixVerifyView.swift */; };
-		J1A2B3C4E5F61301A9B0C2D2 /* BranchExplanationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = J1A2B3C4E5F61301A9B0C2D3 /* BranchExplanationView.swift */; };
 		J1A2B3C4E5F61301A9B0C2D4 /* SessionResumeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = J1A2B3C4E5F61301A9B0C2D5 /* SessionResumeView.swift */; };
 		J1A2B3C4E5F61301A9B0C2D6 /* EscalationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = J1A2B3C4E5F61301A9B0C2D7 /* EscalationView.swift */; };
 		K1A2B3C4E5F61401A9B0C1D0 /* TroubleshootingHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = K1A2B3C4E5F61401A9B0C1D1 /* TroubleshootingHistoryView.swift */; };
@@ -279,7 +273,6 @@
 		A1B2C3D4E5F60718A9B0C1D5 /* DLLOverrideConfigSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DLLOverrideConfigSection.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718A9B0C1D7 /* ProgramOverrideSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgramOverrideSettingsView.swift; sourceTree = "<group>"; };
 		AA2516958D60EC8937A2AF71 /* LaunchResult+Toast.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "LaunchResult+Toast.swift"; sourceTree = "<group>"; };
-		AA88CFEB38031323229CD377 /* LauncherDiagnostics.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LauncherDiagnostics.swift; sourceTree = "<group>"; };
 		AB0BCABC2B61036E00E21C31 /* RunningProcessesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunningProcessesView.swift; sourceTree = "<group>"; };
 		F1A2B3C4E5F61501A9B0C1E1 /* WhiskyMenuBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhiskyMenuBarView.swift; sourceTree = "<group>"; };
 		ADA9ADA587AF95DCFEC04F25 /* AudioAlertTracker.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AudioAlertTracker.swift; sourceTree = "<group>"; };
@@ -316,7 +309,6 @@
 		E1A2B3C4E5F60701A9B0C3D1 /* GameConfigBannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameConfigBannerView.swift; sourceTree = "<group>"; };
 		E1A2B3C4E5F60901A9B0C1D1 /* ConsoleRunHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConsoleRunHistoryView.swift; sourceTree = "<group>"; };
 		E1A2B3C4E5F60901A9B0C1D3 /* ConsoleLogView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConsoleLogView.swift; sourceTree = "<group>"; };
-		E2699006F97F862815633C9F /* MetalConfigSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetalConfigSection.swift; sourceTree = "<group>"; };
 		EAE15F0C1EF1F06C7DB73DF5 /* SettingItemView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingItemView.swift; sourceTree = "<group>"; };
 		EBD00A21534D48ADAE68040E /* WhiskyUITests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WhiskyUITests.swift; sourceTree = "<group>"; };
 		C1A2B3C4E5F60601A9B0A2D9 /* WhiskyUITestsGameDB.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhiskyUITestsGameDB.swift; sourceTree = "<group>"; };
@@ -327,18 +319,14 @@
 		AB5DECAF20260818000000D5 /* RemediationExecutor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemediationExecutor.swift; sourceTree = "<group>"; };
 		AB5DECAF20260818000000D1 /* QuickLaunch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickLaunch.swift; sourceTree = "<group>"; };
 		G1A2B3C4E5F60901A9B0C1D3 /* Winetricks+Install.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Winetricks+Install.swift"; sourceTree = "<group>"; };
-		H1A2B3C4E5F61001A9B0C1D1 /* LaunchTimeBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Whisky/Views/Common/LaunchTimeBanner.swift; sourceTree = SOURCE_ROOT; };
 		H1A2B3C4E5F61101A9B0C1D1 /* DependencyConfigSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DependencyConfigSection.swift; sourceTree = "<group>"; };
 		H1A2B3C4E5F61101A9B0C1D3 /* DependencyInstallSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DependencyInstallSheet.swift; sourceTree = "<group>"; };
-		I1A2B3C4E5F61201A9B0C1D1 /* SteamDownloadMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SteamDownloadMonitor.swift; sourceTree = "<group>"; };
-		2B94A3D15B907CF55C906C9A /* AppSteamClientDriver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSteamClientDriver.swift; sourceTree = "<group>"; };
 		J1A2B3C4E5F61301A9B0C1D1 /* TroubleshootingWizardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TroubleshootingWizardView.swift; sourceTree = "<group>"; };
 		J1A2B3C4E5F61301A9B0C1D3 /* ProgressRailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressRailView.swift; sourceTree = "<group>"; };
 		J1A2B3C4E5F61301A9B0C1D5 /* SymptomPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SymptomPickerView.swift; sourceTree = "<group>"; };
 		J1A2B3C4E5F61301A9B0C1D7 /* StepCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StepCardView.swift; sourceTree = "<group>"; };
 		J1A2B3C4E5F61301A9B0C1D9 /* FixPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FixPreviewView.swift; sourceTree = "<group>"; };
 		J1A2B3C4E5F61301A9B0C2D1 /* FixVerifyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FixVerifyView.swift; sourceTree = "<group>"; };
-		J1A2B3C4E5F61301A9B0C2D3 /* BranchExplanationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BranchExplanationView.swift; sourceTree = "<group>"; };
 		J1A2B3C4E5F61301A9B0C2D5 /* SessionResumeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionResumeView.swift; sourceTree = "<group>"; };
 		J1A2B3C4E5F61301A9B0C2D7 /* EscalationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EscalationView.swift; sourceTree = "<group>"; };
 		K1A2B3C4E5F61401A9B0C1D1 /* TroubleshootingHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TroubleshootingHistoryView.swift; sourceTree = "<group>"; };
@@ -469,7 +457,6 @@
 				A1B2C3D4E5F60718A9B0C1D3 /* DLLOverrideEditor.swift */,
 				A1B2C3D4E5F60718A9B0C1D5 /* DLLOverrideConfigSection.swift */,
 				H1A2B3C4E5F61101A9B0C1D1 /* DependencyConfigSection.swift */,
-				E2699006F97F862815633C9F /* MetalConfigSection.swift */,
 				3724CE6DD2C1B22D80442DB6 /* PerformanceConfigSection.swift */,
 				6E182FC92B0BF64E00AADE81 /* WinetricksView.swift */,
 				AB0BCABC2B61036E00E21C31 /* RunningProcessesView.swift */,
@@ -596,13 +583,10 @@
 				F1A2B3C4E5F61601A9B0C1F1 /* SparkleUpdaterDelegate.swift */,
 				366E8BD2A51FD444160DFC10 /* LauncherDetection.swift */,
 				D4E5F6A7B8C90113A9B0C1F3 /* GPTKDiskImage.swift */,
-				AA88CFEB38031323229CD377 /* LauncherDiagnostics.swift */,
 				G1A2B3C4E5F60901A9B0C1D1 /* DependencyManager.swift */,
 				AB5DECAF20260818000000D5 /* RemediationExecutor.swift */,
 				AB5DECAF20260818000000D1 /* QuickLaunch.swift */,
 				F1A2B3C4E5F60801A9B0C1D0 /* ControllerMonitor.swift */,
-				I1A2B3C4E5F61201A9B0C1D1 /* SteamDownloadMonitor.swift */,
-				2B94A3D15B907CF55C906C9A /* AppSteamClientDriver.swift */,
 			);
 			path = Utils;
 			sourceTree = "<group>";
@@ -713,7 +697,6 @@
 		FADF69F903E9EA676A27FC69 /* Common */ = {
 			isa = PBXGroup;
 			children = (
-				H1A2B3C4E5F61001A9B0C1D1 /* LaunchTimeBanner.swift */,
 				4E2D80EAABBB985BAED42548 /* StatusToast.swift */,
 			);
 			name = Common;
@@ -737,7 +720,6 @@
 				J1A2B3C4E5F61301A9B0C1D7 /* StepCardView.swift */,
 				J1A2B3C4E5F61301A9B0C1D9 /* FixPreviewView.swift */,
 				J1A2B3C4E5F61301A9B0C2D1 /* FixVerifyView.swift */,
-				J1A2B3C4E5F61301A9B0C2D3 /* BranchExplanationView.swift */,
 				J1A2B3C4E5F61301A9B0C2D5 /* SessionResumeView.swift */,
 				J1A2B3C4E5F61301A9B0C2D7 /* EscalationView.swift */,
 				K1A2B3C4E5F61401A9B0C1D1 /* TroubleshootingHistoryView.swift */,
@@ -992,7 +974,6 @@
 				744CFC7F2B2281370D39A466 /* WineConfigSection.swift in Sources */,
 				A1B2C3D4E5F60718A9B0C1D2 /* DLLOverrideEditor.swift in Sources */,
 				A1B2C3D4E5F60718A9B0C1D4 /* DLLOverrideConfigSection.swift in Sources */,
-				52513FA35312809A9760BCB2 /* MetalConfigSection.swift in Sources */,
 				C08ECD035DDFEDB70ACA1D1B /* PerformanceConfigSection.swift in Sources */,
 				63FFDE862ADF0C7700178665 /* BottomBar.swift in Sources */,
 				6E6C0CF62A419A8300356232 /* WhiskyWineDownloadView.swift in Sources */,
@@ -1030,10 +1011,8 @@
 				6E355E5E29D7D85D002D83BE /* ProgramView.swift in Sources */,
 				954F64484BFDF7786A5B184E /* LauncherDetection.swift in Sources */,
 				D4E5F6A7B8C90113A9B0C1F2 /* GPTKDiskImage.swift in Sources */,
-				689B4F6DF3B8006E89E1395F /* LauncherDiagnostics.swift in Sources */,
 				160B41C4006351293AAEEF27 /* LauncherConfigSection.swift in Sources */,
 				F748991F03BA464CFCDA99F3 /* StatusToast.swift in Sources */,
-				H1A2B3C4E5F61001A9B0C1D0 /* LaunchTimeBanner.swift in Sources */,
 				FBD19F7BAD838BE3ABB2CCC2 /* LaunchResult+Toast.swift in Sources */,
 				77A2EE1594CEE1B55E88AFAB /* InputConfigSection.swift in Sources */,
 				1A8BB6C8C6FC24E0837A3C59 /* CleanupConfigSection.swift in Sources */,
@@ -1073,15 +1052,12 @@
 				G1A2B3C4E5F60901A9B0C1D2 /* Winetricks+Install.swift in Sources */,
 				H1A2B3C4E5F61101A9B0C1D0 /* DependencyConfigSection.swift in Sources */,
 				H1A2B3C4E5F61101A9B0C1D2 /* DependencyInstallSheet.swift in Sources */,
-				I1A2B3C4E5F61201A9B0C1D0 /* SteamDownloadMonitor.swift in Sources */,
-				129146529D772EC1C559C0CB /* AppSteamClientDriver.swift in Sources */,
 				J1A2B3C4E5F61301A9B0C1D0 /* TroubleshootingWizardView.swift in Sources */,
 				J1A2B3C4E5F61301A9B0C1D2 /* ProgressRailView.swift in Sources */,
 				J1A2B3C4E5F61301A9B0C1D4 /* SymptomPickerView.swift in Sources */,
 				J1A2B3C4E5F61301A9B0C1D6 /* StepCardView.swift in Sources */,
 				J1A2B3C4E5F61301A9B0C1D8 /* FixPreviewView.swift in Sources */,
 				J1A2B3C4E5F61301A9B0C2D0 /* FixVerifyView.swift in Sources */,
-				J1A2B3C4E5F61301A9B0C2D2 /* BranchExplanationView.swift in Sources */,
 				J1A2B3C4E5F61301A9B0C2D4 /* SessionResumeView.swift in Sources */,
 				J1A2B3C4E5F61301A9B0C2D6 /* EscalationView.swift in Sources */,
 				K1A2B3C4E5F61401A9B0C1D0 /* TroubleshootingHistoryView.swift in Sources */,
