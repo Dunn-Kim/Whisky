@@ -17,7 +17,6 @@
 //
 
 import Foundation
-import os.log
 
 // MARK: - macOS Version Detection
 
@@ -37,8 +36,6 @@ public struct MacOSVersion: Comparable, Sendable {
     public static let sequoia15_3 = MacOSVersion(major: 15, minor: 3, patch: 0)
     /// macOS 15.4 (Sequoia)
     public static let sequoia15_4 = MacOSVersion(major: 15, minor: 4, patch: 0)
-    /// macOS 15.4.1 (Sequoia)
-    public static let sequoia15_4_1 = MacOSVersion(major: 15, minor: 4, patch: 1)
     // swiftlint:enable identifier_name
 
     public static func < (lhs: MacOSVersion, rhs: MacOSVersion) -> Bool {
@@ -156,51 +153,5 @@ public enum MacOSCompatibilityFixes {
     public static func activeFixes() -> [MacOSFix] {
         let currentVersion = MacOSVersion.current
         return allFixes.filter { currentVersion >= $0.appliesFrom }
-    }
-
-    /// Returns fixes applicable to a specific macOS version.
-    ///
-    /// - Parameter version: The macOS version to filter against.
-    /// - Returns: Array of ``MacOSFix`` entries that apply to the given version.
-    public static func activeFixes(for version: MacOSVersion) -> [MacOSFix] {
-        allFixes.filter { version >= $0.appliesFrom }
-    }
-}
-
-extension Wine {
-    // MARK: - macOS Compatibility
-
-    /// Apply environment variable fixes for macOS 15.x (Sequoia) compatibility.
-    ///
-    /// These fixes address upstream issues whisky-app/whisky#1372, #1310, #1307
-    /// and frankea/Whisky#41 (launcher compatibility tracking issue).
-    ///
-    /// This method iterates the ``MacOSCompatibilityFixes/allFixes`` registry, filtering
-    /// by the current macOS version. The WINEESYNC conditional logic is preserved as a
-    /// special case since it depends on existing environment state.
-    static func applyMacOSCompatibilityFixes(to environment: inout [String: String]) {
-        let currentVersion = MacOSVersion.current
-
-        // Log macOS version for debugging
-        Logger.wineKit.info("Running on macOS \(currentVersion.description)")
-
-        // Apply all version-gated fixes from the registry
-        for fix in MacOSCompatibilityFixes.allFixes where currentVersion >= fix.appliesFrom {
-            environment[fix.key] = fix.value
-        }
-
-        // Special case: WINEESYNC is conditional on other sync settings not being set.
-        // This cannot be expressed as a simple registry entry because it depends on state.
-        if currentVersion >= .sequoia15_4 {
-            if environment["WINEMSYNC"] == nil, environment["WINEESYNC"] == nil {
-                environment["WINEESYNC"] = "1"
-            }
-        }
-
-        Logger.wineKit.debug("""
-        CEF sandbox disabled for Wine compatibility. \
-        This is required for Steam, Epic, EA App, and Rockstar launchers to function. \
-        Security: Embedded browser content runs with process privileges.
-        """)
     }
 }

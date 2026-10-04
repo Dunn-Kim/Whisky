@@ -932,11 +932,7 @@ public struct BottleSettings: Codable, Equatable {
             // serial unless told otherwise. Apple Silicon has cores to spare
             // for it, and spreading the compile across them is the difference
             // between a stutter and a hitch on first sight of a new shader.
-            builder.set(
-                "MVK_CONFIG_SHOULD_MAXIMIZE_CONCURRENT_COMPILATION", "1",
-                layer: .bottleManaged,
-                reason: "Parallel Metal shader compilation on Apple Silicon"
-            )
+            builder.set("MVK_CONFIG_SHOULD_MAXIMIZE_CONCURRENT_COMPILATION", "1", layer: .bottleManaged)
 
         case .dxmt:
             // DXMT: native overrides for the D3D11 trio plus the builtin
@@ -948,10 +944,7 @@ public struct BottleSettings: Codable, Equatable {
             // Its own variable rather than a DXMT_CONFIG key, so it cannot clobber
             // the frame rate cap that DXMT_CONFIG carries.
             if dxmtMetalFXUpscale {
-                builder.set(
-                    "DXMT_METALFX_SPATIAL_SWAPCHAIN", "1", layer: .bottleManaged,
-                    reason: "MetalFX spatial upscaling of the DXMT swapchain"
-                )
+                builder.set("DXMT_METALFX_SPATIAL_SWAPCHAIN", "1", layer: .bottleManaged)
             }
 
         case .wined3d:
@@ -964,10 +957,7 @@ public struct BottleSettings: Codable, Equatable {
         // burns power -- an uncapped game pins the GPU at its maximum clock.
         if let fps = frameRateLimit.resolved(displayRefreshRate: displayRefreshRate) {
             for (key, value) in resolvedBackend.frameRateLimitEnvironment(fps: fps) {
-                builder.set(
-                    key, value, layer: .bottleManaged,
-                    reason: "Frame rate limited to \(fps) FPS"
-                )
+                builder.set(key, value, layer: .bottleManaged)
             }
         }
 
@@ -1065,7 +1055,7 @@ public struct BottleSettings: Codable, Equatable {
         if let launcher = detectedLauncher {
             let fixDetails = launcher.fixDetails()
             for detail in fixDetails {
-                builder.set(detail.key, detail.value, layer: .launcherManaged, reason: detail.reason)
+                builder.set(detail.key, detail.value, layer: .launcherManaged)
             }
             launcherProvidesLocale = fixDetails.contains { $0.key == "LC_ALL" }
 

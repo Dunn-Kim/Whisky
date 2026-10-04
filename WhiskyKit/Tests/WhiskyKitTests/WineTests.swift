@@ -80,17 +80,10 @@ final class WineTests: XCTestCase {
         XCTAssertEqual(MacOSVersion.sequoia15_4.major, 15)
         XCTAssertEqual(MacOSVersion.sequoia15_4.minor, 4)
         XCTAssertEqual(MacOSVersion.sequoia15_4.patch, 0)
-
-        XCTAssertEqual(MacOSVersion.sequoia15_4_1.major, 15)
-        XCTAssertEqual(MacOSVersion.sequoia15_4_1.minor, 4)
-        XCTAssertEqual(MacOSVersion.sequoia15_4_1.patch, 1)
     }
 
     func testMacOSVersionComparableWithPredefinedConstants() {
-        // sequoia15_3 < sequoia15_4 < sequoia15_4_1
         XCTAssertTrue(MacOSVersion.sequoia15_3 < MacOSVersion.sequoia15_4)
-        XCTAssertTrue(MacOSVersion.sequoia15_4 < MacOSVersion.sequoia15_4_1)
-        XCTAssertTrue(MacOSVersion.sequoia15_3 < MacOSVersion.sequoia15_4_1)
     }
 
     func testMacOSVersionCurrentExists() {
