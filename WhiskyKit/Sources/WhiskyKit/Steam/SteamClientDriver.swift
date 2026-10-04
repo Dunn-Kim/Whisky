@@ -136,7 +136,7 @@ open class WineSteamClientDriver: SteamClientDriver {
     }
 
     open func killProcess(winePID: Int32) async {
-        await Wine.gracefulKillProcess(winePID: winePID, bottle: bottle)
+        await Wine.killProcess(winePID: winePID, bottle: bottle, force: false)
     }
 
     open func clientDidBecomeReady() {}
