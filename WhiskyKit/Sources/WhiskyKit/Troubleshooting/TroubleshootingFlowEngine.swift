@@ -367,8 +367,16 @@ public final class TroubleshootingFlowEngine: ObservableObject {
     /// Info nodes (a findings card between a check and its fix) only carry
     /// this transition. Nothing followed it, so every flow that reached one
     /// stopped there with Skip and Back as the only controls.
+    ///
+    /// A node keyed by launcher (`branch_by_launcher`: steam, ea, epic,
+    /// rockstar) routes on the launcher the preflight detected, whose name
+    /// starts with the key ("EA App" takes `ea`). Before this, every launcher
+    /// took `default`, so the launcher-specific steps were unreachable.
     public func continueStep() {
-        follow(["continue", "default"], reason: "Continue")
+        let launcher = session.preflightSnapshot?.launcherType?.lowercased() ?? ""
+        let routed = (currentNode?.on?.keys.filter { !launcher.isEmpty && launcher.hasPrefix($0) } ?? [])
+            .sorted { $0.count > $1.count }
+        follow(routed + ["continue", "default"], reason: "Continue")
     }
 
     /// Skips the current step. `continue` is the last fallback: skipping an

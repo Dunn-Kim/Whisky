@@ -84,7 +84,8 @@
       "description": "Checking whether DXVK async shader compilation is enabled for smoother rendering.",
       "checkId": "setting.value_check",
       "params": {
-        "check": "async_enabled"
+        "setting": "dxvkAsync",
+        "expected": "true"
       },
       "on": {
         "pass": "check_game_config",

@@ -65,6 +65,24 @@ final class TroubleshootingFlowEngineTransitionTests: XCTestCase {
         XCTAssertFalse(engine.canContinue)
     }
 
+    func testContinueRoutesOnTheDetectedLauncher() {
+        let nodes: [String: FlowStepNode] = [
+            "start": infoNode("start", transitions: ["steam": "steam", "ea": "ea", "default": "other"]),
+            "steam": infoNode("steam"), "ea": infoNode("ea"), "other": infoNode("other")
+        ]
+        let routes: [(launcher: String?, target: String)] = [("EA App", "ea"), ("Steam", "steam"), (nil, "other")]
+        for (launcher, target) in routes {
+            let engine = makeEngine(nodes: nodes)
+            engine.session.preflightSnapshot = PreflightData(
+                bottleURL: URL(filePath: "/tmp/b"), bottleName: "b", launcherType: launcher,
+                isWineserverRunning: false, processCount: 0, graphicsBackend: "dxmt"
+            )
+            engine.navigateToNode("start")
+            engine.continueStep()
+            XCTAssertEqual(engine.currentNode?.id, target, "launcher \(launcher ?? "none")")
+        }
+    }
+
     func testSkipFallsBackToTheContinueTransition() {
         let engine = makeEngine(nodes: [
             "start": infoNode("start", transitions: ["continue": "next"]),

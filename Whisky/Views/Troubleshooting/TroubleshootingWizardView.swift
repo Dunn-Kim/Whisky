@@ -275,14 +275,27 @@ extension TroubleshootingWizardView {
         }
     }
 
+    /// What the checks read: the crash-log, audio-device and launcher checks have
+    /// nothing to go on without these, and answer unknown or fail every time.
     private func collectPreflight() -> PreflightData {
-        PreflightData(
+        let processCount = ProcessRegistry.shared.getProcessCount(for: bottle)
+        let lastRun = program.flatMap { RunLogStore.load(for: $0.name, in: bottle.url).entries.last }
+        let device = AudioDeviceMonitor().defaultOutputDevice()
+        let launcher = entryContext.programURL.flatMap(LauncherType.detect(from:)) ?? bottle.settings.detectedLauncher
+        return PreflightData(
             bottleURL: entryContext.bottleURL,
             bottleName: bottle.settings.name,
             programURL: entryContext.programURL,
             programName: program?.name,
-            isWineserverRunning: false,
-            processCount: 0,
+            launcherType: launcher?.rawValue,
+            // ponytail: counts processes Whisky launched; a game a launcher spawned
+            // is missed. Wine.isWineserverRunning is the exact answer but async.
+            isWineserverRunning: processCount > 0,
+            processCount: processCount,
+            recentLogURL: lastRun.map { Wine.logsFolder.appending(path: $0.logFileName) },
+            lastExitCode: lastRun?.exitCode,
+            audioDeviceName: device?.name,
+            audioTransportType: device?.transportType.displayName,
             graphicsBackend: bottle.settings.graphicsBackend.rawValue
         )
     }
