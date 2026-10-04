@@ -54,6 +54,24 @@ final class EnvironmentVariablesTests: XCTestCase {
         XCTAssertNil(env["WINED3DMETAL"])
     }
 
+    func testDXMTMetalFXUpscaleIsOptInAndDXMTOnly() {
+        var settings = BottleSettings()
+        settings.graphicsBackend = .dxmt
+        var env: [String: String] = [:]
+        settings.environmentVariables(wineEnv: &env)
+        XCTAssertNil(env["DXMT_METALFX_SPATIAL_SWAPCHAIN"], "off by default")
+
+        settings.dxmtMetalFXUpscale = true
+        env = [:]
+        settings.environmentVariables(wineEnv: &env)
+        XCTAssertEqual(env["DXMT_METALFX_SPATIAL_SWAPCHAIN"], "1")
+
+        settings.graphicsBackend = .dxvk
+        env = [:]
+        settings.environmentVariables(wineEnv: &env)
+        XCTAssertNil(env["DXMT_METALFX_SPATIAL_SWAPCHAIN"], "inert under other backends")
+    }
+
     func testDXVKSettingsDoNotApplyUnderDXMT() {
         // dxvkHud/dxvkAsync persist in dxvkConfig but only take effect when the
         // backend is DXVK.

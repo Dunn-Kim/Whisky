@@ -409,6 +409,13 @@ public struct BottleSettings: Codable, Equatable {
         set { graphicsConfig.frameGeneration = newValue }
     }
 
+    /// Whether DXMT upscales its swapchain with MetalFX; see
+    /// ``BottleGraphicsConfig/dxmtMetalFXUpscale``.
+    public var dxmtMetalFXUpscale: Bool {
+        get { graphicsConfig.dxmtMetalFXUpscale }
+        set { graphicsConfig.dxmtMetalFXUpscale = newValue }
+    }
+
     /// Whether DXVK is the active graphics backend.
     ///
     /// This property now derives from ``graphicsBackend``. Setting it to `true`
@@ -933,10 +940,18 @@ public struct BottleSettings: Codable, Equatable {
 
         case .dxmt:
             // DXMT: native overrides for the D3D11 trio plus the builtin
-            // winemetal bridge. No env vars in v1; the file placement happens
-            // in `Wine.enableDXMT` at launch.
+            // winemetal bridge. The file placement happens in
+            // `Wine.enableDXMT` at launch.
             for entry in DLLOverrideResolver.dxmtPreset {
                 managedDLLOverrides.append((entry: entry, source: .dxmt))
+            }
+            // Its own variable rather than a DXMT_CONFIG key, so it cannot clobber
+            // the frame rate cap that DXMT_CONFIG carries.
+            if dxmtMetalFXUpscale {
+                builder.set(
+                    "DXMT_METALFX_SPATIAL_SWAPCHAIN", "1", layer: .bottleManaged,
+                    reason: "MetalFX spatial upscaling of the DXMT swapchain"
+                )
             }
 
         case .wined3d:

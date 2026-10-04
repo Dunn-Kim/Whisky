@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- DXMT bottles have a MetalFX Upscaling toggle, off by default. It sets
+  `DXMT_METALFX_SPATIAL_SWAPCHAIN`, which per DXMT's own docs doubles the
+  output resolution through MetalFX: a game keeps rendering at the size it
+  chose and reaches a Retina panel sharpened rather than stretched by the
+  compositor. That costs GPU time instead of saving it, which is why it is
+  opt-in. Its own variable, so it cannot clobber the frame rate cap that
+  `DXMT_CONFIG` carries.
 - ZFGame Browser (`ZFGameBrowser.exe`), the Chromium launcher shell several
   Chinese publishers ship, is now recognised as a launcher. It was not, so it
   resolved to D3DMetal — where a Chromium client brings its window up and never
