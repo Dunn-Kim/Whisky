@@ -56,7 +56,7 @@ public enum FlowLoader {
         return fragments
     }
 
-    private static func loadFlow(_ name: String) -> FlowDefinition? {
+    static func loadFlow(_ name: String) -> FlowDefinition? {
         Bundle.module.decodeJSONResource(name) { url in
             try JSONDecoder().decode(FlowDefinition.self, from: Data(contentsOf: url))
         }

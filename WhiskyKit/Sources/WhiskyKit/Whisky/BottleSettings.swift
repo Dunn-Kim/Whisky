@@ -97,7 +97,7 @@ public struct BottleInfo: Codable, Equatable {
 /// - **Wine Config**: Windows version, AVX, enhanced sync
 /// - **Metal Config**: Metal HUD, DXR, validation
 /// - **DXVK Config**: DXVK enable, async, HUD
-/// - **Performance Config**: Presets, shader cache, D3D11 mode
+/// - **Performance Config**: Shader cache, D3D11 mode
 ///
 /// ## Example
 ///
@@ -106,7 +106,6 @@ public struct BottleInfo: Codable, Equatable {
 /// settings.name = "Gaming"
 /// settings.windowsVersion = .win10
 /// settings.dxvk = true
-/// settings.performancePreset = .performance
 /// ```
 ///
 /// ## Topics
@@ -135,7 +134,6 @@ public struct BottleInfo: Codable, Equatable {
 /// - ``dxvkHud``
 ///
 /// ### Performance
-/// - ``performancePreset``
 /// - ``shaderCacheEnabled``
 /// - ``forceD3D11``
 /// - ``vcRedistInstalled``
@@ -512,15 +510,6 @@ public struct BottleSettings: Codable, Equatable {
 
     // MARK: - Performance settings
 
-    /// The performance optimization preset.
-    ///
-    /// Presets configure multiple settings at once for different
-    /// use cases like gaming, quality, or Unity games.
-    public var performancePreset: PerformancePreset {
-        get { performanceConfig.performancePreset }
-        set { performanceConfig.performancePreset = newValue }
-    }
-
     /// Whether shader caching is enabled.
     ///
     /// Shader caching reduces stuttering after the first run
@@ -619,9 +608,14 @@ public struct BottleSettings: Codable, Equatable {
         set { launcherConfig.networkTimeout = newValue }
     }
 
-    /// Whether to automatically enable DXVK when launcher requires it.
+    /// Whether to force DXVK in a bottle whose launcher requires it.
     ///
-    /// Rockstar Games Launcher requires DXVK to render logo screen.
+    /// Only Rockstar Games Launcher does (``LauncherType/requiresDXVK``): it
+    /// cannot render its logo screen without DXVK. When on, detecting it
+    /// switches the bottle to DXVK, and every launch in the bottle deploys
+    /// DXVK and (in launcher compatibility mode) gets its DLL overrides,
+    /// whatever ``graphicsBackend`` says.
+    /// Every launcher already resolves to DXVK under `.recommended`.
     public var autoEnableDXVK: Bool {
         get { launcherConfig.autoEnableDXVK }
         set { launcherConfig.autoEnableDXVK = newValue }
@@ -859,11 +853,15 @@ public struct BottleSettings: Codable, Equatable {
     ///     ``GraphicsBackendResolver`` and therefore depends on the machine's
     ///     installed runtime — tests pin an explicit value so the suite answers
     ///     the same everywhere.
+    ///   - builtinD3D12IsD3DMetal: Whether the runtime's builtin `d3d12` is
+    ///     D3DMetal's, which decides whether the DXVK and DXMT presets turn it
+    ///     off. Defaults to whether the GPTK payload is deployed.
     /// - Returns: Managed DLL override entries with their sources for the DLLOverrideResolver.
     public func populateBottleManagedLayer(
         builder: inout EnvironmentBuilder,
         resolvedBackend: GraphicsBackend? = nil,
-        displayRefreshRate: Int? = nil
+        displayRefreshRate: Int? = nil,
+        builtinD3D12IsD3DMetal: Bool = GPTKImporter.isDeployed()
     ) -> [(entry: DLLOverrideEntry, source: DLLOverrideSource)] {
         var managedDLLOverrides: [(entry: DLLOverrideEntry, source: DLLOverrideSource)] = []
 
@@ -902,7 +900,7 @@ public struct BottleSettings: Codable, Equatable {
 
         case .dxvk:
             // DXVK: DLL overrides + env vars
-            for entry in DLLOverrideResolver.dxvkPreset {
+            for entry in DLLOverrideResolver.dxvkPreset(builtinD3D12IsD3DMetal: builtinD3D12IsD3DMetal) {
                 managedDLLOverrides.append((entry: entry, source: .dxvk))
             }
             switch dxvkHud {
@@ -928,7 +926,7 @@ public struct BottleSettings: Codable, Equatable {
             // DXMT: native overrides for the D3D11 trio plus the builtin
             // winemetal bridge. The file placement happens in
             // `Wine.enableDXMT` at launch.
-            for entry in DLLOverrideResolver.dxmtPreset {
+            for entry in DLLOverrideResolver.dxmtPreset(builtinD3D12IsD3DMetal: builtinD3D12IsD3DMetal) {
                 managedDLLOverrides.append((entry: entry, source: .dxmt))
             }
             // Its own variable rather than a DXMT_CONFIG key, so it cannot clobber
@@ -1000,9 +998,6 @@ public struct BottleSettings: Codable, Equatable {
         // fixes on every supported macOS, so the toggle's off position changed
         // nothing and its on position only hid the provenance.
 
-        // Performance preset handling (whisky-app/whisky#1361 - FPS regression fix)
-        populatePerformancePreset(builder: &builder)
-
         // Shader cache control. DXVK_STATE_CACHE is the variable DXVK actually
         // reads; the previous pair (a compile-thread throttle and an NVIDIA GL
         // driver variable) changed nothing on this platform.
@@ -1029,10 +1024,15 @@ public struct BottleSettings: Codable, Equatable {
     /// - Configures GPU spoofing for launcher checks
     /// - Sets network timeouts for download reliability
     ///
-    /// - Parameter builder: The environment builder to populate.
+    /// - Parameters:
+    ///   - builder: The environment builder to populate.
+    ///   - builtinD3D12IsD3DMetal: Whether the runtime's builtin `d3d12` is
+    ///     D3DMetal's, passed on to the DXVK preset a launcher can require.
+    ///     Defaults to whether the GPTK payload is deployed.
     /// - Returns: Launcher-required DLL override entries with their sources.
     public func populateLauncherManagedLayer(
-        builder: inout EnvironmentBuilder
+        builder: inout EnvironmentBuilder,
+        builtinD3D12IsD3DMetal: Bool = GPTKImporter.isDeployed()
     ) -> [(entry: DLLOverrideEntry, source: DLLOverrideSource)] {
         var launcherDLLOverrides: [(entry: DLLOverrideEntry, source: DLLOverrideSource)] = []
 
@@ -1051,7 +1051,7 @@ public struct BottleSettings: Codable, Equatable {
 
             // Auto-enable DXVK DLL overrides if launcher requires it
             if autoEnableDXVK, launcher.requiresDXVK {
-                for entry in DLLOverrideResolver.dxvkPreset {
+                for entry in DLLOverrideResolver.dxvkPreset(builtinD3D12IsD3DMetal: builtinD3D12IsD3DMetal) {
                     launcherDLLOverrides.append((entry: entry, source: .launcher(launcher.displayName)))
                 }
             }
@@ -1144,54 +1144,6 @@ public struct BottleSettings: Codable, Equatable {
             builder.set("SDL_GAMECONTROLLER_USE_BUTTON_LABELS", "1", layer: .bottleManaged)
         } else {
             builder.set("SDL_GAMECONTROLLER_USE_BUTTON_LABELS", "0", layer: .bottleManaged)
-        }
-    }
-
-    /// Populates performance preset environment variables into the bottleManaged layer.
-    private func populatePerformancePreset(builder: inout EnvironmentBuilder) {
-        switch performancePreset {
-        case .balanced:
-            // Default settings, no changes needed
-            break
-
-        case .performance:
-            // Performance mode - prioritize FPS over visual quality (whisky-app/whisky#1361 fix)
-            // Disable extra validation that can slow down rendering
-            builder.set("D3DM_VALIDATION", "0", layer: .bottleManaged)
-            builder.set("MTL_DEBUG_LAYER", "0", layer: .bottleManaged)
-            // Enable DXVK async if not already enabled via the DXVK setting
-            if !dxvkAsync {
-                builder.set("DXVK_ASYNC", "1", layer: .bottleManaged)
-            }
-            // Use more aggressive shader compilation
-            builder.set("DXVK_SHADER_OPT_LEVEL", "0", layer: .bottleManaged)
-            // Reduce Metal resource tracking overhead
-            builder.set("MTL_ENABLE_METAL_EVENTS", "0", layer: .bottleManaged)
-
-        case .quality:
-            // Quality mode - prioritize visuals over performance
-            // Enable shader optimizations
-            builder.set("DXVK_SHADER_OPT_LEVEL", "2", layer: .bottleManaged)
-
-        case .unity:
-            // Unity games optimization (whisky-app/whisky#1313, #1312 - il2cpp fix)
-            // Unity games often need specific memory and threading settings
-
-            // Fix for il2cpp loading issues
-            builder.set("MONO_THREADS_SUSPEND", "1", layer: .bottleManaged)
-            // Lets 32-bit Unity titles use a 4GB address space. ntdll treats
-            // any non-zero value as "on"; the flag value keeps that honest.
-            builder.set("WINE_LARGE_ADDRESS_AWARE", "1", layer: .bottleManaged)
-
-            // Unity games often work better with D3D11
-            if !forceD3D11 {
-                builder.set("D3DM_FORCE_D3D11", "1", layer: .bottleManaged)
-            }
-
-            // WINE_HEAP_REUSE, WINE_DISABLE_NTDLL_THREAD_REGS and
-            // WINEPRELOADRESERVE used to be set here. The shipped runtime reads
-            // none of them — and WINEPRELOADRESERVE is worse than inert: the
-            // preloader parses it as a hex address range, which "1" is not.
         }
     }
 

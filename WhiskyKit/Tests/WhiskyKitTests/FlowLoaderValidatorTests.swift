@@ -30,8 +30,10 @@ private let knownFixIds: Set<String> = [
 ]
 
 /// Structural errors in flow graphs: a missing entry node, branch targets or
-/// fragment refs that resolve nowhere, and fix IDs with no implementation.
-private func validationErrors(
+/// fragment refs that resolve nowhere, fix IDs with no implementation, and a
+/// switch-backend fix that names no backend (FixApplicator would fall back to
+/// Recommended, so a card promising DXVK changes nothing).
+func validationErrors(
     flows: [String: FlowDefinition],
     fragments: [String: FlowDefinition] = [:]
 ) -> [String] {
@@ -48,6 +50,10 @@ private func validationErrors(
             }
             if let fixId = node.fixId, !knownFixIds.contains(fixId) {
                 errors.append("\(flowId)/\(nodeId): fix '\(fixId)' has no implementation")
+            }
+            if node.fixId == "switch-backend",
+               node.params?["backend"].flatMap(GraphicsBackend.init(rawValue:)) == nil {
+                errors.append("\(flowId)/\(nodeId): switch-backend needs a 'backend' param naming a graphics backend")
             }
             if let ref = node.fragmentRef, fragments[ref] == nil {
                 errors.append("\(flowId)/\(nodeId): fragment '\(ref)' not found")

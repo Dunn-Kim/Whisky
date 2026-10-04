@@ -42,6 +42,12 @@ extension GPTKImporter {
 
     // MARK: - Deployment
 
+    /// Whether the payload is deployed into the runtime tree, which makes the
+    /// builtin d3d12 D3DMetal's; see ``isDeployed(inLibraryFolder:)``.
+    public static func isDeployed() -> Bool {
+        isDeployed(inLibraryFolder: WhiskyWineInstaller.libraryFolder)
+    }
+
     /// Whether the payload is deployed into the runtime tree: the unix bridge
     /// for dxgi and the shared dylib both present.
     static func isDeployed(inLibraryFolder folder: URL) -> Bool {

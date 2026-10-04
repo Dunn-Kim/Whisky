@@ -36,7 +36,7 @@ struct ShortcutLiveScriptTests {
             for: .program(bottleName: "Steam dx11", windowsPath: #"C:\Games\Some Game\game.exe"#)
         )
 
-        #expect(script.contains(#"exec "$WHISKY_CMD" run 'Steam dx11' 'C:\Games\Some Game\game.exe'"#))
+        #expect(script.contains(#"exec "$WHISKY_CMD" run 'Steam dx11' 'C:'\\'Games'\\'Some Game'\\'game.exe'"#))
     }
 
     @Test("Hostile names survive shell quoting")
@@ -45,7 +45,7 @@ struct ShortcutLiveScriptTests {
             for: .program(bottleName: "Bo'ttle; rm -rf $HOME", windowsPath: #"C:\game.exe"#)
         )
 
-        #expect(script.contains(#"run 'Bo'\''ttle; rm -rf $HOME' 'C:\game.exe'"#))
+        #expect(script.contains(#"run 'Bo'\''ttle; rm -rf $HOME' 'C:'\\'game.exe'"#))
     }
 
     @Test("Windows paths map from drive_c and reject outsiders")
