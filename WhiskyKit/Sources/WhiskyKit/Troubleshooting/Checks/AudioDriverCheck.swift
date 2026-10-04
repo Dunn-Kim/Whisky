@@ -39,12 +39,7 @@ public struct AudioDriverCheck: TroubleshootingCheck {
         do {
             settings = try BottleSettings.decode(from: metadataURL)
         } catch {
-            return CheckResult(
-                outcome: .error,
-                evidence: ["error": error.localizedDescription],
-                summary: "Failed to read bottle settings",
-                confidence: nil
-            )
+            return .error("Failed to read bottle settings", evidence: ["error": error.localizedDescription])
         }
 
         let currentDriver = settings.audioDriver.rawValue

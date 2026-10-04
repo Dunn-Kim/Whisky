@@ -93,12 +93,7 @@ public final class CheckRegistry: @unchecked Sendable {
 
         guard let check else {
             logger.error("Unknown check ID: \(checkId)")
-            return CheckResult(
-                outcome: .error,
-                evidence: ["error": "Unknown checkId: \(checkId)"],
-                summary: "Check not found: \(checkId)",
-                confidence: nil
-            )
+            return .error("Check not found: \(checkId)", evidence: ["error": "Unknown checkId: \(checkId)"])
         }
 
         logger.debug("Running check: \(checkId)")

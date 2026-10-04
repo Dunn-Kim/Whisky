@@ -29,24 +29,13 @@ public struct SettingValueCheck: TroubleshootingCheck {
 
     public init() {}
 
-    // swiftlint:disable:next function_body_length
     public func run(params: [String: String], context: CheckContext) async -> CheckResult {
         guard let settingName = params["setting"] else {
-            return CheckResult(
-                outcome: .error,
-                evidence: [:],
-                summary: "Missing 'setting' parameter",
-                confidence: nil
-            )
+            return .error("Missing 'setting' parameter")
         }
 
         guard let expected = params["expected"] else {
-            return CheckResult(
-                outcome: .error,
-                evidence: [:],
-                summary: "Missing 'expected' parameter",
-                confidence: nil
-            )
+            return .error("Missing 'expected' parameter")
         }
 
         let bottleURL = context.bottleURL
@@ -56,23 +45,13 @@ public struct SettingValueCheck: TroubleshootingCheck {
         do {
             settings = try BottleSettings.decode(from: metadataURL)
         } catch {
-            return CheckResult(
-                outcome: .error,
-                evidence: ["error": error.localizedDescription],
-                summary: "Failed to read bottle settings",
-                confidence: nil
-            )
+            return .error("Failed to read bottle settings", evidence: ["error": error.localizedDescription])
         }
 
         let currentValue = readSetting(settingName, from: settings)
 
         guard let currentValue else {
-            return CheckResult(
-                outcome: .error,
-                evidence: ["setting": settingName],
-                summary: "Unknown setting: \(settingName)",
-                confidence: nil
-            )
+            return .error("Unknown setting: \(settingName)", evidence: ["setting": settingName])
         }
 
         let evidence = [

@@ -31,12 +31,7 @@ public struct WinetricksVerbCheck: TroubleshootingCheck {
 
     public func run(params: [String: String], context: CheckContext) async -> CheckResult {
         guard let verbsParam = params["verbs"], !verbsParam.isEmpty else {
-            return CheckResult(
-                outcome: .error,
-                evidence: [:],
-                summary: "Missing 'verbs' parameter",
-                confidence: nil
-            )
+            return .error("Missing 'verbs' parameter")
         }
 
         let expectedVerbs = verbsParam.split(separator: ",").map {

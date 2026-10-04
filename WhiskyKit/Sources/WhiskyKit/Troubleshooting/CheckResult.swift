@@ -48,6 +48,11 @@ public struct CheckResult: Sendable, Codable {
         self.summary = summary
         self.confidence = confidence
     }
+
+    /// A check that could not run: bad params, unreadable input, or an unknown check ID.
+    public static func error(_ summary: String, evidence: [String: String] = [:]) -> CheckResult {
+        CheckResult(outcome: .error, evidence: evidence, summary: summary)
+    }
 }
 
 /// Normalized check outcomes for flow branching.
