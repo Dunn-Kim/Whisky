@@ -32,7 +32,7 @@ struct GameConfigPreviewSheet: View {
     @State private var installedVerbs: Set<String> = []
     @State private var isApplying: Bool = false
     @State private var applyError: String?
-    @State private var stalenessResult: StalenessResult?
+    @State private var stalenessMessage: String?
     @State private var includeWinetricks: Bool = true
     @AppStorage("gameConfigSkipPreview") private var skipPreview: Bool = false
     @Binding var toast: ToastData?
@@ -82,7 +82,7 @@ extension GameConfigPreviewSheet {
 extension GameConfigPreviewSheet {
     @ViewBuilder
     private var stalenessWarning: some View {
-        if let result = stalenessResult, result.isStale, let message = result.warningMessage {
+        if let message = stalenessMessage {
             HStack(spacing: 8) {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .foregroundStyle(.yellow)
@@ -334,7 +334,7 @@ extension GameConfigPreviewSheet {
 
         // Check staleness
         if let testedWith = variant.testedWith {
-            stalenessResult = StalenessChecker.check(testedWith: testedWith)
+            stalenessMessage = StalenessChecker.warning(for: testedWith)
         }
     }
 }
