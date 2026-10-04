@@ -88,17 +88,6 @@ public enum FixApplicator { // swiftlint:disable:this type_body_length
         category: "FixApplicator"
     )
 
-    /// Every fixId ``apply(fixId:params:bottle:program:)`` implements.
-    /// ``FlowValidator`` rejects flows that reference anything else, so a
-    /// fix card can never render with a dead Apply button.
-    public static let knownFixIds: Set<String> = [
-        "switch-backend", "enable-dxvk-async", "set-audio-driver",
-        "set-buffer-size", "enable-esync", "enable-controller-compat",
-        "install-winetricks-verb", "run-enhanced-diagnostics",
-        "restart-wineserver", "set-registry-value", "apply-launcher-fixes",
-        "apply-game-config"
-    ]
-
     // MARK: - Preview
 
     /// Returns a preview of what the fix will change without applying it.
