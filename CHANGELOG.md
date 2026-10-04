@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+- Open in Terminal, the Winetricks screen and `WhiskyCmd shellenv` quote every
+  value with backslashes and quotes outside the quoted text, so a bottle name,
+  path or DLL override name can no longer run commands, under fish included
+  (upstream #270, #280).
+
 ### Added
 - DXMT bottles have a MetalFX Upscaling toggle, off by default. It sets
   `DXMT_METALFX_SPATIAL_SWAPCHAIN`, which per DXMT's own docs doubles the
@@ -45,6 +51,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Windows-side DLL. A user-set `DXVK_STATE_CACHE_PATH` still wins.
 
 ### Changed
+- Cherry-picked from upstream's unreleased main (frankea/Whisky), the fixes
+  that apply to this fork; see upstream's changelog for each in full:
+  launchers resolve to DXVK on every runtime (#252); a hung vcruntime
+  installer is detected by mfc140.dll (#239); performance presets removed,
+  whose Unity preset set an invalid `MONO_THREADS_SUSPEND=1` that aborts Mono
+  (#272); d3d12 is only turned off over D3DMetal's builtin, so Unity 6000.3
+  games start on DXVK/DXMT (#285); a launch's log is no longer replaced by the
+  registry import's log from the same second, and process polls stop writing
+  logs (#286); bottle diagnostics open on the symptom picker (#287); loading a
+  bottle only rewrites Metadata.plist when a pin is pruned (#288); re-pinning
+  no longer duplicates a pin (#296); untranslated strings fall back to English
+  (#297); the backend fixes in guided troubleshooting switch to the backend
+  their cards name (#298). Upstream's environment cleanup, dxgi residue
+  handling, CJK font aliases, Force DirectX 11 removal and Steam rework were
+  left out: the fork already covers them or doesn't need them yet.
 - Update checks are off. Sparkle's updater is never started, so it neither
   checks nor offers an update, and Check for Updates stays disabled: its feed
   is upstream's appcast, and an accepted update would replace this fork's
