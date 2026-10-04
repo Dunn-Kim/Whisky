@@ -133,26 +133,26 @@ final class GPUVendorTests: XCTestCase {
 
 final class GPUDetectionSpoofingTests: XCTestCase {
     func testSpoofWithNvidia() {
-        let env = GPUDetection.spoofWithVendor(.nvidia)
+        let env = GPUDetection.spoofGPU(vendor: .nvidia)
 
         XCTAssertFalse(env.isEmpty, "NVIDIA spoofing should produce environment variables")
     }
 
     func testSpoofWithAMD() {
-        let env = GPUDetection.spoofWithVendor(.amd)
+        let env = GPUDetection.spoofGPU(vendor: .amd)
 
         XCTAssertFalse(env.isEmpty, "AMD spoofing should produce environment variables")
     }
 
     func testSpoofWithIntel() {
-        let env = GPUDetection.spoofWithVendor(.intel)
+        let env = GPUDetection.spoofGPU(vendor: .intel)
 
         XCTAssertFalse(env.isEmpty, "Intel spoofing should produce environment variables")
     }
 
     func testSpoofProducesStringDictionary() {
         for vendor in [GPUVendor.nvidia, .amd, .intel] {
-            let env = GPUDetection.spoofWithVendor(vendor)
+            let env = GPUDetection.spoofGPU(vendor: vendor)
 
             for (key, value) in env {
                 XCTAssertFalse(key.isEmpty, "Key should not be empty for vendor \(vendor)")

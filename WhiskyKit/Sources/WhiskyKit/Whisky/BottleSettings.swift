@@ -1118,7 +1118,7 @@ public struct BottleSettings: Codable, Equatable {
     /// keys in would silently undo the setting that sits beside the spoof in
     /// the same screen.
     private func spoofEnvironment() -> [String: String] {
-        var gpuEnv = GPUDetection.spoofWithVendor(gpuVendor)
+        var gpuEnv = GPUDetection.spoofGPU(vendor: gpuVendor)
         if forceD3D11 {
             gpuEnv.removeValue(forKey: "D3DM_FEATURE_LEVEL_12_0")
             gpuEnv.removeValue(forKey: "D3DM_FEATURE_LEVEL_12_1")
