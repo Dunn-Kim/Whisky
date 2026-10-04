@@ -100,17 +100,23 @@ struct BottleActionBar: View {
                                     Telemetry.capture(.firstProgramLaunchAttempted)
                                     if url.pathExtension == "bat" {
                                         try await Wine.runBatchFile(url: url, bottle: bottle)
+                                        await MainActor.run {
+                                            withAnimation {
+                                                toast = ToastData(
+                                                    message: String(
+                                                        localized: "status.launched \(url.lastPathComponent)"
+                                                    ),
+                                                    style: .success
+                                                )
+                                            }
+                                        }
                                     } else {
-                                        try await Wine.runProgram(at: url, bottle: bottle)
-                                    }
-                                    await MainActor.run {
+                                        // Through Program, not Wine.runProgram, so the executable's
+                                        // saved settings (locale, arguments, overrides) apply.
+                                        let result = await bottle.program(at: url)
+                                            .launchWithUserMode(useTerminal: false)
                                         withAnimation {
-                                            toast = ToastData(
-                                                message: String(
-                                                    localized: "status.launched \(url.lastPathComponent)"
-                                                ),
-                                                style: .success
-                                            )
+                                            toast = result.toastData
                                         }
                                     }
                                 } catch {

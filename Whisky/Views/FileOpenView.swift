@@ -29,6 +29,7 @@ struct FileOpenView: View {
     @Binding var toast: ToastData?
 
     @State private var selection: URL = .init(filePath: "")
+    @State private var locale: Locales = .auto
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -38,6 +39,15 @@ struct FileOpenView: View {
                     ForEach(bottles, id: \.self) {
                         Text($0.settings.name)
                             .tag($0.url)
+                    }
+                }
+                // A file opened from Finder is usually outside Program Files, so
+                // this is the only place its locale can be set. Without one, Wine
+                // follows the macOS language, and a CJK UI under an English
+                // locale draws its text as boxes.
+                Picker("locale.title", selection: $locale) {
+                    ForEach(Locales.allCases, id: \.self) { locale in
+                        Text(locale.pretty()).tag(locale)
                     }
                 }
             }
@@ -69,54 +79,58 @@ struct FileOpenView: View {
                 return
             }
 
+            // No auto-run for a single bottle: the locale is still a choice.
             selection = bottles.first(where: { $0.url == currentBottle })?.url ?? bottles[0].url
-
-            if bottles.count == 1 {
-                // If the user only has one bottle
-                // there's nothing for them to select
-                run()
-            }
+        }
+        .onChange(of: selection) { _, bottleURL in
+            locale = Program.persistedSettings(for: fileURL, bottleURL: bottleURL)?.locale ?? .auto
         }
     }
 
     func run() {
         if let bottle = bottles.first(where: { $0.url == selection }) {
-            Task.detached(priority: .userInitiated) {
-                do {
-                    // Auto-detect launcher and apply fixes if compatibility mode enabled
-                    // This completes synchronously on MainActor, ensuring settings are
-                    // persisted before Wine.runProgram() reads them
-                    await MainActor.run {
-                        LauncherFixes.detectAndApply(from: fileURL, for: bottle)
-                        Telemetry.capture(.firstProgramLaunchAttempted)
-                    }
+            let locale = locale
+            Task(priority: .userInitiated) { @MainActor in
+                // Auto-detect launcher and apply fixes if compatibility mode enabled,
+                // persisting settings before the launch reads them
+                LauncherFixes.detectAndApply(from: fileURL, for: bottle)
+                Telemetry.capture(.firstProgramLaunchAttempted)
 
-                    if fileURL.pathExtension == "bat" {
-                        try await Wine.runBatchFile(
-                            url: fileURL,
-                            bottle: bottle
-                        )
-                    } else {
-                        try await Wine.runProgram(at: fileURL, bottle: bottle)
+                var failure: String?
+                if fileURL.pathExtension == "bat" {
+                    do {
+                        try await Wine.runBatchFile(url: fileURL, bottle: bottle)
+                    } catch {
+                        failure = error.localizedDescription
                     }
-                } catch {
-                    // Surface the failure on the presenting view's toast (the sheet
-                    // dismisses immediately, so a local toast wouldn't be seen) —
-                    // otherwise a launch error here, including DXMT's actionable
-                    // payloadMissing, vanishes silently.
-                    let errDesc = error.localizedDescription
-                    logger.error(
-                        "Failed to launch \(fileURL.lastPathComponent, privacy: .public): \(errDesc, privacy: .public)"
+                } else {
+                    // Through Program, not Wine.runProgram, so the executable's saved
+                    // settings (locale, arguments, overrides) apply as they do from
+                    // the program list.
+                    let program = bottle.program(at: fileURL)
+                    if program.settings.locale != locale {
+                        program.settings.locale = locale
+                    }
+                    if case let .launchFailed(_, errorDescription) = await program
+                        .launchWithUserMode(useTerminal: false) {
+                        failure = errorDescription
+                    }
+                }
+
+                // Surface the failure on the presenting view's toast (the sheet
+                // dismisses immediately, so a local toast wouldn't be seen) —
+                // otherwise a launch error here, including DXMT's actionable
+                // payloadMissing, vanishes silently.
+                guard let failure else { return }
+                logger.error(
+                    "Failed to launch \(fileURL.lastPathComponent, privacy: .public): \(failure, privacy: .public)"
+                )
+                withAnimation {
+                    toast = ToastData(
+                        message: String(localized: "status.launchFailed \(failure)"),
+                        style: .error,
+                        autoDismiss: false
                     )
-                    await MainActor.run {
-                        withAnimation {
-                            toast = ToastData(
-                                message: String(localized: "status.launchFailed \(errDesc)"),
-                                style: .error,
-                                autoDismiss: false
-                            )
-                        }
-                    }
                 }
             }
             dismiss()

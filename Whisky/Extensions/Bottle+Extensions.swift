@@ -55,6 +55,14 @@ extension Bottle {
         wineUsernameCache.removeValue(forKey: url)
     }
 
+    /// The program for `url`: the bottle's own instance when its list has one,
+    /// so a launch and the program's settings page share one copy of the
+    /// settings, otherwise a new one (an executable outside `Program Files`).
+    @MainActor
+    func program(at url: URL) -> Program {
+        programs.first(where: { $0.url == url }) ?? Program(url: url, bottle: self)
+    }
+
     func openCDrive() {
         NSWorkspace.shared.open(url.appending(path: "drive_c"))
     }
