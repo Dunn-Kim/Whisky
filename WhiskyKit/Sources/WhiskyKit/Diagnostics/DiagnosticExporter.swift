@@ -25,9 +25,6 @@ public struct ExportOptions: Sendable {
     /// Defaults to `false` (redacted by default).
     public var includeSensitiveDetails: Bool
 
-    /// Whether to include remediation history in the export.
-    public var includeRemediationHistory: Bool
-
     /// Whether to include the full log file in the ZIP export.
     public var includeFullLog: Bool
 
@@ -36,12 +33,10 @@ public struct ExportOptions: Sendable {
 
     public init(
         includeSensitiveDetails: Bool = false,
-        includeRemediationHistory: Bool = true,
         includeFullLog: Bool = true,
         tailLineCount: Int = 500
     ) {
         self.includeSensitiveDetails = includeSensitiveDetails
-        self.includeRemediationHistory = includeRemediationHistory
         self.includeFullLog = includeFullLog
         self.tailLineCount = tailLineCount
     }
@@ -72,7 +67,6 @@ public enum DiagnosticExporter {
         bottle: Bottle,
         program: Program,
         logFileURL: URL?,
-        timeline: RemediationTimeline?,
         options: ExportOptions = ExportOptions()
     ) async -> URL {
         let context = ZIPExportContext(
@@ -80,7 +74,6 @@ public enum DiagnosticExporter {
             bottle: bottle,
             program: program,
             logFileURL: logFileURL,
-            timeline: timeline,
             options: options
         )
 
@@ -111,7 +104,6 @@ public enum DiagnosticExporter {
         // Markdown copy is always redacted regardless of options
         let redactedOptions = ExportOptions(
             includeSensitiveDetails: false,
-            includeRemediationHistory: options.includeRemediationHistory,
             includeFullLog: false,
             tailLineCount: options.tailLineCount
         )
@@ -395,14 +387,6 @@ extension DiagnosticExporter {
                 atomically: true,
                 encoding: .utf8
             )
-
-            if context.options.includeRemediationHistory, let timeline = context.timeline {
-                let timelineEncoder = JSONEncoder()
-                timelineEncoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-                timelineEncoder.dateEncodingStrategy = .iso8601
-                let timelineData = try timelineEncoder.encode(timeline)
-                try timelineData.write(to: contentDir.appendingPathComponent("remediation-history.json"))
-            }
         } catch {
             // Best effort
         }
@@ -453,7 +437,6 @@ extension DiagnosticExporter {
         let bottle: Bottle
         let program: Program
         let logFileURL: URL?
-        let timeline: RemediationTimeline?
         let options: ExportOptions
     }
 

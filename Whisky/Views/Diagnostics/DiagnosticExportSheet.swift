@@ -22,8 +22,7 @@ import WhiskyKit
 
 /// Sheet view for exporting diagnostic reports with privacy controls.
 ///
-/// Presents toggles for sensitive details, remediation history, and full log
-/// inclusion. Supports ZIP export via NSSavePanel and Markdown clipboard copy.
+/// Presents toggles for sensitive details and full log inclusion. Supports ZIP export via NSSavePanel and Markdown clipboard copy.
 struct DiagnosticExportSheet: View {
     let diagnosis: CrashDiagnosis
     let bottle: Bottle
@@ -33,7 +32,6 @@ struct DiagnosticExportSheet: View {
     @Environment(\.dismiss) var dismiss
 
     @State private var includeSensitive = false
-    @State private var includeRemediationHistory = true
     @State private var includeFullLog = true
     @State private var isExporting = false
     @State private var showCopySuccess = false
@@ -41,7 +39,6 @@ struct DiagnosticExportSheet: View {
     private var exportOptions: ExportOptions {
         ExportOptions(
             includeSensitiveDetails: includeSensitive,
-            includeRemediationHistory: includeRemediationHistory,
             includeFullLog: includeFullLog
         )
     }
@@ -94,10 +91,6 @@ extension DiagnosticExportSheet {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
-            }
-
-            Toggle(isOn: $includeRemediationHistory) {
-                Text("Include remediation history")
             }
 
             Toggle(isOn: $includeFullLog) {
@@ -164,7 +157,6 @@ extension DiagnosticExportSheet {
                     bottle: bottle,
                     program: program,
                     logFileURL: logFileURL,
-                    timeline: loadRemediationTimeline(),
                     options: exportOptions
                 )
 
@@ -209,24 +201,6 @@ extension DiagnosticExportSheet {
             try fileManager.removeItem(at: destination)
         }
         try fileManager.moveItem(at: source, to: destination)
-    }
-
-    private func loadDiagnosisHistory() -> DiagnosisHistory? {
-        let historyURL = bottle.url
-            .appending(path: "Program Settings")
-            .appending(path: program.name)
-            .appendingPathExtension("diagnosis-history.plist")
-        let history = DiagnosisHistory.load(from: historyURL)
-        return history.isEmpty ? nil : history
-    }
-
-    private func loadRemediationTimeline() -> RemediationTimeline? {
-        let timelineURL = bottle.url
-            .appending(path: "Program Settings")
-            .appending(path: program.name)
-            .appendingPathExtension("remediation-timeline.plist")
-        let timeline = RemediationTimeline.load(from: timelineURL)
-        return timeline.isEmpty ? nil : timeline
     }
 
     private func sanitizeName(_ name: String) -> String {
