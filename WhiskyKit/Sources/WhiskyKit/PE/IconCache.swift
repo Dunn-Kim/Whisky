@@ -28,7 +28,7 @@ import UniformTypeIdentifiers
 ///
 /// ## Usage
 /// ```swift
-/// let icon = await IconCache.shared.iconAsync(for: programURL)
+/// let icon = await IconCache.shared.iconOrFallback(for: programURL)
 /// ```
 public actor IconCache {
     /// The shared icon cache instance.
@@ -129,19 +129,6 @@ public actor IconCache {
         return icon
     }
 
-    /// Asynchronously loads an icon, using cache when available.
-    ///
-    /// This is the preferred method for loading icons from SwiftUI views,
-    /// as it can be called from a `Task` context.
-    ///
-    /// - Parameters:
-    ///   - url: The URL of the PE executable file.
-    ///   - peFile: An optional pre-parsed PE file. If not provided, the file will be parsed.
-    /// - Returns: The extracted icon, or `nil` if extraction fails.
-    public func iconAsync(for url: URL, peFile: PEFile? = nil) -> NSImage? {
-        icon(for: url, peFile: peFile)
-    }
-
     /// Returns the extracted icon, or a generic Windows-executable system icon
     /// if PE parsing fails. Use from views that should never render a blank tile.
     public func iconOrFallback(for url: URL, peFile: PEFile? = nil) -> NSImage {
@@ -149,22 +136,4 @@ public actor IconCache {
     }
 
     private static let fallbackIcon: NSImage = NSWorkspace.shared.icon(for: .exe)
-
-    /// Removes a specific icon from the cache.
-    ///
-    /// Call this when a program is deleted or its executable is modified.
-    ///
-    /// - Parameter url: The URL of the PE file to remove from cache.
-    public func invalidate(url: URL) {
-        memoryCache.removeObject(forKey: url as NSURL)
-        artworkCache.removeObject(forKey: url as NSURL)
-    }
-
-    /// Clears all cached icons.
-    ///
-    /// This can be called in response to memory pressure or when bottles are deleted.
-    public func clearCache() {
-        memoryCache.removeAllObjects()
-        artworkCache.removeAllObjects()
-    }
 }

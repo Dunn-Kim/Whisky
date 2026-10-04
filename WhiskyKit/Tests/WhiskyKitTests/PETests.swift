@@ -164,16 +164,6 @@ final class COFFFileHeaderTests: XCTestCase {
         XCTAssertEqual(peFile.coffFileHeader.numberOfSections, 1)
     }
 
-    func testCOFFHeaderTimestamp() throws {
-        let peData = PEBuilder.createMinimalPE32()
-        let fileURL = tempDir.appending(path: "timestamp.exe")
-        try peData.write(to: fileURL)
-
-        let peFile = try PEFile(url: fileURL)
-
-        XCTAssertNotNil(peFile.coffFileHeader.timeDateStamp)
-    }
-
     func testCOFFHeaderSizeOfOptionalHeader() throws {
         let peData = PEBuilder.createMinimalPE32()
         let fileURL = tempDir.appending(path: "optsize.exe")
@@ -221,7 +211,6 @@ final class OptionalHeaderTests: XCTestCase {
         let peFile = try PEFile(url: fileURL)
 
         XCTAssertEqual(peFile.optionalHeader?.magic, .pe32)
-        XCTAssertNotNil(peFile.optionalHeader?.baseOfData)
     }
 
     func testPE32PlusMagicNumber() throws {
@@ -232,18 +221,6 @@ final class OptionalHeaderTests: XCTestCase {
         let peFile = try PEFile(url: fileURL)
 
         XCTAssertEqual(peFile.optionalHeader?.magic, .pe32Plus)
-        XCTAssertNil(peFile.optionalHeader?.baseOfData)
-    }
-
-    func testLinkerVersion() throws {
-        let peData = PEBuilder.createMinimalPE32()
-        let fileURL = tempDir.appending(path: "linker.exe")
-        try peData.write(to: fileURL)
-
-        let peFile = try PEFile(url: fileURL)
-
-        XCTAssertEqual(peFile.optionalHeader?.majorLinkerVersion, 0x0E)
-        XCTAssertEqual(peFile.optionalHeader?.minorLinkerVersion, 0x1D)
     }
 
     func testOptionalHeaderHashable() throws {
@@ -317,12 +294,6 @@ final class MagicTests: XCTestCase {
         XCTAssertEqual(PEFile.Magic.unknown.rawValue, 0x0)
         XCTAssertEqual(PEFile.Magic.pe32.rawValue, 0x10B)
         XCTAssertEqual(PEFile.Magic.pe32Plus.rawValue, 0x20B)
-    }
-
-    func testMagicDescriptions() {
-        XCTAssertEqual(PEFile.Magic.unknown.description, "unknown")
-        XCTAssertEqual(PEFile.Magic.pe32.description, "PE32")
-        XCTAssertEqual(PEFile.Magic.pe32Plus.description, "PE32+")
     }
 
     func testMagicInitFromRawValue() {

@@ -21,22 +21,9 @@ import Foundation
 /// Intentionally not marked public to avoid Swift 6 redundant access modifiers.
 /// Nested types remain public to preserve the API surface.
 extension PEFile {
-    public enum Magic: UInt16, Hashable, Equatable, CustomStringConvertible, Sendable {
+    public enum Magic: UInt16, Hashable, Equatable, Sendable {
         case unknown = 0x0
         case pe32 = 0x10B
         case pe32Plus = 0x20B
-
-        // MARK: - CustomStringConvertible
-
-        public var description: String {
-            switch self {
-            case .unknown:
-                "unknown"
-            case .pe32:
-                "PE32"
-            case .pe32Plus:
-                "PE32+"
-            }
-        }
     }
 }

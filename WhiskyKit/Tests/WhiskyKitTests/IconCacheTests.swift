@@ -27,7 +27,7 @@ struct IconCacheTests {
         let cache = IconCache.shared
         let nonExistentURL = URL(fileURLWithPath: "/nonexistent/path/file.exe")
 
-        let result = await cache.iconAsync(for: nonExistentURL)
+        let result = await cache.icon(for: nonExistentURL)
 
         #expect(result == nil)
     }
@@ -42,33 +42,8 @@ struct IconCacheTests {
         try "not a valid PE file".write(to: tempFile, atomically: true, encoding: .utf8)
         defer { try? FileManager.default.removeItem(at: tempFile) }
 
-        let result = await cache.iconAsync(for: tempFile)
+        let result = await cache.icon(for: tempFile)
 
-        #expect(result == nil)
-    }
-
-    @Test("Clear cache removes all entries")
-    func clearCacheRemovesAllEntries() async {
-        let cache = IconCache.shared
-
-        // Clear the cache
-        await cache.clearCache()
-
-        // Verify cache doesn't crash after clear (we can't directly inspect NSCache contents)
-        let result = await cache.iconAsync(for: URL(fileURLWithPath: "/test/path.exe"))
-        #expect(result == nil)
-    }
-
-    @Test("Invalidate removes specific entry")
-    func invalidateRemovesSpecificEntry() async {
-        let cache = IconCache.shared
-        let testURL = URL(fileURLWithPath: "/test/specific/path.exe")
-
-        // Invalidate the entry
-        await cache.invalidate(url: testURL)
-
-        // Verify cache doesn't crash after invalidate
-        let result = await cache.iconAsync(for: testURL)
         #expect(result == nil)
     }
 
