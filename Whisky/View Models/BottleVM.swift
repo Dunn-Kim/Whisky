@@ -25,8 +25,6 @@ import WhiskyKit
 
 enum BottleCreationError: LocalizedError, Equatable {
     case directoryCreationFailed
-    case metadataCreationFailed
-    case wineVersionChangeFailed
     case persistenceSaveFailed
     /// The Wine runtime (WhiskyWine) is not installed, so the prefix can't be
     /// initialized. Surfaced with a "Run Setup" action in the failure alert.
@@ -40,10 +38,6 @@ enum BottleCreationError: LocalizedError, Equatable {
         switch self {
         case .directoryCreationFailed:
             String(localized: "bottle.creation.error.directoryCreationFailed")
-        case .metadataCreationFailed:
-            String(localized: "bottle.creation.error.metadataCreationFailed")
-        case .wineVersionChangeFailed:
-            String(localized: "bottle.creation.error.wineVersionChangeFailed")
         case .persistenceSaveFailed:
             String(localized: "bottle.creation.error.persistenceSaveFailed")
         case .runtimeMissing:

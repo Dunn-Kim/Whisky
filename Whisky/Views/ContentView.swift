@@ -29,7 +29,6 @@ struct ContentView: View {
     @State var selected: URL?
     @State var showBottleCreation: Bool = false
     @State var bottlesLoaded: Bool = false
-    @State var showBottleSelection: Bool = false
     @State var newlyCreatedBottleURL: URL?
     @State var openedFileURL: URL?
     @State var triggerRefresh: Bool = false
