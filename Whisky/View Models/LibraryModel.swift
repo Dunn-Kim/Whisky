@@ -243,7 +243,7 @@ extension LibraryModel {
             return existing
         }
 
-        let made = SteamClientOrchestrator(bottle: bottle, driver: AppSteamClientDriver(bottle: bottle))
+        let made = SteamClientOrchestrator(bottle: bottle)
         let url = bottle.url
         made.$phases
             .sink { [weak self] phases in
