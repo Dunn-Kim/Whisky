@@ -131,7 +131,9 @@ struct BottleView: View {
                 ) { newName in
                     Task {
                         do {
-                            _ = try await bottle.duplicate(newName: newName)
+                            _ = try await BottleOperations.duplicate(
+                                bottleAt: bottle.url, newName: newName, registry: BottleVM.shared
+                            )
                             await MainActor.run {
                                 withAnimation {
                                     toast = ToastData(

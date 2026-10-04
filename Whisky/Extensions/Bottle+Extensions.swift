@@ -238,49 +238,6 @@ extension Bottle {
         }
     }
 
-    /// Moves the bottle to a new location.
-    ///
-    /// Thin adapter over `BottleOperations.move`, which owns the
-    /// rewrite-before-move and rollback-on-failure semantics for pins and
-    /// blocklist URLs.
-    @MainActor
-    func move(destination: URL) {
-        BottleOperations.move(bottleAt: url, to: destination, registry: BottleVM.shared)
-    }
-
-    /// Exports the bottle as a gzip-compressed tar archive.
-    ///
-    /// Thin adapter over `BottleOperations.export`.
-    ///
-    /// - Parameter destination: The URL where the archive should be saved.
-    /// - Throws: `TarError` if the archive operation fails, or an error if the bottle is not found.
-    @MainActor
-    func exportAsArchive(destination: URL) async throws {
-        try await BottleOperations.export(bottleAt: url, to: destination, registry: BottleVM.shared)
-    }
-
-    /// Duplicates the bottle to a new directory with the given name.
-    ///
-    /// Thin adapter over `BottleOperations.duplicate`.
-    ///
-    /// - Parameters:
-    ///   - newName: The name for the duplicated bottle.
-    ///   - progress: Optional callback reporting `DuplicationPhase` updates.
-    /// - Returns: The URL of the newly created bottle directory.
-    /// - Throws: An error if the bottle is not found or the copy operation fails.
-    @MainActor
-    func duplicate(
-        newName: String,
-        progress: (@Sendable (DuplicationPhase) -> Void)? = nil
-    ) async throws -> URL {
-        try await BottleOperations.duplicate(
-            bottleAt: url,
-            newName: newName,
-            registry: BottleVM.shared,
-            progress: progress
-        )
-    }
-
     @MainActor
     func remove(delete: Bool) async {
         // Check for running processes before deletion
@@ -307,11 +264,6 @@ extension Bottle {
         }
 
         BottleOperations.remove(bottleAt: url, deleteFiles: delete, registry: BottleVM.shared)
-    }
-
-    @MainActor
-    func rename(newName: String) {
-        settings.name = newName
     }
 
     @MainActor private func showRunError(message: String) {
