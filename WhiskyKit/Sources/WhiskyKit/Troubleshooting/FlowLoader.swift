@@ -23,7 +23,7 @@ import os.log
 ///
 /// Follows the ``PatternLoader`` and ``GameDBLoader`` pattern: a caseless enum
 /// with static methods for loading from URLs or from the default SPM resource bundle.
-/// Flow definitions are split into an index, per-category flow files, and shared fragments.
+/// Flow definitions are split into per-category flow files and shared fragments.
 ///
 /// In debug builds, missing or invalid resources trigger assertions to surface issues
 /// early. In release builds, failures return nil or empty collections gracefully.
@@ -32,36 +32,6 @@ public enum FlowLoader {
         subsystem: "com.franke.Whisky",
         category: "FlowLoader"
     )
-
-    // MARK: - Index Loading
-
-    /// Loads the flow index from the SPM resource bundle.
-    ///
-    /// The index maps symptom categories to their flow definition files
-    /// and provides metadata for the symptom picker UI.
-    ///
-    /// - Returns: The decoded flow index, or `nil` if loading fails.
-    public static func loadIndex() -> FlowIndex? {
-        guard let url = Bundle.module.url(forResource: "index", withExtension: "json") else {
-            logger.error("Missing resource: index.json in Bundle.module")
-            #if DEBUG
-            assertionFailure("Missing resource: index.json in Bundle.module")
-            #endif
-            return nil
-        }
-
-        do {
-            let data = try Data(contentsOf: url)
-            let decoder = JSONDecoder()
-            return try decoder.decode(FlowIndex.self, from: data)
-        } catch {
-            logger.error("Failed to decode index.json: \(error.localizedDescription)")
-            #if DEBUG
-            assertionFailure("Failed to decode index.json: \(error)")
-            #endif
-            return nil
-        }
-    }
 
     // MARK: - Flow Loading
 
@@ -95,27 +65,25 @@ public enum FlowLoader {
 
     // MARK: - Bulk Loading
 
-    /// Loads all flow definitions referenced in the index, keyed by category ID.
+    /// Loads every symptom category's flow, keyed by category ID (the flow
+    /// file name without ".json"). ``SymptomCategory/other`` has no flow by
+    /// design: selecting it escalates straight to the export fragment.
     ///
-    /// Iterates through the index categories and loads each flow file.
     /// Flows that fail to load are skipped with a warning.
     ///
     /// - Returns: A dictionary of flow definitions keyed by category ID.
     public static func loadAllFlows() -> [String: FlowDefinition] {
-        guard let index = loadIndex() else {
-            return [:]
-        }
-
         var flows: [String: FlowDefinition] = [:]
-        for category in index.categories {
-            if let flow = loadFlow(fileName: category.flowFile) {
-                flows[category.id] = flow
+        for category in SymptomCategory.allCases where category != .other {
+            let categoryId = String(category.flowFileName.dropLast(5)) // Remove ".json"
+            if let flow = loadFlow(fileName: category.flowFileName) {
+                flows[categoryId] = flow
             } else {
-                logger.warning("Skipped flow for category \(category.id): failed to load \(category.flowFile)")
+                logger.warning("Skipped flow for category \(categoryId): failed to load \(category.flowFileName)")
             }
         }
 
-        logger.debug("Loaded \(flows.count) of \(index.categories.count) flow definitions")
+        logger.debug("Loaded \(flows.count) flow definitions")
         return flows
     }
 

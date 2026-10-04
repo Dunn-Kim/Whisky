@@ -64,35 +64,20 @@ private func validationErrors(
 final class FlowLoaderValidatorTests: XCTestCase {
     // MARK: - Bundled resources
 
-    func testIndexLoadsAndCoversEveryCategory() throws {
-        let index = try XCTUnwrap(FlowLoader.loadIndex())
-        XCTAssertFalse(index.categories.isEmpty)
-
-        // Every SymptomCategory's flow file must be present in the index so
-        // selecting any symptom in the UI reaches a real flow — except .other,
-        // which by design has no flow: selecting it escalates directly to the
-        // export fragment (the engine's no-flow path).
-        let indexedFiles = Set(index.categories.map(\.flowFile))
-        for category in SymptomCategory.allCases where category != .other {
-            XCTAssertTrue(
-                indexedFiles.contains(category.flowFileName),
-                "index.json is missing \(category.flowFileName) for category \(category)"
-            )
-        }
-        XCTAssertFalse(
-            indexedFiles.contains(SymptomCategory.other.flowFileName),
-            ".other gained a flow file — update the engine's no-flow escalation expectations"
-        )
-    }
-
-    func testAllIndexedFlowsLoad() throws {
-        let index = try XCTUnwrap(FlowLoader.loadIndex())
+    func testEveryCategoryExceptOtherLoadsItsFlow() {
         let flows = FlowLoader.loadAllFlows()
 
-        XCTAssertEqual(
-            flows.count, index.categories.count,
-            "every category in index.json must load; a silently skipped flow means a dead symptom path"
-        )
+        // Selecting any symptom in the UI must reach a real flow, except
+        // .other, which by design has no flow: selecting it escalates
+        // directly to the export fragment (the engine's no-flow path).
+        for category in SymptomCategory.allCases where category != .other {
+            let categoryId = String(category.flowFileName.dropLast(5))
+            XCTAssertEqual(
+                flows[categoryId]?.categoryId, categoryId,
+                "\(category.flowFileName) must load; a silently skipped flow means a dead symptom path"
+            )
+        }
+        XCTAssertEqual(flows.count, SymptomCategory.allCases.count - 1)
     }
 
     func testFragmentsLoad() {
