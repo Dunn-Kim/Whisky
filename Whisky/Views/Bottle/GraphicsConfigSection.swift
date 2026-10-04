@@ -127,6 +127,17 @@ struct GraphicsConfigSection: View {
                 .disabled(!bottle.settings.metalFX)
             }
 
+            if resolvedBackend == .dxmt {
+                Toggle(isOn: $bottle.settings.dxmtMetalFXUpscale) {
+                    VStack(alignment: .leading) {
+                        Text("config.dxmtMetalFXUpscale")
+                        Text("config.dxmtMetalFXUpscale.info")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
             // The Sequoia compatibility toggle is gone: everything it set is a
             // platform-layer fix applied on every supported macOS, so the
             // switch changed nothing in either position.

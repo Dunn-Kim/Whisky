@@ -185,6 +185,15 @@ public struct BottleGraphicsConfig: Codable, Equatable {
     /// so their behaviour does not change underneath them.
     var frameRateLimit: FrameRateLimit = .matchDisplay
 
+    /// Whether DXMT runs its swapchain through MetalFX's spatial upscaler.
+    ///
+    /// Not D3DMetal's ``metalFX``: DXMT doubles the output resolution, so a game
+    /// keeps rendering at the size it chose and reaches a Retina panel sharpened
+    /// by MetalFX rather than stretched by the compositor. That is a quality
+    /// trade, not a speedup — the upscale costs GPU time — so it is off unless
+    /// asked for. Inert under every other backend.
+    var dxmtMetalFXUpscale: Bool = false
+
     /// Creates a new graphics config with the default `.recommended` backend.
     public init() {}
 
@@ -201,5 +210,6 @@ public struct BottleGraphicsConfig: Codable, Equatable {
         // unknown value decodes to `.unlimited` rather than failing the bottle.
         let rawLimit = try container.decodeIfPresent(Int.self, forKey: .frameRateLimit)
         self.frameRateLimit = rawLimit.flatMap(FrameRateLimit.init(rawValue:)) ?? .unlimited
+        self.dxmtMetalFXUpscale = (try? container.decodeIfPresent(Bool.self, forKey: .dxmtMetalFXUpscale)) ?? false
     }
 }
