@@ -20,8 +20,8 @@ import Foundation
 import os.log
 import SemanticVersion
 
-/// Minimal BottleData for fallback encoding
-private struct BottleDataMinimal: Codable {
+/// Paths-only registry shape older releases wrote as a fallback; still decoded.
+private struct BottleDataMinimal: Decodable {
     var paths: [URL]
 }
 
@@ -270,7 +270,7 @@ public struct BottleData: Codable {
             Logger.wineKit.error("Failed to decode BottleData: \(error)")
         }
         // The full decode failed on an existing file. Salvage the paths-only
-        // shape written by encodeFallback() before treating it as corrupt.
+        // shape older releases wrote as a fallback before treating it as corrupt.
         if let minimal = try? decoder.decode(BottleDataMinimal.self, from: data) {
             Logger.wineKit.warning("Recovered \(minimal.paths.count) bottle path(s) from minimal registry")
             self = replacement(paths: Self.dedupedPaths(minimal.paths))
@@ -323,28 +323,6 @@ public struct BottleData: Codable {
             return true
         } catch {
             Logger.wineKit.error("Failed to encode BottleData: \(error)")
-            // Try alternative encoding without version check
-            return encodeFallback()
-        }
-    }
-
-    private func encodeFallback() -> Bool {
-        // Fallback: try to recover existing paths and save minimal data
-        let encoder = PropertyListEncoder()
-        encoder.outputFormat = .xml
-
-        do {
-            try FileManager.default.createDirectory(
-                at: entriesFile.deletingLastPathComponent(),
-                withIntermediateDirectories: true
-            )
-            // Create a minimal BottleData with just the paths
-            let fallbackData = BottleDataMinimal(paths: self.paths)
-            let data = try encoder.encode(fallbackData)
-            try data.write(to: entriesFile, options: .atomic)
-            return true
-        } catch {
-            Logger.wineKit.error("Failed to encode fallback BottleData: \(error)")
             return false
         }
     }
