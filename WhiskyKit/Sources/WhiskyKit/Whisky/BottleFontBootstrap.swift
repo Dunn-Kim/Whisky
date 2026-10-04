@@ -32,6 +32,30 @@ public enum BottleFontBootstrap {
         ("Tahoma.ttf", ["/Library/Fonts/Tahoma.ttf", "/System/Library/Fonts/Supplemental/Tahoma.ttf"])
     ]
 
+    /// Korean font names, each answered by the host's Apple SD Gothic Neo.
+    ///
+    /// Wine has already enumerated Apple SD Gothic Neo from the host, but nothing
+    /// asks for it by that name. DirectWrite's system fallback sends every Hangul
+    /// range to `Noto Sans CJK KR` (wine 11.0, `dlls/dwrite/analyzer.c`) and, not
+    /// finding it, leaves the text unmapped: an embedded Chromium page set in
+    /// Arial draws its Hangul as boxes. A Korean UI that names a Windows font —
+    /// Malgun Gothic, Gulim, Dotum, Batang — misses the same way. gdi and
+    /// DirectWrite both resolve these names through `Software\Wine\Fonts\Replacements`.
+    static let koreanFontReplacements = [
+        "Noto Sans CJK KR",
+        "Malgun Gothic", "맑은 고딕", "Gulim", "굴림", "GulimChe", "굴림체",
+        "Dotum", "돋움", "DotumChe", "돋움체", "Batang", "바탕", "BatangChe", "바탕체",
+        "Gungsuh", "궁서", "GungsuhChe", "궁서체"
+    ]
+
+    /// The `.reg` section mapping ``koreanFontReplacements`` onto Apple SD Gothic
+    /// Neo. Values only: the key is never deleted, so replacements a user added
+    /// for other names survive.
+    static var fontReplacementsRegistrySection: String {
+        let values = koreanFontReplacements.map { "\"\($0)\"=\"Apple SD Gothic Neo\"" }
+        return ([#"[HKCU\Software\Wine\Fonts\Replacements]"#] + values + [""]).joined(separator: "\r\n")
+    }
+
     /// Copies missing fonts into `<bottlePrefix>/drive_c/windows/Fonts`.
     /// Idempotent: existing destination files are left untouched.
     public static func copySystemFonts(toPrefix prefix: URL) {

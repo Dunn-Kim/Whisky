@@ -33872,6 +33872,50 @@
         }
       }
     },
+    "config.dxmtMetalFXUpscale" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MetalFX Upscaling"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MetalFX Upscaling"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MetalFX 업스케일링"
+          }
+        }
+      }
+    },
+    "config.dxmtMetalFXUpscale.info" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Runs DXMT's output through MetalFX at twice the resolution, so a game is sharpened onto a Retina display instead of stretched. Costs some GPU time; it does not make the game faster."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Runs DXMT's output through MetalFX at twice the resolution, so a game is sharpened onto a Retina display instead of stretched. Costs some GPU time; it does not make the game faster."
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "DXMT 출력을 MetalFX로 2배 해상도로 확대해 Retina 화면에서 늘어나 흐려지는 대신 선명하게 보이게 합니다. GPU를 조금 더 사용하며, 게임이 빨라지지는 않습니다."
+          }
+        }
+      }
+    },
     "config.dxr" : {
       "extractionState" : "manual",
       "localizations" : {

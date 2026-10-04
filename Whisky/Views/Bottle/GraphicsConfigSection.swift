@@ -115,6 +115,17 @@ struct GraphicsConfigSection: View {
                 .disabled(!bottle.settings.metalFX)
             }
 
+            if resolvedBackend == .dxmt {
+                Toggle(isOn: $bottle.settings.dxmtMetalFXUpscale) {
+                    VStack(alignment: .leading) {
+                        Text("config.dxmtMetalFXUpscale")
+                        Text("config.dxmtMetalFXUpscale.info")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
             // Force DX11 toggle -- always visible (Simple + Advanced)
             Toggle(isOn: $bottle.settings.forceD3D11) {
                 Text("config.forceD3D11")

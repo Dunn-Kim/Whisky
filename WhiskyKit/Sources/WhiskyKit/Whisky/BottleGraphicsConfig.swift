@@ -186,6 +186,15 @@ public struct BottleGraphicsConfig: Codable, Equatable {
     /// instant, so this is not something a bottle can be trusted to contain.
     var frameGeneration: Bool = false
 
+    /// Whether DXMT runs its swapchain through MetalFX's spatial upscaler.
+    ///
+    /// Not D3DMetal's ``metalFX``: DXMT doubles the output resolution, so a game
+    /// keeps rendering at the size it chose and reaches a Retina panel sharpened
+    /// by MetalFX rather than stretched by the compositor. That is a quality
+    /// trade, not a speedup — the upscale costs GPU time — so it is off unless
+    /// asked for. Inert under every other backend.
+    var dxmtMetalFXUpscale: Bool = false
+
     /// Creates a new graphics config with the default `.recommended` backend.
     public init() {}
 
@@ -202,5 +211,6 @@ public struct BottleGraphicsConfig: Codable, Equatable {
         // Off for a bottle written before the key existed, which is the same
         // answer the property default gives a new one.
         self.frameGeneration = (try? container.decodeIfPresent(Bool.self, forKey: .frameGeneration)) ?? false
+        self.dxmtMetalFXUpscale = (try? container.decodeIfPresent(Bool.self, forKey: .dxmtMetalFXUpscale)) ?? false
     }
 }

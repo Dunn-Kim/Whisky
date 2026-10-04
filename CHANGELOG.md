@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- DXMT bottles have a MetalFX Upscaling toggle, off by default. It sets
+  `DXMT_METALFX_SPATIAL_SWAPCHAIN`, which per DXMT's own docs doubles the
+  output resolution through MetalFX: a game keeps rendering at the size it
+  chose and reaches a Retina panel sharpened rather than stretched by the
+  compositor. That costs GPU time instead of saving it, which is why it is
+  opt-in. Its own variable, so it cannot clobber the frame rate cap that
+  `DXMT_CONFIG` carries.
 - ZFGame Browser (`ZFGameBrowser.exe`), the Chromium launcher shell several
   Chinese publishers ship, is now recognised as a launcher. It was not, so it
   resolved to D3DMetal — where a Chromium client brings its window up and never
@@ -98,6 +105,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   through the program like the program list does, and the open sheet has a
   Locale picker. It no longer auto-runs with a single bottle, since there is
   now a choice to make.
+- Korean text drawn by wine no longer comes out as boxes. DirectWrite's system
+  fallback in wine 11.0 sends every Hangul range to `Noto Sans CJK KR`, and
+  gdi's fallback chains to Gulim and Malgun Gothic; no Mac has any of them, so
+  an embedded Chromium page set in Arial (a game's notice board) and a Korean
+  launcher both drew boxes, although wine had already enumerated Apple SD
+  Gothic Neo from the host. Every launch now maps those names onto it through
+  `Software\Wine\Fonts\Replacements`, riding on the registry import the launch
+  already runs, and only sets values, so replacements a user added survive.
 
 ### Changed
 - The Processes page no longer spawns a Wine process for every 3-second

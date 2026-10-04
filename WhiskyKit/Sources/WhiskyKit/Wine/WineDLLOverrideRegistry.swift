@@ -57,9 +57,11 @@ public extension Wine {
     static func syncDLLOverrides(
         bottle: Bottle, scopes: [(scope: DLLOverrideScope, overrides: String)]
     ) async throws {
+        // The Korean font replacements ride along: this import runs before every
+        // launch anyway, and a separate one would cost a wine process of its own.
         let document = registryDocument(
             for: scopes.map { (key: $0.scope.registryKey, overrides: parseDLLOverrides($0.overrides)) }
-        )
+        ) + "\r\n" + BottleFontBootstrap.fontReplacementsRegistrySection
         let url = FileManager.default.temporaryDirectory
             .appending(path: "whisky-dll-overrides-\(UUID().uuidString).reg")
         // Wine detects a Unicode .reg by its BOM alone, and `.utf16LittleEndian`
