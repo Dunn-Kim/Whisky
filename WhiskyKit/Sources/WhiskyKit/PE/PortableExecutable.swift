@@ -95,7 +95,6 @@ public enum Architecture: Hashable {
 /// - ``sections``
 ///
 /// ### Resources
-/// - ``rsrc``
 /// - ``bestIcon()``
 ///
 /// ## See Also
@@ -112,16 +111,6 @@ public struct PEFile: Hashable, Equatable, Sendable {
     public let optionalHeader: OptionalHeader?
     /// The section table containing headers for each section.
     public let sections: [Section]
-
-    /// Creates a PEFile from an optional URL.
-    ///
-    /// - Parameter url: The URL to the PE file, or `nil`.
-    /// - Returns: A parsed `PEFile`, or `nil` if the URL was `nil`.
-    /// - Throws: ``PEError`` if the file is not a valid PE executable.
-    public init?(url: URL?) throws {
-        guard let url else { return nil }
-        try self.init(url: url)
-    }
 
     /// Creates a PEFile by parsing the executable at the given URL.
     ///
@@ -201,18 +190,6 @@ public struct PEFile: Hashable, Equatable, Sendable {
         } else {
             nil
         }
-    }
-
-    /// The Resource Directory Table
-    public var rsrc: ResourceDirectoryTable? {
-        guard let handle = try? FileHandle(forReadingFrom: url) else {
-            return nil
-        }
-        defer {
-            try? handle.close()
-        }
-
-        return rsrc(handle: handle)
     }
 
     /// The best icon for this executable

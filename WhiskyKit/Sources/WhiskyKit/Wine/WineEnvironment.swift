@@ -58,28 +58,18 @@ extension Wine {
         builder.set("WINEDEBUG", "fixme-all", layer: .base)
         builder.set("GST_DEBUG", "1", layer: .base)
 
-        // Layer 2: Platform -- macOS compatibility fixes
-        // Apply fixes from the MacOSCompatibilityFixes registry with reason strings.
-        // applyMacOSCompatibilityFixes() is still called for the conditional WINEESYNC logic.
+        // Layer 2: Platform -- macOS compatibility fixes from the MacOSCompatibilityFixes registry
         for fix in MacOSCompatibilityFixes.activeFixes() {
-            builder.set(fix.key, fix.value, layer: .platform, reason: fix.reason)
+            builder.set(fix.key, fix.value, layer: .platform)
         }
         // Forward host timezone so games that read system time/date behave correctly.
         // macOS does not export TZ by default; without this, Wine sees UTC.
         if ProcessInfo.processInfo.environment["TZ"] == nil {
-            builder.set(
-                "TZ", TimeZone.current.identifier, layer: .platform,
-                reason: "Host timezone forwarding"
-            )
+            builder.set("TZ", TimeZone.current.identifier, layer: .platform)
         }
-        // Handle conditional WINEESYNC (depends on existing environment state)
-        var platformConditional: [String: String] = [:]
-        applyMacOSCompatibilityFixes(to: &platformConditional)
-        if let esync = platformConditional["WINEESYNC"] {
-            builder.set(
-                "WINEESYNC", esync, layer: .platform,
-                reason: "Fallback sync mode for macOS 15.4+ (esync/msync not otherwise set)"
-            )
+        // Fallback sync mode for macOS 15.4+ (the platform layer sets no other sync mode)
+        if MacOSVersion.current >= .sequoia15_4 {
+            builder.set("WINEESYNC", "1", layer: .platform)
         }
 
         // Layer 3: Bottle managed -- settings-derived env vars (DXVK, sync, Metal, perf)
@@ -98,10 +88,7 @@ extension Wine {
         // forward slashes.
         let dxvkConf = bottle.url.appending(path: "dxvk.conf")
         if FileManager.default.fileExists(atPath: dxvkConf.path(percentEncoded: false)) {
-            builder.set(
-                "DXVK_CONFIG_FILE", "Z:\(dxvkConf.path(percentEncoded: false))",
-                layer: .bottleManaged, reason: "dxvk.conf present in the bottle"
-            )
+            builder.set("DXVK_CONFIG_FILE", "Z:\(dxvkConf.path(percentEncoded: false))", layer: .bottleManaged)
         }
 
         // Layer 4: Launcher managed -- launcher compatibility overrides
@@ -115,7 +102,7 @@ extension Wine {
         // Beats bottle/launcher defaults, loses to anything the user set.
         for (key, value) in gameProfileEnvironment {
             if isValidEnvKey(key) {
-                builder.set(key, value, layer: .gameProfile, reason: "GameDB profile")
+                builder.set(key, value, layer: .gameProfile)
             } else {
                 envLogger.debug("Skipping invalid game profile key '\(key)' in constructWineEnvironment")
             }
@@ -157,8 +144,8 @@ extension Wine {
         // Collect bottle custom DLL overrides for the resolver
         dllResolver.bottleCustom = bottle.settings.dllOverrides
 
-        // Resolve the builder and capture provenance for launch logging
-        let (resolved, provenance) = builder.resolve()
+        // Resolve the builder and capture the active layers for launch logging
+        let (resolved, activeLayers) = builder.resolve()
         var result = resolved
 
         // Compose WINEDLLOVERRIDES from DLLOverrideResolver (outside the builder)
@@ -168,7 +155,7 @@ extension Wine {
         }
 
         // Launch logging: safe summary of bottle, active layers, and whitelisted keys
-        logLaunchSummary(bottleName: bottle.settings.name, provenance: provenance, environment: result)
+        logLaunchSummary(bottleName: bottle.settings.name, activeLayers: activeLayers, environment: result)
 
         return result
     }
@@ -406,22 +393,10 @@ extension Wine {
     /// Does NOT log full environment dict, WINEPREFIX paths, or user-set custom env vars.
     private static func logLaunchSummary(
         bottleName: String,
-        provenance: EnvironmentProvenance,
+        activeLayers: Set<EnvironmentLayer>,
         environment: [String: String]
     ) {
-        let layerNames = provenance.activeLayers.sorted().map { layer -> String in
-            switch layer {
-            case .base: "base"
-            case .platform: "platform"
-            case .bottleManaged: "bottleManaged"
-            case .launcherManaged: "launcherManaged"
-            case .gameProfile: "gameProfile"
-            case .bottleUser: "bottleUser"
-            case .programUser: "programUser"
-            case .featureRuntime: "featureRuntime"
-            case .callsiteOverride: "callsiteOverride"
-            }
-        }
+        let layerNames = activeLayers.sorted().map { String(describing: $0) }
 
         // Non-sensitive keys allowed in the launch summary
         let allowedKeys = [

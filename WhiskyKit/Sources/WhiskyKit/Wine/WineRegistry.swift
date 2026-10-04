@@ -142,22 +142,6 @@ public extension Wine {
     }
 
     @MainActor
-    static func winVersion(bottle: Bottle) async throws -> WinVersion {
-        let output = try await Wine.runWine(["winecfg", "-v"], bottle: bottle)
-        let lines = output.split(whereSeparator: \.isNewline)
-
-        if let lastLine = lines.last {
-            let winString = String(lastLine)
-
-            if let version = WinVersion(rawValue: winString) {
-                return version
-            }
-        }
-
-        throw WineInterfaceError.invalidResponse
-    }
-
-    @MainActor
     static func buildVersion(bottle: Bottle) async throws -> String? {
         try await Wine.queryRegistryKey(
             bottle: bottle, key: RegistryKey.currentVersion.rawValue,

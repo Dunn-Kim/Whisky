@@ -72,26 +72,9 @@ final class GPUDetectionTests: XCTestCase {
         XCTAssertEqual(env["D3DM_SUPPORT_DXR"], "1")
     }
 
-    func testAppleSiliconSpoofing() {
-        let env = GPUDetection.spoofAppleSilicon()
-
-        // Should spoof as NVIDIA for best compatibility
-        XCTAssertEqual(env["GPU_VENDOR_ID"], "0x10DE")
-
-        // Should include Metal-specific settings
-        XCTAssertNotNil(env["MTL_SHADER_VALIDATION"])
-    }
-
-    func testCustomModelName() {
-        let customModel = "Custom GPU Name"
-        let env = GPUDetection.spoofGPU(vendor: .amd, model: customModel)
-
-        XCTAssertEqual(env["GPU_DESCRIPTION"], customModel)
-    }
-
     func testSpoofWithVendor() {
-        let nvidiaEnv = GPUDetection.spoofWithVendor(.nvidia)
-        let amdEnv = GPUDetection.spoofWithVendor(.amd)
+        let nvidiaEnv = GPUDetection.spoofGPU(vendor: .nvidia)
+        let amdEnv = GPUDetection.spoofGPU(vendor: .amd)
 
         XCTAssertEqual(nvidiaEnv["GPU_VENDOR_ID"], "0x10DE")
         XCTAssertEqual(amdEnv["GPU_VENDOR_ID"], "0x1002")

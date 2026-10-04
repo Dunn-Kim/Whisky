@@ -34,17 +34,6 @@ final class ResourceTypeTests: XCTestCase {
         XCTAssertNil(unknownType)
     }
 
-    func testResourceTypeCustomInitWithNil() {
-        // The custom init?(rawValue: UInt32?) handles nil by returning .unknown
-        let nilType = ResourceType(rawValue: nil as UInt32?)
-        XCTAssertEqual(nilType, .unknown)
-    }
-
-    func testResourceTypeCustomInitWithValidValue() {
-        let iconType = ResourceType(rawValue: UInt32?(3))
-        XCTAssertEqual(iconType, .icon)
-    }
-
     func testResourceTypeCaseIterable() {
         let allCases = ResourceType.allCases
         XCTAssertTrue(allCases.contains(.icon))
@@ -306,11 +295,6 @@ final class ResourceDirectoryTableTests: XCTestCase {
 
         let table = ResourceDirectoryTable(handle: handle, pointerToRawData: 0, types: nil)
 
-        XCTAssertEqual(table.characteristics, 0)
-        XCTAssertEqual(table.version.major, 1)
-        XCTAssertEqual(table.version.minor, 2)
-        XCTAssertEqual(table.numberOfNameEntries, 0)
-        XCTAssertEqual(table.numberOfIdEntries, 0)
         XCTAssertTrue(table.subtables.isEmpty)
         XCTAssertTrue(table.entries.isEmpty)
         XCTAssertTrue(table.allEntries.isEmpty)

@@ -42,13 +42,8 @@ extension GPTKImporter {
 
     // MARK: - Deployment
 
-    /// Whether the payload is deployed into the runtime tree.
-    public static func isDeployed() -> Bool {
-        isDeployed(inLibraryFolder: WhiskyWineInstaller.libraryFolder)
-    }
-
-    /// Testable seam for ``isDeployed()``: the unix bridge for dxgi and the
-    /// shared dylib both present in the Wine tree.
+    /// Whether the payload is deployed into the runtime tree: the unix bridge
+    /// for dxgi and the shared dylib both present.
     static func isDeployed(inLibraryFolder folder: URL) -> Bool {
         let lib = folder.appending(path: "Wine").appending(path: "lib")
         let bridge = lib.appending(path: "wine").appending(path: "x86_64-unix").appending(path: "dxgi.so")
@@ -163,12 +158,7 @@ extension GPTKImporter {
 
         try fileManager.createDirectory(at: unixDir, withIntermediateDirectories: true)
         for name in unixLibraryNames {
-            let link = unixDir.appending(path: name)
-            try? fileManager.removeItem(at: link)
-            try fileManager.createSymbolicLink(
-                atPath: link.path(percentEncoded: false),
-                withDestinationPath: unixLinkDestination
-            )
+            try linkUnixHalf(unixDir.appending(path: name))
         }
 
         let externalDest = wineLib.appending(path: "external")

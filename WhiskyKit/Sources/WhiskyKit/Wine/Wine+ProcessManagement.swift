@@ -119,48 +119,28 @@ public extension Wine {
         return processes
     }
 
-    /// Sends a graceful kill request for a single Wine process via `taskkill.exe`.
-    ///
-    /// This asks the process to terminate cleanly. If the process has already
-    /// exited, the error is silently ignored.
+    /// Asks a single Wine process to terminate via `taskkill.exe`; `force` adds `/F`,
+    /// ending it without a chance to clean up. A process that already exited is not an error.
     ///
     /// - Parameters:
     ///   - winePID: The Wine/Windows PID to terminate.
     ///   - bottle: The bottle containing the process.
+    ///   - force: Whether to terminate forcefully.
     @MainActor
-    static func gracefulKillProcess(winePID: Int32, bottle: Bottle) async {
+    static func killProcess(winePID: Int32, bottle: Bottle, force: Bool) async {
+        let kind = force ? "force" : "graceful"
         do {
             try await Wine.runWine(
-                ["taskkill.exe", "/PID", String(winePID)],
+                ["taskkill.exe", "/PID", String(winePID)] + (force ? ["/F"] : []),
                 bottle: bottle
             )
-            processLogger.info("Sent graceful kill to Wine PID \(winePID)")
+            processLogger.info("Sent \(kind, privacy: .public) kill to Wine PID \(winePID)")
         } catch {
             processLogger.debug(
-                "Graceful kill for Wine PID \(winePID) failed (process may have exited): \(error.localizedDescription)"
-            )
-        }
-    }
-
-    /// Sends a forced kill request for a single Wine process via `taskkill.exe /F`.
-    ///
-    /// This forcefully terminates the process without giving it a chance to
-    /// clean up. If the process has already exited, the error is silently ignored.
-    ///
-    /// - Parameters:
-    ///   - winePID: The Wine/Windows PID to terminate.
-    ///   - bottle: The bottle containing the process.
-    @MainActor
-    static func forceKillProcess(winePID: Int32, bottle: Bottle) async {
-        do {
-            try await Wine.runWine(
-                ["taskkill.exe", "/PID", String(winePID), "/F"],
-                bottle: bottle
-            )
-            processLogger.info("Sent force kill to Wine PID \(winePID)")
-        } catch {
-            processLogger.debug(
-                "Force kill for Wine PID \(winePID) failed (process may have exited): \(error.localizedDescription)"
+                """
+                \(kind.capitalized, privacy: .public) kill for Wine PID \(winePID) failed \
+                (process may have exited): \(error.localizedDescription)
+                """
             )
         }
     }

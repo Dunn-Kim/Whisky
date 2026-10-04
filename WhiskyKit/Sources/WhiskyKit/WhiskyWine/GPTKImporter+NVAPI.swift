@@ -34,40 +34,20 @@ import os.log
 /// D3DMetal and take a launcher's helper process down with it. That is handled
 /// per executable instead of by withholding the DLL from everything, in
 /// ``Wine.disablingNVAPI(in:)``.
+extension GPTKBridge {
+    /// Apple's NVAPI, installed under the name it ships as; Wine's own `nvapi64`
+    /// is a placeholder that exports nothing, so this replaces it.
+    static let nvapi = GPTKBridge(sourceName: "nvapi64.dll", installedName: "nvapi64.dll", unixName: "nvapi64.so")
+}
+
 extension GPTKImporter {
     /// Wine's placeholder, kept beside the deployed bridge so removal can put the
     /// tree back without consulting the per-runtime originals record.
     static let nvapiPlaceholderSuffix = ".wine-placeholder"
 
-    /// Where the bridge lives in the store, or `nil` for a payload without one.
-    static func nvapiBridgeSource(inStore store: URL) -> URL? {
-        let source = store.appending(path: "lib").appending(path: "wine")
-            .appending(path: "x86_64-windows").appending(path: nvapiBridgeName)
-        return FileManager.default.fileExists(atPath: source.path(percentEncoded: false)) ? source : nil
-    }
-
-    static func nvapiBridgePE(inLibraryFolder folder: URL) -> URL {
-        folder.appending(path: "Wine").appending(path: "lib").appending(path: "wine")
-            .appending(path: "x86_64-windows").appending(path: nvapiBridgeName)
-    }
-
-    static func nvapiBridgeUnixLink(inLibraryFolder folder: URL) -> URL {
-        folder.appending(path: "Wine").appending(path: "lib").appending(path: "wine")
-            .appending(path: "x86_64-unix").appending(path: nvapiBridgeUnixName)
-    }
-
     static func nvapiPlaceholderBackup(inLibraryFolder folder: URL) -> URL {
-        nvapiBridgePE(inLibraryFolder: folder).appendingPathExtension(
+        installedPE(of: .nvapi, inLibraryFolder: folder).appendingPathExtension(
             String(nvapiPlaceholderSuffix.dropFirst())
-        )
-    }
-
-    /// Whether the tree holds a bridge this store put there.
-    static func isNVAPIBridgeInstalled(inLibraryFolder folder: URL, usingStore store: URL) -> Bool {
-        guard let source = nvapiBridgeSource(inStore: store) else { return false }
-        return FileManager.default.contentsEqual(
-            atPath: nvapiBridgePE(inLibraryFolder: folder).path(percentEncoded: false),
-            andPath: source.path(percentEncoded: false)
         )
     }
 
@@ -79,12 +59,12 @@ extension GPTKImporter {
     /// `nvapi64` of its own, so the file being replaced is backed up rather than
     /// overwritten.
     static func installNVAPIBridge(intoLibraryFolder folder: URL, usingStore store: URL) throws {
-        guard let source = nvapiBridgeSource(inStore: store) else { return }
-        guard !isNVAPIBridgeInstalled(inLibraryFolder: folder, usingStore: store) else { return }
+        guard let source = source(of: .nvapi, inStore: store) else { return }
+        guard !isInstalled(.nvapi, inLibraryFolder: folder, usingStore: store) else { return }
         let fileManager = FileManager.default
-        let destination = nvapiBridgePE(inLibraryFolder: folder)
+        let destination = installedPE(of: .nvapi, inLibraryFolder: folder)
         let backup = nvapiPlaceholderBackup(inLibraryFolder: folder)
-        let link = nvapiBridgeUnixLink(inLibraryFolder: folder)
+        let link = unixLink(of: .nvapi, inLibraryFolder: folder)
 
         if fileManager.fileExists(atPath: destination.path(percentEncoded: false)) {
             // Only the first install backs up: a second one would otherwise save
@@ -99,19 +79,15 @@ extension GPTKImporter {
         try fileManager.createDirectory(
             at: link.deletingLastPathComponent(), withIntermediateDirectories: true
         )
-        try? fileManager.removeItem(at: link)
-        try fileManager.createSymbolicLink(
-            atPath: link.path(percentEncoded: false),
-            withDestinationPath: unixLinkDestination
-        )
-        logger.info("Installed Apple's NVAPI as \(nvapiBridgeName, privacy: .public)")
+        try linkUnixHalf(link)
+        logger.info("Installed Apple's NVAPI as \(GPTKBridge.nvapi.installedName, privacy: .public)")
     }
 
     /// Takes the bridge back out and restores Wine's placeholder.
     static func removeNVAPIBridge(fromLibraryFolder folder: URL, usingStore store: URL) {
         let fileManager = FileManager.default
-        guard isNVAPIBridgeInstalled(inLibraryFolder: folder, usingStore: store) else { return }
-        let destination = nvapiBridgePE(inLibraryFolder: folder)
+        guard isInstalled(.nvapi, inLibraryFolder: folder, usingStore: store) else { return }
+        let destination = installedPE(of: .nvapi, inLibraryFolder: folder)
         let backup = nvapiPlaceholderBackup(inLibraryFolder: folder)
 
         try? fileManager.removeItem(at: destination)
@@ -119,7 +95,7 @@ extension GPTKImporter {
             try? fileManager.moveItem(at: backup, to: destination)
         }
 
-        let link = nvapiBridgeUnixLink(inLibraryFolder: folder)
+        let link = unixLink(of: .nvapi, inLibraryFolder: folder)
         let target = try? fileManager.destinationOfSymbolicLink(atPath: link.path(percentEncoded: false))
         if target == unixLinkDestination {
             try? fileManager.removeItem(at: link)
