@@ -167,11 +167,7 @@ struct ProgramView: View {
 
     private func launchProgram() {
         programLoading = true
-        Telemetry.capture(.firstProgramLaunchAttempted)
-        // Capture modifier flags synchronously before entering async context
-        let useTerminal = NSEvent.modifierFlags.contains(.shift)
-        Task {
-            let result = await program.launchWithUserMode(useTerminal: useTerminal)
+        program.launchFromUI { result in
             withAnimation {
                 toast = result.toastData
             }

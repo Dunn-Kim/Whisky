@@ -17,7 +17,6 @@
 //
 
 import AppKit
-import SemanticVersion
 import SwiftUI
 import WhiskyKit
 

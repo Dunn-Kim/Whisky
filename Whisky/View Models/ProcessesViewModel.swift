@@ -78,11 +78,6 @@ class ProcessesViewModel: ObservableObject {
         }
     }
 
-    /// Count of app-kind processes, used for the navigation badge.
-    var appCount: Int {
-        processes.filter { $0.kind == .app }.count
-    }
-
     // MARK: - Init
 
     init(bottle: Bottle) {

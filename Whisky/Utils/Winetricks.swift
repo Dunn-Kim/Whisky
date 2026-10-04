@@ -85,47 +85,27 @@ class Winetricks {
         // AppleScript as program text. Every value in the script is
         // single-quoted: a bottle imported from a directory named with `$(...)`
         // or backticks used to execute in the user's terminal here.
-        let scriptURL: URL
         do {
-            scriptURL = try writeTerminalScript(command: command, bottle: bottle, resourcesURL: resourcesURL)
+            try await TerminalApp.runScript(
+                terminalScript(command: command, bottle: bottle, resourcesURL: resourcesURL),
+                namePrefix: "whisky-winetricks",
+                subject: command
+            )
         } catch {
             logger.error("Failed to write winetricks script: \(error)")
             showMissingResourcesAlert(command: command)
-            return
-        }
-        let script = TerminalApp.preferred.generateAppleScript(for: scriptURL.path)
-
-        var error: NSDictionary?
-        if let appleScript = NSAppleScript(source: script) {
-            appleScript.executeAndReturnError(&error)
-
-            if let error {
-                logger.error("AppleScript error: \(error)")
-                if let description = error["NSAppleScriptErrorMessage"] as? String {
-                    await MainActor.run {
-                        let alert = NSAlert()
-                        alert.messageText = String(localized: "alert.message")
-                        alert.informativeText = String(localized: "alert.info")
-                            + " \(command): "
-                            + description
-                        alert.alertStyle = .critical
-                        alert.addButton(withTitle: String(localized: "button.ok"))
-                        alert.runModal()
-                    }
-                }
-            }
         }
     }
 
-    /// Writes the winetricks invocation to a temp script the terminal sources.
+    /// The winetricks invocation the terminal sources.
     ///
     /// Every value is single-quoted so nothing in a path is read as shell
-    /// syntax; the script is tracked for cleanup like the bottle terminal's.
+    /// syntax.
     @MainActor
-    private static func writeTerminalScript(command: String, bottle: Bottle, resourcesURL: URL) throws -> URL {
+    private static func terminalScript(command: String, bottle: Bottle, resourcesURL: URL) -> String {
         let winetricksPath = resourcesURL.appending(path: "winetricks").path(percentEncoded: false)
         let pathValue = "\(WhiskyWineInstaller.binFolder.path):\(resourcesURL.path(percentEncoded: false))"
-        let scriptContent = [
+        return [
             "#!/bin/bash",
             "export PATH=\(ShellQuoting.quoted(pathValue)):\"$PATH\"",
             "export WINE=wine64",
@@ -133,13 +113,6 @@ class Winetricks {
             ShellQuoting.commandLine(["bash", winetricksPath, command]),
             ""
         ].joined(separator: "\n")
-
-        let scriptURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent("whisky-winetricks-\(UUID().uuidString).sh")
-        try scriptContent.write(to: scriptURL, atomically: true, encoding: .utf8)
-        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: scriptURL.path)
-        TempFileTracker.shared.register(file: scriptURL)
-        return scriptURL
     }
 
     /// Shown when the bundled winetricks resources can't be located. A missing
