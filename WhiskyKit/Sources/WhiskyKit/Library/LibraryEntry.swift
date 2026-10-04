@@ -90,19 +90,11 @@ public struct LibraryEntry: Identifiable, Hashable, Sendable {
     }
 }
 
-/// Somewhere library entries come from.
-///
-/// Deliberately takes a bottle URL and its settings rather than a ``Bottle``,
-/// so a source can run off the main actor and be tested without building one.
-public protocol LibrarySource {
-    static var id: LibrarySourceID { get }
-    static func items(inBottleAt url: URL, settings: BottleSettings) -> [LibraryEntry]
-}
-
 /// The pinned programs of a bottle.
-public enum PinnedLibrarySource: LibrarySource {
-    public static let id = LibrarySourceID.pinned
-
+///
+/// Takes a bottle URL and its settings rather than a ``Bottle``, so it can be
+/// tested without building one.
+public enum PinnedLibrarySource {
     public static func items(inBottleAt url: URL, settings: BottleSettings) -> [LibraryEntry] {
         settings.pins.compactMap { pin in
             guard let programURL = pin.url else { return nil }
@@ -111,7 +103,7 @@ public enum PinnedLibrarySource: LibrarySource {
                 name: pin.name,
                 iconURL: programURL,
                 bottleURL: url,
-                source: id,
+                source: .pinned,
                 launch: .program(programURL),
                 // The app's existing definition of a launcher, reused rather
                 // than re-guessed: it is a pure string match, so this stays a
@@ -123,16 +115,10 @@ public enum PinnedLibrarySource: LibrarySource {
 }
 
 /// The games a bottle's Steam client has installed.
-public enum SteamLibrarySource: LibrarySource {
-    public static let id = LibrarySourceID.steam
-
-    public static func items(inBottleAt url: URL, settings _: BottleSettings) -> [LibraryEntry] {
-        entries(inBottleAt: url)
-    }
-
-    /// Without the settings parameter, so a caller can run this off the main
-    /// actor: enumerating Steam walks libraryfolders.vdf and every manifest in
-    /// it, which is the one part of building the library that touches disk.
+public enum SteamLibrarySource {
+    /// Takes no settings, so a caller can run this off the main actor:
+    /// enumerating Steam walks libraryfolders.vdf and every manifest in it,
+    /// which is the one part of building the library that touches disk.
     public static func entries(inBottleAt url: URL) -> [LibraryEntry] {
         let steamRoot = SteamLibrary.detectInstall(bottleURL: url)
         return SteamLibrary.enumerate(bottleURL: url).map { game in
@@ -146,7 +132,7 @@ public enum SteamLibrarySource: LibrarySource {
                 iconURL: steamRoot.flatMap { iconURL(appID: game.appId, steamRoot: $0) },
                 artworkURL: steamRoot.flatMap { artworkURL(appID: game.appId, steamRoot: $0) },
                 bottleURL: url,
-                source: id,
+                source: .steam,
                 launch: .steam(appID: game.appId)
             )
         }
@@ -209,24 +195,10 @@ public enum SteamLibrarySource: LibrarySource {
 
 /// Every source, merged.
 public enum LibraryCatalogue {
-    /// Registered sources, in the order their entries are produced. Adding a
-    /// launcher is this line plus the type.
-    public static let sources: [any LibrarySource.Type] = [
-        PinnedLibrarySource.self,
-        SteamLibrarySource.self
-    ]
-
-    /// Everything one bottle contributes to the library.
-    public static func items(inBottleAt url: URL, settings: BottleSettings) -> [LibraryEntry] {
-        merge(sources.map { $0.items(inBottleAt: url, settings: settings) })
-    }
-
     /// Collapses groups of entries, earlier groups winning.
     ///
     /// A Steam game that has also been pinned appears once, as the pin, because
-    /// the pin is the entry the person made themselves. Exposed separately so a
-    /// caller that gathered its groups from different actors can still merge
-    /// them the same way.
+    /// the pin is the entry the person made themselves.
     public static func merge(_ groups: [[LibraryEntry]]) -> [LibraryEntry] {
         var seenNames = Set<String>()
         var items: [LibraryEntry] = []
