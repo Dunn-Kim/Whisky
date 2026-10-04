@@ -22,7 +22,8 @@ import WhiskyKit
 
 /// Sheet view for exporting diagnostic reports with privacy controls.
 ///
-/// Presents toggles for sensitive details and full log inclusion. Supports ZIP export via NSSavePanel and Markdown clipboard copy.
+/// Presents toggles for sensitive details and full log inclusion. Supports
+/// ZIP export via NSSavePanel and Markdown clipboard copy.
 struct DiagnosticExportSheet: View {
     let diagnosis: CrashDiagnosis
     let bottle: Bottle
@@ -44,11 +45,9 @@ struct DiagnosticExportSheet: View {
     }
 
     private var suggestedFilename: String {
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyyMMdd-HHmmss"
-        let dateString = dateFormatter.string(from: Date())
-        let bottleName = sanitizeName(bottle.settings.name)
-        let programName = sanitizeName(program.name)
+        let dateString = DiagnosticExporter.formatDateForFilename(Date())
+        let bottleName = DiagnosticExporter.sanitizeName(bottle.settings.name)
+        let programName = DiagnosticExporter.sanitizeName(program.name)
         return "Whisky-Diagnostics-\(bottleName)-\(programName)-\(dateString).zip"
     }
 
@@ -201,14 +200,5 @@ extension DiagnosticExportSheet {
             try fileManager.removeItem(at: destination)
         }
         try fileManager.moveItem(at: source, to: destination)
-    }
-
-    private func sanitizeName(_ name: String) -> String {
-        let allowed = CharacterSet.alphanumerics
-        return name.unicodeScalars
-            .map { allowed.contains($0) ? String($0) : "-" }
-            .joined()
-            .replacingOccurrences(of: "--", with: "-")
-            .trimmingCharacters(in: CharacterSet(charactersIn: "-"))
     }
 }

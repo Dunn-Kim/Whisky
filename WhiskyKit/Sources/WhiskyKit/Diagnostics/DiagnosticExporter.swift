@@ -408,7 +408,9 @@ extension DiagnosticExporter {
             }
         }
 
-        let tailText = tailOfLogFile(logURL, lineCount: context.options.tailLineCount)
+        let tailText = StabilityDiagnostics.tailOfLogFile(
+            logURL, lineCount: context.options.tailLineCount, maxBytes: 256 * 1_024
+        )
         let redactedTail = context.options.includeSensitiveDetails ? tailText
             : Redactor.redactLogText(tailText)
         try? redactedTail.write(
@@ -453,7 +455,7 @@ extension DiagnosticExporter {
 
 extension DiagnosticExporter {
     /// Sanitizes a name for use in filenames by replacing non-alphanumeric characters with hyphens.
-    static func sanitizeName(_ name: String) -> String {
+    public static func sanitizeName(_ name: String) -> String {
         let allowed = CharacterSet.alphanumerics
         return name.unicodeScalars
             .map { allowed.contains($0) ? String($0) : "-" }
@@ -463,64 +465,19 @@ extension DiagnosticExporter {
     }
 
     /// Formats a date for use in filenames: YYYYMMDD-HHmmss.
-    static func formatDateForFilename(_ date: Date) -> String {
+    public static func formatDateForFilename(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyyMMdd-HHmmss"
         formatter.timeZone = TimeZone.current
         return formatter.string(from: date)
     }
 
-    /// Reads the tail of a log file with a configurable line count.
-    static func tailOfLogFile(_ url: URL, lineCount: Int) -> String {
-        let maxBytesToRead = 256 * 1_024
-        do {
-            let handle = try FileHandle(forReadingFrom: url)
-            defer { try? handle.close() }
-
-            let end = try handle.seekToEnd()
-            let start = end > UInt64(maxBytesToRead) ? end - UInt64(maxBytesToRead) : 0
-            try handle.seek(toOffset: start)
-
-            let data = try handle.readToEnd() ?? Data()
-            guard var text = String(data: data, encoding: .utf8) else {
-                return "(Log tail unavailable: not UTF-8)"
-            }
-
-            guard !text.isEmpty else {
-                return "(Log tail unavailable: empty)"
-            }
-
-            // If we started from the middle, drop the first partial line
-            if start != 0, let firstNewline = text.firstIndex(of: "\n") {
-                text = String(text[text.index(after: firstNewline)...])
-            }
-
-            let lines = text.split(separator: "\n", omittingEmptySubsequences: false)
-            if lines.count <= lineCount {
-                return lines.joined(separator: "\n")
-            }
-            return lines.suffix(lineCount).joined(separator: "\n")
-        } catch {
-            return "(Failed to read log tail: \(error.localizedDescription))"
-        }
-    }
-
     /// Converts a [String: String] dictionary to a pretty-printed JSON string.
     fileprivate static func dictionaryToJSON(_ dict: [String: String]) -> String {
-        let sorted = dict.sorted { $0.key < $1.key }
-        var json = "{\n"
-        for (index, pair) in sorted.enumerated() {
-            let escapedValue = pair.value
-                .replacingOccurrences(of: "\\", with: "\\\\")
-                .replacingOccurrences(of: "\"", with: "\\\"")
-            json += "  \"\(pair.key)\": \"\(escapedValue)\""
-            if index < sorted.count - 1 {
-                json += ","
-            }
-            json += "\n"
-        }
-        json += "}"
-        return json
+        let data = try? JSONSerialization.data(
+            withJSONObject: dict, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+        )
+        return data.flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
     }
 }
 
