@@ -34,8 +34,8 @@ final class WhiskyWineUpdateCheckSettingTests: XCTestCase {
         super.tearDown()
     }
 
-    func testDefaultsToEnabledWhenNeverSet() {
-        XCTAssertTrue(WhiskyWineInstaller.automaticUpdateChecksEnabled(in: defaults))
+    func testDefaultsToDisabledWhenNeverSet() {
+        XCTAssertFalse(WhiskyWineInstaller.automaticUpdateChecksEnabled(in: defaults))
     }
 
     func testTurningTheSettingOffDisablesTheAutomaticCheck() {

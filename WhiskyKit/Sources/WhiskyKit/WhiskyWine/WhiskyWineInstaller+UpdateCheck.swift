@@ -24,13 +24,13 @@ extension WhiskyWineInstaller {
 
     /// Whether the runtime update check may run on its own at launch.
     ///
-    /// The setting defaults to on, matching the Settings toggle, so a user who
-    /// never opened Settings keeps getting the check. Only the automatic check
-    /// reads it; an update the user asks for runs regardless.
+    /// The setting defaults to off, matching the Settings toggle: this fork
+    /// takes upstream runtime updates by hand. Only the automatic check reads
+    /// it; an update the user asks for runs regardless.
     ///
     /// - Parameter defaults: The defaults to read. Defaults to `.standard`.
-    /// - Returns: `false` only when the user turned the setting off.
+    /// - Returns: `true` only when the user turned the setting on.
     public static func automaticUpdateChecksEnabled(in defaults: UserDefaults = .standard) -> Bool {
-        defaults.object(forKey: automaticUpdateCheckDefaultsKey) as? Bool ?? true
+        defaults.object(forKey: automaticUpdateCheckDefaultsKey) as? Bool ?? false
     }
 }

@@ -23,7 +23,7 @@ struct SettingsView: View {
     @AppStorage("SUEnableAutomaticChecks") var whiskyUpdate = true
     @AppStorage("killOnTerminate") var killOnTerminate = true
     @AppStorage("showMenuBarExtra") var showMenuBarExtra = false
-    @AppStorage(WhiskyWineInstaller.automaticUpdateCheckDefaultsKey) var checkWhiskyWineUpdates = true
+    @AppStorage(WhiskyWineInstaller.automaticUpdateCheckDefaultsKey) var checkWhiskyWineUpdates = false
     @AppStorage("defaultBottleLocation") var defaultBottleLocation = BottleData.defaultBottleDir
     @AppStorage("preferredTerminal") var preferredTerminal = "terminal"
     @AppStorage(Telemetry.consentDefaultsKey) private var telemetryConsentRaw: String = Telemetry.ConsentState
