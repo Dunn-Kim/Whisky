@@ -85,28 +85,12 @@ extension GPTKImporter {
             .appending(path: "gptk-video").appending(path: interposer.shimFileName)
     }
 
-    /// Where the runtime ships the interposer, if it is new enough to carry one.
-    static let videoProcessorShimPath = ["lib", "gptk-video", "d3d12shim.dll"]
-    /// Apple's D3D12 under its second name. Nine characters, and that is not a
-    /// style choice: the export name is patched in place, so it cannot grow.
-    static let videoDeviceDLLName = "d3dmt.dll"
-    static let videoDeviceUnixName = "d3dmt.so"
-    static let videoProcessorSlotName = "d3d12.dll"
-
-    static func videoProcessorShim(inLibraryFolder folder: URL) -> URL {
-        videoProcessorShimPath.reduce(folder.appending(path: "Wine")) { $0.appending(path: $1) }
-    }
-
     /// Whether `folder`'s runtime carries an interposer to install at all.
     /// Runtimes older than the one that introduced it simply do without.
     static func has(_ interposer: GPTKInterposer, inLibraryFolder folder: URL) -> Bool {
         FileManager.default.fileExists(
             atPath: shim(for: interposer, inLibraryFolder: folder).path(percentEncoded: false)
         )
-    }
-
-    static func hasVideoProcessor(inLibraryFolder folder: URL) -> Bool {
-        has(videoProcessorInterposer, inLibraryFolder: folder)
     }
 
     /// Whether the interposer currently occupies the `d3d12.dll` slot.
@@ -117,10 +101,6 @@ extension GPTKImporter {
             atPath: peDir.appending(path: interposer.slotName).path(percentEncoded: false),
             andPath: shim(for: interposer, inLibraryFolder: folder).path(percentEncoded: false)
         )
-    }
-
-    static func isVideoProcessorInstalled(inLibraryFolder folder: URL) -> Bool {
-        isInstalled(videoProcessorInterposer, inLibraryFolder: folder)
     }
 
     /// Puts the interposer in the `d3d12.dll` slot with Apple's DLL renamed
@@ -148,12 +128,7 @@ extension GPTKImporter {
         try rewriteExportName(at: renamed, from: interposer.slotName, to: interposer.renamedName)
 
         // The renamed PE needs its own unix half or D3DMetal never binds.
-        let link = unixDir.appending(path: interposer.renamedUnixName)
-        try? fileManager.removeItem(at: link)
-        try fileManager.createSymbolicLink(
-            atPath: link.path(percentEncoded: false),
-            withDestinationPath: unixLinkDestination
-        )
+        try linkUnixHalf(unixDir.appending(path: interposer.renamedUnixName))
 
         // Stage the shim beside the slot and swap by rename. Removing the slot
         // before copying left a window where a crash strands the tree with no
@@ -164,10 +139,6 @@ extension GPTKImporter {
         _ = try fileManager.replaceItemAt(slot, withItemAt: staged)
         let moved = "\(interposer.label): Apple's \(interposer.slotName) is now \(interposer.renamedName)"
         logger.info("Installed \(moved, privacy: .public)")
-    }
-
-    static func installVideoProcessor(intoLibraryFolder folder: URL) throws {
-        try install(videoProcessorInterposer, intoLibraryFolder: folder)
     }
 
     /// Takes the interposer back out and restores Apple's DLL into the slot from
@@ -206,32 +177,26 @@ extension GPTKImporter {
 
     // MARK: - Prefixes
 
-    /// Drops a placeholder for the renamed DLL into a prefix's `system32`.
+    /// Drops a placeholder for the builtin `name` into a prefix's `system32`.
     ///
-    /// Without one the loader never looks in the builtin directory at all and
-    /// the interposer cannot reach Apple's DLL, which would take D3D12 down
-    /// with it. `wineboot` writes these when a prefix is made or updated, so new
-    /// bottles get it for free; bottles that already exist predate the name and
-    /// would otherwise need a prefix update before they could run anything.
-    static func seedPlaceholder(
-        for interposer: GPTKInterposer, inBottle bottle: URL, fromLibraryFolder folder: URL
-    ) {
+    /// Not optional and not cosmetic: with no entry there the loader never looks
+    /// in the builtin directory, so `LoadLibrary` fails with `ERROR_MOD_NOT_FOUND`
+    /// however well the tree is set up (for the renamed D3D12 that takes D3D12
+    /// down with it). `wineboot` writes these when a prefix is made or updated,
+    /// so new bottles get them for free; bottles that already exist predate the name.
+    static func seedPlaceholder(named name: String, inBottle bottle: URL, fromLibraryFolder folder: URL) {
         let fileManager = FileManager.default
         let source = folder.appending(path: "Wine").appending(path: "lib").appending(path: "wine")
-            .appending(path: "x86_64-windows").appending(path: interposer.renamedName)
+            .appending(path: "x86_64-windows").appending(path: name)
         guard fileManager.fileExists(atPath: source.path(percentEncoded: false)) else { return }
 
         let system32 = bottle.appending(path: "drive_c").appending(path: "windows")
             .appending(path: "system32")
         guard fileManager.fileExists(atPath: system32.path(percentEncoded: false)) else { return }
 
-        let placeholder = system32.appending(path: interposer.renamedName)
+        let placeholder = system32.appending(path: name)
         guard !fileManager.fileExists(atPath: placeholder.path(percentEncoded: false)) else { return }
         try? fileManager.copyItem(at: source, to: placeholder)
-    }
-
-    static func seedVideoDevicePlaceholder(inBottle bottle: URL, fromLibraryFolder folder: URL) {
-        seedPlaceholder(for: videoProcessorInterposer, inBottle: bottle, fromLibraryFolder: folder)
     }
 
     /// Installs the video processor if the payload is already deployed, and
@@ -244,17 +209,17 @@ extension GPTKImporter {
     /// cheap enough to run at launch.
     public static func ensureVideoProcessorInstalled(bottles: [URL]) {
         let folder = WhiskyWineInstaller.libraryFolder
-        guard isDeployed(inLibraryFolder: folder), hasVideoProcessor(inLibraryFolder: folder) else {
+        guard isDeployed(inLibraryFolder: folder), has(videoProcessorInterposer, inLibraryFolder: folder) else {
             return
         }
         do {
-            try installVideoProcessor(intoLibraryFolder: folder)
+            try install(videoProcessorInterposer, intoLibraryFolder: folder)
         } catch {
             logger.error("Installing the D3D12 video processor failed: \(error.localizedDescription)")
             return
         }
         for bottle in bottles {
-            seedVideoDevicePlaceholder(inBottle: bottle, fromLibraryFolder: folder)
+            seedPlaceholder(named: videoProcessorInterposer.renamedName, inBottle: bottle, fromLibraryFolder: folder)
         }
     }
 

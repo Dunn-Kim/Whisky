@@ -870,7 +870,9 @@ public class Wine {
         libraryFolder: URL = WhiskyWineInstaller.libraryFolder
     ) {
         if backend == .d3dMetal, bottle.settings.metalFX {
-            GPTKImporter.seedMetalFXBridgePlaceholder(inBottle: bottle.url, fromLibraryFolder: libraryFolder)
+            GPTKImporter.seedPlaceholder(
+                named: GPTKBridge.metalFX.installedName, inBottle: bottle.url, fromLibraryFolder: libraryFolder
+            )
             seedNGXModelConfig(inBottle: bottle.url)
         } else {
             GPTKImporter.clearMetalFXBridgePlaceholder(inBottle: bottle.url)

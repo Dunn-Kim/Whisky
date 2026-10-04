@@ -39,7 +39,7 @@ final class NVAPIBridgeTests: XCTestCase {
         let storePE = store.appending(path: "lib").appending(path: "wine").appending(path: "x86_64-windows")
         try FileManager.default.createDirectory(at: storePE, withIntermediateDirectories: true)
         try "apple nvapi".write(
-            to: storePE.appending(path: GPTKImporter.nvapiBridgeName), atomically: true, encoding: .utf8
+            to: storePE.appending(path: GPTKBridge.nvapi.sourceName), atomically: true, encoding: .utf8
         )
 
         let folder = root.appending(path: "Libraries")
@@ -47,7 +47,7 @@ final class NVAPIBridgeTests: XCTestCase {
             .appending(path: "wine").appending(path: "x86_64-windows")
         try FileManager.default.createDirectory(at: treePE, withIntermediateDirectories: true)
         try placeholder.write(
-            to: treePE.appending(path: GPTKImporter.nvapiBridgeName), atomically: true, encoding: .utf8
+            to: treePE.appending(path: GPTKBridge.nvapi.installedName), atomically: true, encoding: .utf8
         )
         return (store, folder)
     }
@@ -61,11 +61,11 @@ final class NVAPIBridgeTests: XCTestCase {
         let (store, folder) = try makeTree()
         try GPTKImporter.installNVAPIBridge(intoLibraryFolder: folder, usingStore: store)
 
-        XCTAssertTrue(GPTKImporter.isNVAPIBridgeInstalled(inLibraryFolder: folder, usingStore: store))
-        XCTAssertEqual(contents(of: GPTKImporter.nvapiBridgePE(inLibraryFolder: folder)), "apple nvapi")
+        XCTAssertTrue(GPTKImporter.isInstalled(.nvapi, inLibraryFolder: folder, usingStore: store))
+        XCTAssertEqual(contents(of: GPTKImporter.pe(of: .nvapi, inLibraryFolder: folder)), "apple nvapi")
 
         // The unix half is required: the PE alone loads and dies in DllMain.
-        let link = GPTKImporter.nvapiBridgeUnixLink(inLibraryFolder: folder)
+        let link = GPTKImporter.unixLink(of: .nvapi, inLibraryFolder: folder)
         let target = try FileManager.default.destinationOfSymbolicLink(atPath: link.path(percentEncoded: false))
         XCTAssertEqual(target, GPTKImporter.unixLinkDestination)
     }
@@ -75,10 +75,10 @@ final class NVAPIBridgeTests: XCTestCase {
         try GPTKImporter.installNVAPIBridge(intoLibraryFolder: folder, usingStore: store)
         GPTKImporter.removeNVAPIBridge(fromLibraryFolder: folder, usingStore: store)
 
-        XCTAssertFalse(GPTKImporter.isNVAPIBridgeInstalled(inLibraryFolder: folder, usingStore: store))
-        XCTAssertEqual(contents(of: GPTKImporter.nvapiBridgePE(inLibraryFolder: folder)), "wine placeholder")
+        XCTAssertFalse(GPTKImporter.isInstalled(.nvapi, inLibraryFolder: folder, usingStore: store))
+        XCTAssertEqual(contents(of: GPTKImporter.pe(of: .nvapi, inLibraryFolder: folder)), "wine placeholder")
         XCTAssertFalse(FileManager.default.fileExists(
-            atPath: GPTKImporter.nvapiBridgeUnixLink(inLibraryFolder: folder).path(percentEncoded: false)
+            atPath: GPTKImporter.unixLink(of: .nvapi, inLibraryFolder: folder).path(percentEncoded: false)
         ))
     }
 
@@ -90,7 +90,7 @@ final class NVAPIBridgeTests: XCTestCase {
         try GPTKImporter.installNVAPIBridge(intoLibraryFolder: folder, usingStore: store)
         GPTKImporter.removeNVAPIBridge(fromLibraryFolder: folder, usingStore: store)
 
-        XCTAssertEqual(contents(of: GPTKImporter.nvapiBridgePE(inLibraryFolder: folder)), "wine placeholder")
+        XCTAssertEqual(contents(of: GPTKImporter.pe(of: .nvapi, inLibraryFolder: folder)), "wine placeholder")
     }
 
     func testNGXManifestIsSeededOnceAndNeverOverwritten() throws {

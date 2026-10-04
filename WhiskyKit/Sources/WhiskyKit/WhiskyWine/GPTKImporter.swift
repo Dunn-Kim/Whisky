@@ -65,6 +65,18 @@ public struct GPTKStoreRecord: Codable, Equatable, Sendable {
     public let importedAt: Date
 }
 
+/// One of Apple's NVIDIA bridges: a PE copied from the store into the Wine
+/// tree, with a unix half beside it.
+struct GPTKBridge: Sendable {
+    /// The PE's filename in the store.
+    let sourceName: String
+    /// The name it is installed under. Builtins are keyed by their PE export
+    /// name and the loader matches on that, not the filename.
+    let installedName: String
+    /// Its unix half, which shares the payload's single dylib with every other bridge.
+    let unixName: String
+}
+
 /// Imports Apple's Game Porting Toolkit evaluation environment so the
 /// D3DMetal backend can become real.
 ///
@@ -88,26 +100,6 @@ public enum GPTKImporter {
     /// no d3d9 forwarder.
     static let forwarderDLLNames = ["d3d10.dll", "d3d11.dll", "d3d12.dll", "dxgi.dll"]
 
-    /// Apple's NVIDIA bridges. `nvngx-on-metalfx` is deployed, under its export
-    /// name, because it is the only route to MetalFX, see
-    /// ``installMetalFXBridge(intoLibraryFolder:usingStore:)``.
-    ///
-    /// `nvapi64` is deployed too, and kept away from launcher helpers per
-    /// executable rather than withheld from everything. Chromium probes for an
-    /// NVIDIA GPU and answering makes it load D3DMetal, which takes Steam's
-    /// helper process down, so that risk is real; withholding the DLL is just
-    /// not the only way out of it, and it costs DLSS everywhere. See
-    /// ``installNVAPIBridge(intoLibraryFolder:usingStore:)`` for why the DLL has
-    /// to be there, and `Wine.disablingNVAPI(in:)` for the half that keeps
-    /// Chromium out of it.
-    static let nvidiaBridgeDLLNames = ["nvapi64.dll", "nvngx-on-metalfx.dll"]
-
-    /// Apple's NVAPI, deployed under the name it ships as; wine's own `nvapi64`
-    /// is a placeholder that exports nothing, so this replaces it.
-    static let nvapiBridgeName = "nvapi64.dll"
-    /// Its unix half, sharing the payload's dylib like every other bridge.
-    static let nvapiBridgeUnixName = "nvapi64.so"
-
     /// Enough bytes to hold the winebuild marker at offset 0x40.
     static let builtinMarkerMinimumLength = 0x50
 
@@ -119,6 +111,42 @@ public enum GPTKImporter {
     /// The symlink target for every unix bridge name, relative to
     /// `wine/x86_64-unix/`.
     static let unixLinkDestination = "../../external/libd3dshared.dylib"
+
+    /// Points `link` at the payload's shared dylib, replacing whatever is there.
+    static func linkUnixHalf(_ link: URL) throws {
+        try? FileManager.default.removeItem(at: link)
+        try FileManager.default.createSymbolicLink(
+            atPath: link.path(percentEncoded: false),
+            withDestinationPath: unixLinkDestination
+        )
+    }
+
+    /// Where `bridge` lives in the store, or `nil` for a payload too old to carry one.
+    static func source(of bridge: GPTKBridge, inStore store: URL) -> URL? {
+        let source = store.appending(path: "lib").appending(path: "wine")
+            .appending(path: "x86_64-windows").appending(path: bridge.sourceName)
+        return FileManager.default.fileExists(atPath: source.path(percentEncoded: false)) ? source : nil
+    }
+
+    static func pe(of bridge: GPTKBridge, inLibraryFolder folder: URL) -> URL {
+        folder.appending(path: "Wine").appending(path: "lib").appending(path: "wine")
+            .appending(path: "x86_64-windows").appending(path: bridge.installedName)
+    }
+
+    static func unixLink(of bridge: GPTKBridge, inLibraryFolder folder: URL) -> URL {
+        folder.appending(path: "Wine").appending(path: "lib").appending(path: "wine")
+            .appending(path: "x86_64-unix").appending(path: bridge.unixName)
+    }
+
+    /// Whether the tree holds a bridge this store put there. Compared by content
+    /// so a copy someone installed by hand is left alone by remove.
+    static func isInstalled(_ bridge: GPTKBridge, inLibraryFolder folder: URL, usingStore store: URL) -> Bool {
+        guard let source = source(of: bridge, inStore: store) else { return false }
+        return FileManager.default.contentsEqual(
+            atPath: pe(of: bridge, inLibraryFolder: folder).path(percentEncoded: false),
+            andPath: source.path(percentEncoded: false)
+        )
+    }
 
     /// The pristine payload store: `D3DMetal/`, a sibling of `Libraries/`.
     ///
@@ -262,12 +290,7 @@ public enum GPTKImporter {
         let unixDir = libDest.appending(path: "wine").appending(path: "x86_64-unix")
         try fileManager.createDirectory(at: unixDir, withIntermediateDirectories: true)
         for name in unixLibraryNames {
-            let link = unixDir.appending(path: name)
-            try? fileManager.removeItem(at: link)
-            try fileManager.createSymbolicLink(
-                atPath: link.path(percentEncoded: false),
-                withDestinationPath: unixLinkDestination
-            )
+            try linkUnixHalf(unixDir.appending(path: name))
         }
 
         let record = GPTKStoreRecord(gptkVersion: payload.version, importedAt: Date())

@@ -93,7 +93,7 @@ func makeInterposerShim(
 
 @discardableResult
 func makeVideoProcessorShim(at libraryFolder: URL, marker: String = "interposer") throws -> URL {
-    let shim = GPTKImporter.videoProcessorShim(inLibraryFolder: libraryFolder)
+    let shim = GPTKImporter.shim(for: GPTKImporter.videoProcessorInterposer, inLibraryFolder: libraryFolder)
     try FileManager.default.createDirectory(
         at: shim.deletingLastPathComponent(), withIntermediateDirectories: true
     )
@@ -235,7 +235,7 @@ func makePartialDeploy(store: URL, runtime: URL, runtimeVersion: String) throws 
 @discardableResult
 func makeStoreMetalFXBridge(inStore store: URL, marker: String = "metalfx bridge") throws -> URL {
     let dll = store.appending(path: "lib").appending(path: "wine")
-        .appending(path: "x86_64-windows").appending(path: GPTKImporter.metalFXBridgeSourceName)
+        .appending(path: "x86_64-windows").appending(path: GPTKBridge.metalFX.sourceName)
     var data = fakePE(builtin: true)
     data.append(Data(marker.utf8))
     try data.write(to: dll)
