@@ -59,9 +59,7 @@ public final class AudioDeviceHistory: Codable, @unchecked Sendable {
         guard !dominated else { return }
 
         events.append(event)
-        while events.count > maxEvents {
-            events.removeFirst()
-        }
+        events = Array(events.suffix(maxEvents))
     }
 
     /// Removes all events from the history.
