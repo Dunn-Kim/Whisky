@@ -131,10 +131,10 @@ final class FlowLoaderValidatorTests: XCTestCase {
         let implemented: Set<String> = Set(
             ([
                 CrashLogCheck(), GraphicsBackendCheck(), DXVKSettingsCheck(),
-                AudioDriverCheck(), AudioDeviceCheck(), AudioTestCheck(),
+                AudioDriverCheck(), AudioDeviceCheck(),
                 DependencyCheck(), WinetricksVerbCheck(),
                 LauncherTypeCheck(), ProcessRunningCheck(),
-                EnvironmentCheck(), RegistryValueCheck(),
+                RegistryValueCheck(),
                 GameConfigAvailableCheck(), SettingValueCheck(), DiagnosticsEnhanceCheck()
             ] as [any TroubleshootingCheck]).map(\.checkId)
         )
