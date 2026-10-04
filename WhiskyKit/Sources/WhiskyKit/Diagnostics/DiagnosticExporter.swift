@@ -263,7 +263,6 @@ public enum DiagnosticExporter {
         info["forceD3D11"] = "\(bottle.settings.forceD3D11)"
         info["shaderCacheEnabled"] = "\(bottle.settings.shaderCacheEnabled)"
         info["avxEnabled"] = "\(bottle.settings.avxEnabled)"
-        info["sequoiaCompatMode"] = "\(bottle.settings.sequoiaCompatMode)"
         info["launcherCompatibilityMode"] = "\(bottle.settings.launcherCompatibilityMode)"
 
         return dictionaryToJSON(info)

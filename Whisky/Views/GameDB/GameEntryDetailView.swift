@@ -377,12 +377,6 @@ extension GameEntryDetailView {
         if let dxvkAsync = settings.dxvkAsync {
             items.append(SettingDisplay(name: "DXVK Async", value: dxvkAsync ? "Enabled" : "Disabled"))
         }
-        if let sequoia = settings.sequoiaCompatMode {
-            items.append(SettingDisplay(
-                name: "Sequoia Compat",
-                value: sequoia ? "Enabled" : "Disabled"
-            ))
-        }
         if let frameRateLimit = settings.frameRateLimit {
             items.append(SettingDisplay(name: "Frame Rate Limit", value: frameRateLimit.label))
         }

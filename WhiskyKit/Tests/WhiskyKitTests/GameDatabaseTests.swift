@@ -223,7 +223,6 @@ final class GameDatabaseTests: XCTestCase {
         XCTAssertNil(settings.performancePreset)
         XCTAssertNil(settings.shaderCacheEnabled)
         XCTAssertNil(settings.avxEnabled)
-        XCTAssertNil(settings.sequoiaCompatMode)
         XCTAssertNil(settings.frameRateLimit)
     }
 

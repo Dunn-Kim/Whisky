@@ -24,7 +24,6 @@ public struct BottleMetalConfig: Codable, Equatable {
     var dxrEnabled: Bool = false
     var metalValidation: Bool = false
     var forceGPUFamily: String?
-    var sequoiaCompatMode: Bool = true // Enable Sequoia compatibility by default
     var metal4Enabled: Bool = true // Metal 4 command encoding, D3DMetal ignores it on older systems
 
     public init() {}
@@ -36,7 +35,6 @@ public struct BottleMetalConfig: Codable, Equatable {
         self.dxrEnabled = try container.decodeIfPresent(Bool.self, forKey: .dxrEnabled) ?? false
         self.metalValidation = try container.decodeIfPresent(Bool.self, forKey: .metalValidation) ?? false
         self.forceGPUFamily = try container.decodeIfPresent(String.self, forKey: .forceGPUFamily)
-        self.sequoiaCompatMode = try container.decodeIfPresent(Bool.self, forKey: .sequoiaCompatMode) ?? true
         // Defaults to true for bottles written before this key existed, so an
         // upgrade turns it on rather than silently leaving it off.
         self.metal4Enabled = try container.decodeIfPresent(Bool.self, forKey: .metal4Enabled) ?? true

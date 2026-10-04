@@ -127,7 +127,6 @@ public struct BottleInfo: Codable, Equatable {
 /// - ``metalTrace``
 /// - ``metalValidation``
 /// - ``dxrEnabled``
-/// - ``sequoiaCompatMode``
 /// - ``metal4Enabled``
 ///
 /// ### DXVK Settings
@@ -329,15 +328,6 @@ public struct BottleSettings: Codable, Equatable {
     public var metalValidation: Bool {
         get { metalConfig.metalValidation }
         set { metalConfig.metalValidation = newValue }
-    }
-
-    /// Whether macOS Sequoia (15.x) compatibility mode is enabled.
-    ///
-    /// Applies additional fixes for graphics and launcher issues
-    /// specific to macOS 15.x. Enable if experiencing problems.
-    public var sequoiaCompatMode: Bool {
-        get { metalConfig.sequoiaCompatMode }
-        set { metalConfig.sequoiaCompatMode = newValue }
     }
 
     /// Whether D3DMetal uses the Metal 4 command encoding backend.

@@ -125,8 +125,7 @@ public enum StabilityDiagnostics {
         summary += "Force D3D11: \(bottle.settings.forceD3D11 ? "✅ Yes" : "❌ No")\n"
         summary += "DXR Enabled: \(bottle.settings.dxrEnabled ? "✅ Yes" : "❌ No")\n"
         summary += "Metal HUD: \(bottle.settings.metalHud ? "✅ Yes" : "❌ No")\n"
-        summary += "Metal Validation: \(bottle.settings.metalValidation ? "✅ Yes" : "❌ No")\n"
-        summary += "Sequoia Compat Mode: \(bottle.settings.sequoiaCompatMode ? "✅ Yes" : "❌ No")\n\n"
+        summary += "Metal Validation: \(bottle.settings.metalValidation ? "✅ Yes" : "❌ No")\n\n"
 
         summary += "--- Sync/Performance ---\n"
         summary += "Enhanced Sync: \(bottle.settings.enhancedSync)\n"

@@ -199,8 +199,6 @@ public struct GameConfigVariantSettings: Codable, Sendable, Equatable {
     public let shaderCacheEnabled: Bool?
     /// Whether AVX instruction set support should be advertised.
     public let avxEnabled: Bool?
-    /// Whether macOS Sequoia compatibility mode should be enabled.
-    public let sequoiaCompatMode: Bool?
     /// The frame rate cap to apply.
     ///
     /// Uncapped rendering is the single biggest avoidable source of GPU power
@@ -218,7 +216,6 @@ public struct GameConfigVariantSettings: Codable, Sendable, Equatable {
         performancePreset: String? = nil,
         shaderCacheEnabled: Bool? = nil,
         avxEnabled: Bool? = nil,
-        sequoiaCompatMode: Bool? = nil,
         frameRateLimit: FrameRateLimit? = nil
     ) {
         self.graphicsBackend = graphicsBackend
@@ -229,7 +226,6 @@ public struct GameConfigVariantSettings: Codable, Sendable, Equatable {
         self.performancePreset = performancePreset
         self.shaderCacheEnabled = shaderCacheEnabled
         self.avxEnabled = avxEnabled
-        self.sequoiaCompatMode = sequoiaCompatMode
         self.frameRateLimit = frameRateLimit
     }
 
@@ -255,7 +251,6 @@ public struct GameConfigVariantSettings: Codable, Sendable, Equatable {
         self.performancePreset = try container.decodeIfPresent(String.self, forKey: .performancePreset)
         self.shaderCacheEnabled = try container.decodeIfPresent(Bool.self, forKey: .shaderCacheEnabled)
         self.avxEnabled = try container.decodeIfPresent(Bool.self, forKey: .avxEnabled)
-        self.sequoiaCompatMode = try container.decodeIfPresent(Bool.self, forKey: .sequoiaCompatMode)
         // FrameRateLimit accepts either its integer raw value (60) or a readable
         // string ("60", "unlimited", "matchDisplay"), since the database is
         // hand-edited JSON. An unrecognised value decodes to nil — "do not
