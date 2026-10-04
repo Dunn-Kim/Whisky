@@ -120,24 +120,7 @@ public enum LauncherType: String, Codable, CaseIterable, Sendable, Identifiable 
 
     /// Display name for the launcher.
     public var displayName: String {
-        switch self {
-        case .steam:
-            "Steam"
-        case .rockstar:
-            "Rockstar Games Launcher"
-        case .eaApp:
-            "EA App"
-        case .epicGames:
-            "Epic Games Store"
-        case .ubisoft:
-            "Ubisoft Connect"
-        case .battleNet:
-            "Battle.net"
-        case .paradox:
-            "Paradox Launcher"
-        case .zfGame:
-            "ZFGame Browser"
-        }
+        rawValue
     }
 
     /// Whether this launcher is known to use the clipboard for multiplayer features.
@@ -163,102 +146,7 @@ public enum LauncherType: String, Codable, CaseIterable, Sendable, Identifiable 
     ///
     /// - Returns: Dictionary of environment variable key-value pairs
     public func environmentOverrides() -> [String: String] {
-        var env: [String: String] = [:]
-
-        switch self {
-        case .steam:
-            // Steam-specific fixes for steamwebhelper crashes
-            // (whisky-app/whisky#946, #1224, #1241)
-            // The Chromium Embedded Framework in Steam requires specific locale
-            env["LC_ALL"] = "en_US.UTF-8"
-            env["LANG"] = "en_US.UTF-8"
-            // Force C locale for numeric/time to avoid ICU parsing errors
-            env["LC_TIME"] = "C"
-            env["LC_NUMERIC"] = "C"
-
-            // Note: CEF_DISABLE_SANDBOX is set globally in MacOSCompatibility.swift
-            // for all launchers. We only set Steam-specific variant here.
-            env["STEAM_DISABLE_CEF_SANDBOX"] = "1"
-
-            // Steam Runtime causes issues under Wine
-            env["STEAM_RUNTIME"] = "0"
-
-            // Reduce UI stuttering in Steam client
-            env["DXVK_ASYNC"] = "1"
-
-            // Note: Network timeouts for Steam are configured via bottle.settings.networkTimeout
-            // which is set to 90000ms by LauncherFixes.apply()
-            // This allows users to customize timeouts via the UI slider
-
-        case .rockstar:
-            // Rockstar Launcher fixes (whisky-app/whisky#1335, #835, #1120)
-            // DXVK is REQUIRED for the logo screen to render — expressed by
-            // `requiresDXVK`, not an env var; nothing reads "DXVK_REQUIRED".
-            // Note: CEF_DISABLE_SANDBOX is set globally in MacOSCompatibility.swift
-
-            // Force D3D11 mode for better compatibility
-            env["D3DM_FORCE_D3D11"] = "1"
-
-            // Launcher initialization improvements
-            env["WINE_LARGE_ADDRESS_AWARE"] = "1"
-
-            // Locale for launcher UI
-            env["LC_ALL"] = "en_US.UTF-8"
-
-        case .eaApp:
-            // EA App (formerly Origin) fixes (whisky-app/whisky#1195, #1322)
-            // Note: CEF_DISABLE_SANDBOX is set globally in MacOSCompatibility.swift
-            env["LC_ALL"] = "en_US.UTF-8"
-            env["LANG"] = "en_US.UTF-8"
-
-            // GPU detection fixes for "GPU not supported" errors
-            env["D3DM_FEATURE_LEVEL_12_1"] = "1"
-
-            // Note: Network timeouts configured via bottle.settings.networkTimeout (default 60s)
-
-        case .epicGames:
-            // Epic Games Store launcher fixes
-            // Note: CEF_DISABLE_SANDBOX is set globally in MacOSCompatibility.swift
-            env["LC_ALL"] = "en_US.UTF-8"
-
-            // Epic launcher stability improvements
-            env["D3DM_FORCE_D3D11"] = "1"
-
-        case .ubisoft:
-            // Ubisoft Connect fixes (whisky-app/whisky#1004)
-            // Requires D3D11 mode
-            env["D3DM_FORCE_D3D11"] = "1"
-
-            // Anno 1800 and other Ubisoft games compatibility
-            env["DXVK_ASYNC"] = "1"
-
-            // Note: Network timeouts for Ubisoft are configured via bottle.settings.networkTimeout
-            // which is set to 90000ms by LauncherFixes.apply()
-
-        case .battleNet:
-            // Blizzard Battle.net launcher
-            // Note: CEF_DISABLE_SANDBOX is set globally in MacOSCompatibility.swift
-            env["LC_ALL"] = "en_US.UTF-8"
-
-        case .paradox:
-            // Paradox Launcher fixes (whisky-app/whisky#1091)
-            env["D3DM_FORCE_D3D11"] = "1"
-
-        case .zfGame:
-            // ZFGame Browser is Chromium-based and will not paint on D3DMetal:
-            // the window comes up and stays blank. The DXVK requirement itself
-            // is expressed by `requiresDXVK`, not an env var — nothing reads
-            // a "DXVK_REQUIRED" variable.
-            // Note: CEF_DISABLE_SANDBOX is set globally in MacOSCompatibility.swift
-
-            // Reduces stuttering while the launcher's web view animates
-            env["DXVK_ASYNC"] = "1"
-
-            // No locale override here on purpose: these launchers render a CJK
-            // UI, and forcing en_US replaces their text with boxes.
-        }
-
-        return env
+        Dictionary(fixDetails().map { ($0.key, $0.value) }, uniquingKeysWith: { $1 })
     }
 
     /// Indicates whether this launcher requires DXVK to function.
