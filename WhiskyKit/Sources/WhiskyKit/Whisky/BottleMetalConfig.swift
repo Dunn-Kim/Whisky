@@ -23,7 +23,6 @@ public struct BottleMetalConfig: Codable, Equatable {
     var metalTrace: Bool = false
     var dxrEnabled: Bool = false
     var metalValidation: Bool = false
-    var forceGPUFamily: String?
     var metal4Enabled: Bool = true // Metal 4 command encoding, D3DMetal ignores it on older systems
 
     public init() {}
@@ -34,7 +33,6 @@ public struct BottleMetalConfig: Codable, Equatable {
         self.metalTrace = try container.decodeIfPresent(Bool.self, forKey: .metalTrace) ?? false
         self.dxrEnabled = try container.decodeIfPresent(Bool.self, forKey: .dxrEnabled) ?? false
         self.metalValidation = try container.decodeIfPresent(Bool.self, forKey: .metalValidation) ?? false
-        self.forceGPUFamily = try container.decodeIfPresent(String.self, forKey: .forceGPUFamily)
         // Defaults to true for bottles written before this key existed, so an
         // upgrade turns it on rather than silently leaving it off.
         self.metal4Enabled = try container.decodeIfPresent(Bool.self, forKey: .metal4Enabled) ?? true

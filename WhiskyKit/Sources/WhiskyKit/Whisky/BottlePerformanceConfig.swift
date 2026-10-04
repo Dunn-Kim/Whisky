@@ -42,9 +42,7 @@ public enum PerformancePreset: String, Codable, CaseIterable, Sendable {
 public struct BottlePerformanceConfig: Codable, Equatable {
     var performancePreset: PerformancePreset = .balanced
     var shaderCacheEnabled: Bool = true
-    var gpuMemoryLimit: Int? // MB, nil means auto
     var forceD3D11: Bool = false // Force D3D11 instead of D3D12 for compatibility
-    var disableShaderOptimizations: Bool = false // For debugging FPS issues
     var vcRedistInstalled: Bool = false // Track if VC++ runtime is installed
     // Default on: App Nap demotes an occluded Wine process to the efficiency
     // cores and coalesces its timers — for a game that is frame pacing ruin.
@@ -70,10 +68,7 @@ public struct BottlePerformanceConfig: Codable, Equatable {
         self.performancePreset = container
             .decodeLenientIfPresent(PerformancePreset.self, forKey: .performancePreset) ?? .balanced
         self.shaderCacheEnabled = try container.decodeIfPresent(Bool.self, forKey: .shaderCacheEnabled) ?? true
-        self.gpuMemoryLimit = try container.decodeIfPresent(Int.self, forKey: .gpuMemoryLimit)
         self.forceD3D11 = try container.decodeIfPresent(Bool.self, forKey: .forceD3D11) ?? false
-        self.disableShaderOptimizations = try container
-            .decodeIfPresent(Bool.self, forKey: .disableShaderOptimizations) ?? false
         self.vcRedistInstalled = try container.decodeIfPresent(Bool.self, forKey: .vcRedistInstalled) ?? false
         self.disableAppNap = try container.decodeIfPresent(Bool.self, forKey: .disableAppNap) ?? false
     }

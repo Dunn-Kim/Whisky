@@ -224,7 +224,6 @@ final class BottleSettingsTests: XCTestCase {
         XCTAssertFalse(config.metalTrace)
         XCTAssertFalse(config.dxrEnabled)
         XCTAssertFalse(config.metalValidation)
-        XCTAssertNil(config.forceGPUFamily)
     }
 
     // MARK: - BottleDXVKConfig Tests
@@ -244,9 +243,7 @@ final class BottleSettingsTests: XCTestCase {
 
         XCTAssertEqual(config.performancePreset, .balanced)
         XCTAssertTrue(config.shaderCacheEnabled)
-        XCTAssertNil(config.gpuMemoryLimit)
         XCTAssertFalse(config.forceD3D11)
-        XCTAssertFalse(config.disableShaderOptimizations)
         XCTAssertFalse(config.vcRedistInstalled)
     }
 
