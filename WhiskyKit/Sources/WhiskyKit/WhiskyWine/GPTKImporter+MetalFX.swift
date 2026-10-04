@@ -74,7 +74,7 @@ extension GPTKImporter {
     static func installMetalFXBridge(intoLibraryFolder folder: URL, usingStore store: URL) throws {
         guard let source = source(of: .metalFX, inStore: store) else { return }
         let fileManager = FileManager.default
-        let destination = pe(of: .metalFX, inLibraryFolder: folder)
+        let destination = installedPE(of: .metalFX, inLibraryFolder: folder)
         let link = unixLink(of: .metalFX, inLibraryFolder: folder)
 
         if !isInstalled(.metalFX, inLibraryFolder: folder, usingStore: store) {
@@ -98,7 +98,7 @@ extension GPTKImporter {
     static func removeMetalFXBridge(fromLibraryFolder folder: URL, usingStore store: URL) {
         let fileManager = FileManager.default
         guard isInstalled(.metalFX, inLibraryFolder: folder, usingStore: store) else { return }
-        try? fileManager.removeItem(at: pe(of: .metalFX, inLibraryFolder: folder))
+        try? fileManager.removeItem(at: installedPE(of: .metalFX, inLibraryFolder: folder))
 
         let link = unixLink(of: .metalFX, inLibraryFolder: folder)
         let target = try? fileManager.destinationOfSymbolicLink(atPath: link.path(percentEncoded: false))

@@ -77,7 +77,7 @@ struct GPTKMetalFXTests {
         try GPTKImporter.deploy(fromStore: store, intoLibraryFolder: runtime)
 
         #expect(!GPTKImporter.isInstalled(.metalFX, inLibraryFolder: runtime, usingStore: store))
-        let bridge = GPTKImporter.pe(of: .metalFX, inLibraryFolder: runtime)
+        let bridge = GPTKImporter.installedPE(of: .metalFX, inLibraryFolder: runtime)
         #expect(!FileManager.default.fileExists(atPath: bridge.path(percentEncoded: false)))
     }
 
@@ -85,7 +85,7 @@ struct GPTKMetalFXTests {
     func installIsIdempotent() throws {
         let (store, runtime) = try makeBridgeableRuntime()
         try GPTKImporter.deploy(fromStore: store, intoLibraryFolder: runtime)
-        let bridge = GPTKImporter.pe(of: .metalFX, inLibraryFolder: runtime)
+        let bridge = GPTKImporter.installedPE(of: .metalFX, inLibraryFolder: runtime)
         let before = try FileManager.default.attributesOfItem(
             atPath: bridge.path(percentEncoded: false)
         )[.creationDate] as? Date
@@ -111,7 +111,7 @@ struct GPTKMetalFXTests {
         try GPTKImporter.remove(fromLibraryFolder: runtime, usingStore: store)
 
         let fileManager = FileManager.default
-        let bridge = GPTKImporter.pe(of: .metalFX, inLibraryFolder: runtime)
+        let bridge = GPTKImporter.installedPE(of: .metalFX, inLibraryFolder: runtime)
         #expect(!fileManager.fileExists(atPath: bridge.path(percentEncoded: false)))
         // the link is dangling by now, so ask about the link itself
         let link = GPTKImporter.unixLink(of: .metalFX, inLibraryFolder: runtime)
@@ -121,7 +121,7 @@ struct GPTKMetalFXTests {
     @Test("A bridge this store did not install is left alone")
     func removeLeavesForeignBridge() throws {
         let (store, runtime) = try makeBridgeableRuntime()
-        let bridge = GPTKImporter.pe(of: .metalFX, inLibraryFolder: runtime)
+        let bridge = GPTKImporter.installedPE(of: .metalFX, inLibraryFolder: runtime)
         try FileManager.default.createDirectory(
             at: bridge.deletingLastPathComponent(), withIntermediateDirectories: true
         )

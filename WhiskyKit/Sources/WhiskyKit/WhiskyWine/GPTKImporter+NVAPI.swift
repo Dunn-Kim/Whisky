@@ -46,7 +46,7 @@ extension GPTKImporter {
     static let nvapiPlaceholderSuffix = ".wine-placeholder"
 
     static func nvapiPlaceholderBackup(inLibraryFolder folder: URL) -> URL {
-        pe(of: .nvapi, inLibraryFolder: folder).appendingPathExtension(
+        installedPE(of: .nvapi, inLibraryFolder: folder).appendingPathExtension(
             String(nvapiPlaceholderSuffix.dropFirst())
         )
     }
@@ -62,7 +62,7 @@ extension GPTKImporter {
         guard let source = source(of: .nvapi, inStore: store) else { return }
         guard !isInstalled(.nvapi, inLibraryFolder: folder, usingStore: store) else { return }
         let fileManager = FileManager.default
-        let destination = pe(of: .nvapi, inLibraryFolder: folder)
+        let destination = installedPE(of: .nvapi, inLibraryFolder: folder)
         let backup = nvapiPlaceholderBackup(inLibraryFolder: folder)
         let link = unixLink(of: .nvapi, inLibraryFolder: folder)
 
@@ -87,7 +87,7 @@ extension GPTKImporter {
     static func removeNVAPIBridge(fromLibraryFolder folder: URL, usingStore store: URL) {
         let fileManager = FileManager.default
         guard isInstalled(.nvapi, inLibraryFolder: folder, usingStore: store) else { return }
-        let destination = pe(of: .nvapi, inLibraryFolder: folder)
+        let destination = installedPE(of: .nvapi, inLibraryFolder: folder)
         let backup = nvapiPlaceholderBackup(inLibraryFolder: folder)
 
         try? fileManager.removeItem(at: destination)

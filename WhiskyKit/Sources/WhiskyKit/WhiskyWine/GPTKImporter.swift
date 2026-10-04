@@ -128,7 +128,7 @@ public enum GPTKImporter {
         return FileManager.default.fileExists(atPath: source.path(percentEncoded: false)) ? source : nil
     }
 
-    static func pe(of bridge: GPTKBridge, inLibraryFolder folder: URL) -> URL {
+    static func installedPE(of bridge: GPTKBridge, inLibraryFolder folder: URL) -> URL {
         folder.appending(path: "Wine").appending(path: "lib").appending(path: "wine")
             .appending(path: "x86_64-windows").appending(path: bridge.installedName)
     }
@@ -143,7 +143,7 @@ public enum GPTKImporter {
     static func isInstalled(_ bridge: GPTKBridge, inLibraryFolder folder: URL, usingStore store: URL) -> Bool {
         guard let source = source(of: bridge, inStore: store) else { return false }
         return FileManager.default.contentsEqual(
-            atPath: pe(of: bridge, inLibraryFolder: folder).path(percentEncoded: false),
+            atPath: installedPE(of: bridge, inLibraryFolder: folder).path(percentEncoded: false),
             andPath: source.path(percentEncoded: false)
         )
     }
