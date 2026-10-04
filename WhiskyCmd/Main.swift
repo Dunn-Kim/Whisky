@@ -53,7 +53,6 @@ struct Whisky: AsyncParsableCommand {
             List.self,
             Create.self,
             Add.self,
-//                      Export.self,
             Delete.self,
             Remove.self,
             Run.self,
@@ -61,8 +60,6 @@ struct Whisky: AsyncParsableCommand {
             Launch.self,
             Shortcut.self,
             Shellenv.self
-            /* Install.self,
-             Uninstall.self */
         ]
     )
 }
@@ -139,14 +136,6 @@ extension Whisky {
             var bottlesList = BottleData()
             bottlesList.paths.append(bottleURL)
             print("Bottle \"\(settings.name)\" added.")
-        }
-    }
-
-    struct Export: ParsableCommand {
-        static let configuration = CommandConfiguration(abstract: "Export an existing bottle.")
-
-        mutating func run() throws {
-//            print("Create a bottle")
         }
     }
 
@@ -484,20 +473,6 @@ extension Whisky {
             let envCmd = Wine.generateTerminalEnvironmentCommand(bottle: bottle)
             print(envCmd)
         }
-    }
-
-    struct Install: ParsableCommand {
-        static let configuration = CommandConfiguration(abstract: "Install WhiskyWine.")
-
-        mutating func run() throws {}
-    }
-
-    struct Uninstall: ParsableCommand {
-        static let configuration = CommandConfiguration(abstract: "Uninstall WhiskyWine.")
-
-        @Flag(name: [.long, .short], help: "Uninstall WhiskyWine") var whiskyWine = false
-
-        mutating func run() throws {}
     }
 }
 
