@@ -44,7 +44,7 @@ final class BackendFixCoherenceTests: XCTestCase {
     // MARK: - Guided Troubleshooting
 
     private func fixNode(flow fileName: String, node nodeId: String) throws -> FlowStepNode {
-        let flow = try XCTUnwrap(FlowLoader.loadFlow(fileName: fileName))
+        let flow = try XCTUnwrap(FlowLoader.loadFlow(fileName))
         return try XCTUnwrap(flow.nodes[nodeId], "\(fileName) lost \(nodeId)")
     }
 

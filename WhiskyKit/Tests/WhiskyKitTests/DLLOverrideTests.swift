@@ -277,7 +277,8 @@ final class DLLOverrideTests: XCTestCase {
             let result = resolver.resolve()
             XCTAssertTrue(result.overrides.split(separator: ";").contains("d3d12=b"), "\(source)")
             XCTAssertEqual(result.warnings.map(\.dllName), ["d3d12"])
-            XCTAssertEqual(result.warnings.first?.overriddenSource, source)
+            let backend = source == .dxvk ? "DXVK" : "DXMT"
+            XCTAssertEqual(result.warnings.first?.message, "Override for d3d12 overrides \(backend) setting")
         }
     }
 
