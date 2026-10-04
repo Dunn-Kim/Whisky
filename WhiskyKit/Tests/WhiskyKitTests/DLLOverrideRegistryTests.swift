@@ -231,4 +231,18 @@ final class DLLOverrideRegistryTests: XCTestCase {
         XCTAssertTrue(doc.contains(#"[-HKCU\A]"#), "the prune must still be emitted")
         XCTAssertFalse(doc.contains(#"[HKCU\A]"#), "no empty key should be recreated")
     }
+
+    func testKoreanFontReplacementsSetValuesWithoutPruningTheKey() {
+        let section = BottleFontBootstrap.fontReplacementsRegistrySection
+        XCTAssertTrue(section.hasPrefix(#"[HKCU\Software\Wine\Fonts\Replacements]"#))
+        XCTAssertFalse(section.contains("[-"), "a user's own replacements must survive")
+        // What DirectWrite's system fallback asks for every Hangul range.
+        XCTAssertTrue(section.contains(#""Noto Sans CJK KR"="Apple SD Gothic Neo""#))
+        XCTAssertTrue(section.contains(#""Malgun Gothic"="Apple SD Gothic Neo""#))
+        XCTAssertTrue(section.contains(#""맑은 고딕"="Apple SD Gothic Neo""#))
+        XCTAssertEqual(
+            section.components(separatedBy: "\r\n").filter { $0.hasPrefix("\"") }.count,
+            BottleFontBootstrap.koreanFontReplacements.count
+        )
+    }
 }
