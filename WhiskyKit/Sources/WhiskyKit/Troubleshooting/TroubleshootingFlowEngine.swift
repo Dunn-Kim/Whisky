@@ -80,6 +80,10 @@ public final class TroubleshootingFlowEngine: ObservableObject {
     /// Explanation of why the flow path changed.
     @Published public var pathChangeReason: String?
 
+    /// The most recent check result, exposed so fix views can inherit
+    /// evidence (e.g. which winetricks verb the check found missing).
+    @Published public private(set) var lastCheckResult: CheckResult?
+
     // MARK: - Dependencies
 
     private let flowDefinitions: [String: FlowDefinition]
@@ -171,6 +175,16 @@ public final class TroubleshootingFlowEngine: ObservableObject {
             return
         }
 
+        // A flow's own hand-off to the escalation fragment. Every flow ends
+        // its unresolved branch on an info node that references it, tagged
+        // with the export phase like the resolved node, so without this the
+        // wizard showed "Problem resolved" to someone it had given up on.
+        if node.fragmentRef == "export-escalation" {
+            logger.debug("Node \(node.id) hands off to the escalation fragment")
+            escalate()
+            return
+        }
+
         // Cycle protection
         let isUserInteraction = node.type == .fix || node.type == .verify
         if isUserInteraction {
@@ -214,7 +228,11 @@ public final class TroubleshootingFlowEngine: ObservableObject {
                 bottleURL: session.preflightSnapshot?.bottleURL ?? session.bottleURL ?? URL(filePath: "/"),
                 bottleName: session.preflightSnapshot?.bottleName ?? "Unknown",
                 programURL: session.preflightSnapshot?.programURL ?? session.programURL,
-                programName: session.preflightSnapshot?.programName,
+                // The name is what the game-database check matches on; a
+                // wizard opened from a program page has the URL but not always
+                // the name, so fall back to the executable's filename.
+                programName: session.preflightSnapshot?.programName
+                    ?? (session.preflightSnapshot?.programURL ?? session.programURL)?.lastPathComponent,
                 preflight: session.preflightSnapshot ?? PreflightData(
                     bottleURL: session.bottleURL ?? URL(filePath: "/"),
                     bottleName: "Unknown",
@@ -228,6 +246,7 @@ public final class TroubleshootingFlowEngine: ObservableObject {
             let result = await checkRegistry.run(checkId: checkId, params: params, context: context)
 
             isRunningCheck = false
+            lastCheckResult = result
             session.recordCheckResult(nodeId: node.id, result: result)
 
             // Branch on normalized outcome
@@ -284,6 +303,17 @@ public final class TroubleshootingFlowEngine: ObservableObject {
         }
     }
 
+    /// Marks the most recent pending fix attempt as failed, so a fix that
+    /// could not be performed never reads as applied in the session record.
+    ///
+    /// - Parameter fixId: The fix identifier that failed.
+    public func markFixFailed(fixId: String) {
+        if let index = session.fixAttempts.lastIndex(where: { $0.fixId == fixId && $0.result == .pending }) {
+            session.fixAttempts[index].result = .failed
+            autoSave()
+        }
+    }
+
     // MARK: - Verification
 
     /// Called when the user reports the problem is fixed.
@@ -332,15 +362,36 @@ public final class TroubleshootingFlowEngine: ObservableObject {
     /// Skips the current step, navigating to the "skipped" or "default" target.
     ///
     /// Per the locked "skip for now" decision, users can skip any step.
-    public func skipStep() {
-        guard let node = currentNode else { return }
+    /// Whether the current node has a `continue` transition, which is how an
+    /// info node hands over to the next step.
+    public var canContinue: Bool {
+        currentNode?.on?["continue"] != nil
+    }
 
-        if let nextNodeId = node.on?["skipped"] ?? node.on?["default"] {
-            logger.debug("Skipping step \(node.id) -> \(nextNodeId)")
-            navigateToNode(nextNodeId)
-        } else {
-            logger.warning("No skip target for node \(node.id)")
+    /// Follows the current node's `continue` transition.
+    ///
+    /// Info nodes (a findings card between a check and its fix) only carry
+    /// this transition. Nothing followed it, so every flow that reached one
+    /// stopped there with Skip and Back as the only controls.
+    public func continueStep() {
+        follow(["continue", "default"], reason: "Continue")
+    }
+
+    /// Skips the current step. `continue` is the last fallback: skipping an
+    /// info node means moving on.
+    public func skipStep() {
+        follow(["skipped", "default", "continue"], reason: "Skip")
+    }
+
+    private func follow(_ keys: [String], reason: String) {
+        guard let node = currentNode else { return }
+        guard let nextNodeId = keys.lazy.compactMap({ node.on?[$0] }).first else {
+            logger.warning("No \(reason) target for node \(node.id)")
+            return
         }
+        logger.debug("\(reason): step \(node.id) -> \(nextNodeId)")
+        session.recordBranch(from: node.id, targetNodeId: nextNodeId, reason: reason)
+        navigateToNode(nextNodeId)
     }
 
     /// Goes back to the previous step in the history.

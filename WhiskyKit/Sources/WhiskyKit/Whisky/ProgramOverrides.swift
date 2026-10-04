@@ -56,6 +56,12 @@ public struct ProgramOverrides: Codable, Equatable, Sendable {
 
     /// Whether to force DirectX 11 mode. `nil` inherits from bottle.
     public var forceD3D11: Bool?
+    /// Whether D3DMetal uses the Metal 4 command encoding backend. `nil` inherits from bottle.
+    ///
+    /// D3DMetal only takes that path for D3D12 devices, so this is the one
+    /// graphics setting a single D3D12 title needs to turn off on its own while
+    /// the rest of the bottle keeps it.
+    public var metal4Enabled: Bool?
 
     // MARK: - Performance
 
@@ -114,6 +120,7 @@ public struct ProgramOverrides: Codable, Equatable, Sendable {
             && frameRateLimit == nil
             && enhancedSync == nil
             && forceD3D11 == nil
+            && metal4Enabled == nil
             && performancePreset == nil
             && shaderCacheEnabled == nil
             && controllerCompatibilityMode == nil
@@ -142,6 +149,7 @@ public struct ProgramOverrides: Codable, Equatable, Sendable {
         self.frameRateLimit = rawLimit.flatMap(FrameRateLimit.init(rawValue:))
         self.enhancedSync = try container.decodeIfPresent(EnhancedSync.self, forKey: .enhancedSync)
         self.forceD3D11 = try container.decodeIfPresent(Bool.self, forKey: .forceD3D11)
+        self.metal4Enabled = try container.decodeIfPresent(Bool.self, forKey: .metal4Enabled)
         self.performancePreset = container.decodeLenientIfPresent(PerformancePreset.self, forKey: .performancePreset)
         self.shaderCacheEnabled = try container.decodeIfPresent(Bool.self, forKey: .shaderCacheEnabled)
         self.controllerCompatibilityMode = try container.decodeIfPresent(

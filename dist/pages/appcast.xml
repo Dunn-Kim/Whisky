@@ -6,6 +6,31 @@
         <description>Whisky update feed</description>
         <language>en</language>
         <item>
+            <title>Whisky 3.7.0</title>
+            <pubDate>Sun, 30 Aug 2026 01:37:29 +0000</pubDate>
+            <sparkle:version>55</sparkle:version>
+            <sparkle:shortVersionString>3.7.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description><![CDATA[
+                <p>Whisky 3.7.0 opens onto a library of your games, adds ways to launch them from outside the window, turns on D3DMetal's Metal 4 path and MetalFX upscaling, and fixes a long list of issues found while testing the release end to end.</p>
+                <ul>
+                    <li><strong>A library as the landing screen</strong>: your games and pinned programs across every bottle, with artwork, running state, and last-played times.</li>
+                    <li><strong>Launch from outside the window</strong>: whisky:// URLs, the Dock menu, an optional menu bar extra, and drag-and-drop onto the window.</li>
+                    <li><strong>Metal 4 and MetalFX for D3DMetal</strong>: on by default with per-bottle toggles; the DLSS bridge and NVAPI are deployed so Streamline titles offer DLSS. Frame generation is a separate switch, off by default.</li>
+                    <li><strong>Discord presence</strong>, off by default and per bottle, with in-bottle rich presence bridged to your client.</li>
+                    <li><strong>Visual C++ Runtime installs work again</strong>: unattended and immune to Microsoft's rotated checksums.</li>
+                    <li><strong>Games start and render</strong>: driver-version checks pass under D3DMetal, DirectX 12 games run in DXVK and DXMT bottles, and bottles keep their profile across Wine lineages.</li>
+                    <li><strong>Settings that did nothing now do</strong>: audio driver and latency, the test tone, kill-on-quit, and game configuration backends.</li>
+                </ul>
+                <p>See the <a href="https://github.com/frankea/Whisky/releases/tag/app-v3.7.0">release notes</a> for the full changelog.</p>
+            ]]></description>
+            <enclosure
+                url="https://github.com/frankea/Whisky/releases/download/app-v3.7.0/Whisky-3.7.0.dmg"
+                sparkle:edSignature="ul8kHIerjiEueE4lgGWuvZPHIOtqx0BebRmBwm7SFnXQPgjz7WS98xM+cTHh7iz9ndwGMukH1iquEHBTqRmIBA=="
+                length="10753689"
+                type="application/octet-stream" />
+        </item>
+        <item>
             <title>Whisky 3.6.1</title>
             <pubDate>Thu, 13 Aug 2026 17:30:00 +0000</pubDate>
             <sparkle:version>54</sparkle:version>

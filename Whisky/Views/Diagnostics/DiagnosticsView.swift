@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 //
 //  DiagnosticsView.swift
 //  Whisky
@@ -29,12 +30,31 @@ struct DiagnosticsView: View {
 
     var onAction: ((RemediationAction) -> Void)?
     var onAnalyze: (() -> Void)?
+    /// When set, the remediation cards execute through
+    /// ``RemediationExecutor`` and report inline. A caller-provided
+    /// `onAction` still wins. Without either, the cards have no Apply.
+    var applyBottle: Bottle?
 
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var applyFeedback: String?
     @State private var activeCategoryFilter: CrashCategory?
     @State private var searchText: String = ""
     @State private var logFilterMode: LogFilterMode = .all
     @State private var isLogExpanded: Bool = false
     @State private var isOtherSuggestionsExpanded: Bool = false
+
+    private var effectiveOnAction: ((RemediationAction) -> Void)? {
+        if let onAction {
+            return onAction
+        }
+        guard let applyBottle else { return nil }
+        return { action in
+            RemediationExecutor.apply(action, to: applyBottle) { message in
+                withAnimation { applyFeedback = message }
+            }
+        }
+    }
 
     private var resolvedRemediations: [RemediationAction] {
         guard let diagnosis else { return [] }
@@ -59,12 +79,25 @@ struct DiagnosticsView: View {
     }
 
     var body: some View {
-        GeometryReader { geometry in
-            if geometry.size.width >= 700 {
-                splitLayout
-            } else {
-                verticalLayout
+        VStack(spacing: 0) {
+            GeometryReader { geometry in
+                if geometry.size.width >= 700 {
+                    splitLayout
+                } else {
+                    verticalLayout
+                }
             }
+
+            Divider()
+
+            // Every presentation of this view is a sheet, and a sheet with no
+            // control of its own can only be left through the cancel chord.
+            HStack {
+                Spacer()
+                Button("Done") { dismiss() }
+                    .keyboardShortcut(.cancelAction)
+            }
+            .padding(12)
         }
     }
 
@@ -272,11 +305,17 @@ extension DiagnosticsView {
 extension DiagnosticsView {
     private var remediationCardsSection: some View {
         VStack(alignment: .leading, spacing: 10) {
+            if let applyFeedback {
+                Label(applyFeedback, systemImage: "checkmark.circle")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .transition(.opacity)
+            }
             ForEach(primaryRemediations) { action in
                 RemediationCardView(
                     action: action,
                     confidenceTier: diagnosis.map { confidenceTier(for: action, diagnosis: $0) } ?? .low,
-                    onAction: onAction
+                    onAction: effectiveOnAction
                 )
             }
 
@@ -289,7 +328,7 @@ extension DiagnosticsView {
                             RemediationCardView(
                                 action: action,
                                 confidenceTier: .low,
-                                onAction: onAction
+                                onAction: effectiveOnAction
                             )
                         }
                     }
@@ -396,3 +435,5 @@ extension DiagnosticsView {
         }
     }
 }
+
+// swiftlint:enable file_length

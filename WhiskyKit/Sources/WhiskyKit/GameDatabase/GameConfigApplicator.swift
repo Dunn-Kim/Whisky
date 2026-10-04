@@ -249,15 +249,6 @@ public enum GameConfigApplicator {
             ))
         }
 
-        if let sequoiaCompat = settings.sequoiaCompatMode, sequoiaCompat != bottle.settings.sequoiaCompatMode {
-            changes.append(ConfigChange(
-                category: "Graphics",
-                settingName: "Sequoia Compatibility Mode",
-                currentValue: bottle.settings.sequoiaCompatMode ? "Enabled" : "Disabled",
-                newValue: sequoiaCompat ? "Enabled" : "Disabled"
-            ))
-        }
-
         if let frameRateLimit = settings.frameRateLimit, frameRateLimit != bottle.settings.frameRateLimit {
             changes.append(ConfigChange(
                 category: "Graphics",
@@ -382,6 +373,10 @@ public enum GameConfigApplicator {
     /// Applies variant settings to the bottle's settings.
     @MainActor
     private static func applyVariantSettings(_ settings: GameConfigVariantSettings, to bottle: Bottle) {
+        // `dxvk` is the legacy backend switch: its setter maps `false` back to
+        // Recommended, so applying it after an explicit backend undid the
+        // backend. An explicit backend wins; `dxvk` only speaks when there is
+        // none.
         if let graphicsBackend = settings.graphicsBackend {
             bottle.settings.graphicsBackend = graphicsBackend
         }
@@ -417,10 +412,6 @@ public enum GameConfigApplicator {
 
         if let avxEnabled = settings.avxEnabled {
             bottle.settings.avxEnabled = avxEnabled
-        }
-
-        if let sequoiaCompatMode = settings.sequoiaCompatMode {
-            bottle.settings.sequoiaCompatMode = sequoiaCompatMode
         }
 
         if let frameRateLimit = settings.frameRateLimit {

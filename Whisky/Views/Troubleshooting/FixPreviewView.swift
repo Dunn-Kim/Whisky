@@ -56,9 +56,9 @@ struct FixPreviewView: View {
                 .strokeBorder(Color.secondary.opacity(0.2), lineWidth: 1)
         )
         .onAppear(perform: loadPreview)
-        .alert("Confirm Fix", isPresented: $showConfirmation) {
-            Button("Cancel", role: .cancel) {}
-            Button("Apply") { applyFix() }
+        .alert("troubleshooting.fix.confirmTitle", isPresented: $showConfirmation) {
+            Button("button.cancel", role: .cancel) {}
+            Button("troubleshooting.fix.apply") { applyFix() }
         } message: {
             Text(confirmationMessage)
         }
@@ -140,7 +140,7 @@ extension FixPreviewView {
                 .clipShape(RoundedRectangle(cornerRadius: 4))
             }
 
-            Text("Scope: \(preview.scope)")
+            Text(String(format: String(localized: "troubleshooting.fix.scope %@"), preview.scope))
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
         }
@@ -156,14 +156,14 @@ extension FixPreviewView {
                 Image(systemName: "arrow.uturn.backward.circle")
                     .foregroundStyle(.green)
                     .font(.caption)
-                Text("This change can be undone")
+                Text("troubleshooting.fix.reversible")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             } else {
                 Image(systemName: "exclamationmark.triangle")
                     .foregroundStyle(.orange)
                     .font(.caption)
-                Text("This action cannot be undone")
+                Text("troubleshooting.fix.irreversible")
                     .font(.caption)
                     .fontWeight(.medium)
                     .foregroundStyle(.orange)
@@ -177,7 +177,7 @@ extension FixPreviewView {
 extension FixPreviewView {
     private var actionButtons: some View {
         HStack {
-            Button("Skip for now") {
+            Button("troubleshooting.fix.skip") {
                 engine.skipStep()
             }
             .buttonStyle(.bordered)
@@ -195,7 +195,7 @@ extension FixPreviewView {
                     ProgressView()
                         .controlSize(.small)
                 } else {
-                    Text("Apply Fix")
+                    Text("troubleshooting.fix.apply")
                 }
             }
             .buttonStyle(.borderedProminent)
@@ -205,10 +205,12 @@ extension FixPreviewView {
 
     private var confirmationMessage: String {
         if let preview = fixPreview {
-            "This will change \(preview.settingName) from "
-                + "\"\(preview.currentValue)\" to \"\(preview.newValue)\"."
+            String(
+                format: String(localized: "troubleshooting.fix.confirmChange %@ %@ %@"),
+                preview.settingName, preview.currentValue, preview.newValue
+            )
         } else {
-            "Are you sure you want to apply this fix?"
+            String(localized: "troubleshooting.fix.confirm")
         }
     }
 }
@@ -216,11 +218,39 @@ extension FixPreviewView {
 // MARK: - Actions
 
 extension FixPreviewView {
+    /// The node's params, with the winetricks verb inherited from the check
+    /// that found it missing when the flow does not hardcode one.
+    private var resolvedParams: [String: String] {
+        var params = node.params ?? [:]
+        if node.fixId == "install-winetricks-verb", params["verb"] == nil,
+           let missing = missingVerbsEvidence,
+           let first = missing.split(separator: ",").first {
+            params["verb"] = first.trimmingCharacters(in: .whitespaces)
+        }
+        return params
+    }
+
+    /// The `missing` evidence of the most recent check on the path here.
+    ///
+    /// Read from the session rather than `lastCheckResult`: that one is not
+    /// persisted, so a resumed session offered to install "unknown".
+    private var missingVerbsEvidence: String? {
+        if let missing = engine.lastCheckResult?.evidence["missing"] {
+            return missing
+        }
+        for step in engine.session.stepHistory.reversed() {
+            if let missing = engine.session.checkResults[step.nodeId]?.evidence["missing"] {
+                return missing
+            }
+        }
+        return nil
+    }
+
     private func loadPreview() {
         guard let fixId = node.fixId else { return }
         fixPreview = FixApplicator.preview(
             fixId: fixId,
-            params: node.params ?? [:],
+            params: resolvedParams,
             bottle: bottle,
             program: program
         )
@@ -228,11 +258,21 @@ extension FixPreviewView {
 
     private func applyFix() {
         guard let fixId = node.fixId else { return }
-        isApplying = true
+        let params = resolvedParams
 
+        if fixId == "install-winetricks-verb" {
+            guard let verb = params["verb"] else {
+                engine.skipStep()
+                return
+            }
+            installVerb(verb, fixId: fixId)
+            return
+        }
+
+        isApplying = true
         let attempt = FixApplicator.apply(
             fixId: fixId,
-            params: node.params ?? [:],
+            params: params,
             bottle: bottle,
             program: program
         )
@@ -241,8 +281,36 @@ extension FixPreviewView {
             beforeValue: attempt.beforeValue,
             afterValue: attempt.afterValue
         )
-        engine.confirmFixApplied(fixId: fixId)
+        if attempt.result == .failed {
+            engine.markFixFailed(fixId: fixId)
+        } else {
+            engine.confirmFixApplied(fixId: fixId)
+        }
 
         isApplying = false
+    }
+
+    /// Runs the winetricks install for real and only confirms the attempt
+    /// once the verb actually landed.
+    private func installVerb(_ verb: String, fixId: String) {
+        isApplying = true
+        engine.applyFix(fixId: fixId, beforeValue: nil, afterValue: verb)
+        Task {
+            var exitCode: Int32?
+            var failure: String?
+            for await progress in Winetricks.installVerb(verb, for: bottle) {
+                switch progress {
+                case let .completed(code): exitCode = code
+                case let .failed(message): failure = message
+                case .preparing, .output: break
+                }
+            }
+            if failure == nil, exitCode == 0 {
+                engine.confirmFixApplied(fixId: fixId)
+            } else {
+                engine.markFixFailed(fixId: fixId)
+            }
+            isApplying = false
+        }
     }
 }

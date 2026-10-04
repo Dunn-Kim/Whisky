@@ -95,16 +95,20 @@ extension TroubleshootingWizardView {
 extension TroubleshootingWizardView {
     private var toolbar: some View {
         HStack {
-            Button("Close") { dismiss() }
+            Button("troubleshooting.wizard.close") { dismiss() }
                 .keyboardShortcut(.cancelAction)
             Spacer()
             stepIndicator
             Spacer()
             HStack(spacing: 8) {
-                Button("Back") { engine.goBack() }
+                Button("troubleshooting.back") { engine.goBack() }
                     .disabled(engine.session.stepHistory.count <= 1)
-                Button("Skip") { engine.skipStep() }
+                Button("troubleshooting.wizard.skip") { engine.skipStep() }
                     .disabled(engine.currentNode == nil)
+                if engine.canContinue {
+                    Button("troubleshooting.wizard.continue") { engine.continueStep() }
+                        .keyboardShortcut(.defaultAction)
+                }
             }
         }
         .padding(.horizontal, 16)
@@ -115,7 +119,7 @@ extension TroubleshootingWizardView {
         Group {
             let totalSteps = engine.session.stepHistory.count
             if totalSteps > 0 {
-                Text("Step \(totalSteps)")
+                Text(String(format: String(localized: "troubleshooting.wizard.step %d"), totalSteps))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -181,7 +185,7 @@ extension TroubleshootingWizardView {
         VStack(spacing: 16) {
             ProgressView()
                 .controlSize(.large)
-            Text("Running checks\u{2026}")
+            Text("troubleshooting.wizard.runningChecks")
                 .font(.title3)
                 .foregroundStyle(.secondary)
         }
@@ -193,13 +197,13 @@ extension TroubleshootingWizardView {
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 48))
                 .foregroundStyle(.green)
-            Text("Problem Resolved")
+            Text("troubleshooting.resolved.title")
                 .font(.title2)
                 .fontWeight(.semibold)
 
             if !engine.session.fixAttempts.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Changes applied:")
+                    Text("troubleshooting.resolved.changesApplied")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                     ForEach(engine.session.fixAttempts, id: \.fixId) { attempt in

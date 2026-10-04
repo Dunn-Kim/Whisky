@@ -58,9 +58,12 @@ extension Winetricks {
         timeout: TimeInterval = 600
     ) -> AsyncStream<WinetricksInstallProgress> {
         AsyncStream { continuation in
-            Task {
+            let task = Task {
                 await executeVerbInstall(verb, for: bottle, timeout: timeout, continuation: continuation)
             }
+            // A consumer that stops iterating (the install sheet's Cancel)
+            // cancels the install rather than leaving it running headless.
+            continuation.onTermination = { _ in task.cancel() }
         }
     }
 
@@ -79,20 +82,32 @@ extension Winetricks {
         for bottle: Bottle
     ) -> AsyncStream<(verb: String, progress: WinetricksInstallProgress)> {
         AsyncStream { continuation in
-            Task {
-                for verb in verbs {
+            let task = Task {
+                for verb in verbs where !Task.isCancelled {
                     for await progress in installVerb(verb, for: bottle) {
                         continuation.yield((verb: verb, progress: progress))
                     }
                 }
                 continuation.finish()
             }
+            continuation.onTermination = { _ in task.cancel() }
         }
     }
 
     // MARK: - Private Helpers
 
     /// Configures and returns a Process for running a winetricks verb.
+    ///
+    /// The vcrun verbs are passed `--force`: Microsoft rotates the vc_redist
+    /// binaries in place, so the checksums pinned in the bundled winetricks go
+    /// stale between releases and the unattended install aborts with exit 1 on
+    /// the SHA256 mismatch (winetricks#2195).
+    ///
+    /// They also get `-q` (W_OPT_UNATTENDED, adds `/q` to the redist install):
+    /// without it the vc_redist installer shows its wizard and waits for a
+    /// click nothing in the panel prompts for, so the process never exits and
+    /// the winetricks.log entry is never written. Scoped to the vcrun verbs
+    /// until other verbs are checked for unattended behavior.
     private static func configureInstallProcess(
         verb: String,
         bottleURL: URL,
@@ -101,7 +116,13 @@ extension Winetricks {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
         let winetricksPath = resourcesURL.appending(path: "winetricks").path(percentEncoded: false)
-        process.arguments = ["bash", winetricksPath, verb]
+        var arguments = ["bash", winetricksPath]
+        if verb.hasPrefix("vcrun") {
+            arguments.append("--force")
+            arguments.append("-q")
+        }
+        arguments.append(verb)
+        process.arguments = arguments
         process.environment = [
             "WINEPREFIX": bottleURL.path(percentEncoded: false),
             "WINE": "wine64",
@@ -174,7 +195,14 @@ extension Winetricks {
             return
         }
 
-        await awaitProcessCompletion(process, verb: verb, timeout: timeout)
+        await withTaskCancellationHandler {
+            await awaitProcessCompletion(process, verb: verb, timeout: timeout)
+        } onCancel: {
+            if process.isRunning {
+                logger.info("winetricks install '\(verb)' cancelled, terminating")
+                process.terminate()
+            }
+        }
         stdoutPipe.fileHandleForReading.readabilityHandler = nil
         stderrPipe.fileHandleForReading.readabilityHandler = nil
 

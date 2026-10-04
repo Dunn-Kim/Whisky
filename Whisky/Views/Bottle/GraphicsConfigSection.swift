@@ -82,26 +82,47 @@ struct GraphicsConfigSection: View {
                 }
             }
 
+            // MetalFX rides on D3DMetal's DLSS bridge and Metal 4 is D3DMetal's
+            // own command-encoding backend, so both are meaningless under any
+            // other backend rather than merely inactive.
+            if resolvedBackend == .d3dMetal {
+                Toggle(isOn: $bottle.settings.metalFX) {
+                    VStack(alignment: .leading) {
+                        Text("config.metalFX")
+                        Text("config.metalFX.info")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                Toggle(isOn: $bottle.settings.metal4Enabled) {
+                    VStack(alignment: .leading) {
+                        Text("config.metal4")
+                        Text("config.metal4.info")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                // Frame generation reaches MetalFX through the same DLSS bridge
+                // as upscaling, so it has nothing to switch on without it.
+                Toggle(isOn: $bottle.settings.frameGeneration) {
+                    VStack(alignment: .leading) {
+                        Text("config.frameGeneration")
+                        Text("config.frameGeneration.info")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .disabled(!bottle.settings.metalFX)
+            }
+
             // Force DX11 toggle -- always visible (Simple + Advanced)
             Toggle(isOn: $bottle.settings.forceD3D11) {
                 Text("config.forceD3D11")
             }
 
-            // Sequoia Compatibility Mode -- always visible
-            Toggle(isOn: $bottle.settings.sequoiaCompatMode) {
-                VStack(alignment: .leading) {
-                    Text("config.sequoiaCompat")
-                    if resolvedBackend == .wined3d {
-                        Text("config.sequoiaCompat.d3dmetalOnly")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    } else {
-                        Text("config.sequoiaCompat.info")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
+            // The Sequoia compatibility toggle is gone: everything it set is a
+            // platform-layer fix applied on every supported macOS, so the
+            // switch changed nothing in either position.
 
             // "Advanced settings active" badge in Simple mode
             if !advancedMode, hasAdvancedSettingsConfigured {

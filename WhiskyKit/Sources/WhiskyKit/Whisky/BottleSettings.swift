@@ -128,6 +128,7 @@ public struct BottleInfo: Codable, Equatable {
 /// - ``metalValidation``
 /// - ``dxrEnabled``
 /// - ``sequoiaCompatMode``
+/// - ``metal4Enabled``
 ///
 /// ### DXVK Settings
 /// - ``dxvk``
@@ -166,6 +167,8 @@ public struct BottleSettings: Codable, Equatable {
     private var displayConfig: BottleDisplayConfig
     /// Audio driver, latency, and device settings.
     private var audioConfig: BottleAudioConfig
+    /// Discord presence and rich presence bridging.
+    private var discordConfig: BottleDiscordConfig
     /// User-defined DLL overrides at the bottle level.
     private var customDLLOverrides: [DLLOverrideEntry] = []
 
@@ -182,6 +185,7 @@ public struct BottleSettings: Codable, Equatable {
         self.graphicsConfig = BottleGraphicsConfig()
         self.displayConfig = BottleDisplayConfig()
         self.audioConfig = BottleAudioConfig()
+        self.discordConfig = BottleDiscordConfig()
         self.customDLLOverrides = []
     }
 
@@ -229,6 +233,10 @@ public struct BottleSettings: Codable, Equatable {
             BottleAudioConfig.self,
             forKey: .audioConfig
         ) ?? BottleAudioConfig()
+        self.discordConfig = try container.decodeIfPresent(
+            BottleDiscordConfig.self,
+            forKey: .discordConfig
+        ) ?? BottleDiscordConfig()
         self.customDLLOverrides = try container.decodeIfPresent(
             [DLLOverrideEntry].self,
             forKey: .customDLLOverrides
@@ -332,6 +340,16 @@ public struct BottleSettings: Codable, Equatable {
         set { metalConfig.sequoiaCompatMode = newValue }
     }
 
+    /// Whether D3DMetal uses the Metal 4 command encoding backend.
+    ///
+    /// `D3DMDevice::MTL4OptionEnabled` checks the OS version *before* it reads
+    /// `D3DM_MTL4`, and only takes the Metal 4 path for D3D12 devices, so the
+    /// variable is inert rather than harmful on older systems and D3D11 titles.
+    public var metal4Enabled: Bool {
+        get { metalConfig.metal4Enabled }
+        set { metalConfig.metal4Enabled = newValue }
+    }
+
     /// The graphics backend for this bottle.
     ///
     /// Controls which translation layer is used for Direct3D rendering.
@@ -348,6 +366,47 @@ public struct BottleSettings: Codable, Equatable {
     public var frameRateLimit: FrameRateLimit {
         get { graphicsConfig.frameRateLimit }
         set { graphicsConfig.frameRateLimit = newValue }
+    }
+
+    /// Whether this bottle opts in to D3DMetal's DLSS-to-MetalFX path.
+    ///
+    /// Takes effect only under D3DMetal, and only for a game that has DLSS
+    /// switched on in its own settings: the bridge implements the DLSS entry
+    /// points, so a game that never asks for DLSS never reaches MetalFX.
+    public var metalFX: Bool {
+        get { graphicsConfig.metalFX }
+        set { graphicsConfig.metalFX = newValue }
+    }
+
+    /// Whether Whisky publishes the program this bottle launched to Discord.
+    ///
+    /// Announces every program, including the ones with no Discord support of
+    /// their own, but announces them as Whisky. Independent of
+    /// ``discordBridge``, which carries a game's own presence instead.
+    public var discordPresence: Bool {
+        get { discordConfig.presence }
+        set { discordConfig.presence = newValue }
+    }
+
+    /// Whether games in this bottle may reach the host's Discord client.
+    ///
+    /// Serves the named pipe a Windows game expects and relays it to Discord,
+    /// so a game that publishes rich presence arrives with its own artwork and
+    /// state. A game that publishes nothing is unaffected.
+    public var discordBridge: Bool {
+        get { discordConfig.bridge }
+        set { discordConfig.bridge = newValue }
+    }
+
+    /// Whether games in this bottle may turn on DLSS frame generation.
+    ///
+    /// Separate from ``metalFX`` because the two features fail differently.
+    /// Upscaling is measured good; frame generation took the whole login
+    /// session down on the machine it was tested on. See
+    /// ``BottleGraphicsConfig/frameGeneration``.
+    public var frameGeneration: Bool {
+        get { graphicsConfig.frameGeneration }
+        set { graphicsConfig.frameGeneration = newValue }
     }
 
     /// Whether DXVK is the active graphics backend.
@@ -821,8 +880,28 @@ public struct BottleSettings: Codable, Equatable {
         // Backend-conditional env vars and DLL overrides
         switch resolvedBackend {
         case .d3dMetal, .recommended:
-            // D3DMetal is Wine's default on macOS -- no special env vars needed
-            break
+            // Wine answers KMTQAITYPE_WDDM_2_7_CAPS, the query behind "hardware
+            // accelerated GPU scheduling", only when this says d3dmetal, and
+            // returns STATUS_NOT_IMPLEMENTED otherwise. NVIDIA Streamline
+            // refuses DLSS frame generation on that answer, so this variable is
+            // the whole frame generation switch. The only other reader wants
+            // the value "wined3d" alongside CX_LIBVULKAN, so this is inert for
+            // it.
+            if frameGeneration {
+                builder.set("CX_ACTIVE_GRAPHICS_BACKEND", "d3dmetal", layer: .bottleManaged)
+            }
+            // The DLL placement that actually gates the DLSS-to-MetalFX path
+            // happens in `Wine.applyMetalFX` at launch; this is the opt-in.
+            if metalFX {
+                builder.set("D3DM_ENABLE_METALFX", "1", layer: .bottleManaged)
+            }
+
+            // `D3DMDevice::MTL4OptionEnabled` checks the OS version before it
+            // reads this and only takes the Metal 4 path for D3D12 devices, so
+            // the variable is inert rather than harmful everywhere else.
+            if metal4Enabled {
+                builder.set("D3DM_MTL4", "1", layer: .bottleManaged)
+            }
 
         case .dxvk:
             // DXVK: DLL overrides + env vars
@@ -921,29 +1000,19 @@ public struct BottleSettings: Codable, Equatable {
             builder.set("MTL_DEBUG_LAYER", "1", layer: .bottleManaged)
         }
 
-        // macOS Sequoia compatibility mode (whisky-app/whisky#1310, #1372)
-        // Applies additional fixes for graphics and launcher issues on macOS 15.x
-        // Since macOS 15 is now the minimum deployment target, we only check the setting
-        if sequoiaCompatMode {
-            // Disable problematic Metal shader validation on Sequoia
-            // This helps fix graphics corruption issues (whisky-app/whisky#1310)
-            builder.set("MTL_DEBUG_LAYER", "0", layer: .bottleManaged)
-
-            // Stability improvements for D3DMetal on macOS 15.x
-            builder.set("D3DM_VALIDATION", "0", layer: .bottleManaged)
-
-            // Help with Steam and launcher compatibility (whisky-app/whisky#1307, #1372)
-            // Disable Wine's fsync which has issues on Sequoia
-            builder.set("WINEFSYNC", "0", layer: .bottleManaged)
-        }
+        // The old sequoiaCompatMode block is gone: all three values it set
+        // (MTL_DEBUG_LAYER, D3DM_VALIDATION, WINEFSYNC) are platform-layer
+        // fixes on every supported macOS, so the toggle's off position changed
+        // nothing and its on position only hid the provenance.
 
         // Performance preset handling (whisky-app/whisky#1361 - FPS regression fix)
         populatePerformancePreset(builder: &builder)
 
-        // Shader cache control
+        // Shader cache control. DXVK_STATE_CACHE is the variable DXVK actually
+        // reads; the previous pair (a compile-thread throttle and an NVIDIA GL
+        // driver variable) changed nothing on this platform.
         if !shaderCacheEnabled {
-            builder.set("DXVK_SHADER_COMPILE_THREADS", "1", layer: .bottleManaged)
-            builder.set("__GL_SHADER_DISK_CACHE", "0", layer: .bottleManaged)
+            builder.set("DXVK_STATE_CACHE", "0", layer: .bottleManaged)
         }
 
         // Force D3D11 mode - helps with compatibility (whisky-app/whisky#1361)
@@ -1008,7 +1077,7 @@ public struct BottleSettings: Codable, Equatable {
 
         // Apply GPU spoofing if enabled
         if gpuSpoofing {
-            let gpuEnv = GPUDetection.spoofWithVendor(gpuVendor)
+            let gpuEnv = spoofEnvironment()
             let launcherEnv = detectedLauncher?.environmentOverrides() ?? [:]
             // Don't override values already set by launcher preset (original behavior:
             // merge with "current.isEmpty ? new : current")
@@ -1029,15 +1098,27 @@ public struct BottleSettings: Codable, Equatable {
             builder.set("WINHTTP_RECEIVE_TIMEOUT", String(networkTimeout * 2), layer: .launcherManaged)
         }
 
-        // Connection pooling fixes for download stalls (whisky-app/whisky#1148, #1072, #1176)
-        builder.set("WINE_MAX_CONNECTIONS_PER_SERVER", "10", layer: .launcherManaged)
-        builder.set("WINE_FORCE_HTTP11", "1", layer: .launcherManaged) // HTTP/2 issues in Wine
-
-        // SSL/TLS compatibility for launchers
-        builder.set("WINE_ENABLE_SSL", "1", layer: .launcherManaged)
-        builder.set("WINE_SSL_VERSION_MIN", "TLS1.2", layer: .launcherManaged)
+        // The connection-pooling and SSL variables that used to be set here
+        // (WINE_MAX_CONNECTIONS_PER_SERVER and friends) exist in no Wine or
+        // WineCX source; nothing ever read them.
 
         return launcherDLLOverrides
+    }
+
+    /// The GPU spoof environment with feature-level keys resolved against the
+    /// bottle's own settings.
+    ///
+    /// Feature level is one resolved decision: force-D3D11 already pinned 12_0
+    /// off in the bottle layer, and the spoof's layer wins, so leaving these
+    /// keys in would silently undo the setting that sits beside the spoof in
+    /// the same screen.
+    private func spoofEnvironment() -> [String: String] {
+        var gpuEnv = GPUDetection.spoofWithVendor(gpuVendor)
+        if forceD3D11 {
+            gpuEnv.removeValue(forKey: "D3DM_FEATURE_LEVEL_12_0")
+            gpuEnv.removeValue(forKey: "D3DM_FEATURE_LEVEL_12_1")
+        }
+        return gpuEnv
     }
 
     /// Populates the ``EnvironmentLayer/bottleManaged`` layer with controller/input compatibility fixes.
@@ -1099,8 +1180,6 @@ public struct BottleSettings: Codable, Equatable {
 
         case .performance:
             // Performance mode - prioritize FPS over visual quality (whisky-app/whisky#1361 fix)
-            // Reduce D3DMetal shader quality for better performance
-            builder.set("D3DM_FAST_SHADER_COMPILE", "1", layer: .bottleManaged)
             // Disable extra validation that can slow down rendering
             builder.set("D3DM_VALIDATION", "0", layer: .bottleManaged)
             builder.set("MTL_DEBUG_LAYER", "0", layer: .bottleManaged)
@@ -1117,8 +1196,6 @@ public struct BottleSettings: Codable, Equatable {
             // Quality mode - prioritize visuals over performance
             // Enable shader optimizations
             builder.set("DXVK_SHADER_OPT_LEVEL", "2", layer: .bottleManaged)
-            // Disable fast shader compile for better quality
-            builder.set("D3DM_FAST_SHADER_COMPILE", "0", layer: .bottleManaged)
 
         case .unity:
             // Unity games optimization (whisky-app/whisky#1313, #1312 - il2cpp fix)

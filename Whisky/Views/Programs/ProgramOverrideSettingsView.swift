@@ -33,12 +33,11 @@ struct ProgramOverrideSettingsView: View {
     @Binding var isExpanded: Bool
 
     @State private var showResetConfirmation = false
-    @State private var showDiagnosticsSheet = false
-    @State private var activeDiagnosis: CrashDiagnosis?
-    @State private var activeLogText: String = ""
+    @State private var diagnosisPresentation: DiagnosisPresentation?
     @State private var gameMatch: MatchResult?
     @State private var showGameConfigDetail: Bool = false
     @State private var recommendedDependencies: [DependencyDefinition] = []
+    @State private var dependencyToInstall: DependencyDefinition?
 
     var body: some View {
         dependencyBadgeSection
@@ -65,17 +64,23 @@ struct ProgramOverrideSettingsView: View {
                         .frame(minWidth: 600, minHeight: 500)
                 }
             }
-            .sheet(isPresented: $showDiagnosticsSheet) {
-                if let diagnosis = activeDiagnosis {
-                    DiagnosticsView(
-                        diagnosis: diagnosis,
-                        logText: activeLogText,
-                        programName: program.name,
-                        bottleName: bottle.settings.name,
-                        timestamp: Date()
-                    )
-                    .frame(minWidth: 600, minHeight: 400)
-                }
+            // Item-based so the sheet is built from the value that presents it.
+            // With isPresented plus a separate optional, the content closure can
+            // evaluate before the diagnosis lands and presents an empty sheet.
+            .sheet(item: $diagnosisPresentation) { presentation in
+                DiagnosticsView(
+                    diagnosis: presentation.diagnosis,
+                    logText: presentation.logText,
+                    programName: program.name,
+                    bottleName: bottle.settings.name,
+                    timestamp: Date(),
+                    applyBottle: bottle
+                )
+                .frame(minWidth: 600, minHeight: 400)
+            }
+            .sheet(item: $dependencyToInstall) { definition in
+                DependencyInstallSheet(definition: definition, bottle: bottle)
+                    .frame(minWidth: 500, minHeight: 400)
             }
     }
 
@@ -116,9 +121,10 @@ struct ProgramOverrideSettingsView: View {
                 exitCode: 1
             )
             else { return }
-            activeLogText = (try? String(contentsOf: logURL, encoding: .utf8)) ?? ""
-            activeDiagnosis = diagnosis
-            showDiagnosticsSheet = true
+            diagnosisPresentation = DiagnosisPresentation(
+                diagnosis: diagnosis,
+                logText: (try? String(contentsOf: logURL, encoding: .utf8)) ?? ""
+            )
         }
     }
 
@@ -130,9 +136,10 @@ struct ProgramOverrideSettingsView: View {
                 exitCode: 1
             )
             else { return }
-            activeLogText = (try? String(contentsOf: logURL, encoding: .utf8)) ?? ""
-            activeDiagnosis = diagnosis
-            showDiagnosticsSheet = true
+            diagnosisPresentation = DiagnosisPresentation(
+                diagnosis: diagnosis,
+                logText: (try? String(contentsOf: logURL, encoding: .utf8)) ?? ""
+            )
         }
     }
 
@@ -164,10 +171,7 @@ struct ProgramOverrideSettingsView: View {
                             .font(.callout)
                         Spacer()
                         Button(String(localized: "dependency.install")) {
-                            NotificationCenter.default.post(
-                                name: .openDependenciesSection,
-                                object: nil
-                            )
+                            dependencyToInstall = definition
                         }
                         .buttonStyle(.borderedProminent)
                         .tint(.orange)
@@ -288,6 +292,13 @@ struct ProgramOverrideSettingsView: View {
                 // not hide the controls that are in effect.
                 if resolvedOverriddenBackend == .dxvk {
                     graphicsControls
+                }
+
+                // D3DMetal only takes the Metal 4 path for D3D12 devices, so
+                // this is the one graphics setting a single title needs to be
+                // able to turn off while the bottle keeps it.
+                if resolvedOverriddenBackend == .d3dMetal {
+                    Toggle("config.metal4", isOn: metal4Binding)
                 }
 
                 // "Takes effect next launch" note
@@ -637,11 +648,13 @@ struct ProgramOverrideSettingsView: View {
                     // a backend override is set, and one is set right here.
                     program.settings.overrides?.dxvkAsync = bottle.settings.dxvkAsync
                     program.settings.overrides?.dxvkHud = bottle.settings.dxvkHud
+                    program.settings.overrides?.metal4Enabled = bottle.settings.metal4Enabled
                 } else {
                     program.settings.overrides?.graphicsBackend = nil
                     program.settings.overrides?.dxvk = nil
                     program.settings.overrides?.dxvkAsync = nil
                     program.settings.overrides?.dxvkHud = nil
+                    program.settings.overrides?.metal4Enabled = nil
                 }
             }
         )
@@ -749,6 +762,13 @@ struct ProgramOverrideSettingsView: View {
         Binding(
             get: { program.settings.overrides?.dxvkAsync ?? bottle.settings.dxvkAsync },
             set: { program.settings.overrides?.dxvkAsync = $0 }
+        )
+    }
+
+    private var metal4Binding: Binding<Bool> {
+        Binding(
+            get: { program.settings.overrides?.metal4Enabled ?? bottle.settings.metal4Enabled },
+            set: { program.settings.overrides?.metal4Enabled = $0 }
         )
     }
 
@@ -913,9 +933,10 @@ struct ProgramOverrideSettingsView: View {
 
 // swiftlint:enable type_body_length
 
-extension Notification.Name {
-    /// Posted to navigate to the Dependencies section in ConfigView.
-    static let openDependenciesSection = Notification.Name(
-        "com.franke.Whisky.openDependenciesSection"
-    )
+/// What a diagnostics sheet is showing; `Identifiable` so it can drive
+/// `.sheet(item:)` and the sheet is never presented without a diagnosis.
+struct DiagnosisPresentation: Identifiable {
+    let id = UUID()
+    let diagnosis: CrashDiagnosis
+    let logText: String
 }

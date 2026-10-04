@@ -59,8 +59,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    /// The "Terminate Wine processes when Whisky closes" setting.
+    ///
+    /// Read as an optional: the Settings toggle is an `@AppStorage` that
+    /// defaults to on without ever writing the key, and `bool(forKey:)`
+    /// reports an absent key as off, which silently disabled kill-on-quit
+    /// for anyone who never touched the toggle.
+    static var killOnTerminate: Bool {
+        UserDefaults.standard.object(forKey: "killOnTerminate") as? Bool ?? true
+    }
+
     func applicationWillTerminate(_ notification: Notification) {
-        let globalKill = UserDefaults.standard.bool(forKey: "killOnTerminate")
+        let globalKill = Self.killOnTerminate
 
         // Per-bottle kill-on-quit with policy overrides
         for bottle in BottleVM.shared.bottles {
@@ -75,7 +85,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
 
             if shouldKill {
-                Wine.killBottle(bottle: bottle)
+                // Synchronous: the app exits when this delegate returns.
+                Wine.killBottleAndWait(bottle: bottle)
                 ProcessRegistry.shared.clearRegistry(for: bottle.url)
                 logger.info(
                     "Killing bottle '\(bottle.settings.name)' on quit (policy: \(String(describing: bottlePolicy)))"
@@ -95,6 +106,50 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // the window closes so it stays reachable from the menu bar (and Wine
         // processes keep running). Otherwise quit on last window close, as usual.
         !UserDefaults.standard.bool(forKey: "showMenuBarExtra")
+    }
+
+    // MARK: - Dock Menu
+
+    /// The pin behind a Dock menu item.
+    private final class DockPin: NSObject {
+        let bottleURL: URL
+        let pinURL: URL
+
+        init(bottleURL: URL, pinURL: URL) {
+            self.bottleURL = bottleURL
+            self.pinURL = pinURL
+        }
+    }
+
+    /// Right-clicking Whisky in the Dock lists the pinned games, launchable
+    /// without the main window.
+    func applicationDockMenu(_ sender: NSApplication) -> NSMenu? {
+        let entries = QuickLaunch.availablePins()
+        guard !entries.isEmpty else { return nil }
+
+        let menu = NSMenu()
+        let bottleCount = Set(entries.map(\.bottle.url)).count
+        for entry in entries.prefix(10) {
+            guard let pinURL = entry.pin.url else { continue }
+            let title = bottleCount > 1
+                ? "\(entry.pin.name) (\(entry.bottle.settings.name))"
+                : entry.pin.name
+            let item = NSMenuItem(
+                title: title, action: #selector(launchDockPin(_:)), keyEquivalent: ""
+            )
+            item.target = self
+            item.representedObject = DockPin(bottleURL: entry.bottle.url, pinURL: pinURL)
+            menu.addItem(item)
+        }
+        return menu
+    }
+
+    @MainActor @objc private func launchDockPin(_ sender: NSMenuItem) {
+        guard let ref = sender.representedObject as? DockPin,
+              let bottle = BottleVM.shared.bottles.first(where: { $0.url == ref.bottleURL }),
+              let pin = bottle.settings.pins.first(where: { $0.url == ref.pinURL })
+        else { return }
+        QuickLaunch.launch(pin: pin, in: bottle)
     }
 
     private static var appUrl: URL? {
@@ -120,7 +175,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
             let bottleName = bottle.settings.name
             let policy = bottle.settings.killOnQuit
-            let globalKill = UserDefaults.standard.bool(forKey: "killOnTerminate")
+            let globalKill = Self.killOnTerminate
             let shouldAutoClean: Bool = switch policy {
             case .inherit: globalKill
             case .alwaysKill: true
