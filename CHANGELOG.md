@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [fork-2026.10.04] - 2026-10-04 (Fork)
+
+First release of the Dunn-Kim fork: everything below sits on upstream
+app-v3.7.0 plus the upstream fixes listed under Changed.
+
 ### Security
 - Open in Terminal, the Winetricks screen and `WhiskyCmd shellenv` quote every
   value with backslashes and quotes outside the quoted text, so a bottle name,
