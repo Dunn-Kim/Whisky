@@ -269,20 +269,6 @@ final class WineBinaryPathTests: XCTestCase {
     }
 }
 
-// MARK: - WineInterfaceError Tests
-
-final class WineInterfaceErrorTests: XCTestCase {
-    func testInvalidResponseError() {
-        let error = WineInterfaceError.invalidResponse
-        XCTAssertNotNil(error)
-    }
-
-    func testWineInterfaceErrorIsError() {
-        let error: Error = WineInterfaceError.invalidResponse
-        XCTAssertNotNil(error)
-    }
-}
-
 // MARK: - Additional RegistryType Tests
 
 final class RegistryTypeDetailedTests: XCTestCase {

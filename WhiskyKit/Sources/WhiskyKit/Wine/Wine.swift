@@ -110,33 +110,6 @@ public class Wine {
         )
     }
 
-    /// Run a `wine` process with the given arguments and environment variables returning a stream of output
-    private static func runWineProcess(
-        name: String? = nil, args: [String], environment: [String: String] = [:],
-        fileHandle: FileHandle?
-    ) throws -> AsyncStream<ProcessOutput> {
-        try runProcess(
-            name: name, args: args, environment: environment, executableURL: wineBinary,
-            fileHandle: fileHandle
-        )
-    }
-
-    /// Run a `wineserver` process with the given arguments and environment variables returning a stream of output
-    ///
-    /// Runs user-interactive, matching game launches: the game continues as a
-    /// child of wineserver after the `wine start` shim exits, and QoS is
-    /// inherited down the process tree — a wineserver left at a lower class
-    /// would hand that class to every game it parents.
-    private static func runWineserverProcess(
-        name: String? = nil, args: [String], environment: [String: String] = [:],
-        fileHandle: FileHandle?
-    ) throws -> AsyncStream<ProcessOutput> {
-        try runProcess(
-            name: name, args: args, environment: environment, executableURL: wineserverBinary,
-            fileHandle: fileHandle, qualityOfService: .userInteractive
-        )
-    }
-
     /// Runs a Wine process with the given arguments and returns a stream of output.
     ///
     /// This method executes the Wine binary with the specified arguments within the context
@@ -556,23 +529,18 @@ public class Wine {
         return cmd
     }
 
-    /// Run a `wineserver` command with the given arguments and return the output result
-    @MainActor
-    private static func runWineserver(_ args: [String], bottle: Bottle) async throws -> String {
-        var result: [ProcessOutput] = []
-
-        for await output in try Self.runWineserverProcess(args: args, bottle: bottle, environment: [:]) {
-            result.append(output)
-        }
-
-        return result.compactMap { output -> String? in
+    /// Drain a process output stream, returning its stdout and stderr joined
+    private static func collectOutput(_ stream: AsyncStream<ProcessOutput>) async -> String {
+        var result = ""
+        for await output in stream {
             switch output {
             case .started, .terminated:
-                return nil
+                break
             case let .message(message), let .error(message):
-                return message
+                result += message
             }
-        }.joined()
+        }
+        return result
     }
 
     /// Runs a Wine command and returns the collected output as a string.
@@ -595,57 +563,13 @@ public class Wine {
         _ args: [String], bottle: Bottle?, environment: [String: String] = [:]
     ) async throws -> String {
         if let bottle {
-            try await runWineWithBottle(args, bottle: bottle, environment: environment)
-        } else {
-            try await runWineWithoutBottle(args, environment: environment)
+            return try await collectOutput(runWineProcess(args: args, bottle: bottle, environment: environment))
         }
-    }
-
-    /// Run a `wine` command with the given arguments and a bottle context
-    @discardableResult
-    @MainActor
-    private static func runWineWithBottle(
-        _ args: [String], bottle: Bottle, environment: [String: String] = [:]
-    ) async throws -> String {
-        var result: [String] = []
         let fileHandle = try makeFileHandle()
         fileHandle.writeApplicationInfo()
-        fileHandle.writeInfo(for: bottle)
-        WineUserProfile.reconcile(bottleURL: bottle.url)
-        let wineEnvironment = constructWineEnvironment(for: bottle, environment: environment)
-
-        for await output in try runWineProcess(args: args, environment: wineEnvironment, fileHandle: fileHandle) {
-            switch output {
-            case .started, .terminated:
-                break
-            case let .message(message), let .error(message):
-                result.append(message)
-            }
-        }
-
-        return result.joined()
-    }
-
-    /// Run a `wine` command without a bottle context (e.g., for --version queries)
-    @discardableResult
-    @MainActor
-    private static func runWineWithoutBottle(
-        _ args: [String], environment: [String: String] = [:]
-    ) async throws -> String {
-        var result: [String] = []
-        let fileHandle = try makeFileHandle()
-        fileHandle.writeApplicationInfo()
-
-        for await output in try runWineProcess(args: args, environment: environment, fileHandle: fileHandle) {
-            switch output {
-            case .started, .terminated:
-                break
-            case let .message(message), let .error(message):
-                result.append(message)
-            }
-        }
-
-        return result.joined()
+        return try await collectOutput(
+            runProcess(args: args, environment: environment, executableURL: wineBinary, fileHandle: fileHandle)
+        )
     }
 
     /// Returns the version string of the installed Wine binary.
@@ -667,7 +591,7 @@ public class Wine {
     /// - Throws: An error if Wine cannot be executed.
     @MainActor
     public static func wineVersion() async throws -> String {
-        var output = try await runWineWithoutBottle(["--version"])
+        var output = try await runWine(["--version"], bottle: nil)
         output.replace("wine-", with: "")
 
         // Deal with WineCX version names
@@ -708,7 +632,7 @@ public class Wine {
     public static func killBottle(bottle: Bottle) {
         Task {
             do {
-                _ = try await runWineserver(["-k"], bottle: bottle)
+                _ = try await collectOutput(runWineserverProcess(args: ["-k"], bottle: bottle))
             } catch {
                 Logger.wineKit.error("Failed to kill bottle '\(bottle.settings.name)': \(error.localizedDescription)")
             }
@@ -1076,41 +1000,11 @@ extension Wine {
         return try await runWine(["wineboot", "--init"], bottle: bottle)
     }
 
-    /// Checks if an environment variable key is a valid POSIX shell identifier.
-    ///
-    /// Valid names must start with an ASCII letter or underscore, followed by
-    /// any combination of ASCII letters, digits, or underscores.
-    /// This prevents shell injection through malicious environment variable keys.
-    ///
-    /// - Note: Uses explicit ASCII checks rather than Swift's Unicode-aware
-    ///   `isLetter`/`isNumber` methods, since POSIX shells only accept ASCII
-    ///   identifiers (`[A-Za-z_][A-Za-z0-9_]*`).
-    ///
-    /// - Parameter key: The environment variable name to validate.
-    /// - Returns: `true` if the key is safe to use in shell commands.
+    /// Checks if an environment variable key is a valid POSIX shell identifier
+    /// (`[A-Za-z_][A-Za-z0-9_]*`, ASCII only), preventing shell injection through keys.
     static func isValidEnvKey(_ key: String) -> Bool {
-        guard let first = key.first else { return false }
-        guard isAsciiLetter(first) || first == "_" else { return false }
-        return key.allSatisfy { isAsciiLetter($0) || isAsciiDigit($0) || $0 == "_" }
+        key.wholeMatch(of: /[A-Za-z_][A-Za-z0-9_]*/) != nil
     }
-
-    /// Checks if a character is an ASCII letter (A-Z, a-z).
-    static func isAsciiLetter(_ char: Character) -> Bool {
-        guard let ascii = char.asciiValue else { return false }
-        return (ascii >= 65 && ascii <= 90) || (ascii >= 97 && ascii <= 122) // A-Z or a-z
-    }
-
-    /// Checks if a character is an ASCII digit (0-9).
-    static func isAsciiDigit(_ char: Character) -> Bool {
-        guard let ascii = char.asciiValue else { return false }
-        return ascii >= 48 && ascii <= 57 // 0-9
-    }
-}
-
-/// Errors that can occur during Wine interface operations.
-enum WineInterfaceError: Error {
-    /// The response from Wine was invalid or could not be parsed.
-    case invalidResponse
 }
 
 // MARK: - Logging Support
