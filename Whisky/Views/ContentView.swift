@@ -216,6 +216,8 @@ struct ContentView: View {
             if !WhiskyWineInstaller.isWhiskyWineInstalled() || !Rosetta2.isRosettaInstalled {
                 showSetup = true
             }
+            // The Settings toggle. Unset counts as on, its default there.
+            guard UserDefaults.standard.object(forKey: "checkWhiskyWineUpdates") as? Bool ?? true else { return }
             let task = Task.detached {
                 await WhiskyWineInstaller.shouldUpdateWhiskyWine()
             }
