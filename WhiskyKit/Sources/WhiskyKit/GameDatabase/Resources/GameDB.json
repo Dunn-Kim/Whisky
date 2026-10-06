@@ -6115,7 +6115,8 @@
           "rationale": [
             "Unity IL2CPP client ported from a mobile build: it ships no frame limiter of its own and renders as fast as the GPU allows, even sitting in the lobby",
             "DXMT is chosen explicitly because it is one of only two backends that can be frame capped at all. Recommended resolves to D3DMetal on a Mac with GPTK installed, and D3DMetal ships no limiter",
-            "matchDisplay discards nothing the display could have shown, and is the largest reduction in GPU power draw available for this title",
+            "Capped at a fixed 60 rather than matchDisplay, so the GPU load does not scale with the panel: a 120 Hz display would otherwise let the client draw, and draw power for, twice the frames of a 60 Hz one",
+            "DXVK is the other backend with a limiter, but it reaches Metal through MoltenVK and the bundled build is 1.10.3; DXMT translates this client's D3D11 straight to Metal",
             "The locale is deliberately not overridden: the client and its launcher render CJK text"
           ],
           "settings": {
@@ -6124,7 +6125,7 @@
             "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false,
-            "frameRateLimit": "matchDisplay"
+            "frameRateLimit": 60
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -6134,13 +6135,14 @@
       "notes": [
         "No testedWith block on purpose. These settings are what the client was observed running with plus the frame cap, and the cap has not been measured on this title yet. The rating stays unverified until it has been.",
         "The launcher, ZFGameBrowser.exe, is Chromium-based and never paints on D3DMetal. It is detected as a launcher now, so on the Recommended backend it resolves to DXVK on its own. Launcher auto-detection with Auto-enable DXVK on switches the whole bottle to DXVK; to keep the game on DXMT alongside the launcher, pin DXVK on ZFGameBrowser.exe with a per-program override instead.",
-        "This is a mobile-origin client. Its own graphics menu tops out well below what the Mac can draw, so lowering in-game settings does little for heat. The frame cap is what moves it."
+        "This is a mobile-origin client. Its own graphics menu tops out well below what the Mac can draw, so lowering in-game settings does little for heat. The frame cap is what moves it.",
+        "A fixed 1366x768 window is set per program, not here: the database cannot carry launch arguments. Give Mecharashi.exe the arguments -screen-fullscreen 0 -screen-width 1366 -screen-height 768; the client area is then 1366x768 with the title bar outside it."
       ],
       "knownIssues": [
         {
           "description": "The machine runs hot. With no frame cap the GPU sits at its maximum clock even in the lobby, where the client has almost nothing to draw.",
           "severity": "major",
-          "workaround": "Set the frame rate limit to match the display. Requires the DXMT or DXVK backend; D3DMetal has no limiter."
+          "workaround": "Cap the frame rate at 60. Requires the DXMT or DXVK backend; D3DMetal has no limiter."
         },
         {
           "description": "The launcher window opens and stays blank on D3DMetal.",
