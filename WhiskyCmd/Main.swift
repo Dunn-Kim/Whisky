@@ -415,7 +415,6 @@ extension Whisky {
             }
 
             let url = URL(fileURLWithPath: exePath)
-            let program = Program(url: url, bottle: bottle)
 
             // Determine shortcut name: --name option or program name sans extension
             let shortcutName = name ?? url.deletingPathExtension().lastPathComponent
@@ -448,7 +447,7 @@ extension Whisky {
             }
 
             // Generate launch script and create the bundle
-            let target = ShortcutCreator.liveTarget(for: program.url, bottle: program.bottle)
+            let target = ShortcutCreator.liveTarget(for: url, bottle: bottle)
             let launchScript = ShortcutCreator.liveLaunchScript(for: target)
             try ShortcutCreator.createShortcutBundle(at: appURL, launchScript: launchScript)
 

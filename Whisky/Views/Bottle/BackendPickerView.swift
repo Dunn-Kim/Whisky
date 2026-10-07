@@ -22,10 +22,6 @@ import WhiskyKit
 struct BackendPickerView: View {
     @Binding var selection: GraphicsBackend
     let resolvedBackend: GraphicsBackend
-    /// Whether a backend can be offered on this machine. Defaults to all-true;
-    /// production callers gate payload-dependent backends (DXMT) on the
-    /// installed runtime.
-    var isBackendAvailable: (GraphicsBackend) -> Bool = { _ in true }
 
     private let columns = [GridItem(.flexible()), GridItem(.flexible())]
 
@@ -36,7 +32,7 @@ struct BackendPickerView: View {
                     BackendCard(
                         backend: backend,
                         isSelected: selection == backend,
-                        isAvailable: isBackendAvailable(backend),
+                        isAvailable: WhiskyWineInstaller.isBackendAvailable(backend),
                         resolvedBackend: backend == .recommended ? resolvedBackend : nil
                     ) {
                         selection = backend

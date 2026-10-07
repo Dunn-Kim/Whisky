@@ -103,7 +103,7 @@ struct ConfigView: View {
                     .foregroundStyle(.secondary)
 
                 if hasActiveSession {
-                    TroubleshootingEntryBanner(bannerType: .resumeSession) {
+                    TroubleshootingEntryBanner {
                         showTroubleshootingWizard = true
                     }
                 }

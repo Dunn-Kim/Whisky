@@ -146,7 +146,7 @@ struct ContentView: View {
             BottleCreationView(newlyCreatedBottleURL: $newlyCreatedBottleURL)
         }
         .sheet(isPresented: $showSetup) {
-            SetupView(showSetup: $showSetup, firstTime: false)
+            SetupView(showSetup: $showSetup)
         }
         .sheet(item: $openedFileURL) { url in
             FileOpenView(

@@ -41,7 +41,7 @@ struct GameEntryRowView: View {
         Text(entry.rating.displayName)
             .font(.caption2)
             .fontWeight(.medium)
-            .foregroundStyle(ratingForegroundColor)
+            .foregroundStyle(.white)
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
             .background(ratingBackgroundColor)
@@ -61,10 +61,6 @@ struct GameEntryRowView: View {
         case .notSupported:
             Color(.darkGray)
         }
-    }
-
-    private var ratingForegroundColor: Color {
-        .white
     }
 
     // MARK: - Title Area

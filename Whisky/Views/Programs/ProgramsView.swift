@@ -26,7 +26,6 @@ struct ProgramsView: View {
     @State private var selectedBlockitems = Set<URL>()
     @Binding var path: NavigationPath
     @State private var sortedPrograms: [Program] = []
-    @State private var resortPrograms = false
     @State private var searchText = ""
     @State private var toast: ToastData?
 
@@ -52,7 +51,7 @@ struct ProgramsView: View {
             Section("program.title", isExpanded: $areProgramsExpanded) {
                 List(searchResults, id: \.self, selection: $selectedPrograms) { program in
                     ProgramItemView(
-                        bottle: bottle, program: program, path: $path, toast: $toast
+                        program: program, path: $path, toast: $toast
                     )
                     .contextMenu {
                         let selectedPrograms = selectedSearchedPrograms
@@ -140,9 +139,6 @@ struct ProgramsView: View {
         .onAppear {
             loadData()
         }
-        .onChange(of: resortPrograms) {
-            loadPrograms()
-        }
         .onChange(of: bottle.programs) {
             loadData()
         }
@@ -170,7 +166,6 @@ struct ProgramsView: View {
 }
 
 struct ProgramItemView: View {
-    @ObservedObject var bottle: Bottle
     @ObservedObject var program: Program
     @Binding var path: NavigationPath
     @Binding var toast: ToastData?

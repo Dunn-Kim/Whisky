@@ -121,7 +121,7 @@ extension ContentView {
         } else if bottleVM.countActive() > 0 {
             LibraryView(selectedBottle: $selected, refresh: $triggerRefresh)
         } else {
-            if bottleVM.bottles.isEmpty || bottleVM.countActive() == 0, bottlesLoaded {
+            if bottlesLoaded {
                 VStack {
                     Text("main.createFirst")
                     Button {

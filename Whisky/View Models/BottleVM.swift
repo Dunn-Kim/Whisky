@@ -24,7 +24,6 @@ import WhiskyKit
 // MARK: - Bottle Creation Errors
 
 enum BottleCreationError: LocalizedError, Equatable {
-    case directoryCreationFailed
     case persistenceSaveFailed
     /// The Wine runtime (WhiskyWine) is not installed, so the prefix can't be
     /// initialized. Surfaced with a "Run Setup" action in the failure alert.
@@ -36,8 +35,6 @@ enum BottleCreationError: LocalizedError, Equatable {
 
     var errorDescription: String? {
         switch self {
-        case .directoryCreationFailed:
-            String(localized: "bottle.creation.error.directoryCreationFailed")
         case .persistenceSaveFailed:
             String(localized: "bottle.creation.error.persistenceSaveFailed")
         case .runtimeMissing:
@@ -67,10 +64,7 @@ func bottleLocationRefusal(_ result: BottleLocationValidation.ValidationResult) 
     }
 }
 
-private let bottleVMLogger = Logger(
-    subsystem: Bundle.main.bundleIdentifier ?? "com.franke.Whisky",
-    category: "BottleVM"
-)
+private let bottleVMLogger = Logger(subsystem: Bundle.whiskyBundleIdentifier, category: "BottleVM")
 
 @MainActor
 final class BottleVM: ObservableObject {
@@ -162,7 +156,7 @@ final class BottleVM: ObservableObject {
                 throw BottleCreationError.locationUnsuitable(message: refusal)
             }
 
-            try createBottleDirectory(at: request.newBottleDir)
+            try FileManager.default.createDirectory(at: request.newBottleDir, withIntermediateDirectories: true)
 
             // Create bottle on main actor (since Bottle is @MainActor)
             let createdBottle = Bottle(bottleUrl: request.newBottleDir, inFlight: true)
@@ -184,7 +178,12 @@ final class BottleVM: ObservableObject {
             // Save settings
             createdBottle.saveBottleSettings()
 
-            try persistBottleCreation(request: request)
+            // registerBottlePath verifies the entries file on disk actually
+            // contains the new path; a silent save failure here used to make the
+            // bottle vanish on the next launch with no explanation (issue #61).
+            guard bottlesList.registerBottlePath(request.newBottleDir) else {
+                throw BottleCreationError.persistenceSaveFailed
+            }
             // Reload while the bottle is still in flight so the reload keeps
             // this instance. Reloading after clearing the flag replaced it,
             // and the selected bottle page kept writing to the old one: its
@@ -196,27 +195,6 @@ final class BottleVM: ObservableObject {
             Telemetry.capture(.firstBottleCreated)
         } catch {
             handleBottleCreationFailure(error, request: request, bottle: bottle)
-        }
-    }
-
-    private func createBottleDirectory(at url: URL) throws {
-        let fileManager = FileManager.default
-        try fileManager.createDirectory(
-            at: url,
-            withIntermediateDirectories: true,
-            attributes: nil
-        )
-        guard fileManager.fileExists(atPath: url.path(percentEncoded: false)) else {
-            throw BottleCreationError.directoryCreationFailed
-        }
-    }
-
-    private func persistBottleCreation(request: BottleCreationRequest) throws {
-        // registerBottlePath verifies the entries file on disk actually
-        // contains the new path; a silent save failure here used to make the
-        // bottle vanish on the next launch with no explanation (issue #61).
-        guard bottlesList.registerBottlePath(request.newBottleDir) else {
-            throw BottleCreationError.persistenceSaveFailed
         }
     }
 

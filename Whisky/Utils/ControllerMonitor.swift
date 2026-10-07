@@ -19,9 +19,10 @@
 import Foundation
 import GameController
 import os.log
+import WhiskyKit
 
 /// The type of game controller based on its product category.
-enum ControllerType: String {
+enum ControllerType {
     case playStation
     case xbox
     case generic
@@ -102,7 +103,7 @@ struct ControllerInfo: Identifiable {
 }
 
 /// A lightweight record of a previously-seen controller for diagnostics export.
-struct ControllerHistoryEntry: Codable {
+struct ControllerHistoryEntry {
     /// The name of the controller.
     let name: String
 
@@ -137,10 +138,7 @@ class ControllerMonitor: ObservableObject {
     /// Recent controller history for diagnostics export (bounded to last 10 entries).
     var recentHistory: [ControllerHistoryEntry] = []
 
-    private let logger = Logger(
-        subsystem: "com.franke.Whisky",
-        category: "ControllerMonitor"
-    )
+    private let logger = Logger(subsystem: Bundle.whiskyBundleIdentifier, category: "ControllerMonitor")
 
     /// Stored observer tokens for cleanup.
     /// Uses nonisolated(unsafe) to allow access from deinit (Swift 6 Sendable compliance).
@@ -149,8 +147,6 @@ class ControllerMonitor: ObservableObject {
 
     /// Maximum number of history entries to retain.
     private static let maxHistoryEntries = 10
-
-    init() {}
 
     deinit {
         // Remove observers directly in deinit since we cannot call @MainActor methods.

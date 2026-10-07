@@ -79,7 +79,6 @@ struct StatusToast: View {
 /// View modifier to display toast notifications
 struct ToastModifier: ViewModifier {
     @Binding var toast: ToastData?
-    let autoDismissDelay: TimeInterval
     @State private var dismissTask: Task<Void, Never>?
 
     func body(content: Content) -> some View {
@@ -116,7 +115,7 @@ struct ToastModifier: ViewModifier {
 
         let currentMessage = toast.message
         dismissTask = Task {
-            try? await Task.sleep(for: .seconds(autoDismissDelay))
+            try? await Task.sleep(for: .seconds(3))
             guard !Task.isCancelled else { return }
             await MainActor.run {
                 if self.toast?.message == currentMessage {
@@ -137,12 +136,11 @@ struct ToastData: Equatable {
 }
 
 extension View {
-    /// Adds a toast notification overlay to the view
-    /// - Parameters:
-    ///   - toast: Binding to the toast data. Set to non-nil to show toast.
-    ///   - autoDismissDelay: Time in seconds before auto-dismissing (default 3s)
-    func toast(_ toast: Binding<ToastData?>, autoDismissDelay: TimeInterval = 3.0) -> some View {
-        modifier(ToastModifier(toast: toast, autoDismissDelay: autoDismissDelay))
+    /// Adds a toast notification overlay to the view. Auto-dismissing toasts
+    /// disappear after 3 seconds.
+    /// - Parameter toast: Binding to the toast data. Set to non-nil to show toast.
+    func toast(_ toast: Binding<ToastData?>) -> some View {
+        modifier(ToastModifier(toast: toast))
     }
 }
 

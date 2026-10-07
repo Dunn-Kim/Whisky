@@ -254,22 +254,8 @@ extension LogTextView {
     }
 
     private func gutterMarker(for match: DiagnosisMatch) -> String {
-        switch match.pattern.category {
-        case .coreCrashFatal:
-            "\u{25CF}" // filled circle
-        case .graphics:
-            "\u{25CF}"
-        case .dependenciesLoading:
-            "\u{25CF}"
-        case .prefixFilesystem:
-            "\u{25CF}"
-        case .networkingLaunchers:
-            "\u{25CF}"
-        case .antiCheatUnsupported:
-            "\u{25CF}"
-        case .otherUnknown:
-            "\u{25CB}" // open circle
-        }
+        // Open circle for uncategorized matches, filled circle otherwise.
+        match.pattern.category == .otherUnknown ? "\u{25CB}" : "\u{25CF}"
     }
 
     private func backgroundColor(for match: DiagnosisMatch) -> NSColor {

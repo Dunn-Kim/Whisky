@@ -35,7 +35,6 @@ struct TroubleshootingWizardView: View {
     @State private var showResumeOverlay: Bool = false
     @State private var resumeSession: TroubleshootingSession?
     @State private var stalenessChanges: [StalenessChange] = []
-    @State private var showConfirmationSubSheet: Bool = false
 
     private let sessionStore = TroubleshootingSessionStore()
 

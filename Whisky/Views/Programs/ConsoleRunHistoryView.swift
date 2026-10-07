@@ -26,7 +26,6 @@ import WhiskyKit
 /// or clean up old logs.
 struct ConsoleRunHistoryView: View {
     let program: Program
-    let bottle: Bottle
     @Binding var selectedRunId: UUID?
 
     @State private var history = RunLogHistory()
@@ -289,14 +288,14 @@ struct ConsoleRunHistoryView: View {
     // MARK: - Data Operations
 
     private func loadHistory() {
-        history = RunLogStore.load(for: program.name, in: bottle.url)
+        history = RunLogStore.load(for: program.name, in: program.bottle.url)
     }
 
     private func deleteEntry(_ entry: RunLogEntry) {
         if let removed = history.deleteEntry(id: entry.id) {
             let logURL = Wine.logsFolder.appending(path: removed.logFileName)
             try? FileManager.default.removeItem(at: logURL)
-            RunLogStore.save(history, for: program.name, in: bottle.url)
+            RunLogStore.save(history, for: program.name, in: program.bottle.url)
         }
         if selectedRunId == entry.id {
             selectedRunId = nil
@@ -309,7 +308,7 @@ struct ConsoleRunHistoryView: View {
             let logURL = Wine.logsFolder.appending(path: entry.logFileName)
             try? FileManager.default.removeItem(at: logURL)
         }
-        RunLogStore.save(history, for: program.name, in: bottle.url)
+        RunLogStore.save(history, for: program.name, in: program.bottle.url)
     }
 
     // MARK: - Refresh Timer

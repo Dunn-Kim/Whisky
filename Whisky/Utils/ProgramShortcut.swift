@@ -43,7 +43,7 @@ class ProgramShortcut {
     /// then adds icon extraction (QuickLook) and Finder integration (AppKit)
     /// which are only available in the app target.
     @MainActor
-    static func createShortcut(_ program: Program, app: URL, name: String) async {
+    static func createShortcut(_ program: Program, app: URL) async {
         do {
             // Core bundle creation via shared WhiskyKit logic
             let target = ShortcutCreator.liveTarget(for: program.url, bottle: program.bottle)

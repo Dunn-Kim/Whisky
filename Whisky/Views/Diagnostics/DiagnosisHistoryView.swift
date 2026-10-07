@@ -25,10 +25,9 @@ struct DiagnosisHistoryView: View {
     @ObservedObject var bottle: Bottle
     @ObservedObject var program: Program
 
-    var onViewDetails: ((DiagnosisHistoryEntry) -> Void)?
-    var onReanalyze: ((DiagnosisHistoryEntry) -> Void)?
-    var onAnalyzeLastRun: (() -> Void)?
-    var onRerunWithPreset: ((WineDebugPreset) -> Void)?
+    let onViewDetails: (DiagnosisHistoryEntry) -> Void
+    let onReanalyze: (DiagnosisHistoryEntry) -> Void
+    let onAnalyzeLastRun: () -> Void
 
     @State private var history = DiagnosisHistory()
     @State private var showClearConfirmation = false
@@ -81,15 +80,13 @@ extension DiagnosisHistoryView {
                 .foregroundStyle(.secondary)
                 .font(.callout)
 
-            if let onAnalyzeLastRun {
-                Button("Analyze last run") {
-                    onAnalyzeLastRun()
-                }
-                .buttonStyle(.bordered)
-                // Analysis reads the last run's log; before the first run the
-                // button would otherwise click through to nothing.
-                .disabled(program.settings.lastLogFileURL == nil)
+            Button("Analyze last run") {
+                onAnalyzeLastRun()
             }
+            .buttonStyle(.bordered)
+            // Analysis reads the last run's log; before the first run the
+            // button would otherwise click through to nothing.
+            .disabled(program.settings.lastLogFileURL == nil)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 8)
@@ -139,21 +136,17 @@ extension DiagnosisHistoryView {
             }
 
             HStack(spacing: 8) {
-                if let onViewDetails {
-                    Button("View Details") {
-                        onViewDetails(entry)
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
+                Button("View Details") {
+                    onViewDetails(entry)
                 }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
 
-                if let onReanalyze {
-                    Button("Re-analyze") {
-                        onReanalyze(entry)
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
+                Button("Re-analyze") {
+                    onReanalyze(entry)
                 }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
             }
         }
     }
@@ -212,13 +205,6 @@ extension DiagnosisHistoryView {
                 Label("Generates large logs", systemImage: "exclamationmark.triangle")
                     .font(.caption)
                     .foregroundStyle(.orange)
-            }
-
-            if selectedPreset != .normal, let onRerunWithPreset {
-                Button("Re-run with enhanced logging") {
-                    onRerunWithPreset(selectedPreset)
-                }
-                .buttonStyle(.bordered)
             }
         }
     }

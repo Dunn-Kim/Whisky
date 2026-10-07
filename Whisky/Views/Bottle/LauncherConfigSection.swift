@@ -345,7 +345,7 @@ private struct ActiveEnvironmentOverrides: View {
 
             ForEach(sortedCategories, id: \.self) { category in
                 if let fixes = grouped[category] {
-                    categoryGroup(category: category, fixes: fixes, provenance: nil)
+                    categoryGroup(category: category, fixes: fixes)
                 }
             }
         }
@@ -379,8 +379,7 @@ private struct ActiveEnvironmentOverrides: View {
 
     private func categoryGroup(
         category: FixCategory,
-        fixes: [LauncherFixDetail],
-        provenance: String?
+        fixes: [LauncherFixDetail]
     ) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(categoryDisplayName(category))

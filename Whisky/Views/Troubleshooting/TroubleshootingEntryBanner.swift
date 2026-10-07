@@ -18,50 +18,19 @@
 
 import SwiftUI
 
-/// Compact banner for proactive troubleshooting suggestions or session resume prompts.
+/// Compact banner prompting to resume a paused troubleshooting session.
 ///
 /// Shows as a tappable horizontal bar with an icon and message. Used in ProgramView
-/// and ConfigView to surface active sessions or suggest troubleshooting when
-/// strong failure signals are detected.
+/// and ConfigView to surface active sessions.
 struct TroubleshootingEntryBanner: View {
-    let bannerType: BannerType
     let action: () -> Void
-
-    /// The type of troubleshooting banner to display.
-    enum BannerType {
-        /// Prompt to resume a paused troubleshooting session.
-        case resumeSession
-        /// Proactive suggestion that a troubleshooting guide is available.
-        case proactiveSuggestion
-
-        var icon: String {
-            switch self {
-            case .resumeSession: "play.circle"
-            case .proactiveSuggestion: "lightbulb"
-            }
-        }
-
-        var message: String {
-            switch self {
-            case .resumeSession: String(localized: "troubleshooting.entry.resumeSession")
-            case .proactiveSuggestion: String(localized: "troubleshooting.entry.proactive")
-            }
-        }
-
-        var tintColor: Color {
-            switch self {
-            case .resumeSession: .blue
-            case .proactiveSuggestion: .orange
-            }
-        }
-    }
 
     var body: some View {
         Button(action: action) {
             HStack(spacing: 8) {
-                Image(systemName: bannerType.icon)
-                    .foregroundStyle(bannerType.tintColor)
-                Text(bannerType.message)
+                Image(systemName: "play.circle")
+                    .foregroundStyle(.blue)
+                Text("troubleshooting.entry.resumeSession")
                     .font(.subheadline)
                     .foregroundStyle(.primary)
                 Spacer()

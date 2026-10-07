@@ -27,18 +27,16 @@ extension String {
         unicodeScalars.reduce(0) { $0 + max(0, Int(wcwidth(wchar_t($1.value)))) }
     }
 
-    /// Pad the string to a specific terminal width
-    /// - Parameters:
-    ///   - targetWidth: The desired terminal display width
-    ///   - padCharacter: The character to use for padding (default: space)
+    /// Pad the string with spaces to a specific terminal width
+    /// - Parameter targetWidth: The desired terminal display width
     /// - Returns: A string padded to the target terminal width
-    func terminalPadding(toWidth targetWidth: Int, withPad padCharacter: Character = " ") -> String {
+    func terminalPadding(toWidth targetWidth: Int) -> String {
         let currentWidth = self.terminalWidth
         if currentWidth >= targetWidth {
             return self
         }
         let paddingNeeded = targetWidth - currentWidth
-        return self + String(repeating: padCharacter, count: paddingNeeded)
+        return self + String(repeating: " ", count: paddingNeeded)
     }
 }
 

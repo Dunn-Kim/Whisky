@@ -26,19 +26,19 @@ struct BottleCreationView: View {
     @State private var newBottleVersion: WinVersion = .win10
     @State private var newBottleURL: URL = UserDefaults.standard.url(forKey: "defaultBottleLocation")
         ?? BottleData.defaultBottleDir
-    @State private var nameValid: Bool = false
     @State private var locationIssue: BottleLocationValidation.ValidationResult?
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
 
+    private var nameValid: Bool {
+        !newBottleName.isEmpty
+    }
+
     var body: some View {
         NavigationStack {
             Form {
                 TextField("create.name", text: $newBottleName)
-                    .onChange(of: newBottleName) { _, name in
-                        nameValid = !name.isEmpty
-                    }
                     .accessibilityIdentifier("create.nameField")
 
                 Picker("create.win", selection: $newBottleVersion) {

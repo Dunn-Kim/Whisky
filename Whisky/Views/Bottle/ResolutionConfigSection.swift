@@ -25,7 +25,6 @@ struct ResolutionConfigSection: View {
     @State private var hasRunningProcesses: Bool = false
     @State private var widthText: String = ""
     @State private var heightText: String = ""
-    @State private var isLoadingRegistryState: Bool = true
 
     var body: some View {
         Section("config.title.display") {
@@ -102,8 +101,7 @@ struct ResolutionConfigSection: View {
                 .foregroundStyle(.secondary)
             Spacer()
             if bottle.settings.virtualDesktopEnabled {
-                let res = currentResolutionSummary()
-                Text(res)
+                Text(effectiveResolutionString())
                     .foregroundStyle(.secondary)
             } else {
                 Text("config.virtualDesktop.off")
@@ -189,17 +187,6 @@ struct ResolutionConfigSection: View {
     }
 
     // MARK: - Helpers
-
-    func currentResolutionSummary() -> String {
-        let preset = bottle.settings.resolutionPreset
-        if let dims = preset.dimensions {
-            return "\(dims.width)x\(dims.height)"
-        }
-        if preset == .custom {
-            return "\(bottle.settings.customResolutionWidth)x\(bottle.settings.customResolutionHeight)"
-        }
-        return effectiveResolutionString()
-    }
 
     func presetLabel(_ preset: ResolutionPreset) -> String {
         switch preset {
@@ -298,7 +285,6 @@ extension ResolutionConfigSection {
         } catch {
             // Registry query failed; leave defaults
         }
-        isLoadingRegistryState = false
     }
 
     func matchRegistryToPreset(width: Int, height: Int) {

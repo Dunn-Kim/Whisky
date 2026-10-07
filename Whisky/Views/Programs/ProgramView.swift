@@ -38,7 +38,7 @@ struct ProgramView: View {
     var body: some View {
         Form {
             if hasActiveSession {
-                TroubleshootingEntryBanner(bannerType: .resumeSession) {
+                TroubleshootingEntryBanner {
                     showTroubleshootingWizard = true
                 }
             }
@@ -68,7 +68,6 @@ struct ProgramView: View {
             Section("console.title", isExpanded: $consoleRunsSectionExpanded) {
                 ConsoleRunHistoryView(
                     program: program,
-                    bottle: program.bottle,
                     selectedRunId: $selectedRunId
                 )
                 if let runId = selectedRunId,
@@ -106,9 +105,8 @@ struct ProgramView: View {
                     panel.begin { result in
                         if result == .OK {
                             if let url = panel.url {
-                                let name = url.deletingPathExtension().lastPathComponent
                                 Task(priority: .userInitiated) {
-                                    await ProgramShortcut.createShortcut(program, app: url, name: name)
+                                    await ProgramShortcut.createShortcut(program, app: url)
                                 }
                             }
                         }
@@ -129,20 +127,11 @@ struct ProgramView: View {
         }
         .toast($toast)
         .toolbar {
-            if let image = cachedIconImage {
-                ToolbarItem(id: "ProgramViewIcon", placement: .navigation) {
-                    image
-                        .resizable()
-                        .frame(width: 25, height: 25)
-                        .padding(.trailing, 5)
-                }
-            } else {
-                ToolbarItem(id: "ProgramViewIcon", placement: .navigation) {
-                    Image(systemName: "app.dashed")
-                        .resizable()
-                        .frame(width: 25, height: 25)
-                        .padding(.trailing, 5)
-                }
+            ToolbarItem(id: "ProgramViewIcon", placement: .navigation) {
+                (cachedIconImage ?? Image(systemName: "app.dashed"))
+                    .resizable()
+                    .frame(width: 25, height: 25)
+                    .padding(.trailing, 5)
             }
         }
         .navigationTitle(program.name)

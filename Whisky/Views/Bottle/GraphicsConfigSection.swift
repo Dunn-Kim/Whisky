@@ -45,10 +45,7 @@ struct GraphicsConfigSection: View {
             // Backend picker -- always visible
             BackendPickerView(
                 selection: $bottle.settings.graphicsBackend,
-                resolvedBackend: resolvedBackend,
-                isBackendAvailable: { backend in
-                    WhiskyWineInstaller.isBackendAvailable(backend)
-                }
+                resolvedBackend: resolvedBackend
             )
 
             // A bottle explicitly set to D3DMetal without its payload silently
@@ -150,8 +147,7 @@ struct GraphicsConfigSection: View {
                 // DXVK settings subsection
                 DXVKSettingsView(
                     bottle: bottle,
-                    resolvedBackend: resolvedBackend,
-                    bottleURL: bottle.url
+                    resolvedBackend: resolvedBackend
                 )
 
                 // Metal settings subsection (migrated from MetalConfigSection)

@@ -62,7 +62,6 @@ struct SettingItemView<Content: View>: View {
                 case .success:
                     content()
                         .labelsHidden()
-                        .disabled(loadingState != .success)
                 case .failed:
                     HStack(spacing: 4) {
                         Text("config.notAvailable")

@@ -66,7 +66,7 @@ struct GPTKSettingsSection: View {
         }
         .task {
             await Task.detached(priority: .utility) {
-                GPTKImporter.deployStoredPayloadIfCapable()
+                _ = GPTKImporter.deployStoredPayloadIfCapable()
             }.value
             refresh()
         }

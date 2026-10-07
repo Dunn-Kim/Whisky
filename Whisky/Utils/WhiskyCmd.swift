@@ -18,7 +18,10 @@
 
 import AppKit
 import Foundation
+import os.log
 import WhiskyKit
+
+private let logger = Logger(subsystem: Bundle.whiskyBundleIdentifier, category: "WhiskyCmd")
 
 class WhiskyCmd {
     static func install() async {
@@ -36,7 +39,7 @@ class WhiskyCmd {
                 appleScript.executeAndReturnError(&error)
 
                 if let error {
-                    print(error)
+                    logger.error("Failed to install WhiskyCmd: \(error)")
                     if let description = error["NSAppleScriptErrorMessage"] as? String {
                         await MainActor.run {
                             let alert = NSAlert()

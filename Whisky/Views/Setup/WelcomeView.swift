@@ -27,7 +27,6 @@ struct WelcomeView: View {
         .undecided.rawValue
     @Binding var path: [SetupStage]
     @Binding var showSetup: Bool
-    var firstTime: Bool
 
     /// Opt-in checkbox state; writing records the explicit choice.
     private var telemetryOptIn: Binding<Bool> {
@@ -40,21 +39,12 @@ struct WelcomeView: View {
     var body: some View {
         VStack {
             VStack {
-                if firstTime {
-                    Text("setup.welcome")
-                        .font(.title)
-                        .fontWeight(.bold)
-                    Text("setup.welcome.subtitle")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                } else {
-                    Text("setup.title")
-                        .font(.title)
-                        .fontWeight(.bold)
-                    Text("setup.subtitle")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
+                Text("setup.title")
+                    .font(.title)
+                    .fontWeight(.bold)
+                Text("setup.subtitle")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
             }
             .padding(.horizontal)
             Spacer()

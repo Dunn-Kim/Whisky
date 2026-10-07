@@ -30,12 +30,11 @@ struct SetupView: View {
     @State var tarLocation: URL = .init(fileURLWithPath: "")
     @State private var whiskyWineDiagnostics = WhiskyWineSetupDiagnostics()
     @Binding var showSetup: Bool
-    var firstTime: Bool = true
 
     var body: some View {
         VStack {
             NavigationStack(path: $path) {
-                WelcomeView(path: $path, showSetup: $showSetup, firstTime: firstTime)
+                WelcomeView(path: $path, showSetup: $showSetup)
                     .navigationBarBackButtonHidden(true)
                     .navigationDestination(for: SetupStage.self) { stage in
                         switch stage {
@@ -66,11 +65,9 @@ struct SetupView: View {
             // once telemetry consent is already decided. WelcomeView is the sole
             // screen carrying the consent toggle, so on a genuine first run (consent
             // still undecided) we must show it even when the runtime is missing —
-            // otherwise the opt-in would be unreachable. The only call site
-            // (ContentView) always passes `firstTime: false`, so the consent check,
-            // not `firstTime`, is what keeps the welcome screen reachable. A missing
-            // Rosetta also keeps it: the download stage skips the Rosetta step.
-            if !firstTime, Telemetry.consent != .undecided, Rosetta2.isRosettaInstalled,
+            // otherwise the opt-in would be unreachable. A missing Rosetta also
+            // keeps it: the download stage skips the Rosetta step.
+            if Telemetry.consent != .undecided, Rosetta2.isRosettaInstalled,
                !WhiskyWineInstaller.isWhiskyWineInstalled() {
                 path = [.whiskyWineDownload]
             }
