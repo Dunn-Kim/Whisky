@@ -56,7 +56,7 @@ final class BackendSwitchRestoreTests: XCTestCase {
     }
 
     private func contents(_ url: URL) throws -> String {
-        String(decoding: try Data(contentsOf: url), as: UTF8.self)
+        try String(decoding: Data(contentsOf: url), as: UTF8.self)
     }
 
     func testStaleDLLFromPreviousBackendIsRestoredToBuiltin() throws {

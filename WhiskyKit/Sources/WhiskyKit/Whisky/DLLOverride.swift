@@ -268,14 +268,13 @@ public struct DLLOverrideResolver: Sendable {
             let isProgramOverride = programCustom.contains { $0.dllName == dllName }
 
             if isBottleOverride || isProgramOverride {
-                let sourceDesc: String
-                switch source {
+                let sourceDesc: String = switch source {
                 case .dxvk:
-                    sourceDesc = "DXVK"
+                    "DXVK"
                 case .dxmt:
-                    sourceDesc = "DXMT"
+                    "DXMT"
                 case let .launcher(name):
-                    sourceDesc = name
+                    name
                 }
                 warnings.append(DLLOverrideWarning(
                     dllName: dllName,

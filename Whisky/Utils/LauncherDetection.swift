@@ -45,7 +45,7 @@ enum LauncherDetection {
         // On .recommended the resolver already steers a detected launcher to
         // DXVK, and .dxvk needs no warning — only a pinned backend the
         // launcher cannot use deserves one.
-        let pinnedAwayFromDXVK: Bool = switch bottle.settings.graphicsBackend {
+        let pinnedAwayFromDXVK = switch bottle.settings.graphicsBackend {
         case .d3dMetal, .wined3d, .dxmt: true
         case .recommended, .dxvk: false
         }
