@@ -250,6 +250,13 @@ final class GameDatabaseTests: XCTestCase {
         XCTAssertNil(try decodeSettings(#"{"frameRateLimit": "vsync"}"#).frameRateLimit)
     }
 
+    /// "none" turns sync off. Decoding it as nil would mean "leave the setting
+    /// alone" and keep whatever sync the bottle already had.
+    func testEnhancedSyncNoneDecodesAsSyncOffNotNil() throws {
+        XCTAssertEqual(try decodeSettings(#"{"enhancedSync": "none"}"#).enhancedSync, EnhancedSync.none)
+        XCTAssertEqual(try decodeSettings(#"{"enhancedSync": "msync"}"#).enhancedSync, .msync)
+    }
+
     // MARK: - Test 6: Default Variant Returns First isDefault
 
     func testDefaultVariantReturnsFirstIsDefault() {
