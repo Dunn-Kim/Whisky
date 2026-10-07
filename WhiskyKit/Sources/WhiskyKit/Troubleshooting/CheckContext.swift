@@ -26,6 +26,9 @@ public struct CheckContext: Sendable {
     /// URL of the bottle being troubleshot.
     public let bottleURL: URL
 
+    /// URL of the program being troubleshot, if any.
+    public let programURL: URL?
+
     /// Display name of the program, if any.
     public let programName: String?
 
@@ -34,10 +37,12 @@ public struct CheckContext: Sendable {
 
     public init(
         bottleURL: URL,
+        programURL: URL? = nil,
         programName: String? = nil,
         preflight: PreflightData
     ) {
         self.bottleURL = bottleURL
+        self.programURL = programURL
         self.programName = programName
         self.preflight = preflight
     }

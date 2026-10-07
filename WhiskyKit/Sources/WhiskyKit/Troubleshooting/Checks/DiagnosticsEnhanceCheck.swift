@@ -20,57 +20,37 @@ import Foundation
 
 /// Checks whether enhanced diagnostics (WINEDEBUG preset) can provide additional info.
 ///
-/// Reads the current WINEDEBUG environment setting from the bottle. Returns
-/// `.pass` if enhanced diagnostics would add value (default/normal preset),
-/// `.alreadyConfigured` if a debug preset is already active, or `.fail`
-/// if not applicable.
+/// Reads the WINEDEBUG preset persisted in the troubleshot program's settings,
+/// which is where the launch path takes it from. Returns `.alreadyConfigured`
+/// if a debug preset is already active, `.pass` if enhanced diagnostics would
+/// add value (no program, or the default/normal preset), or `.error` if the
+/// bottle settings cannot be read.
 public struct DiagnosticsEnhanceCheck: TroubleshootingCheck {
     public let checkId = "diagnostics.can_enhance"
 
     public init() {}
 
     public func run(params: [String: String], context: CheckContext) async -> CheckResult {
-        let bottleURL = context.bottleURL
-        let metadataURL = bottleURL.appending(path: "Metadata.plist")
-
-        let settings: BottleSettings
+        let metadataURL = context.bottleURL.appending(path: "Metadata.plist")
         do {
-            settings = try BottleSettings.decode(from: metadataURL)
+            _ = try BottleSettings.decode(from: metadataURL)
         } catch {
             return .error("Failed to read bottle settings", evidence: ["error": error.localizedDescription])
         }
 
-        // Build the environment to check for WINEDEBUG
-        var builder = EnvironmentBuilder()
-        _ = settings.populateBottleManagedLayer(builder: &builder)
-        let (environment, _) = builder.resolve()
-
-        let currentDebug = environment["WINEDEBUG"]
-
-        // Check if a non-default WINEDEBUG preset is active
-        let nonDefaultPresets = [
-            WineDebugPreset.crash.winedebugValue,
-            WineDebugPreset.dllLoad.winedebugValue,
-            WineDebugPreset.verbose.winedebugValue
-        ]
-
-        if let currentDebug, nonDefaultPresets.contains(currentDebug) {
-            // Determine which preset is active
-            let presetName: String = if currentDebug == WineDebugPreset.crash.winedebugValue {
-                WineDebugPreset.crash.displayName
-            } else if currentDebug == WineDebugPreset.dllLoad.winedebugValue {
-                WineDebugPreset.dllLoad.displayName
-            } else {
-                WineDebugPreset.verbose.displayName
-            }
-
+        // Check if a non-default WINEDEBUG preset is active, as the launch path
+        // applies it: any preset but normal.
+        let preset = context.programURL.flatMap {
+            Program.persistedSettings(for: $0, bottleURL: context.bottleURL)?.activeWineDebugPreset
+        }
+        if let preset, preset != .normal {
             return CheckResult(
                 outcome: .alreadyConfigured,
                 evidence: [
-                    "currentPreset": presetName,
-                    "winedebug": currentDebug
+                    "currentPreset": preset.displayName,
+                    "winedebug": preset.winedebugValue
                 ],
-                summary: "Enhanced diagnostics already active: \(presetName)",
+                summary: "Enhanced diagnostics already active: \(preset.displayName)",
                 confidence: .high
             )
         }

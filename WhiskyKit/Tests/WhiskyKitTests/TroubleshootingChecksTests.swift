@@ -37,6 +37,7 @@ struct StubCheck: TroubleshootingCheck {
 /// the machine running the tests.
 func makeCheckContext(
     launcherType: String? = nil,
+    programURL: URL? = nil,
     programName: String? = nil
 ) -> CheckContext {
     let bottleURL = URL(filePath: "/tmp/test-bottle-\(UUID().uuidString)")
@@ -51,6 +52,7 @@ func makeCheckContext(
     )
     return CheckContext(
         bottleURL: bottleURL,
+        programURL: programURL,
         programName: programName,
         preflight: preflight
     )
@@ -188,5 +190,55 @@ final class TroubleshootingChecksTests: XCTestCase {
 
         XCTAssertEqual(result.outcome, .fail)
         XCTAssertEqual(result.evidence["programName"], "definitely-not-a-real-game-zzz.exe")
+    }
+
+    // MARK: - DiagnosticsEnhanceCheck
+
+    /// Runs the check against a fresh bottle holding a program whose persisted
+    /// settings carry `preset`, or no settings at all when it is `nil`.
+    private func runDiagnosticsEnhanceCheck(
+        programPreset preset: WineDebugPreset?, hasProgram: Bool = true
+    ) async throws -> CheckResult {
+        let bottleURL = FileManager.default.temporaryDirectory.appending(path: "check-bottle-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: bottleURL, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: bottleURL) }
+        let programURL = bottleURL.appending(path: "drive_c/Game/Game.exe")
+        if let preset {
+            var settings = ProgramSettings()
+            settings.activeWineDebugPreset = preset
+            let settingsURL = Program.settingsLocations(
+                for: programURL, bottleURL: bottleURL, legacyName: programURL.lastPathComponent
+            ).identity
+            try FileManager.default.createDirectory(
+                at: settingsURL.deletingLastPathComponent(), withIntermediateDirectories: true
+            )
+            try settings.encode(to: settingsURL)
+        }
+        let context = CheckContext(
+            bottleURL: bottleURL,
+            programURL: hasProgram ? programURL : nil,
+            preflight: makeCheckContext().preflight
+        )
+        return await DiagnosticsEnhanceCheck().run(params: [:], context: context)
+    }
+
+    func testDiagnosticsEnhanceCheckWithoutProgramIsPass() async throws {
+        let result = try await runDiagnosticsEnhanceCheck(programPreset: .crash, hasProgram: false)
+
+        XCTAssertEqual(result.outcome, .pass)
+    }
+
+    func testDiagnosticsEnhanceCheckActivePresetIsAlreadyConfigured() async throws {
+        let result = try await runDiagnosticsEnhanceCheck(programPreset: .crash)
+
+        XCTAssertEqual(result.outcome, .alreadyConfigured)
+        XCTAssertEqual(result.evidence["currentPreset"], WineDebugPreset.crash.displayName)
+        XCTAssertEqual(result.evidence["winedebug"], WineDebugPreset.crash.winedebugValue)
+    }
+
+    func testDiagnosticsEnhanceCheckProgramWithoutPresetIsPass() async throws {
+        let result = try await runDiagnosticsEnhanceCheck(programPreset: nil)
+
+        XCTAssertEqual(result.outcome, .pass)
     }
 }
