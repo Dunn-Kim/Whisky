@@ -107,10 +107,7 @@ public extension Wine {
         } else {
             // .auto: remove the key to let Wine auto-detect the driver
             do {
-                try await runWine(
-                    ["reg", "delete", AudioRegistryKey.drivers.rawValue, "/v", "Audio", "/f"],
-                    bottle: bottle
-                )
+                try await deleteRegistryValue(bottle: bottle, key: AudioRegistryKey.drivers.rawValue, name: "Audio")
             } catch {
                 // Key might not exist; this is expected
                 logger.info("Audio driver key not present, nothing to remove")

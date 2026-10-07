@@ -350,7 +350,7 @@ struct ProgramOverrideSettingsView: View {
                     Text("config.enhancedSync.msync").tag(EnhancedSync.msync)
                 }
             } else {
-                inheritedSummary(syncDescription(bottle.settings.enhancedSync))
+                inheritedSummary(bottle.settings.enhancedSync.displayName)
             }
         }
     }
@@ -574,15 +574,12 @@ struct ProgramOverrideSettingsView: View {
 
     /// The backend this program actually launches with.
     private var resolvedOverriddenBackend: GraphicsBackend {
-        let backend = program.settings.overrides?.graphicsBackend ?? .recommended
-        return backend == .recommended ? GraphicsBackendResolver.resolve() : backend
+        (program.settings.overrides?.graphicsBackend ?? .recommended).resolved
     }
 
     /// The bottle's backend, resolved, for the inherited summary.
     private var resolvedBottleBackend: GraphicsBackend {
-        bottle.settings.graphicsBackend == .recommended
-            ? GraphicsBackendResolver.resolve()
-            : bottle.settings.graphicsBackend
+        bottle.settings.graphicsBackend.resolved
     }
 
     private var hasSyncOverride: Bool {
@@ -812,14 +809,6 @@ struct ProgramOverrideSettingsView: View {
         case .partial: "Partial"
         case .fps: "FPS"
         case .off: "Off"
-        }
-    }
-
-    private func syncDescription(_ sync: EnhancedSync) -> String {
-        switch sync {
-        case .none: "None"
-        case .esync: "ESync"
-        case .msync: "MSync"
         }
     }
 }

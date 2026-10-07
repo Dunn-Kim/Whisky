@@ -99,12 +99,7 @@ extension GPTKImporter {
         let fileManager = FileManager.default
         guard isInstalled(.metalFX, inLibraryFolder: folder, usingStore: store) else { return }
         try? fileManager.removeItem(at: installedPE(of: .metalFX, inLibraryFolder: folder))
-
-        let link = unixLink(of: .metalFX, inLibraryFolder: folder)
-        let target = try? fileManager.destinationOfSymbolicLink(atPath: link.path(percentEncoded: false))
-        if target == unixLinkDestination {
-            try? fileManager.removeItem(at: link)
-        }
+        unlinkUnixHalf(unixLink(of: .metalFX, inLibraryFolder: folder))
     }
 
     // MARK: - Prefixes

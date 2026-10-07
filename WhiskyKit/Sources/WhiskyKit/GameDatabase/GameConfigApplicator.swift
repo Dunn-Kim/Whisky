@@ -233,8 +233,8 @@ public enum GameConfigApplicator {
             changes.append(ConfigChange(
                 category: "Performance",
                 settingName: "Enhanced Sync",
-                currentValue: describeEnhancedSync(bottle.settings.enhancedSync),
-                newValue: describeEnhancedSync(enhancedSync)
+                currentValue: bottle.settings.enhancedSync.displayName,
+                newValue: enhancedSync.displayName
             ))
         }
 
@@ -393,18 +393,6 @@ public enum GameConfigApplicator {
         }
 
         bottle.settings.dllOverrides = updatedOverrides
-    }
-
-    /// Returns a human-readable description of an EnhancedSync value.
-    private static func describeEnhancedSync(_ sync: EnhancedSync) -> String {
-        switch sync {
-        case .none:
-            "None"
-        case .esync:
-            "ESync"
-        case .msync:
-            "MSync"
-        }
     }
 }
 

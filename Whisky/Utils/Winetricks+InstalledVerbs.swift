@@ -191,12 +191,19 @@ extension Winetricks {
             await parseWinetricksLog(for: bottle)
         }
 
-        var newCache = WinetricksVerbCache(installedVerbs: verbs, lastChecked: Date())
-        newCache.logFileSize = logInfo.size
-        newCache.logFileModDate = logInfo.modDate
-        try? WinetricksVerbCache.save(newCache, to: bottleURL)
+        saveVerbCache(verbs, logInfo: logInfo, to: bottleURL)
 
         return (verbs, false)
+    }
+
+    /// Records `verbs` as checked now, against the winetricks.log state in `logInfo`.
+    static func saveVerbCache(
+        _ verbs: Set<String>, logInfo: (size: Int64?, modDate: Date?), to bottleURL: URL
+    ) {
+        var cache = WinetricksVerbCache(installedVerbs: verbs, lastChecked: Date())
+        cache.logFileSize = logInfo.size
+        cache.logFileModDate = logInfo.modDate
+        try? WinetricksVerbCache.save(cache, to: bottleURL)
     }
 }
 

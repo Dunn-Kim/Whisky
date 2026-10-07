@@ -118,7 +118,7 @@ public struct TroubleshootingSession: Codable, Sendable {
     public mutating func pushStep(_ node: FlowStepNode) {
         let step = CompletedStep(
             nodeId: node.id,
-            phase: SessionPhase(flowPhase: node.phase),
+            phase: node.phase,
             title: node.title,
             checkResult: nil
         )
@@ -182,17 +182,6 @@ public struct TroubleshootingSession: Codable, Sendable {
         case export
         /// Escalation after exhausting automated fixes.
         case escalation
-
-        /// Creates a session phase from a flow phase.
-        public init(flowPhase: FlowPhase) {
-            switch flowPhase {
-            case .symptom: self = .symptom
-            case .checks: self = .checks
-            case .fix: self = .fix
-            case .verify: self = .verify
-            case .export: self = .export
-            }
-        }
     }
 
     /// The final outcome of a completed troubleshooting session.

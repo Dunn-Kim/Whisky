@@ -127,14 +127,9 @@ struct WinetricksView: View {
                             installedVerbs = fresh
                         }
                         let bottleURL = await MainActor.run { bottle.url }
-                        var cache = WinetricksVerbCache(
-                            installedVerbs: fresh,
-                            lastChecked: Date()
+                        Winetricks.saveVerbCache(
+                            fresh, logInfo: WinetricksVerbCache.winetricksLogInfo(for: bottleURL), to: bottleURL
                         )
-                        let logInfo = WinetricksVerbCache.winetricksLogInfo(for: bottleURL)
-                        cache.logFileSize = logInfo.size
-                        cache.logFileModDate = logInfo.modDate
-                        try? WinetricksVerbCache.save(cache, to: bottleURL)
                     }
                 }
             }

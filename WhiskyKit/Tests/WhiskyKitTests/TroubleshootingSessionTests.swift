@@ -34,7 +34,7 @@ final class TroubleshootingSessionTests: XCTestCase {
         tempDir = nil
     }
 
-    private func makeNode(id: String, phase: FlowPhase = .checks) -> FlowStepNode {
+    private func makeNode(id: String, phase: TroubleshootingSession.SessionPhase = .checks) -> FlowStepNode {
         FlowStepNode(id: id, type: .check, phase: phase, title: "Node \(id)")
     }
 

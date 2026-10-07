@@ -170,18 +170,12 @@ public enum FixApplicator { // swiftlint:disable:this type_body_length
             )
 
         case "apply-game-config":
-            guard let program,
-                  let match = GameMatcher.bestMatch(
-                      metadata: ProgramMetadata(exeName: program.url.lastPathComponent),
-                      against: GameDBLoader.loadDefaults()
-                  ),
-                  let variant = match.entry.defaultVariant
-            else {
+            guard case let (entry, variant)? = gameConfigMatch(for: program) else {
                 return nil
             }
             let changes = GameConfigApplicator.previewChanges(variant: variant, bottle: bottle)
             return FixPreview(
-                settingName: "Game configuration: \(match.entry.title)",
+                settingName: "Game configuration: \(entry.title)",
                 currentValue: changes.isEmpty
                     ? "Already matches" : "\(changes.count) setting(s) differ",
                 newValue: variant.label,
@@ -304,22 +298,16 @@ public enum FixApplicator { // swiftlint:disable:this type_body_length
             )
 
         case "apply-game-config":
-            guard let program,
-                  let match = GameMatcher.bestMatch(
-                      metadata: ProgramMetadata(exeName: program.url.lastPathComponent),
-                      against: GameDBLoader.loadDefaults()
-                  ),
-                  let variant = match.entry.defaultVariant
-            else {
+            guard case let (entry, variant)? = gameConfigMatch(for: program) else {
                 logger.info("apply-game-config: no confident game match for this program")
                 return FixAttempt(fixId: fixId, result: .failed)
             }
             do {
-                _ = try GameConfigApplicator.apply(entry: match.entry, variant: variant, to: bottle)
+                _ = try GameConfigApplicator.apply(entry: entry, variant: variant, to: bottle)
                 return FixAttempt(
                     fixId: fixId,
                     beforeValue: nil,
-                    afterValue: "\(match.entry.title) (\(variant.label))",
+                    afterValue: "\(entry.title) (\(variant.label))",
                     result: .applied
                 )
             } catch {
@@ -508,6 +496,21 @@ public enum FixApplicator { // swiftlint:disable:this type_body_length
                 return true
             }
         )
+    }
+
+    /// The bundled game database entry confidently matched to `program`, with its default variant.
+    @MainActor
+    private static func gameConfigMatch(for program: Program?) -> (GameDBEntry, GameConfigVariant)? {
+        guard let program,
+              let match = GameMatcher.bestMatch(
+                  metadata: ProgramMetadata(exeName: program.url.lastPathComponent),
+                  against: GameDBLoader.loadDefaults()
+              ),
+              let variant = match.entry.defaultVariant
+        else {
+            return nil
+        }
+        return (match.entry, variant)
     }
 
     // MARK: - Registry Helpers

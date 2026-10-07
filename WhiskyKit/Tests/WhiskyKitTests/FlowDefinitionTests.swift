@@ -124,16 +124,6 @@ final class FlowDefinitionTests: XCTestCase {
         XCTAssertEqual(CheckOutcome.error.rawValue, "error")
     }
 
-    // MARK: - Phase mapping
-
-    func testSessionPhaseFromFlowPhaseCoversAllCases() {
-        XCTAssertEqual(TroubleshootingSession.SessionPhase(flowPhase: .symptom), .symptom)
-        XCTAssertEqual(TroubleshootingSession.SessionPhase(flowPhase: .checks), .checks)
-        XCTAssertEqual(TroubleshootingSession.SessionPhase(flowPhase: .fix), .fix)
-        XCTAssertEqual(TroubleshootingSession.SessionPhase(flowPhase: .verify), .verify)
-        XCTAssertEqual(TroubleshootingSession.SessionPhase(flowPhase: .export), .export)
-    }
-
     // MARK: - SymptomCategory
 
     func testEveryCategoryHasAJSONFlowFileName() {

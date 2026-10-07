@@ -385,12 +385,7 @@ extension GameEntryDetailView {
     private func performanceSettingsList(_ settings: GameConfigVariantSettings) -> [SettingDisplay] {
         var items: [SettingDisplay] = []
         if let enhancedSync = settings.enhancedSync {
-            let syncName = switch enhancedSync {
-            case .none: "None"
-            case .esync: "ESync"
-            case .msync: "MSync"
-            }
-            items.append(SettingDisplay(name: "Enhanced Sync", value: syncName))
+            items.append(SettingDisplay(name: "Enhanced Sync", value: enhancedSync.displayName))
         }
         if let forceD3D11 = settings.forceD3D11 {
             items.append(SettingDisplay(name: "Force D3D11", value: forceD3D11 ? "Enabled" : "Disabled"))

@@ -206,12 +206,7 @@ extension Wine {
 
         // Graphics backend override: replaces bottle-level backend entirely
         if let backend = overrides.graphicsBackend {
-            let resolved = if backend == .recommended {
-                GraphicsBackendResolver.resolve()
-            } else {
-                backend
-            }
-            switch resolved {
+            switch backend.resolved {
             case .d3dMetal, .recommended:
                 // Undo any bottle-level DXVK/DXMT by overriding DLLs to builtin
                 dllResolver.programCustom.append(contentsOf: translationReset)
@@ -385,10 +380,7 @@ extension Wine {
         // a different variable, so switching backend at program level would
         // otherwise leave the bottle's cap set on the wrong one.
         if overrides.graphicsBackend != nil || overrides.frameRateLimit != nil {
-            let effectiveBackend: GraphicsBackend = {
-                let chosen = overrides.graphicsBackend ?? bottleBackend
-                return chosen == .recommended ? GraphicsBackendResolver.resolve() : chosen
-            }()
+            let effectiveBackend = (overrides.graphicsBackend ?? bottleBackend).resolved
             for key in GraphicsBackend.allFrameRateLimitKeys {
                 builder.remove(key, layer: .programUser)
             }

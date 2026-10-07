@@ -43,12 +43,8 @@ extension GPTKBridge {
 extension GPTKImporter {
     /// Wine's placeholder, kept beside the deployed bridge so removal can put the
     /// tree back without consulting the per-runtime originals record.
-    static let nvapiPlaceholderSuffix = ".wine-placeholder"
-
     static func nvapiPlaceholderBackup(inLibraryFolder folder: URL) -> URL {
-        installedPE(of: .nvapi, inLibraryFolder: folder).appendingPathExtension(
-            String(nvapiPlaceholderSuffix.dropFirst())
-        )
+        installedPE(of: .nvapi, inLibraryFolder: folder).appendingPathExtension("wine-placeholder")
     }
 
     /// Puts the bridge in the tree with a unix half beside it, keeping Wine's
@@ -94,12 +90,7 @@ extension GPTKImporter {
         if fileManager.fileExists(atPath: backup.path(percentEncoded: false)) {
             try? fileManager.moveItem(at: backup, to: destination)
         }
-
-        let link = unixLink(of: .nvapi, inLibraryFolder: folder)
-        let target = try? fileManager.destinationOfSymbolicLink(atPath: link.path(percentEncoded: false))
-        if target == unixLinkDestination {
-            try? fileManager.removeItem(at: link)
-        }
+        unlinkUnixHalf(unixLink(of: .nvapi, inLibraryFolder: folder))
     }
 
     /// Installs the bridge into a tree that already holds the payload, so an

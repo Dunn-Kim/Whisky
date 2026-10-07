@@ -47,6 +47,15 @@ public enum WinVersion: String, CaseIterable, Codable, Sendable {
 
 public enum EnhancedSync: Codable, Equatable, Sendable {
     case none, esync, msync
+
+    /// Display name shown in settings summaries and config previews.
+    public var displayName: String {
+        switch self {
+        case .none: "None"
+        case .esync: "ESync"
+        case .msync: "MSync"
+        }
+    }
 }
 
 public struct BottleWineConfig: Codable, Equatable {

@@ -54,9 +54,7 @@ struct DLLOverrideConfigSection: View {
         // The backend, not the legacy `dxvk` flag: the launch path only honours
         // that flag when no backend is set, so reading it here listed
         // overrides that were not the ones being applied.
-        let backend = bottle.settings.graphicsBackend == .recommended
-            ? GraphicsBackendResolver.resolve()
-            : bottle.settings.graphicsBackend
+        let backend = bottle.settings.graphicsBackend.resolved
         let preset = DLLOverrideResolver.managedPreset(
             for: backend, builtinD3D12IsD3DMetal: builtinD3D12IsD3DMetal
         )

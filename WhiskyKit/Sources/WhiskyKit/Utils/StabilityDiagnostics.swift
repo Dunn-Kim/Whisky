@@ -97,9 +97,7 @@ public enum StabilityDiagnostics {
         }
 
         if let whiskyWineVersion = WhiskyWineInstaller.whiskyWineVersion() {
-            let whiskyWineVersionString =
-                "\(whiskyWineVersion.major).\(whiskyWineVersion.minor).\(whiskyWineVersion.patch)"
-            info += "WhiskyWine Version: \(whiskyWineVersionString)\n"
+            info += "WhiskyWine Version: \(whiskyWineVersion.description)\n"
         } else {
             info += "WhiskyWine Version: Not installed / unknown\n"
         }
@@ -183,34 +181,7 @@ public enum StabilityDiagnostics {
             }
 
             do {
-                let keys: [URLResourceKey] = [
-                    .isRegularFileKey,
-                    .contentModificationDateKey,
-                    .creationDateKey,
-                    .fileSizeKey
-                ]
-                let urls = try FileManager.default.contentsOfDirectory(
-                    at: folder,
-                    includingPropertiesForKeys: keys,
-                    options: [.skipsHiddenFiles]
-                )
-
-                struct LogFile {
-                    let url: URL
-                    let size: Int
-                    let date: Date
-                }
-
-                var files: [LogFile] = []
-                files.reserveCapacity(urls.count)
-
-                for url in urls where url.pathExtension.lowercased() == "log" {
-                    let values = try url.resourceValues(forKeys: Set(keys))
-                    guard values.isRegularFile == true else { continue }
-                    let size = values.fileSize ?? 0
-                    let date = values.contentModificationDate ?? values.creationDate ?? .distantPast
-                    files.append(LogFile(url: url, size: size, date: date))
-                }
+                var files = try Wine.logFiles(in: folder)
 
                 if files.isEmpty {
                     logs += "Log Files: None found\n\n"
@@ -224,7 +195,7 @@ public enum StabilityDiagnostics {
 
                 logs += "Most Recent Logs:\n"
                 for file in files.prefix(5) {
-                    let sizeString = formatter.string(fromByteCount: Int64(file.size))
+                    let sizeString = formatter.string(fromByteCount: file.size)
                     logs += "- \(file.url.lastPathComponent) (\(sizeString), \(file.date.formatted()))\n"
                 }
 

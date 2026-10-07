@@ -57,7 +57,7 @@ public struct FlowStepNode: Codable, Sendable, Identifiable {
     public let type: NodeType
 
     /// Which wizard phase this step belongs to.
-    public let phase: FlowPhase
+    public let phase: TroubleshootingSession.SessionPhase
 
     /// Short title displayed in the step card header.
     public let title: String?
@@ -95,7 +95,7 @@ public struct FlowStepNode: Codable, Sendable, Identifiable {
     public init(
         id: String,
         type: NodeType,
-        phase: FlowPhase,
+        phase: TroubleshootingSession.SessionPhase,
         title: String? = nil,
         description: String? = nil,
         checkId: String? = nil,
@@ -130,7 +130,7 @@ public struct FlowStepNode: Codable, Sendable, Identifiable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(String.self, forKey: .id)
         type = try container.decode(NodeType.self, forKey: .type)
-        phase = try container.decode(FlowPhase.self, forKey: .phase)
+        phase = try container.decode(TroubleshootingSession.SessionPhase.self, forKey: .phase)
         title = try container.decodeIfPresent(String.self, forKey: .title)
         description = try container.decodeIfPresent(String.self, forKey: .description)
         checkId = try container.decodeIfPresent(String.self, forKey: .checkId)
@@ -157,20 +157,6 @@ public enum NodeType: String, Codable, Sendable {
     case verify
     /// A decision point that branches based on user input.
     case branch
-}
-
-/// The wizard phase a flow step belongs to.
-public enum FlowPhase: String, Codable, Sendable {
-    /// Symptom selection phase.
-    case symptom
-    /// Automated checks phase.
-    case checks
-    /// Fix application phase.
-    case fix
-    /// Post-fix verification phase.
-    case verify
-    /// Export and escalation phase.
-    case export
 }
 
 /// Preview data for a fix step showing what will change.

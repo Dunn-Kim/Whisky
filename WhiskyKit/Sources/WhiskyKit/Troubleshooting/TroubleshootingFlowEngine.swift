@@ -196,9 +196,8 @@ public final class TroubleshootingFlowEngine: ObservableObject {
         session.pushStep(node)
 
         // Update session phase if the node's phase differs
-        let nodePhase = TroubleshootingSession.SessionPhase(flowPhase: node.phase)
-        if nodePhase != session.phase {
-            session.phase = nodePhase
+        if node.phase != session.phase {
+            session.phase = node.phase
         }
 
         autoSave()

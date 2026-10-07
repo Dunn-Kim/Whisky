@@ -106,18 +106,7 @@ struct GameEntryRowView: View {
     private var recommendedBackendTag: String? {
         guard let variant = entry.defaultVariant else { return nil }
         guard let backend = variant.settings.graphicsBackend else { return nil }
-        switch backend {
-        case .d3dMetal:
-            return "D3DMetal"
-        case .dxvk:
-            return "DXVK"
-        case .dxmt:
-            return "DXMT"
-        case .wined3d:
-            return "WineD3D"
-        case .recommended:
-            return nil
-        }
+        return backend == .recommended ? nil : backend.displayName
     }
 
     private var constraintTagLabels: [String]? {

@@ -26,10 +26,7 @@ struct GraphicsConfigSection: View {
     @State private var hasRunningProcesses: Bool = false
 
     private var resolvedBackend: GraphicsBackend {
-        if bottle.settings.graphicsBackend == .recommended {
-            return GraphicsBackendResolver.resolve()
-        }
-        return bottle.settings.graphicsBackend
+        bottle.settings.graphicsBackend.resolved
     }
 
     var body: some View {

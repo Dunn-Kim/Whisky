@@ -85,3 +85,10 @@ public enum GraphicsBackendResolver {
         String(localized: "config.graphics.backend.recommended.rationale")
     }
 }
+
+public extension GraphicsBackend {
+    /// This backend, with `.recommended` resolved for the current system by ``GraphicsBackendResolver``.
+    var resolved: GraphicsBackend {
+        self == .recommended ? GraphicsBackendResolver.resolve() : self
+    }
+}

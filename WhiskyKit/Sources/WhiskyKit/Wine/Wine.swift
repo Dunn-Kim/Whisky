@@ -1047,41 +1047,48 @@ public extension Wine {
         for: .libraryDirectory, in: .userDomainMask
     )[0].appending(path: "Logs").appending(path: Bundle.whiskyBundleIdentifier)
 
+    /// A regular `.log` file in a logs folder, dated by its last modification.
+    internal struct LogFile {
+        let url: URL
+        let size: Int64
+        let date: Date
+    }
+
+    /// The regular, non-hidden `.log` files in `folder`, in directory order.
+    internal static func logFiles(in folder: URL) throws -> [LogFile] {
+        let keys: [URLResourceKey] = [
+            .isRegularFileKey,
+            .contentModificationDateKey,
+            .creationDateKey,
+            .fileSizeKey
+        ]
+        let urls = try FileManager.default.contentsOfDirectory(
+            at: folder,
+            includingPropertiesForKeys: keys,
+            options: [.skipsHiddenFiles]
+        )
+
+        var files: [LogFile] = []
+        files.reserveCapacity(urls.count)
+
+        for url in urls {
+            guard url.pathExtension.lowercased() == "log" else { continue }
+            let values = try url.resourceValues(forKeys: Set(keys))
+            guard values.isRegularFile == true else { continue }
+            let size = Int64(values.fileSize ?? 0)
+            let date = values.contentModificationDate ?? values.creationDate ?? .distantPast
+            files.append(LogFile(url: url, size: size, date: date))
+        }
+        return files
+    }
+
     /// Enforces log retention policy by deleting the oldest `.log` files until total size is under the limit.
     ///
     /// - Important: This method only operates on the provided folder and only deletes regular files with a `.log`
     ///   extension. It is intentionally best-effort: errors are logged but do not throw.
     static func enforceLogRetention(in folder: URL, maxTotalBytes: Int64) {
         do {
-            let keys: [URLResourceKey] = [
-                .isRegularFileKey,
-                .contentModificationDateKey,
-                .creationDateKey,
-                .fileSizeKey
-            ]
-            let urls = try FileManager.default.contentsOfDirectory(
-                at: folder,
-                includingPropertiesForKeys: keys,
-                options: [.skipsHiddenFiles]
-            )
-
-            struct LogFile {
-                let url: URL
-                let size: Int64
-                let date: Date
-            }
-
-            var files: [LogFile] = []
-            files.reserveCapacity(urls.count)
-
-            for url in urls {
-                guard url.pathExtension.lowercased() == "log" else { continue }
-                let values = try url.resourceValues(forKeys: Set(keys))
-                guard values.isRegularFile == true else { continue }
-                let size = Int64(values.fileSize ?? 0)
-                let date = values.contentModificationDate ?? values.creationDate ?? .distantPast
-                files.append(LogFile(url: url, size: size, date: date))
-            }
+            var files = try logFiles(in: folder)
 
             var total: Int64 = files.reduce(0) { $0 + $1.size }
             guard total > maxTotalBytes else { return }

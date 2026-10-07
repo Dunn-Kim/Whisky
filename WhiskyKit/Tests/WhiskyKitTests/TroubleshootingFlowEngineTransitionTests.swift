@@ -25,7 +25,7 @@ import XCTest
 final class TroubleshootingFlowEngineTransitionTests: XCTestCase {
     private func infoNode(
         _ nodeId: String,
-        phase: FlowPhase = .checks,
+        phase: TroubleshootingSession.SessionPhase = .checks,
         transitions: [String: String]? = nil,
         fragmentRef: String? = nil
     ) -> FlowStepNode {

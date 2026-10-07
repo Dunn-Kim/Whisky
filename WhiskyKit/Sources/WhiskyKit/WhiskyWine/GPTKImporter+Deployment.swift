@@ -90,7 +90,7 @@ extension GPTKImporter {
     static func runtimeVersionStamp(inLibraryFolder folder: URL) -> String? {
         let plist = folder.appending(path: "WhiskyWineVersion").appendingPathExtension("plist")
         guard let info = WhiskyWineInstaller.whiskyWineInfo(at: plist) else { return nil }
-        return "\(info.version.major).\(info.version.minor).\(info.version.patch)"
+        return info.version.description
     }
 
     static func originalsRecordURL(inStore store: URL) -> URL {

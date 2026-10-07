@@ -121,6 +121,14 @@ public enum GPTKImporter {
         )
     }
 
+    /// Removes `link` only when it points where ``linkUnixHalf(_:)`` pointed it.
+    static func unlinkUnixHalf(_ link: URL) {
+        let target = try? FileManager.default.destinationOfSymbolicLink(atPath: link.path(percentEncoded: false))
+        if target == unixLinkDestination {
+            try? FileManager.default.removeItem(at: link)
+        }
+    }
+
     /// Where `bridge` lives in the store, or `nil` for a payload too old to carry one.
     static func source(of bridge: GPTKBridge, inStore store: URL) -> URL? {
         let source = store.appending(path: "lib").appending(path: "wine")

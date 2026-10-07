@@ -273,17 +273,7 @@ public final class Program: ObservableObject, Equatable, Hashable, Identifiable 
 
         let settingsUrl = Self.settingsURL(for: url, in: bottle, legacyName: name)
         self.settingsURL = settingsUrl
-
-        do {
-            self.settings = try ProgramSettings.decode(from: settingsUrl)
-        } catch {
-            Logger.wineKit.error(
-                "Failed to load settings for `\(name)`: \(String(describing: error), privacy: .public)"
-            )
-            // Preserve the unreadable file before the next save overwrites it with defaults.
-            BottleSettings.quarantineCorruptedFile(at: settingsUrl)
-            self.settings = ProgramSettings()
-        }
+        self.settings = Self.loadSettings(from: settingsUrl, name: name)
 
         self.peFile = peFile
     }
@@ -308,16 +298,20 @@ public final class Program: ObservableObject, Equatable, Hashable, Identifiable 
 
         let settingsUrl = Self.settingsURL(for: appRefURL, in: bottle, legacyName: displayName)
         self.settingsURL = settingsUrl
+        self.settings = Self.loadSettings(from: settingsUrl, name: displayName)
+    }
 
+    /// Loads the settings at `settingsUrl`, falling back to defaults when they cannot be read.
+    private static func loadSettings(from settingsUrl: URL, name: String) -> ProgramSettings {
         do {
-            self.settings = try ProgramSettings.decode(from: settingsUrl)
+            return try ProgramSettings.decode(from: settingsUrl)
         } catch {
             Logger.wineKit.error(
-                "Failed to load settings for `\(displayName)`: \(String(describing: error), privacy: .public)"
+                "Failed to load settings for `\(name)`: \(String(describing: error), privacy: .public)"
             )
             // Preserve the unreadable file before the next save overwrites it with defaults.
             BottleSettings.quarantineCorruptedFile(at: settingsUrl)
-            self.settings = ProgramSettings()
+            return ProgramSettings()
         }
     }
 
