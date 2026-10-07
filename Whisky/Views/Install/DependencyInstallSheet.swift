@@ -423,7 +423,7 @@ extension DependencyInstallSheet {
             }
 
             // Cancelled: the sheet is gone and the processes are being killed;
-            // there is nothing to verify or record.
+            // there is nothing to verify.
             guard !Task.isCancelled else { return }
 
             let result: InstallResult = if hadError {
@@ -441,7 +441,6 @@ extension DependencyInstallSheet {
             }
 
             await runVerification()
-            await saveInstallAttempt(result)
         }
     }
 
@@ -464,44 +463,6 @@ extension DependencyInstallSheet {
         await MainActor.run {
             verifyStatus = statuses.first?.status ?? .unknown
         }
-    }
-
-    private func saveInstallAttempt(_ result: InstallResult) async {
-        let bottleURL = await MainActor.run { bottle.url }
-        var history = BottleDependencyHistory.load(from: bottleURL) ?? BottleDependencyHistory()
-
-        let success: Bool
-        let exitCode: Int32?
-        switch result {
-        case .success:
-            success = true
-            exitCode = 0
-        case let .failure(code):
-            success = false
-            exitCode = code
-        case .error:
-            success = false
-            exitCode = nil
-        }
-
-        // Keep a bounded tail of the winetricks output for failed attempts so
-        // the recorded exit code comes with the error text that explains it.
-        let outputTail: String? = if success {
-            nil
-        } else {
-            await MainActor.run { DependencyInstallAttempt.boundedTail(of: logLines) }
-        }
-
-        let attempt = DependencyInstallAttempt(
-            definitionId: definition.id,
-            verbsAttempted: definition.winetricksVerbs,
-            timestamp: Date(),
-            success: success,
-            exitCode: exitCode,
-            outputTail: outputTail
-        )
-        history.append(attempt)
-        try? history.save(to: bottleURL)
     }
 }
 
