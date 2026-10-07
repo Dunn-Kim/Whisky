@@ -574,7 +574,7 @@ final class BottleSettingsTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: metadataURL.path))
     }
 
-    func testWineVersionStampWriteFailureKeepsValidSettings() throws {
+    func testDecodeKeepsTheStoredWineVersion() throws {
         let tempDir = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
@@ -582,29 +582,15 @@ final class BottleSettingsTests: XCTestCase {
 
         let metadataURL = tempDir.appendingPathComponent("Metadata.plist")
 
-        // A healthy file stamped with an older wine version.
+        // The Wine version recorded at bottle creation, unlike the default.
         var settings = BottleSettings()
-        settings.name = "Healthy Bottle"
         settings.wineVersion = SemanticVersion(1, 2, 3)
         try settings.encode(to: metadataURL)
         let originalData = try Data(contentsOf: metadataURL)
 
-        // Make the directory unwritable so the version-stamp rewrite fails.
-        try FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: tempDir.path)
-        defer {
-            try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: tempDir.path)
-        }
-
-        // A failed stamp write must not demote a healthy file to quarantine or defaults.
         let decoded = try BottleSettings.decode(from: metadataURL)
 
-        XCTAssertEqual(decoded.name, "Healthy Bottle")
-        XCTAssertEqual(decoded.wineVersion, BottleWineConfig.defaultWineVersion)
-        XCTAssertEqual(try Data(contentsOf: metadataURL), originalData)
-        let siblings = try FileManager.default.contentsOfDirectory(atPath: tempDir.path)
-        XCTAssertFalse(
-            siblings.contains { $0.contains(".corrupt-") },
-            "a healthy file must not be quarantined when only the stamp write fails"
-        )
+        XCTAssertEqual(decoded.wineVersion, SemanticVersion(1, 2, 3))
+        XCTAssertEqual(try Data(contentsOf: metadataURL), originalData, "loading must not rewrite the file")
     }
 }

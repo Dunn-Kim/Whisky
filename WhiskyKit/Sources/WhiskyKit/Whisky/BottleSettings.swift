@@ -751,24 +751,6 @@ public struct BottleSettings: Codable, Equatable {
             return settings
         }
 
-        if settings.wineConfig.wineVersion != BottleWineConfig().wineVersion {
-            Logger.wineKit.warning(
-                "Bottle has a different wine version `\(settings.wineConfig.wineVersion, privacy: .public)`"
-            )
-            settings.wineConfig.wineVersion = BottleWineConfig().wineVersion
-            do {
-                try settings.encode(to: metadataURL)
-            } catch {
-                // The file decoded fine; only the version-stamp rewrite failed. Propagating
-                // would make the caller quarantine a healthy file and reset it to defaults,
-                // so keep the valid settings and let the stamp retry on the next load.
-                Logger.wineKit.error(
-                    "Failed to update wine version stamp: \(String(describing: error), privacy: .public)"
-                )
-            }
-            return settings
-        }
-
         return settings
     }
 
