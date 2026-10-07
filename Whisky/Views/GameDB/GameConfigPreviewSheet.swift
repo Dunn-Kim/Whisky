@@ -30,10 +30,13 @@ struct GameConfigPreviewSheet: View {
     @State private var installedVerbs: Set<String> = []
     @State private var isApplying: Bool = false
     @State private var applyError: String?
-    @State private var stalenessMessage: String?
     @State private var includeWinetricks: Bool = true
     @AppStorage("gameConfigSkipPreview") private var skipPreview: Bool = false
     @Binding var toast: ToastData?
+
+    private var stalenessMessage: String? {
+        variant.testedWith.flatMap(StalenessChecker.warning(for:))
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -325,11 +328,6 @@ extension GameConfigPreviewSheet {
         // Load installed verbs
         let result = await Winetricks.loadInstalledVerbs(for: bottle)
         installedVerbs = result.verbs
-
-        // Check staleness
-        if let testedWith = variant.testedWith {
-            stalenessMessage = StalenessChecker.warning(for: testedWith)
-        }
     }
 }
 

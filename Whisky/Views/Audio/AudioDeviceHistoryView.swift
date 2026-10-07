@@ -53,12 +53,12 @@ struct AudioDeviceHistoryView: View {
 
     private func eventRow(_ event: AudioDeviceChangeEvent) -> some View {
         HStack(spacing: 8) {
-            Image(systemName: eventIcon(event.eventType))
-                .foregroundStyle(eventColor(event.eventType))
+            Image(systemName: "speaker.wave.2")
+                .foregroundStyle(.blue)
                 .frame(width: 20)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(eventDescription(event))
+                Text(verbatim: "Default output changed to \(event.deviceName)")
                     .font(.caption)
                 HStack(spacing: 4) {
                     Text(event.transportType.displayName)
@@ -75,24 +75,5 @@ struct AudioDeviceHistoryView: View {
             Spacer()
         }
         .padding(.vertical, 2)
-    }
-
-    private func eventIcon(_ eventType: AudioDeviceChangeEvent.EventType) -> String {
-        switch eventType {
-        case .defaultOutputChanged: "speaker.wave.2"
-        }
-    }
-
-    private func eventColor(_ eventType: AudioDeviceChangeEvent.EventType) -> Color {
-        switch eventType {
-        case .defaultOutputChanged: .blue
-        }
-    }
-
-    private func eventDescription(_ event: AudioDeviceChangeEvent) -> String {
-        switch event.eventType {
-        case .defaultOutputChanged:
-            "Default output changed to \(event.deviceName)"
-        }
     }
 }

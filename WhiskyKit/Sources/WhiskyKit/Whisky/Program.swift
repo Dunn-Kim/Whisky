@@ -203,12 +203,6 @@ public final class Program: ObservableObject, Equatable, Hashable, Identifiable 
         return (identityURL, legacyURL)
     }
 
-    /// The overrides an executable's persisted settings carry; see
-    /// ``persistedSettings(for:bottleURL:)``.
-    nonisolated static func persistedOverrides(for url: URL, bottleURL: URL) -> ProgramOverrides? {
-        persistedSettings(for: url, bottleURL: bottleURL)?.overrides
-    }
-
     /// An executable's persisted settings, read without materializing a
     /// ``Program``: a missing settings plist yields `nil` where the
     /// initializer would write a default plist to disk.

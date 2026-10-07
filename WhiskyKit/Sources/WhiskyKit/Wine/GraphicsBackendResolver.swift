@@ -75,15 +75,6 @@ public enum GraphicsBackendResolver {
         }
         return .dxvk
     }
-
-    /// Returns a localized explanation for the recommended backend choice.
-    ///
-    /// Suitable for display in a detail label or tooltip next to the "Recommended" option.
-    ///
-    /// - Returns: A human-readable rationale string.
-    public static func rationale() -> String {
-        String(localized: "config.graphics.backend.recommended.rationale")
-    }
 }
 
 public extension GraphicsBackend {

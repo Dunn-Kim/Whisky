@@ -18,26 +18,6 @@
 
 import Foundation
 
-/// Where a library entry came from.
-///
-/// A raw-value type rather than an enum so a launcher can be added without
-/// recompiling everything that switches over the existing ones.
-public struct LibrarySourceID: RawRepresentable, Hashable, Sendable, Codable {
-    public let rawValue: String
-
-    public init(rawValue: String) {
-        self.rawValue = rawValue
-    }
-
-    /// Programs the user pinned. The library shows these and not every
-    /// executable found in a prefix: a Windows install is full of uninstallers,
-    /// crash handlers and redistributables, and a library that lists them is a
-    /// file browser rather than a library.
-    public static let pinned = LibrarySourceID(rawValue: "pinned")
-    /// Games installed through the Steam client inside a bottle.
-    public static let steam = LibrarySourceID(rawValue: "steam")
-}
-
 /// One thing a person can launch, whatever put it there.
 public struct LibraryEntry: Identifiable, Hashable, Sendable {
     /// How to start it. Sources that need their own launch path add a case;
@@ -58,7 +38,6 @@ public struct LibraryEntry: Identifiable, Hashable, Sendable {
     /// its store page uses without anything being fetched.
     public let artworkURL: URL?
     public let bottleURL: URL
-    public let source: LibrarySourceID
     public let launch: Launch
     /// Whether this entry is a storefront client rather than a game.
     ///
@@ -75,7 +54,6 @@ public struct LibraryEntry: Identifiable, Hashable, Sendable {
         iconURL: URL?,
         artworkURL: URL? = nil,
         bottleURL: URL,
-        source: LibrarySourceID,
         launch: Launch,
         launcher: LauncherType? = nil
     ) {
@@ -84,7 +62,6 @@ public struct LibraryEntry: Identifiable, Hashable, Sendable {
         self.iconURL = iconURL
         self.artworkURL = artworkURL
         self.bottleURL = bottleURL
-        self.source = source
         self.launch = launch
         self.launcher = launcher
     }
@@ -103,7 +80,6 @@ public enum PinnedLibrarySource {
                 name: pin.name,
                 iconURL: programURL,
                 bottleURL: url,
-                source: .pinned,
                 launch: .program(programURL),
                 // The app's existing definition of a launcher, reused rather
                 // than re-guessed: it is a pure string match, so this stays a
@@ -132,7 +108,6 @@ public enum SteamLibrarySource {
                 iconURL: steamRoot.flatMap { iconURL(appID: game.appId, steamRoot: $0) },
                 artworkURL: steamRoot.flatMap { artworkURL(appID: game.appId, steamRoot: $0) },
                 bottleURL: url,
-                source: .steam,
                 launch: .steam(appID: game.appId)
             )
         }

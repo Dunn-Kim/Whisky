@@ -123,26 +123,6 @@ public struct FlowStepNode: Codable, Sendable, Identifiable {
         self.requiresConfirmation = requiresConfirmation
         self.fragmentRef = fragmentRef
     }
-
-    // MARK: - Defensive Codable
-
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        id = try container.decode(String.self, forKey: .id)
-        type = try container.decode(NodeType.self, forKey: .type)
-        phase = try container.decode(TroubleshootingSession.SessionPhase.self, forKey: .phase)
-        title = try container.decodeIfPresent(String.self, forKey: .title)
-        description = try container.decodeIfPresent(String.self, forKey: .description)
-        checkId = try container.decodeIfPresent(String.self, forKey: .checkId)
-        params = try container.decodeIfPresent([String: String].self, forKey: .params)
-        on = try container.decodeIfPresent([String: String].self, forKey: .on)
-        evidenceMap = try container.decodeIfPresent([String: String].self, forKey: .evidenceMap)
-        fixId = try container.decodeIfPresent(String.self, forKey: .fixId)
-        fixPreview = try container.decodeIfPresent(FixPreviewData.self, forKey: .fixPreview)
-        isReversible = try container.decodeIfPresent(Bool.self, forKey: .isReversible)
-        requiresConfirmation = try container.decodeIfPresent(Bool.self, forKey: .requiresConfirmation)
-        fragmentRef = try container.decodeIfPresent(String.self, forKey: .fragmentRef)
-    }
 }
 
 /// The kind of action a flow step node represents.
@@ -181,13 +161,5 @@ public struct FixPreviewData: Codable, Sendable {
         self.currentValueKey = currentValueKey
         self.newValue = newValue
         self.scope = scope
-    }
-
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        settingName = try container.decode(String.self, forKey: .settingName)
-        currentValueKey = try container.decodeIfPresent(String.self, forKey: .currentValueKey)
-        newValue = try container.decode(String.self, forKey: .newValue)
-        scope = try container.decode(String.self, forKey: .scope)
     }
 }

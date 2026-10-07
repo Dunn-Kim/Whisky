@@ -99,7 +99,7 @@ private struct BackendCard: View {
                         }
                         .buttonStyle(.plain)
                         .popover(isPresented: $showRationale) {
-                            Text(GraphicsBackendResolver.rationale())
+                            Text(String(localized: "config.graphics.backend.recommended.rationale"))
                                 .font(.caption)
                                 .padding()
                                 .frame(maxWidth: 240)

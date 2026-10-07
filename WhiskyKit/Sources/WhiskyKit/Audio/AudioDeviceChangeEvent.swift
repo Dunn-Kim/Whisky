@@ -30,30 +30,19 @@ public struct AudioDeviceChangeEvent: Sendable, Equatable, Identifiable {
     /// When the change was detected.
     public let timestamp: Date
 
-    /// The type of change that occurred.
-    public let eventType: EventType
-
     /// The display name of the affected device.
     public let deviceName: String
 
     /// The transport type of the affected device.
     public let transportType: AudioTransportType
 
-    /// Types of device change events tracked by the audio subsystem.
-    public enum EventType: String, Sendable, Equatable {
-        /// The system default output device changed.
-        case defaultOutputChanged
-    }
-
     public init(
         timestamp: Date,
-        eventType: EventType,
         deviceName: String,
         transportType: AudioTransportType
     ) {
         self.id = UUID()
         self.timestamp = timestamp
-        self.eventType = eventType
         self.deviceName = deviceName
         self.transportType = transportType
     }

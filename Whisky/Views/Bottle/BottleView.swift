@@ -30,7 +30,6 @@ enum BottleStage {
 struct BottleView: View {
     @ObservedObject var bottle: Bottle
     @State private var path = NavigationPath()
-    @State private var programLoading: Bool = false
     @State private var showWinetricksSheet: Bool = false
     @State private var showDuplicate: Bool = false
     @State private var toast: ToastData?
@@ -90,7 +89,6 @@ struct BottleView: View {
                 BottleActionBar(
                     bottle: bottle,
                     showWinetricksSheet: $showWinetricksSheet,
-                    programLoading: $programLoading,
                     toast: $toast,
                     onLaunch: updateStartMenu
                 )

@@ -116,7 +116,7 @@ final class BackendFixCoherenceTests: XCTestCase {
     // MARK: - Crash diagnosis card
 
     private func switchBackendRemediation() throws -> RemediationAction {
-        let (_, remediations) = PatternLoader.loadDefaults()
+        let remediations = PatternLoader.defaultRemediations()
         return try XCTUnwrap(remediations["switch-backend"])
     }
 
@@ -142,7 +142,7 @@ final class BackendFixCoherenceTests: XCTestCase {
     }
 
     func testNonBackendRemediationsAlwaysApply() {
-        let (_, remediations) = PatternLoader.loadDefaults()
+        let remediations = PatternLoader.defaultRemediations()
         let others = remediations.values.filter { $0.actionType != .switchBackend }
         XCTAssertFalse(others.isEmpty)
         for action in others {

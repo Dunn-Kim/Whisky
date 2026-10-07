@@ -63,8 +63,8 @@ final class TroubleshootingFlowEngineTests: XCTestCase {
         FlowStepNode(id: id, type: .info, phase: .checks, title: "Info \(id)", on: on)
     }
 
-    /// The "graphics" key matches SymptomCategory.graphics.flowFileName minus
-    /// its .json suffix, which is how the engine derives flow lookup keys.
+    /// The "graphics" key matches SymptomCategory.graphics.flowResourceName,
+    /// which is how the engine derives flow lookup keys.
     private func makeEngine(
         nodes: [String: FlowStepNode],
         entry: String = "start",
@@ -72,8 +72,7 @@ final class TroubleshootingFlowEngineTests: XCTestCase {
         session: TroubleshootingSession? = nil
     ) -> (TroubleshootingFlowEngine, SpySessionStore) {
         let flow = FlowDefinition(version: 1, categoryId: "graphics", nodes: nodes, entryNodeId: entry)
-        let registry = CheckRegistry()
-        registry.register(StubCheck(checkId: "stub.outcome"))
+        let registry = CheckRegistry(checks: CheckRegistry.builtIn + [StubCheck(checkId: "stub.outcome")])
         let store = SpySessionStore()
         // Node resolution goes through the session's active flow category, so
         // direct navigateToNode calls need it preset the way selectCategory

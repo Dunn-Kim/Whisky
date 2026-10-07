@@ -308,8 +308,7 @@ public struct BottleData: Codable {
         }
     }
 
-    @discardableResult
-    private func encode() -> Bool {
+    private func encode() {
         let encoder = PropertyListEncoder()
         encoder.outputFormat = .xml
 
@@ -320,10 +319,8 @@ public struct BottleData: Codable {
             )
             let data = try encoder.encode(self)
             try data.write(to: entriesFile, options: .atomic)
-            return true
         } catch {
             Logger.wineKit.error("Failed to encode BottleData: \(error)")
-            return false
         }
     }
 }

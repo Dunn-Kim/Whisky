@@ -33,7 +33,6 @@ struct ConfigView: View {
     @State private var buildVersionLoadingState: LoadingState = .loading
     @State private var retinaModeLoadingState: LoadingState = .loading
     @State private var dpiConfigLoadingState: LoadingState = .loading
-    @State private var dpiSheetPresented: Bool = false
     @State private var showStabilityDiagnostics: Bool = false
     @State private var stabilityDiagnosticReport: String = ""
     @State private var exportPresentation: ExportPresentation?
@@ -74,11 +73,10 @@ struct ConfigView: View {
                 buildVersion: $buildVersion,
                 retinaModeState: $retinaModeState,
                 dpiConfig: $dpiConfig,
-                winVersionLoadingState: $winVersionLoadingState,
+                winVersionLoadingState: winVersionLoadingState,
                 buildVersionLoadingState: $buildVersionLoadingState,
                 retinaModeLoadingState: $retinaModeLoadingState,
-                dpiConfigLoadingState: $dpiConfigLoadingState,
-                dpiSheetPresented: $dpiSheetPresented,
+                dpiConfigLoadingState: dpiConfigLoadingState,
                 onRetryBuildVersion: loadBuildName,
                 onRetryRetinaMode: loadRetinaMode,
                 onRetryDpi: loadDpi

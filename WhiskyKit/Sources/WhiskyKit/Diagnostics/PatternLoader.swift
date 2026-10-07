@@ -62,18 +62,19 @@ public enum PatternLoader {
         return Dictionary(uniqueKeysWithValues: file.actions.map { ($0.id, $0) })
     }
 
-    /// Loads default patterns and remediations from the SPM resource bundle.
+    /// Loads the default crash patterns from the SPM resource bundle.
     ///
     /// In debug builds, a missing or invalid resource asserts to surface issues early.
-    /// In release builds, returns empty collections on failure.
+    /// In release builds, returns an empty array on failure.
+    public static func defaultPatterns() -> [CrashPattern] {
+        Bundle.module.decodeJSONResource("patterns", with: loadPatterns) ?? []
+    }
+
+    /// Loads the default remediation actions from the SPM resource bundle.
     ///
-    /// - Returns: Tuple of patterns array and remediations dictionary.
-    public static func loadDefaults() -> ([CrashPattern], [String: RemediationAction]) {
-        guard let patterns = Bundle.module.decodeJSONResource("patterns", with: loadPatterns),
-              let remediations = Bundle.module.decodeJSONResource("remediations", with: loadRemediations)
-        else {
-            return ([], [:])
-        }
-        return (patterns, remediations)
+    /// In debug builds, a missing or invalid resource asserts to surface issues early.
+    /// In release builds, returns an empty dictionary on failure.
+    public static func defaultRemediations() -> [String: RemediationAction] {
+        Bundle.module.decodeJSONResource("remediations", with: loadRemediations) ?? [:]
     }
 }

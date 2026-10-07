@@ -23,13 +23,14 @@ final class CrashClassifierTests: XCTestCase {
     // MARK: - PatternLoader Tests
 
     func testLoadDefaultPatterns() {
-        let (patterns, remediations) = PatternLoader.loadDefaults()
+        let patterns = PatternLoader.defaultPatterns()
+        let remediations = PatternLoader.defaultRemediations()
         XCTAssertGreaterThanOrEqual(patterns.count, 15, "Should load at least 15 patterns")
         XCTAssertGreaterThanOrEqual(remediations.count, 8, "Should load at least 8 remediation actions")
     }
 
     func testPatternsCoversAllCategories() {
-        let (patterns, _) = PatternLoader.loadDefaults()
+        let patterns = PatternLoader.defaultPatterns()
         let categories = Set(patterns.map(\.category))
 
         for category in CrashCategory.allCases {
@@ -86,7 +87,7 @@ final class CrashClassifierTests: XCTestCase {
     // MARK: - CrashPattern Match Tests
 
     func testDLLLoadFailureMatch() {
-        var (patterns, _) = PatternLoader.loadDefaults()
+        var patterns = PatternLoader.defaultPatterns()
         let line =
             "0024:err:module:import_dll Library MSVCR100.dll (which is needed by L\"game.exe\") not found"
 
@@ -121,7 +122,7 @@ final class CrashClassifierTests: XCTestCase {
     }
 
     func testAccessViolationMatch() {
-        var (patterns, _) = PatternLoader.loadDefaults()
+        var patterns = PatternLoader.defaultPatterns()
         let line =
             "0080:err:seh:NtRaiseException Unhandled exception code c0000005 flags 0 addr 0x7b012345"
 
@@ -138,7 +139,7 @@ final class CrashClassifierTests: XCTestCase {
     }
 
     func testPageFaultMatch() {
-        var (patterns, _) = PatternLoader.loadDefaults()
+        var patterns = PatternLoader.defaultPatterns()
         let line = "wine: Unhandled page fault on read access to 0x00000000 at address 0x7b012345"
 
         var matched = false
@@ -152,7 +153,7 @@ final class CrashClassifierTests: XCTestCase {
     }
 
     func testGPUDeviceLostMatch() {
-        var (patterns, _) = PatternLoader.loadDefaults()
+        var patterns = PatternLoader.defaultPatterns()
         let line = "err:d3d11:device_lost D3D11 device lost (DXGI_ERROR_DEVICE_REMOVED)"
 
         var matched = false
@@ -166,7 +167,7 @@ final class CrashClassifierTests: XCTestCase {
     }
 
     func testAntiCheatEACMatch() {
-        var (patterns, _) = PatternLoader.loadDefaults()
+        var patterns = PatternLoader.defaultPatterns()
         let line = "EasyAntiCheat.exe: Fatal error - EasyAntiCheat is not installed"
 
         var matched = false
@@ -180,7 +181,7 @@ final class CrashClassifierTests: XCTestCase {
     }
 
     func testAntiCheatBattlEyeMatch() {
-        var (patterns, _) = PatternLoader.loadDefaults()
+        var patterns = PatternLoader.defaultPatterns()
         let line = "BattlEye Service: error initializing - BattlEye not supported on this platform"
 
         var matched = false
@@ -194,7 +195,7 @@ final class CrashClassifierTests: XCTestCase {
     }
 
     func testDotNetCLRMatch() {
-        var (patterns, _) = PatternLoader.loadDefaults()
+        var patterns = PatternLoader.defaultPatterns()
         let line =
             "0024:err:module:import_dll Library mscoree.dll (which is needed by L\"app.exe\") not found"
 
@@ -215,7 +216,7 @@ final class CrashClassifierTests: XCTestCase {
     }
 
     func testPrefixCorruptionMatch() {
-        var (patterns, _) = PatternLoader.loadDefaults()
+        var patterns = PatternLoader.defaultPatterns()
         let line = "wine: could not load user32.dll, status c0000135"
 
         var matched = false
@@ -229,7 +230,7 @@ final class CrashClassifierTests: XCTestCase {
     }
 
     func testNetworkTLSMatch() {
-        var (patterns, _) = PatternLoader.loadDefaults()
+        var patterns = PatternLoader.defaultPatterns()
         let line = "0024:err:winhttp:request_send_request secure connection failed"
 
         var matched = false
@@ -245,7 +246,7 @@ final class CrashClassifierTests: XCTestCase {
     // MARK: - CrashDiagnosis Remediation Tests
 
     func testDiagnosisRemediationResolution() {
-        let (_, remediations) = PatternLoader.loadDefaults()
+        let remediations = PatternLoader.defaultRemediations()
 
         let pattern = CrashPattern(
             id: "test",
@@ -298,7 +299,7 @@ final class CrashClassifierTests: XCTestCase {
     // MARK: - RemediationAction Tests
 
     func testRemediationActionTypes() {
-        let (_, remediations) = PatternLoader.loadDefaults()
+        let remediations = PatternLoader.defaultRemediations()
 
         // Verify at least one of each action type exists
         let types = Set(remediations.values.map(\.actionType))

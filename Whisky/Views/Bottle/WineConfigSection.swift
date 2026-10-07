@@ -31,11 +31,11 @@ struct WineConfigSection: View {
     @Binding var buildVersion: String
     @Binding var retinaModeState: RetinaModeState
     @Binding var dpiConfig: Int
-    @Binding var winVersionLoadingState: LoadingState
+    let winVersionLoadingState: LoadingState
     @Binding var buildVersionLoadingState: LoadingState
     @Binding var retinaModeLoadingState: LoadingState
-    @Binding var dpiConfigLoadingState: LoadingState
-    @Binding var dpiSheetPresented: Bool
+    let dpiConfigLoadingState: LoadingState
+    @State private var dpiSheetPresented: Bool = false
     var onRetryBuildVersion: (() -> Void)?
     var onRetryRetinaMode: (() -> Void)?
     var onRetryDpi: (() -> Void)?
@@ -142,10 +142,7 @@ struct WineConfigSection: View {
                 .sheet(isPresented: $dpiSheetPresented) {
                     DPIConfigSheetView(
                         dpiConfig: $dpiConfig,
-                        isRetinaMode: Binding(
-                            get: { retinaModeState == .enabled },
-                            set: { _ in }
-                        ),
+                        isRetinaMode: retinaModeState == .enabled,
                         presented: $dpiSheetPresented
                     )
                 }

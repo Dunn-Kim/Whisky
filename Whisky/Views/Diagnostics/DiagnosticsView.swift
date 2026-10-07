@@ -36,11 +36,16 @@ struct DiagnosticsView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var applyFeedback: String?
-    @State private var activeCategoryFilter: CrashCategory?
     @State private var searchText: String = ""
     @State private var logFilterMode: LogFilterMode = .all
     @State private var isLogExpanded: Bool = false
     @State private var isOtherSuggestionsExpanded: Bool = false
+
+    /// The category whose pill is selected, read from the log filter.
+    private var activeCategoryFilter: CrashCategory? {
+        guard case let .category(category) = logFilterMode else { return nil }
+        return category
+    }
 
     private var effectiveOnAction: ((RemediationAction) -> Void)? {
         guard let applyBottle else { return nil }
@@ -53,10 +58,9 @@ struct DiagnosticsView: View {
 
     private var resolvedRemediations: [RemediationAction] {
         guard let diagnosis else { return [] }
-        let (_, remediations) = PatternLoader.loadDefaults()
         // A card whose change is already in place (a reset to Recommended on
         // a Recommended bottle) would apply as a silent no-op.
-        return diagnosis.remediations(from: remediations).filter { action in
+        return diagnosis.remediations(from: PatternLoader.defaultRemediations()).filter { action in
             applyBottle.map { action.wouldChange($0.settings) } ?? true
         }
     }
@@ -123,7 +127,6 @@ struct DiagnosticsView: View {
                 logText: logText,
                 matches: diagnosis?.matches ?? [],
                 filterMode: $logFilterMode,
-                activeCategoryFilter: $activeCategoryFilter,
                 searchText: $searchText
             )
         }
@@ -258,10 +261,8 @@ extension DiagnosticsView {
                 ForEach(sortedCategories, id: \.key) { category, count in
                     Button {
                         if activeCategoryFilter == category {
-                            activeCategoryFilter = nil
                             logFilterMode = .all
                         } else {
-                            activeCategoryFilter = category
                             logFilterMode = .category(category)
                         }
                     } label: {
@@ -350,7 +351,6 @@ extension DiagnosticsView {
                 logText: logText,
                 matches: diagnosis?.matches ?? [],
                 filterMode: $logFilterMode,
-                activeCategoryFilter: $activeCategoryFilter,
                 searchText: $searchText
             )
             .frame(minHeight: 300)

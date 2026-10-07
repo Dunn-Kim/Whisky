@@ -62,11 +62,11 @@ struct AudioStatusView: View {
     }
 
     private var statusColor: Color {
-        switch audioStatus.tintColor {
-        case "green": .green
-        case "orange": .orange
-        case "red": .red
-        default: .secondary
+        switch audioStatus {
+        case .healthy: .green
+        case .degraded: .orange
+        case .broken: .red
+        case .unknown: .secondary
         }
     }
 

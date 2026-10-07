@@ -51,18 +51,19 @@ public enum SymptomCategory: String, CaseIterable, Codable, Sendable {
     /// Issues that do not fit into a specific category.
     case other
 
-    /// The JSON flow definition file name for this category.
-    public var flowFileName: String {
+    /// The JSON flow definition resource name for this category, without the
+    /// ".json" extension. Flows are keyed by it.
+    public var flowResourceName: String {
         switch self {
-        case .launchCrash: "launch-crash.json"
-        case .launcherIssues: "launcher-issues.json"
-        case .graphics: "graphics.json"
-        case .audio: "audio.json"
-        case .controllerInput: "controller-input.json"
-        case .installDependencies: "install-dependencies.json"
-        case .networkDownload: "network-download.json"
-        case .performanceStability: "performance-stability.json"
-        case .other: "other.json"
+        case .launchCrash: "launch-crash"
+        case .launcherIssues: "launcher-issues"
+        case .graphics: "graphics"
+        case .audio: "audio"
+        case .controllerInput: "controller-input"
+        case .installDependencies: "install-dependencies"
+        case .networkDownload: "network-download"
+        case .performanceStability: "performance-stability"
+        case .other: "other"
         }
     }
 

@@ -382,21 +382,6 @@ public class WhiskyWineInstaller {
         whiskyWineInfo()?.version
     }
 
-    /// The bundled DXVK (macOS) version recorded in the installed runtime's
-    /// version plist, or `nil` if WhiskyWine is not installed or the plist does
-    /// not record a DXVK version.
-    public static func whiskyWineDXVKVersion() -> String? {
-        whiskyWineInfo()?.dxvkVersion
-    }
-
-    /// The bundled DXMT version recorded in the installed runtime's version
-    /// plist, or `nil` if WhiskyWine is not installed or the runtime predates
-    /// the DXMT payload (< v3.1.0). `nil` means the DXMT graphics backend is
-    /// unavailable.
-    public static func whiskyWineDXMTVersion() -> String? {
-        whiskyWineInfo()?.dxmtVersion
-    }
-
     /// Whether `backend` can actually be selected against the currently
     /// installed runtime. Extends the pure
     /// ``GraphicsBackend/isAvailable(runtimeInfo:)`` version gate with the

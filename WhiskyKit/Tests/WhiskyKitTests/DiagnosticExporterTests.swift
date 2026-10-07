@@ -121,6 +121,14 @@ final class DiagnosticExporterTests: XCTestCase {
 
     // MARK: - DiagnosisHistory Tests
 
+    func testDiagnosisHistoryURLSitsInProgramSettings() {
+        let url = DiagnosisHistory.url(for: "game.exe", in: URL(filePath: "/tmp/Bottle"))
+        XCTAssertEqual(
+            url.path(percentEncoded: false),
+            "/tmp/Bottle/Program Settings/game.exe.diagnosis-history.plist"
+        )
+    }
+
     func testDiagnosisHistoryFIFO() {
         var history = DiagnosisHistory()
         XCTAssertTrue(history.isEmpty)

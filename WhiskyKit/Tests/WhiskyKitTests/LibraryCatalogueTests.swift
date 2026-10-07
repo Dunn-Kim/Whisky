@@ -42,7 +42,7 @@ struct LibraryCatalogueTests {
 
         #expect(items.count == 2)
         #expect(items.map(\.name) == ["Ready or Not", "Skyrim"])
-        #expect(items.allSatisfy { $0.source == .pinned })
+        #expect(items.allSatisfy { if case .program = $0.launch { true } else { false } })
         #expect(items.allSatisfy { $0.bottleURL == url })
     }
 
@@ -98,10 +98,10 @@ struct LibraryCatalogueTests {
         settings.pins = [pin("Portal", "/tmp/whisky-library-test/Bottle/drive_c/Portal/portal.exe")]
         let pinned = PinnedLibrarySource.items(inBottleAt: url, settings: settings)
         let steam = LibraryEntry(
-            id: "steam:400", name: "portal", iconURL: nil, bottleURL: url, source: .steam, launch: .steam(appID: 400)
+            id: "steam:400", name: "portal", iconURL: nil, bottleURL: url, launch: .steam(appID: 400)
         )
 
-        #expect(LibraryCatalogue.merge([pinned, [steam]]).map(\.source) == [.pinned])
+        #expect(LibraryCatalogue.merge([pinned, [steam]]) == pinned)
     }
 
     @Test("Steam artwork resolves the folder layout, then the flat one")
@@ -132,15 +132,6 @@ struct LibraryCatalogueTests {
         let root = URL.temporaryDirectory.appending(path: UUID().uuidString)
 
         #expect(SteamLibrarySource.artworkURL(appID: 1, steamRoot: root) == nil)
-    }
-
-    @Test("A source id round-trips, so it can be persisted alongside a filter")
-    func sourceIDCodes() throws {
-        let encoded = try JSONEncoder().encode(LibrarySourceID.steam)
-        let decoded = try JSONDecoder().decode(LibrarySourceID.self, from: encoded)
-
-        #expect(decoded == .steam)
-        #expect(decoded.rawValue == "steam")
     }
 
     @Test("The same Steam game in two bottles gets two ids, not one")

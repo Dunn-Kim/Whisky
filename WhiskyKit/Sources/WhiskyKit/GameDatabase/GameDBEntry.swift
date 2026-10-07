@@ -42,13 +42,6 @@ public struct GameConstraints: Codable, Sendable, Equatable {
         self.minMacOSVersion = minMacOSVersion
         self.minWineVersion = minWineVersion
     }
-
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.cpuArchitectures = try container.decodeIfPresent([String].self, forKey: .cpuArchitectures)
-        self.minMacOSVersion = try container.decodeIfPresent(String.self, forKey: .minMacOSVersion)
-        self.minWineVersion = try container.decodeIfPresent(String.self, forKey: .minWineVersion)
-    }
 }
 
 /// Information about the environment used to test a game configuration.
@@ -79,15 +72,6 @@ public struct TestedWith: Codable, Sendable, Equatable {
         self.whiskyVersion = whiskyVersion
         self.cpuArchitecture = cpuArchitecture
     }
-
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.lastTestedAt = try container.decode(Date.self, forKey: .lastTestedAt)
-        self.macOSVersion = try container.decode(String.self, forKey: .macOSVersion)
-        self.wineVersion = try container.decode(String.self, forKey: .wineVersion)
-        self.whiskyVersion = try container.decodeIfPresent(String.self, forKey: .whiskyVersion)
-        self.cpuArchitecture = try container.decodeIfPresent(String.self, forKey: .cpuArchitecture)
-    }
 }
 
 /// A known issue with a game, displayed in the detail view.
@@ -103,13 +87,6 @@ public struct KnownIssue: Codable, Sendable, Equatable {
         self.description = description
         self.severity = severity
         self.workaround = workaround
-    }
-
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.description = try container.decode(String.self, forKey: .description)
-        self.severity = try container.decodeIfPresent(String.self, forKey: .severity)
-        self.workaround = try container.decodeIfPresent(String.self, forKey: .workaround)
     }
 }
 
@@ -129,14 +106,6 @@ public struct Provenance: Codable, Sendable, Equatable {
         self.author = author
         self.lastUpdated = lastUpdated
         self.referenceURL = referenceURL
-    }
-
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.source = try container.decode(String.self, forKey: .source)
-        self.author = try container.decodeIfPresent(String.self, forKey: .author)
-        self.lastUpdated = try container.decodeIfPresent(Date.self, forKey: .lastUpdated)
-        self.referenceURL = try container.decodeIfPresent(URL.self, forKey: .referenceURL)
     }
 }
 

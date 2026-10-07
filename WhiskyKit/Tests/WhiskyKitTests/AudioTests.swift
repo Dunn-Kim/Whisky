@@ -29,8 +29,7 @@ final class AudioTests: XCTestCase {
         for index in 0 ..< 25 {
             let event = makeEvent(
                 deviceName: "Device-\(index)",
-                eventType: .defaultOutputChanged,
-                secondsAgo: Double(25 - index) * 60
+                    secondsAgo: Double(25 - index) * 60
             )
             history.append(event)
         }
@@ -59,19 +58,17 @@ final class AudioTests: XCTestCase {
 
     // MARK: - AudioDeviceHistory: 30-Second Deduplication
 
-    func testHistoryDeduplicatesSameDeviceAndTypeWithin30Seconds() {
+    func testHistoryDeduplicatesSameDeviceWithin30Seconds() {
         let history = AudioDeviceHistory()
         let now = Date()
 
         let event1 = AudioDeviceChangeEvent(
             timestamp: now,
-            eventType: .defaultOutputChanged,
             deviceName: "Speakers",
             transportType: .builtIn
         )
         let event2 = AudioDeviceChangeEvent(
             timestamp: now.addingTimeInterval(10),
-            eventType: .defaultOutputChanged,
             deviceName: "Speakers",
             transportType: .builtIn
         )
@@ -88,13 +85,11 @@ final class AudioTests: XCTestCase {
 
         let event1 = AudioDeviceChangeEvent(
             timestamp: now,
-            eventType: .defaultOutputChanged,
             deviceName: "Speakers",
             transportType: .builtIn
         )
         let event2 = AudioDeviceChangeEvent(
             timestamp: now.addingTimeInterval(5),
-            eventType: .defaultOutputChanged,
             deviceName: "Headphones",
             transportType: .usb
         )
@@ -111,13 +106,11 @@ final class AudioTests: XCTestCase {
 
         let event1 = AudioDeviceChangeEvent(
             timestamp: now,
-            eventType: .defaultOutputChanged,
             deviceName: "Speakers",
             transportType: .builtIn
         )
         let event2 = AudioDeviceChangeEvent(
             timestamp: now.addingTimeInterval(31),
-            eventType: .defaultOutputChanged,
             deviceName: "Speakers",
             transportType: .builtIn
         )
@@ -154,13 +147,6 @@ final class AudioTests: XCTestCase {
         XCTAssertEqual(AudioStatus.degraded(primaryIssue: "test").sfSymbol, "exclamationmark.triangle.fill")
         XCTAssertEqual(AudioStatus.broken(primaryIssue: "test").sfSymbol, "xmark.circle.fill")
         XCTAssertEqual(AudioStatus.unknown.sfSymbol, "questionmark.circle")
-    }
-
-    func testStatusTintColors() {
-        XCTAssertEqual(AudioStatus.healthy.tintColor, "green")
-        XCTAssertEqual(AudioStatus.degraded(primaryIssue: "test").tintColor, "orange")
-        XCTAssertEqual(AudioStatus.broken(primaryIssue: "test").tintColor, "red")
-        XCTAssertEqual(AudioStatus.unknown.tintColor, "secondary")
     }
 
     // MARK: - AudioTransportType
@@ -269,12 +255,10 @@ final class AudioTests: XCTestCase {
 
     private func makeEvent(
         deviceName: String,
-        eventType: AudioDeviceChangeEvent.EventType = .defaultOutputChanged,
         secondsAgo: Double
     ) -> AudioDeviceChangeEvent {
         AudioDeviceChangeEvent(
             timestamp: Date().addingTimeInterval(-secondsAgo),
-            eventType: eventType,
             deviceName: deviceName,
             transportType: .builtIn
         )

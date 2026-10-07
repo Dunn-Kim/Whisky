@@ -24,8 +24,8 @@ import WhiskyKit
 struct BottleActionBar: View {
     @ObservedObject var bottle: Bottle
     @Binding var showWinetricksSheet: Bool
-    @Binding var programLoading: Bool
     @Binding var toast: ToastData?
+    @State private var programLoading: Bool = false
     /// Called after a launch so the caller can refresh what it keeps in step
     /// with the prefix, the start menu among it.
     let onLaunch: () async -> Void

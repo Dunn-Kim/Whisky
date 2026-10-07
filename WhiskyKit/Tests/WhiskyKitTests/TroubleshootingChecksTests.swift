@@ -69,8 +69,7 @@ final class TroubleshootingChecksTests: XCTestCase {
     }
 
     func testRegisteredCheckRuns() async {
-        let registry = CheckRegistry()
-        registry.register(StubCheck(checkId: "stub.custom"))
+        let registry = CheckRegistry(checks: [StubCheck(checkId: "stub.custom")])
 
         let result = await registry.run(
             checkId: "stub.custom",
@@ -82,7 +81,7 @@ final class TroubleshootingChecksTests: XCTestCase {
         XCTAssertEqual(result.evidence["stub"], "true")
     }
 
-    func testReRegisteringSameIdReplacesSilently() async {
+    func testLaterCheckWithSameIdWins() async {
         struct FixedCheck: TroubleshootingCheck {
             let checkId = "stub.replace"
             let outcome: CheckOutcome
@@ -90,9 +89,7 @@ final class TroubleshootingChecksTests: XCTestCase {
                 CheckResult(outcome: outcome, summary: "fixed")
             }
         }
-        let registry = CheckRegistry()
-        registry.register(FixedCheck(outcome: .pass))
-        registry.register(FixedCheck(outcome: .unknown))
+        let registry = CheckRegistry(checks: [FixedCheck(outcome: .pass), FixedCheck(outcome: .unknown)])
 
         let result = await registry.run(checkId: "stub.replace", params: [:], context: makeCheckContext())
 

@@ -372,13 +372,10 @@ struct WhiskyApp: App {
             Task { @MainActor in
                 guard audioAlertTracker.shouldAlert(deviceName: event.deviceName) else { return }
 
-                switch event.eventType {
-                case .defaultOutputChanged:
-                    let message = String(
-                        localized: "audio.alert.disconnected"
-                    ) + ": \(event.deviceName)"
-                    audioDeviceToast = ToastData(message: message, style: .info)
-                }
+                let message = String(
+                    localized: "audio.alert.disconnected"
+                ) + ": \(event.deviceName)"
+                audioDeviceToast = ToastData(message: message, style: .info)
             }
         }
     }

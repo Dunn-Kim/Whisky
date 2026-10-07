@@ -45,14 +45,13 @@ public final class AudioDeviceHistory: @unchecked Sendable {
 
     /// Appends a new event, applying deduplication and FIFO eviction.
     ///
-    /// If an existing event with the same device name and event type occurred
-    /// within the last 30 seconds, the new event is silently dropped.
+    /// If an existing event with the same device name occurred within the
+    /// last 30 seconds, the new event is silently dropped.
     ///
     /// - Parameter event: The change event to record.
     public func append(_ event: AudioDeviceChangeEvent) {
         let dominated = events.contains { existing in
             existing.deviceName == event.deviceName
-                && existing.eventType == event.eventType
                 && event.timestamp.timeIntervalSince(existing.timestamp) < Self.deduplicationWindow
         }
 

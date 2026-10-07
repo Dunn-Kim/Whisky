@@ -21,14 +21,14 @@ import WhiskyKit
 
 struct DPIConfigSheetView: View {
     @Binding var dpiConfig: Int
-    @Binding var isRetinaMode: Bool
+    let isRetinaMode: Bool
     @Binding var presented: Bool
     @State var stagedChanges: Float
     @FocusState var textFocused: Bool
 
-    init(dpiConfig: Binding<Int>, isRetinaMode: Binding<Bool>, presented: Binding<Bool>) {
+    init(dpiConfig: Binding<Int>, isRetinaMode: Bool, presented: Binding<Bool>) {
         self._dpiConfig = dpiConfig
-        self._isRetinaMode = isRetinaMode
+        self.isRetinaMode = isRetinaMode
         self._presented = presented
         self.stagedChanges = Float(dpiConfig.wrappedValue)
     }

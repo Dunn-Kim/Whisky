@@ -36,8 +36,7 @@ public enum FlowLoader {
     public static func loadAllFlows() -> [String: FlowDefinition] {
         var flows: [String: FlowDefinition] = [:]
         for category in SymptomCategory.allCases where category != .other {
-            let categoryId = String(category.flowFileName.dropLast(5)) // Remove ".json"
-            flows[categoryId] = loadFlow(categoryId)
+            flows[category.flowResourceName] = loadFlow(category.flowResourceName)
         }
 
         logger.debug("Loaded \(flows.count) flow definitions")

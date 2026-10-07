@@ -51,14 +51,4 @@ public enum AudioStatus: Sendable, Equatable {
         case .unknown: "questionmark.circle"
         }
     }
-
-    /// Semantic tint color name for status presentation.
-    public var tintColor: String {
-        switch self {
-        case .healthy: "green"
-        case .degraded: "orange"
-        case .broken: "red"
-        case .unknown: "secondary"
-        }
-    }
 }

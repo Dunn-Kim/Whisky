@@ -35,37 +35,24 @@ import Foundation
 /// ## Example
 ///
 /// ```swift
-/// let (patterns, remediations) = PatternLoader.loadDefaults()
-/// let classifier = CrashClassifier(patterns: patterns, remediations: remediations)
+/// let classifier = CrashClassifier(patterns: PatternLoader.defaultPatterns())
 /// let diagnosis = classifier.classify(log: wineLogOutput, exitCode: exitCode)
 /// ```
 public struct CrashClassifier: Sendable {
     /// Compiled patterns ready for matching.
     private var patterns: [CrashPattern]
 
-    /// Available remediation actions keyed by ID.
-    private let remediations: [String: RemediationAction]
-
-    /// Creates a classifier with the given patterns and remediations.
+    /// Creates a classifier with the given patterns, the bundled ones by default.
     ///
     /// All regex patterns are compiled eagerly at init time for performance.
     ///
-    /// - Parameters:
-    ///   - patterns: Array of crash patterns to match against.
-    ///   - remediations: Dictionary of remediation actions keyed by ID.
-    public init(patterns: [CrashPattern], remediations: [String: RemediationAction]) {
+    /// - Parameter patterns: Array of crash patterns to match against.
+    public init(patterns: [CrashPattern] = PatternLoader.defaultPatterns()) {
         var compiled = patterns
         for index in compiled.indices {
             compiled[index].compileRegex()
         }
         self.patterns = compiled
-        self.remediations = remediations
-    }
-
-    /// Creates a classifier using the default bundled patterns and remediations.
-    public init() {
-        let (patterns, remediations) = PatternLoader.loadDefaults()
-        self.init(patterns: patterns, remediations: remediations)
     }
 
     /// Classifies Wine log output for crash patterns.

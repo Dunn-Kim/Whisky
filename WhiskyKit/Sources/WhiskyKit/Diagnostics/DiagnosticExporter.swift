@@ -121,14 +121,15 @@ public enum DiagnosticExporter {
         } else {
             section += "- **Architecture:** Intel (x86_64)\n"
         }
-        if let whiskyWineVersion = WhiskyWineInstaller.whiskyWineVersion() {
+        let runtimeInfo = WhiskyWineInstaller.whiskyWineInfo()
+        if let whiskyWineVersion = runtimeInfo?.version {
             section += "- **WhiskyWine:** \(whiskyWineVersion.major).\(whiskyWineVersion.minor)"
             section += ".\(whiskyWineVersion.patch)\n"
         }
-        if let dxvkVersion = WhiskyWineInstaller.whiskyWineDXVKVersion() {
+        if let dxvkVersion = runtimeInfo?.dxvkVersion {
             section += "- **DXVK:** \(dxvkVersion)\n"
         }
-        if let dxmtVersion = WhiskyWineInstaller.whiskyWineDXMTVersion() {
+        if let dxmtVersion = runtimeInfo?.dxmtVersion {
             section += "- **DXMT:** \(dxmtVersion)\n"
         }
         section += "\n"
@@ -189,8 +190,7 @@ public enum DiagnosticExporter {
     @MainActor
     private static func generateSuggestedRemediationsSection(diagnosis: CrashDiagnosis) -> String {
         guard !diagnosis.applicableRemediationIds.isEmpty else { return "" }
-        let (_, remediations) = PatternLoader.loadDefaults()
-        let resolved = diagnosis.remediations(from: remediations)
+        let resolved = diagnosis.remediations(from: PatternLoader.defaultRemediations())
         guard !resolved.isEmpty else { return "" }
 
         var section = "### Suggested Remediations\n\n"

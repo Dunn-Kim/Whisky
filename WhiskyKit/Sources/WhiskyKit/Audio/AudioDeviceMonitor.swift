@@ -145,7 +145,6 @@ public final class AudioDeviceMonitor: @unchecked Sendable {
             let device = self.defaultOutputDevice()
             let event = AudioDeviceChangeEvent(
                 timestamp: Date(),
-                eventType: .defaultOutputChanged,
                 deviceName: device?.name ?? "Unknown",
                 transportType: device?.transportType ?? .unknown
             )

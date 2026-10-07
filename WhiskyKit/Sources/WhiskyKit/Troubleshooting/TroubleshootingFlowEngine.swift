@@ -137,7 +137,7 @@ public final class TroubleshootingFlowEngine: ObservableObject {
     ///
     /// - Parameter category: The symptom category to troubleshoot.
     public func selectCategory(_ category: SymptomCategory) {
-        let categoryId = String(category.flowFileName.dropLast(5)) // Remove ".json"
+        let categoryId = category.flowResourceName
         guard let flow = flowDefinitions[categoryId] else {
             logger.error("No flow definition found for category: \(category.rawValue)")
             escalate()

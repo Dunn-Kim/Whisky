@@ -126,12 +126,9 @@ final class FlowDefinitionTests: XCTestCase {
 
     // MARK: - SymptomCategory
 
-    func testEveryCategoryHasAJSONFlowFileName() {
+    func testEveryCategoryHasAFlowResourceName() {
         for category in SymptomCategory.allCases {
-            XCTAssertTrue(
-                category.flowFileName.hasSuffix(".json"),
-                "\(category) flow file name should end in .json"
-            )
+            XCTAssertFalse(category.flowResourceName.isEmpty, "\(category) needs a flow resource name")
             XCTAssertFalse(category.displayTitle.isEmpty)
         }
     }

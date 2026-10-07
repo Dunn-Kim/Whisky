@@ -77,10 +77,10 @@ final class FlowLoaderValidatorTests: XCTestCase {
         // .other, which by design has no flow: selecting it escalates
         // directly to the export fragment (the engine's no-flow path).
         for category in SymptomCategory.allCases where category != .other {
-            let categoryId = String(category.flowFileName.dropLast(5))
+            let categoryId = category.flowResourceName
             XCTAssertEqual(
                 flows[categoryId]?.categoryId, categoryId,
-                "\(category.flowFileName) must load; a silently skipped flow means a dead symptom path"
+                "\(categoryId).json must load; a silently skipped flow means a dead symptom path"
             )
         }
         XCTAssertEqual(flows.count, SymptomCategory.allCases.count - 1)
@@ -119,16 +119,7 @@ final class FlowLoaderValidatorTests: XCTestCase {
 
         // …and compare against the concrete implementations the registry
         // registers, without running any of them (several probe hardware).
-        let implemented: Set<String> = Set(
-            ([
-                CrashLogCheck(),
-                AudioDriverCheck(), AudioDeviceCheck(),
-                DependencyCheck(), WinetricksVerbCheck(),
-                LauncherTypeCheck(), ProcessRunningCheck(),
-                RegistryValueCheck(),
-                GameConfigAvailableCheck(), SettingValueCheck(), DiagnosticsEnhanceCheck()
-            ] as [any TroubleshootingCheck]).map(\.checkId)
-        )
+        let implemented = Set(CheckRegistry.builtIn.map(\.checkId))
 
         let missing = referenced.subtracting(implemented)
         XCTAssertTrue(

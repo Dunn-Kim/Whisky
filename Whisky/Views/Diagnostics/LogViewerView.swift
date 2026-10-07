@@ -33,7 +33,6 @@ struct LogViewerView: View {
     let logText: String
     let matches: [DiagnosisMatch]
     @Binding var filterMode: LogFilterMode
-    @Binding var activeCategoryFilter: CrashCategory?
     @Binding var searchText: String
 
     var body: some View {
@@ -71,9 +70,6 @@ extension LogViewerView {
     private func filterButton(title: String, mode: LogFilterMode) -> some View {
         Button {
             filterMode = mode
-            if case .category = mode {} else {
-                activeCategoryFilter = nil
-            }
         } label: {
             Text(title)
                 .font(.caption)

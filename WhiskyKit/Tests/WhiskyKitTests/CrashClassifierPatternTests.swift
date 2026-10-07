@@ -161,7 +161,7 @@ final class CrashClassifierPatternTests: XCTestCase {
             remediationActionIds: nil
         )
 
-        let classifier = CrashClassifier(patterns: [pattern], remediations: [:])
+        let classifier = CrashClassifier(patterns: [pattern])
 
         // Log with no lines containing "import_dll" -- prefilter should skip all regex
         let log = """
@@ -287,7 +287,7 @@ final class CrashClassifierPatternTests: XCTestCase {
     }
 
     func testEveryPatternHasPositiveMatch() {
-        var (patterns, _) = PatternLoader.loadDefaults()
+        var patterns = PatternLoader.defaultPatterns()
         let sampleLines = makeSampleLinesForPatterns()
 
         for index in patterns.indices {

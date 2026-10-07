@@ -102,7 +102,7 @@ public enum SteamLauncher {
             // Falls back to a plist read for executables the bottle scan has
             // not reached, so Play works before the Programs tab is opened.
             let overrides = scanned[url.standardizedFileURL]
-                ?? Program.persistedOverrides(for: url, bottleURL: bottle.url)
+                ?? Program.persistedSettings(for: url, bottleURL: bottle.url)?.overrides
             return ProgramOverrideCandidate(url: url, overrides: overrides ?? ProgramOverrides())
         }
         return SteamLibrary.preferredOverrides(among: candidates)

@@ -230,7 +230,7 @@ struct LibraryCard: View {
         if item.isLauncher {
             parts.append(String(localized: "library.card.launcher"))
         }
-        if item.source == .steam {
+        if case .steam = item.launch {
             parts.append(String(localized: "library.source.steam"))
         }
         if let lastPlayed {

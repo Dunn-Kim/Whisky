@@ -35,9 +35,38 @@ import os.log
 ///     context: checkContext
 /// )
 /// ```
-public final class CheckRegistry: @unchecked Sendable {
-    private let lock = NSLock()
-    private var checks: [String: any TroubleshootingCheck] = [:]
+public final class CheckRegistry: Sendable {
+    /// Every built-in check implementation.
+    ///
+    /// Each check wraps an existing diagnostic primitive and returns a
+    /// normalized ``CheckResult``. Check IDs are stable and match the
+    /// references in flow definition JSON files.
+    public static let builtIn: [any TroubleshootingCheck] = [
+        // Crash diagnostics
+        CrashLogCheck(),
+
+        // Audio diagnostics
+        AudioDriverCheck(),
+        AudioDeviceCheck(),
+
+        // Dependency and winetricks
+        DependencyCheck(),
+        WinetricksVerbCheck(),
+
+        // Launcher and process
+        LauncherTypeCheck(),
+        ProcessRunningCheck(),
+
+        // Registry
+        RegistryValueCheck(),
+
+        // Game config, settings, and diagnostics
+        GameConfigAvailableCheck(),
+        SettingValueCheck(),
+        DiagnosticsEnhanceCheck()
+    ]
+
+    private let checks: [String: any TroubleshootingCheck]
 
     private let logger = Logger(
         subsystem: "com.franke.Whisky",
@@ -46,28 +75,12 @@ public final class CheckRegistry: @unchecked Sendable {
 
     // MARK: - Init
 
-    /// Creates a check registry with all built-in checks pre-registered.
+    /// Creates a check registry from `checks`, all built-in checks by default.
     ///
-    /// All default check implementations are registered automatically.
-    /// Additional checks can be registered via ``register(_:)`` after
-    /// construction.
-    public init() {
-        registerDefaults()
-    }
-
-    // MARK: - Registration
-
-    /// Registers a check implementation in the registry.
-    ///
-    /// If a check with the same ``TroubleshootingCheck/checkId`` is already
-    /// registered, it is replaced silently.
-    ///
-    /// - Parameter check: The check implementation to register.
-    public func register(_ check: any TroubleshootingCheck) {
-        lock.withLock {
-            checks[check.checkId] = check
-        }
-        logger.debug("Registered check: \(check.checkId)")
+    /// If two checks share a ``TroubleshootingCheck/checkId``, the later one
+    /// wins.
+    public init(checks: [any TroubleshootingCheck] = builtIn) {
+        self.checks = Dictionary(checks.map { ($0.checkId, $0) }, uniquingKeysWith: { _, later in later })
     }
 
     // MARK: - Execution
@@ -87,48 +100,12 @@ public final class CheckRegistry: @unchecked Sendable {
         params: [String: String],
         context: CheckContext
     ) async -> CheckResult {
-        let check: (any TroubleshootingCheck)? = lock.withLock {
-            checks[checkId]
-        }
-
-        guard let check else {
+        guard let check = checks[checkId] else {
             logger.error("Unknown check ID: \(checkId)")
             return .error("Check not found: \(checkId)", evidence: ["error": "Unknown checkId: \(checkId)"])
         }
 
         logger.debug("Running check: \(checkId)")
         return await check.run(params: params, context: context)
-    }
-
-    // MARK: - Default Registration
-
-    /// Registers all built-in check implementations.
-    ///
-    /// Each check wraps an existing diagnostic primitive and returns a
-    /// normalized ``CheckResult``. Check IDs are stable and match the
-    /// references in flow definition JSON files.
-    public func registerDefaults() {
-        // Crash diagnostics
-        register(CrashLogCheck())
-
-        // Audio diagnostics
-        register(AudioDriverCheck())
-        register(AudioDeviceCheck())
-
-        // Dependency and winetricks
-        register(DependencyCheck())
-        register(WinetricksVerbCheck())
-
-        // Launcher and process
-        register(LauncherTypeCheck())
-        register(ProcessRunningCheck())
-
-        // Registry
-        register(RegistryValueCheck())
-
-        // Game config, settings, and diagnostics
-        register(GameConfigAvailableCheck())
-        register(SettingValueCheck())
-        register(DiagnosticsEnhanceCheck())
     }
 }
