@@ -175,25 +175,6 @@ final class FileManagerReplaceFileTests: XCTestCase {
         super.tearDown()
     }
 
-    func testReplaceFileWithOriginalCopy() throws {
-        let originalURL = tempDir.appending(path: "original.txt")
-        let replacementURL = tempDir.appending(path: "replacement.txt")
-
-        try Data("original content".utf8).write(to: originalURL)
-        try Data("new content".utf8).write(to: replacementURL)
-
-        try FileManager.default.replaceFile(at: originalURL, with: replacementURL, makeOriginalCopy: true)
-
-        let newContent = try String(contentsOf: originalURL, encoding: .utf8)
-        XCTAssertEqual(newContent, "new content")
-
-        let copyURL = originalURL.appendingPathExtension("orig")
-        XCTAssertTrue(FileManager.default.fileExists(atPath: copyURL.path(percentEncoded: false)))
-
-        let copyContent = try String(contentsOf: copyURL, encoding: .utf8)
-        XCTAssertEqual(copyContent, "original content")
-    }
-
     func testReplaceFileWithoutOriginalCopy() throws {
         let originalURL = tempDir.appending(path: "original.txt")
         let replacementURL = tempDir.appending(path: "replacement.txt")
@@ -201,7 +182,7 @@ final class FileManagerReplaceFileTests: XCTestCase {
         try Data("original content".utf8).write(to: originalURL)
         try Data("new content".utf8).write(to: replacementURL)
 
-        try FileManager.default.replaceFile(at: originalURL, with: replacementURL, makeOriginalCopy: false)
+        try FileManager.default.replaceFile(at: originalURL, with: replacementURL)
 
         let newContent = try String(contentsOf: originalURL, encoding: .utf8)
         XCTAssertEqual(newContent, "new content")
@@ -219,21 +200,6 @@ final class FileManagerReplaceFileTests: XCTestCase {
         try FileManager.default.replaceFile(at: originalURL, with: replacementURL)
 
         XCTAssertFalse(FileManager.default.fileExists(atPath: originalURL.path(percentEncoded: false)))
-    }
-
-    func testReplaceFileRemovesExistingBackup() throws {
-        let originalURL = tempDir.appending(path: "original.txt")
-        let replacementURL = tempDir.appending(path: "replacement.txt")
-        let backupURL = originalURL.appendingPathExtension("orig")
-
-        try Data("original content".utf8).write(to: originalURL)
-        try Data("old backup".utf8).write(to: backupURL)
-        try Data("new content".utf8).write(to: replacementURL)
-
-        try FileManager.default.replaceFile(at: originalURL, with: replacementURL, makeOriginalCopy: true)
-
-        let backupContent = try String(contentsOf: backupURL, encoding: .utf8)
-        XCTAssertEqual(backupContent, "original content")
     }
 }
 
@@ -307,18 +273,5 @@ final class FileManagerReplaceDLLsTests: XCTestCase {
             let content = try String(contentsOf: destinationDir.appending(path: name), encoding: .utf8)
             XCTAssertEqual(content, "replacement", "\(name) must be replaced even when non-DLL files are present")
         }
-    }
-
-    func testReplaceDLLsWithMakeOriginalCopy() throws {
-        let destDLL = destinationDir.appending(path: "test.dll")
-        let srcDLL = sourceDir.appending(path: "test.dll")
-
-        try Data("original dll".utf8).write(to: destDLL)
-        try Data("new dll".utf8).write(to: srcDLL)
-
-        try FileManager.default.replaceDLLs(in: destinationDir, withContentsIn: sourceDir, makeOriginalCopy: true)
-
-        let backupURL = destDLL.appendingPathExtension("orig")
-        XCTAssertTrue(FileManager.default.fileExists(atPath: backupURL.path(percentEncoded: false)))
     }
 }

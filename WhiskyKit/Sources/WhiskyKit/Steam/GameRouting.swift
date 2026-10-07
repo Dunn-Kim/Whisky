@@ -64,23 +64,6 @@ public struct GameRouting {
         entries()[String(appId)]?.bottleURL
     }
 
-    /// When a game was last launched, if it has been since launch times were
-    /// recorded.
-    public func lastLaunched(forAppId appId: Int) -> Date? {
-        entries()[String(appId)]?.lastLaunched
-    }
-
-    /// All known routes, keyed by App ID.
-    public func routes() -> [Int: URL] {
-        var result: [Int: URL] = [:]
-        for (key, route) in entries() {
-            if let appId = Int(key) {
-                result[appId] = route.bottleURL
-            }
-        }
-        return result
-    }
-
     /// Every recorded launch time, keyed by App ID.
     ///
     /// Read in one pass because the library needs the whole set at once, and the

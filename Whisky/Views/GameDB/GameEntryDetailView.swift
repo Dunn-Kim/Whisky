@@ -52,7 +52,6 @@ struct GameEntryDetailView: View {
                     entry: entry,
                     variant: variant,
                     bottle: bottle,
-                    programURL: nil,
                     toast: $toast
                 )
             }

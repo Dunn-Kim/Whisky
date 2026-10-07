@@ -80,14 +80,11 @@ final class GPUDetectionTests: XCTestCase {
         XCTAssertEqual(amdEnv["GPU_VENDOR_ID"], "0x1002")
     }
 
-    func testValidateSpoofingEnvironment() {
-        // Valid environment
-        var validEnv = GPUDetection.spoofGPU(vendor: .nvidia)
-        XCTAssertTrue(GPUDetection.validateSpoofingEnvironment(validEnv))
-
-        // Invalid environment (missing required keys)
-        validEnv.removeValue(forKey: "GPU_VENDOR_ID")
-        XCTAssertFalse(GPUDetection.validateSpoofingEnvironment(validEnv))
+    func testSpoofingEnvironmentHasRequiredKeys() {
+        let env = GPUDetection.spoofGPU(vendor: .nvidia)
+        XCTAssertNotNil(env["GPU_VENDOR_ID"])
+        XCTAssertNotNil(env["GPU_DEVICE_ID"])
+        XCTAssertNotNil(env["D3DM_FEATURE_LEVEL_12_1"])
     }
 
     func testAllVendorsHaveDeviceIDs() {

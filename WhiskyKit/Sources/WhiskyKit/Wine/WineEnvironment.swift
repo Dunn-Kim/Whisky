@@ -31,7 +31,7 @@ extension Wine {
     ///
     /// Each Wine process launch resolves through this method, which populates
     /// an ``EnvironmentBuilder`` with base, platform, bottleManaged, launcherManaged,
-    /// bottleUser, programUser, featureRuntime, and callsiteOverride layers.
+    /// bottleUser, programUser, and featureRuntime layers.
     /// WINEDLLOVERRIDES is composed per-DLL via ``DLLOverrideResolver``.
     ///
     /// Invalid environment variable keys (those not matching `[A-Za-z_][A-Za-z0-9_]*`)
@@ -147,8 +147,6 @@ extension Wine {
         if let preset = programSettings?.activeWineDebugPreset, preset != .normal {
             builder.set("WINEDEBUG", preset.winedebugValue, layer: .featureRuntime)
         }
-
-        // Layer 9: callsiteOverride is left empty (populated by direct callers)
 
         // Collect bottle custom DLL overrides for the resolver
         dllResolver.bottleCustom = bottle.settings.dllOverrides

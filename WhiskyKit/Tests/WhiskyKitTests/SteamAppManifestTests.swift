@@ -57,8 +57,6 @@ struct SteamAppManifestTests {
         #expect(manifest.name == "Casualties: Unknown Demo")
         #expect(manifest.installDir == "Casualties Unknown Demo")
         #expect(manifest.stateFlags == 4)
-        #expect(manifest.buildID == 1_785_187_029)
-        #expect(manifest.sizeOnDisk == 541_968_407)
         #expect(manifest.isFullyInstalled)
         #expect(manifest.lastPlayed == Date(timeIntervalSince1970: 1_760_000_000))
     }

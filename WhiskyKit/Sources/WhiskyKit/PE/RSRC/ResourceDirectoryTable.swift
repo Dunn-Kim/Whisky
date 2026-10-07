@@ -91,30 +91,12 @@ public struct ResourceDirectoryTable: Hashable, Equatable {
     ///   - types: Only read entrys of the given types. Only applies to the root table. Defaults to `nil`.
     ///   - fileName: Display name of the file being parsed, for log attribution.
     init(handle: FileHandle, pointerToRawData: UInt64, types: [ResourceType]?, fileName: String = "<unknown>") {
-        self.init(handle: handle, pointerToRawData: pointerToRawData, offset: 0, types: types, fileName: fileName)
-    }
-
-    /// Read the Resource Directory Table
-    ///
-    /// - Parameters:
-    ///   - fileHandle: The file handle to read the data from.
-    ///   - pointerToRawData: The offset to the Resource Directory Table in the file handle.
-    ///   - offset: Additional offset to the `pointerToRawData`.
-    ///             Use only for sub-tables. The root-table has the offset 0.
-    ///   - types: Only read entrys of the given types. Only applies to the root table. Defaults to `nil`.
-    init(
-        handle: FileHandle,
-        pointerToRawData: UInt64,
-        offset initialOffset: UInt64,
-        types: [ResourceType]? = nil,
-        fileName: String = "<unknown>"
-    ) {
-        var visited: Set<UInt64> = [initialOffset]
+        var visited: Set<UInt64> = [0]
         let budget = TraversalBudget(Self.maxTotalEntries, fileName: fileName)
         self.init(
             handle: handle,
             pointerToRawData: pointerToRawData,
-            offset: initialOffset,
+            offset: 0,
             types: types,
             fileName: fileName,
             depth: 0,

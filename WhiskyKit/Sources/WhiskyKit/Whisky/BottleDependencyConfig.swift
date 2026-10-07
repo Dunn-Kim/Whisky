@@ -111,8 +111,6 @@ public enum DependencyConfidence: String, Codable, Sendable {
     case cached
     /// Status inferred from DLL presence or registry probes (best-effort).
     case heuristic
-    /// Status could not be determined.
-    case unknown
 }
 
 // MARK: - Install Status
@@ -279,16 +277,6 @@ public struct BottleDependencyHistory: Codable, Sendable {
         while attempts.count > Self.maxEntries {
             attempts.removeFirst()
         }
-    }
-
-    /// Removes all entries from the history.
-    public mutating func clear() {
-        attempts.removeAll()
-    }
-
-    /// Whether the history contains no entries.
-    public var isEmpty: Bool {
-        attempts.isEmpty
     }
 
     /// Loads the dependency history from a bottle directory.

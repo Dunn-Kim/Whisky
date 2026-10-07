@@ -203,8 +203,7 @@ struct ProgramOverrideSettingsView: View {
             Section(String(localized: "gameConfig.banner.recommended")) {
                 GameConfigBannerView(
                     matchResult: match,
-                    bottle: bottle,
-                    programURL: program.url
+                    bottle: bottle
                 )
 
                 Button {
@@ -233,7 +232,6 @@ struct ProgramOverrideSettingsView: View {
 
         let metadata = ProgramMetadata(
             exeName: exeName,
-            exeURL: exeURL,
             steamAppId: steamAppId
         )
 

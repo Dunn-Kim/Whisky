@@ -373,24 +373,11 @@ struct WhiskyApp: App {
                 guard audioAlertTracker.shouldAlert(deviceName: event.deviceName) else { return }
 
                 switch event.eventType {
-                case .defaultOutputChanged, .disconnected:
+                case .defaultOutputChanged:
                     let message = String(
                         localized: "audio.alert.disconnected"
                     ) + ": \(event.deviceName)"
                     audioDeviceToast = ToastData(message: message, style: .info)
-                case .reconnected:
-                    let message = String(
-                        localized: "audio.alert.reconnected"
-                    ) + ": \(event.deviceName)"
-                    audioDeviceToast = ToastData(message: message, style: .success)
-                case .sampleRateChanged:
-                    // Check for low sample rate (HFP/Bluetooth issue)
-                    if let device = audioMonitor.defaultOutputDevice(),
-                       device.sampleRate < 22_050, device.sampleRate > 0 {
-                        let message = String(localized: "audio.alert.lowSampleRate")
-                            + ": \(event.deviceName)"
-                        audioDeviceToast = ToastData(message: message, style: .info)
-                    }
                 }
             }
         }

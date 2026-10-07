@@ -363,11 +363,9 @@ final class GameDatabaseTests: XCTestCase {
 
     func testGameConfigSnapshotPlistRoundTrip() throws {
         let sampleSettings = Data("sample-settings-plist".utf8)
-        let programSettings = ["file:///app/game.exe": Data("program-data".utf8)]
 
         let snapshot = GameConfigSnapshot(
             bottleSettingsData: sampleSettings,
-            programSettingsData: programSettings,
             installedVerbs: ["vcrun2022", "dotnet48"],
             appliedEntryId: "elden-ring",
             appliedVariantId: "recommended-apple-silicon",
@@ -381,7 +379,6 @@ final class GameDatabaseTests: XCTestCase {
         let decoded = try PropertyListDecoder().decode(GameConfigSnapshot.self, from: data)
 
         XCTAssertEqual(decoded.bottleSettingsData, sampleSettings)
-        XCTAssertEqual(decoded.programSettingsData, programSettings)
         XCTAssertEqual(decoded.installedVerbs, ["vcrun2022", "dotnet48"])
         XCTAssertEqual(decoded.appliedEntryId, "elden-ring")
         XCTAssertEqual(decoded.appliedVariantId, "recommended-apple-silicon")

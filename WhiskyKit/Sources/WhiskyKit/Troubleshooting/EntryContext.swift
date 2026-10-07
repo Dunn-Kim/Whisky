@@ -68,13 +68,4 @@ public enum EntryContext: Sendable {
         case .program, .bottleDiagnostics, .helpMenu: nil
         }
     }
-
-    /// The initial wizard phase based on entry context.
-    ///
-    /// An entry point that knows the symptom category starts at the checks
-    /// phase, skipping symptom selection. The others start at symptom
-    /// selection: without a category there is no flow, and so no check to run.
-    public var initialPhase: TroubleshootingSession.SessionPhase {
-        initialCategory == nil ? .symptom : .checks
-    }
 }

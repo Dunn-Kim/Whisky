@@ -46,9 +46,7 @@ public extension LauncherType {
         if filename.contains("rockstar") ||
             filename.contains("launcherpatcher") ||
             path.contains("rockstar games") ||
-            path.contains("rockstar games launcher") ||
-            (filename == "launcher.exe" &&
-                (path.contains("rockstar games") || path.contains("social club"))) {
+            (filename == "launcher.exe" && path.contains("social club")) {
             return .rockstar
         }
 
@@ -89,8 +87,7 @@ public extension LauncherType {
 
         // Paradox Launcher detection
         // Be specific to avoid false positives
-        if filename.contains("paradox launcher") ||
-            filename.contains("paradoxlauncher") ||
+        if filename.contains("paradoxlauncher") ||
             path.contains("paradox launcher") ||
             ((filename == "launcher.exe" || filename == "launcher") &&
                 path.contains("paradox interactive")) {
@@ -100,8 +97,7 @@ public extension LauncherType {
         // ZFGame Browser detection
         // Matters for more than presets: an undetected Chromium launcher
         // resolves to D3DMetal, where its window comes up and never paints.
-        if filename.contains("zfgamebrowser") ||
-            filename.contains("zfgame") ||
+        if filename.contains("zfgame") ||
             path.contains("/zfgame/") ||
             path.contains("\\zfgame\\") {
             return .zfGame

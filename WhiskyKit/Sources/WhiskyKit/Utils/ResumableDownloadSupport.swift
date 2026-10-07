@@ -103,9 +103,6 @@ struct ResumeState: Codable, Equatable {
     /// bytes from two different files.
     var validator: String?
 
-    /// Total size when the server advertised one.
-    var expectedBytes: Int64?
-
     static func load(from url: URL) -> ResumeState? {
         guard let data = try? Data(contentsOf: url) else { return nil }
         return try? PropertyListDecoder().decode(ResumeState.self, from: data)

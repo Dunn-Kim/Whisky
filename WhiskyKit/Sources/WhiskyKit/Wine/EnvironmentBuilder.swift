@@ -34,7 +34,6 @@ import Foundation
 /// 6. ``bottleUser`` -- User-defined bottle-level environment variables
 /// 7. ``programUser`` -- Program settings environment variables and locale
 /// 8. ``featureRuntime`` -- Launch-time feature injectors (ClickOnce, one-off modes)
-/// 9. ``callsiteOverride`` -- Explicit overrides passed to `Wine.runProgram(environment:)`
 public enum EnvironmentLayer: Int, CaseIterable, Comparable, Sendable, Hashable {
     case base = 0
     case platform
@@ -44,7 +43,6 @@ public enum EnvironmentLayer: Int, CaseIterable, Comparable, Sendable, Hashable 
     case bottleUser
     case programUser
     case featureRuntime
-    case callsiteOverride
 
     public static func < (lhs: Self, rhs: Self) -> Bool {
         lhs.rawValue < rhs.rawValue

@@ -258,10 +258,9 @@ final class LauncherDiagnosticsTests: XCTestCase {
         bottle.settings.environmentVariables(wineEnv: &env)
 
         // Verify GPU spoofing environment is valid
-        XCTAssertTrue(
-            GPUDetection.validateSpoofingEnvironment(env),
-            "GPU spoofing environment should be valid"
-        )
+        XCTAssertNotNil(env["GPU_VENDOR_ID"], "GPU spoofing environment should be valid")
+        XCTAssertNotNil(env["GPU_DEVICE_ID"], "GPU spoofing environment should be valid")
+        XCTAssertNotNil(env["D3DM_FEATURE_LEVEL_12_1"], "GPU spoofing environment should be valid")
     }
 
     func testGPUSpoofingDisabled() throws {

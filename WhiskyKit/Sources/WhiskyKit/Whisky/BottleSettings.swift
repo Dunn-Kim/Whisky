@@ -699,15 +699,6 @@ public struct BottleSettings: Codable, Equatable {
         set { cleanupConfig.clipboardPolicy = newValue }
     }
 
-    /// The size threshold in bytes for considering clipboard content "large".
-    ///
-    /// Content above this threshold triggers the configured clipboard policy.
-    /// Defaults to ``ClipboardManager/largeContentThreshold`` (10 KB).
-    public var clipboardThreshold: Int {
-        get { cleanupConfig.clipboardThreshold }
-        set { cleanupConfig.clipboardThreshold = newValue }
-    }
-
     /// The kill-on-quit policy for Wine processes in this bottle.
     ///
     /// Overrides the global `killOnTerminate` setting on a per-bottle basis.

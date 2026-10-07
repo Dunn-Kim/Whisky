@@ -270,8 +270,7 @@ public final class ResumableDownloader: @unchecked Sendable {
                 // left by a crash or quit is resumable on the next launch.
                 ResumeState(
                     urlString: context.url.absoluteString,
-                    validator: HTTPRangeSupport.validator(from: http),
-                    expectedBytes: expectedTotal
+                    validator: HTTPRangeSupport.validator(from: http)
                 ).save(to: context.stateURL)
             case let .chunk(data):
                 guard let handle else { continue }

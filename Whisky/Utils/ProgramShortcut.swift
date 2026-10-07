@@ -48,7 +48,7 @@ class ProgramShortcut {
             // Core bundle creation via shared WhiskyKit logic
             let target = ShortcutCreator.liveTarget(for: program.url, bottle: program.bottle)
             let launchScript = ShortcutCreator.liveLaunchScript(for: target)
-            try ShortcutCreator.createShortcutBundle(at: app, launchScript: launchScript, name: name)
+            try ShortcutCreator.createShortcutBundle(at: app, launchScript: launchScript)
 
             // App-specific: extract icon from PE file and set on the .app bundle
             let programUrl = program.url

@@ -229,7 +229,7 @@ final class ResumableDownloaderTests: XCTestCase {
         let payload = Self.makePayload(length: 128 * 1_024)
         // Seed a partial from an older release of the asset.
         try Data(repeating: 0xAB, count: 100).write(to: partialURL)
-        ResumeState(urlString: sourceURL.absoluteString, validator: "\"old\"", expectedBytes: nil).save(to: stateURL)
+        ResumeState(urlString: sourceURL.absoluteString, validator: "\"old\"").save(to: stateURL)
         Self.installRangeServer(payload: payload, etag: "\"new\"")
 
         try await makeDownloader().download(from: sourceURL, to: destination)
@@ -243,7 +243,7 @@ final class ResumableDownloaderTests: XCTestCase {
     func testRangeNotSatisfiableDiscardsPartialAndRestartsClean() async throws {
         let payload = Self.makePayload(length: 128 * 1_024)
         try Data(repeating: 0xCD, count: 100).write(to: partialURL)
-        ResumeState(urlString: sourceURL.absoluteString, validator: nil, expectedBytes: nil).save(to: stateURL)
+        ResumeState(urlString: sourceURL.absoluteString, validator: nil).save(to: stateURL)
         Self.installRangeServer(payload: payload) { requestNumber, _ in
             guard requestNumber == 1 else { return nil }
             return HTTPStubProtocol.StubResponse(
@@ -265,7 +265,7 @@ final class ResumableDownloaderTests: XCTestCase {
         let payload = Self.makePayload(length: 64 * 1_024)
         try Data(repeating: 0xEF, count: 100).write(to: partialURL)
         ResumeState(
-            urlString: "https://example.test/v-old/Libraries.tar.gz", validator: "\"e\"", expectedBytes: nil
+            urlString: "https://example.test/v-old/Libraries.tar.gz", validator: "\"e\""
         ).save(to: stateURL)
         Self.installRangeServer(payload: payload)
 

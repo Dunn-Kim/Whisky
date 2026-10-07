@@ -138,21 +138,4 @@ public enum GPUDetection {
 
         return env
     }
-
-    /// Validates that GPU spoofing environment is correctly configured.
-    ///
-    /// This method checks that all required environment variables are present
-    /// and have valid values.
-    ///
-    /// - Parameter environment: The environment dictionary to validate
-    /// - Returns: `true` if GPU spoofing is properly configured
-    public static func validateSpoofingEnvironment(_ environment: [String: String]) -> Bool {
-        let requiredKeys = [
-            "GPU_VENDOR_ID",
-            "GPU_DEVICE_ID",
-            "D3DM_FEATURE_LEVEL_12_1"
-        ]
-
-        return requiredKeys.allSatisfy { environment[$0] != nil }
-    }
 }

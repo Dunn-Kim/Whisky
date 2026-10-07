@@ -25,10 +25,8 @@ struct GameConfigPreviewSheet: View {
     let entry: GameDBEntry
     let variant: GameConfigVariant
     @ObservedObject var bottle: Bottle
-    let programURL: URL?
     @Environment(\.dismiss) private var dismiss
     @State private var changes: [ConfigChange] = []
-    @State private var missingVerbs: [String] = []
     @State private var installedVerbs: Set<String> = []
     @State private var isApplying: Bool = false
     @State private var applyError: String?
@@ -327,10 +325,6 @@ extension GameConfigPreviewSheet {
         // Load installed verbs
         let result = await Winetricks.loadInstalledVerbs(for: bottle)
         installedVerbs = result.verbs
-        missingVerbs = GameConfigApplicator.pendingWinetricksVerbs(
-            variant: variant,
-            installedVerbs: result.verbs
-        )
 
         // Check staleness
         if let testedWith = variant.testedWith {
@@ -347,11 +341,10 @@ extension GameConfigPreviewSheet {
         applyError = nil
 
         do {
-            let snapshot = try GameConfigApplicator.apply(
+            _ = try GameConfigApplicator.apply(
                 entry: entry,
                 variant: variant,
-                to: bottle,
-                programURL: programURL
+                to: bottle
             )
 
             dismiss()
@@ -360,9 +353,6 @@ extension GameConfigPreviewSheet {
                 message: String(localized: "gameConfig.apply.success \(entry.title)"),
                 style: .success
             )
-
-            // Schedule undo availability check -- snapshot is saved to bottle
-            _ = snapshot // Snapshot saved to bottle directory for future revert
         } catch {
             applyError = String(localized: "gameConfig.apply.failed \(error.localizedDescription)")
             isApplying = false

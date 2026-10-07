@@ -60,7 +60,6 @@ struct SteamClientOrchestratorLaunchTests {
         #expect(driver.fixesCalls == 1)
         #expect(driver.launched == [games[0].appId])
         #expect(phaseAtLaunch == .launching)
-        #expect(driver.readyCalls == 1)
     }
 
     @Test("Concurrent launches share one client startup")
@@ -80,7 +79,6 @@ struct SteamClientOrchestratorLaunchTests {
         await Fixture.awaitIdle(orchestrator)
 
         #expect(driver.startClientCalls == 1)
-        #expect(driver.readyCalls == 1)
         #expect(Set(driver.launched) == Set(games.map(\.appId)))
         #expect(orchestrator.launchError == nil)
     }
@@ -110,7 +108,6 @@ struct SteamClientOrchestratorLaunchTests {
         #expect(orchestrator.launchError == SteamOrchestratorError.clientTimeout.errorDescription)
         #expect(driver.startClientCalls == 1)
         #expect(driver.launched.isEmpty)
-        #expect(driver.readyCalls == 0)
     }
 
     @Test("The game never appearing is reported as a launch timeout")
@@ -150,7 +147,6 @@ struct SteamClientOrchestratorLaunchTests {
 
         #expect(driver.startClientCalls == 0)
         #expect(driver.fixesCalls == 0)
-        #expect(driver.readyCalls == 1)
         #expect(driver.launched == [games[0].appId])
     }
 

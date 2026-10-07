@@ -19,9 +19,7 @@
 import Foundation
 
 extension FileManager {
-    func replaceDLLs(
-        in destinationDirectory: URL, withContentsIn sourceDirectory: URL, makeOriginalCopy: Bool = false
-    ) throws {
+    func replaceDLLs(in destinationDirectory: URL, withContentsIn sourceDirectory: URL) throws {
         let enumerator = FileManager.default.enumerator(
             at: sourceDirectory, includingPropertiesForKeys: [.isRegularFileKey]
         )
@@ -34,12 +32,12 @@ extension FileManager {
             // uninstalled.
             guard fileURL.pathExtension == "dll" else { continue }
             let originalURL = destinationDirectory.appending(path: fileURL.lastPathComponent)
-            try FileManager.default.replaceFile(at: originalURL, with: fileURL, makeOriginalCopy: makeOriginalCopy)
+            try FileManager.default.replaceFile(at: originalURL, with: fileURL)
         }
     }
 
     /// Installs `sourceURL` at `destinationURL`, replacing any existing file —
-    /// unlike ``replaceFile(at:with:makeOriginalCopy:)``, the copy also happens
+    /// unlike ``replaceFile(at:with:)``, the copy also happens
     /// when the destination does not exist yet. A silently skipped install
     /// would leave a translation layer half-deployed with no error.
     ///
@@ -77,20 +75,9 @@ extension FileManager {
         return true
     }
 
-    func replaceFile(at originalURL: URL, with replacementURL: URL, makeOriginalCopy: Bool = true) throws {
+    func replaceFile(at originalURL: URL, with replacementURL: URL) throws {
         if fileExists(atPath: originalURL.path(percentEncoded: false)) {
-            if makeOriginalCopy {
-                let copyURL = originalURL.appendingPathExtension("orig")
-
-                if fileExists(atPath: copyURL.path(percentEncoded: false)) {
-                    try FileManager.default.removeItem(at: copyURL)
-                }
-
-                try FileManager.default.moveItem(at: originalURL, to: copyURL)
-            } else {
-                try FileManager.default.removeItem(at: originalURL)
-            }
-
+            try FileManager.default.removeItem(at: originalURL)
             try FileManager.default.copyItem(at: replacementURL, to: originalURL)
         }
     }

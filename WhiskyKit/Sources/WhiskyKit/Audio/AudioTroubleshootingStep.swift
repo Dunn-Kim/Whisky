@@ -80,35 +80,16 @@ public enum AudioSymptom: String, CaseIterable, Identifiable, Sendable {
 
 /// A record of a single fix attempt during troubleshooting.
 ///
-/// Tracks which fix action was applied, when, and the before/after
-/// values to avoid repeating the same fix and to support undo.
-public struct TroubleshootingFixAttempt: Codable, Sendable, Identifiable {
+/// Tracks which fix action was applied, to avoid repeating the same fix.
+public struct TroubleshootingFixAttempt: Sendable, Identifiable {
     /// Unique identifier for this attempt.
     public let id: UUID
 
     /// The fix action identifier that was applied.
     public let actionId: String
 
-    /// When the fix was applied.
-    public let timestamp: Date
-
-    /// The setting value before the fix was applied, if applicable.
-    public let beforeValue: String?
-
-    /// The setting value after the fix was applied, if applicable.
-    public let afterValue: String?
-
-    public init(
-        id: UUID = UUID(),
-        actionId: String,
-        timestamp: Date = Date(),
-        beforeValue: String? = nil,
-        afterValue: String? = nil
-    ) {
+    public init(id: UUID = UUID(), actionId: String) {
         self.id = id
         self.actionId = actionId
-        self.timestamp = timestamp
-        self.beforeValue = beforeValue
-        self.afterValue = afterValue
     }
 }

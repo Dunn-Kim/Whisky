@@ -104,38 +104,23 @@ public struct WineProcess: Identifiable, Hashable, Sendable {
     /// The classified role of this process.
     public let kind: ProcessKind
     /// How the process was discovered.
-    public var source: ProcessSource
+    public var source: ProcessSource = .untracked
     /// When the process was launched (from ``ProcessRegistry`` match, nil for untracked).
     public var launchTime: Date?
     /// The macOS PID (from ``ProcessRegistry`` match, nil for untracked).
     public var macosPID: Int32?
-    /// The full command line, if known (for detail drawer).
-    public var commandLine: String?
 
     /// Identifiable conformance keyed on the Wine PID.
     public var id: Int32 {
         winePID
     }
 
-    /// Memberwise initializer with sensible defaults for optional fields.
-    public init(
-        imageName: String,
-        winePID: Int32,
-        memoryUsage: String,
-        kind: ProcessKind,
-        source: ProcessSource = .untracked,
-        launchTime: Date? = nil,
-        macosPID: Int32? = nil,
-        commandLine: String? = nil
-    ) {
+    /// Creates a tasklist snapshot; registry fields start untracked and empty.
+    public init(imageName: String, winePID: Int32, memoryUsage: String, kind: ProcessKind) {
         self.imageName = imageName
         self.winePID = winePID
         self.memoryUsage = memoryUsage
         self.kind = kind
-        self.source = source
-        self.launchTime = launchTime
-        self.macosPID = macosPID
-        self.commandLine = commandLine
     }
 
     // MARK: - Hashable

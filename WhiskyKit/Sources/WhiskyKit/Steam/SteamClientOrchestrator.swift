@@ -157,9 +157,8 @@ public final class SteamClientOrchestrator: ObservableObject {
         await refreshRunningState()
     }
 
-    /// Stops process tracking, cancels in-flight launches, and lets the driver
-    /// release anything the ready hook started. Call when the owning view
-    /// disappears.
+    /// Stops process tracking and cancels in-flight launches. Call when the
+    /// owning view disappears.
     public func stop() {
         trackingTask?.cancel()
         trackingTask = nil
@@ -169,7 +168,6 @@ public final class SteamClientOrchestrator: ObservableObject {
         launchTasks.removeAll()
         clientStartup?.cancel()
         clientStartup = nil
-        driver.shutdown()
     }
 
     /// Whether Play should apply Steam's launcher fixes to this bottle.
@@ -229,7 +227,6 @@ public final class SteamClientOrchestrator: ObservableObject {
 
     private func startClient(steamExe: URL) async throws {
         if await isClientRunning() {
-            driver.clientDidBecomeReady()
             return
         }
 
@@ -239,7 +236,6 @@ public final class SteamClientOrchestrator: ObservableObject {
         driver.startClient(steamExe: steamExe)
 
         if await watch.waitForAny(of: ["steam.exe"], timeout: timing.clientReadyTimeout) {
-            driver.clientDidBecomeReady()
             return
         }
         throw SteamOrchestratorError.clientTimeout

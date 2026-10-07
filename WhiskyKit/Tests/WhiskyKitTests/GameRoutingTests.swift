@@ -37,7 +37,6 @@ struct GameRoutingTests {
         routing.record(appId: 4_576_510, bottleURL: bottle)
 
         #expect(routing.bottleURL(forAppId: 4_576_510) == bottle)
-        #expect(routing.routes()[4_576_510] == bottle)
     }
 
     @Test("Last launch wins")
@@ -49,7 +48,6 @@ struct GameRoutingTests {
         routing.record(appId: 1, bottleURL: URL(fileURLWithPath: "/tmp/bottles/two"))
 
         #expect(routing.bottleURL(forAppId: 1)?.lastPathComponent == "two")
-        #expect(routing.routes().count == 1)
     }
 
     @Test("Unknown App IDs and a missing store read as empty")
@@ -58,7 +56,7 @@ struct GameRoutingTests {
         defer { cleanup() }
 
         #expect(routing.bottleURL(forAppId: 99) == nil)
-        #expect(routing.routes().isEmpty)
+        #expect(routing.lastLaunches().isEmpty)
     }
 
     @Test("Removes every route pointing at a bottle, keeping the rest")
@@ -76,7 +74,6 @@ struct GameRoutingTests {
         #expect(routing.bottleURL(forAppId: 1) == nil)
         #expect(routing.bottleURL(forAppId: 3) == nil)
         #expect(routing.bottleURL(forAppId: 2)?.lastPathComponent == "kept")
-        #expect(routing.routes().count == 1)
     }
 
     @Test("Bottle paths match the way resolution compares them")
@@ -111,7 +108,7 @@ struct GameRoutingTests {
         routing.record(appId: 2, bottleURL: URL(fileURLWithPath: "/tmp/bottles/two"))
         routing.record(appId: 1, bottleURL: URL(fileURLWithPath: "/tmp/bottles/three"))
 
-        #expect(routing.routes().count == 2)
+        #expect(routing.bottleURL(forAppId: 1)?.lastPathComponent == "three")
         #expect(routing.bottleURL(forAppId: 2)?.lastPathComponent == "two")
     }
 
@@ -123,7 +120,6 @@ struct GameRoutingTests {
         let when = Date(timeIntervalSince1970: 1_760_000_000)
         routing.record(appId: 1_245_620, bottleURL: URL(fileURLWithPath: "/tmp/bottles/one"), at: when)
 
-        #expect(routing.lastLaunched(forAppId: 1_245_620) == when)
         #expect(routing.lastLaunches()[1_245_620] == when)
     }
 
@@ -138,7 +134,7 @@ struct GameRoutingTests {
         routing.record(appId: 1, bottleURL: bottle, at: earlier)
         routing.record(appId: 1, bottleURL: bottle, at: later)
 
-        #expect(routing.lastLaunched(forAppId: 1) == later)
+        #expect(routing.lastLaunches()[1] == later)
     }
 
     @Test("A store written before launch times reads as a route with no date")
@@ -156,7 +152,6 @@ struct GameRoutingTests {
         let routing = GameRouting(url: url)
 
         #expect(routing.bottleURL(forAppId: 440)?.lastPathComponent == "one")
-        #expect(routing.lastLaunched(forAppId: 440) == nil)
         #expect(routing.lastLaunches().isEmpty)
     }
 
@@ -176,7 +171,8 @@ struct GameRoutingTests {
         let when = Date(timeIntervalSince1970: 1_760_000_000)
         routing.record(appId: 550, bottleURL: URL(fileURLWithPath: "/tmp/bottles/two"), at: when)
 
-        #expect(routing.routes().count == 2)
+        #expect(routing.bottleURL(forAppId: 440)?.lastPathComponent == "one")
+        #expect(routing.bottleURL(forAppId: 550)?.lastPathComponent == "two")
         #expect(routing.lastLaunches() == [550: when])
     }
 
@@ -197,7 +193,8 @@ struct GameRoutingTests {
         try FileManager.default.removeItem(at: bottle)
         routing.removeRoutes(toBottle: bottle)
 
-        #expect(routing.routes().isEmpty)
+        #expect(routing.bottleURL(forAppId: 1) == nil)
+        #expect(routing.bottleURL(forAppId: 2) == nil)
     }
 
     @Test("A corrupt store is treated as empty, not fatal")
@@ -210,7 +207,7 @@ struct GameRoutingTests {
         try Data("this is not a plist".utf8).write(to: url)
 
         let routing = GameRouting(url: url)
-        #expect(routing.routes().isEmpty)
+        #expect(routing.bottleURL(forAppId: 5) == nil)
 
         // and writing over it still works
         routing.record(appId: 5, bottleURL: URL(fileURLWithPath: "/tmp/bottles/five"))

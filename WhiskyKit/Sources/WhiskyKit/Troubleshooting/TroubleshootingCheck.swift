@@ -52,7 +52,7 @@ public protocol TroubleshootingCheck: Sendable {
     ///
     /// - Parameters:
     ///   - params: Key-value parameters from the flow step node.
-    ///   - context: Bottle, program, preflight data, and session state.
+    ///   - context: Bottle, program, and preflight data.
     /// - Returns: A normalized ``CheckResult`` for flow branching.
     func run(params: [String: String], context: CheckContext) async -> CheckResult
 }

@@ -51,10 +51,8 @@ func makeCheckContext(
     )
     return CheckContext(
         bottleURL: bottleURL,
-        bottleName: "Test Bottle",
         programName: programName,
-        preflight: preflight,
-        session: TroubleshootingSession(bottleURL: bottleURL)
+        preflight: preflight
     )
 }
 

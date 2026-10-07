@@ -173,7 +173,6 @@ enum DependencyManager {
     ) {
         let metadata = ProgramMetadata(
             exeName: programURL.lastPathComponent,
-            exeURL: programURL,
             installPath: programURL.deletingLastPathComponent().path(percentEncoded: false)
         )
         let gameDBEntries = GameDBLoader.loadDefaults()

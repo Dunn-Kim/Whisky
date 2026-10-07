@@ -57,7 +57,6 @@ public enum KillOnQuitPolicy: String, Codable, CaseIterable, Sendable {
 ///
 /// Each bottle can independently configure:
 /// - Clipboard checking policy (auto, always warn, always clear, never)
-/// - Clipboard size threshold for "large" content detection
 /// - Kill-on-quit behavior for Wine processes
 ///
 /// ## Example
@@ -70,12 +69,6 @@ public enum KillOnQuitPolicy: String, Codable, CaseIterable, Sendable {
 public struct BottleCleanupConfig: Codable, Equatable {
     /// The clipboard handling policy for this bottle.
     var clipboardPolicy: ClipboardPolicy = .auto
-
-    /// The size threshold in bytes for considering clipboard content "large".
-    ///
-    /// Content above this threshold triggers the configured clipboard policy.
-    /// Defaults to ``ClipboardManager/largeContentThreshold`` (10 KB).
-    var clipboardThreshold: Int = ClipboardManager.largeContentThreshold
 
     /// The kill-on-quit policy for Wine processes in this bottle.
     var killOnQuit: KillOnQuitPolicy = .inherit
@@ -92,10 +85,6 @@ public struct BottleCleanupConfig: Codable, Equatable {
             ClipboardPolicy.self,
             forKey: .clipboardPolicy
         ) ?? .auto
-        self.clipboardThreshold = try container.decodeIfPresent(
-            Int.self,
-            forKey: .clipboardThreshold
-        ) ?? ClipboardManager.largeContentThreshold
         self.killOnQuit = container.decodeLenientIfPresent(
             KillOnQuitPolicy.self,
             forKey: .killOnQuit

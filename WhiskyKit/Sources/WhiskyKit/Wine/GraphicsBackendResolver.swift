@@ -37,7 +37,6 @@ public enum GraphicsBackendResolver {
     /// - Parameters:
     ///   - launcher: The launcher this launch targets, if any. Launchers always
     ///     resolve to DXVK: their Chromium UIs cannot render on D3DMetal or DXMT.
-    ///   - macOSVersion: The macOS version to consider. Defaults to the running system.
     ///   - runtimeInfo: The runtime record to consider. Defaults to the installed
     ///     runtime's version plist.
     ///   - d3dMetalInstalled: Whether the D3DMetal payload exists on disk. Defaults
@@ -47,7 +46,6 @@ public enum GraphicsBackendResolver {
     /// - Returns: A concrete ``GraphicsBackend`` (never `.recommended`).
     public static func resolve(
         for launcher: LauncherType? = nil,
-        macOSVersion: MacOSVersion = .current,
         runtimeInfo: WhiskyWineVersion? = WhiskyWineInstaller.whiskyWineInfo(),
         d3dMetalInstalled: Bool = WhiskyWineInstaller.isD3DMetalInstalled(),
         dxmtRuntimeNative: Bool = Wine.isDXMTRuntimeNative()
@@ -82,9 +80,8 @@ public enum GraphicsBackendResolver {
     ///
     /// Suitable for display in a detail label or tooltip next to the "Recommended" option.
     ///
-    /// - Parameter macOSVersion: The macOS version to consider. Defaults to the running system.
     /// - Returns: A human-readable rationale string.
-    public static func rationale(macOSVersion: MacOSVersion = .current) -> String {
+    public static func rationale() -> String {
         String(localized: "config.graphics.backend.recommended.rationale")
     }
 }

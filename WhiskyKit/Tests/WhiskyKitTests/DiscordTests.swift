@@ -67,21 +67,6 @@ struct DiscordIPCTests {
         let decoded = try #require(DiscordIPC.decode(frame))
         #expect(decoded.payload == payload)
     }
-
-    @Test("Socket discovery takes the lowest index present")
-    func socketDiscovery() throws {
-        let directory = URL.temporaryDirectory.appending(path: UUID().uuidString)
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: directory) }
-
-        #expect(DiscordIPC.availableSocket(in: directory) == nil)
-
-        for index in [3, 7] {
-            try Data().write(to: DiscordIPC.socketURL(index: index, in: directory))
-        }
-
-        #expect(DiscordIPC.availableSocket(in: directory) == DiscordIPC.socketURL(index: 3, in: directory))
-    }
 }
 
 @Suite("Discord Presence Tests")

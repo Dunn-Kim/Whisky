@@ -43,10 +43,6 @@ public struct SteamAppManifest: Equatable, Sendable {
     public let installDir: String
     /// Steam's install-state bitmask. Bit 4 means fully installed.
     public let stateFlags: Int
-    /// The installed build number, when present.
-    public let buildID: Int?
-    /// The size on disk in bytes, when present.
-    public let sizeOnDisk: Int64?
     /// When Steam last recorded the app exiting, absent if it never has.
     ///
     /// Steam's own record, so it covers sessions started from inside the client
@@ -79,8 +75,6 @@ public struct SteamAppManifest: Equatable, Sendable {
         self.name = name
         self.installDir = installDir
         self.stateFlags = appState["stateflags"]?.intValue ?? 0
-        self.buildID = appState["buildid"]?.intValue
-        self.sizeOnDisk = appState["sizeondisk"]?.stringValue.flatMap(Int64.init)
         // Unix seconds, and zero for an app that has never been played rather
         // than an absent key.
         self.lastPlayed = appState["lastplayed"]?.intValue

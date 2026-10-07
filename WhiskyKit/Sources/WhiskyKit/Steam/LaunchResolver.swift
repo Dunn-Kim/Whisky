@@ -29,9 +29,6 @@ public struct LaunchPlan {
     public let overrides: ProgramOverrides
     /// Extra environment for the ``EnvironmentLayer/gameProfile`` layer.
     public let gameProfileEnvironment: [String: String]
-    /// Human-readable notes on where the configuration came from, for
-    /// logging and provenance UI.
-    public let provenance: [String]
 }
 
 /// Turns a Steam App ID into a ``LaunchPlan`` by matching the GameDB and
@@ -42,7 +39,6 @@ public enum LaunchResolver {
     /// - Parameters:
     ///   - steamAppId: The game's Steam App ID (a hard identifier for
     ///     ``GameMatcher``, so no fuzzy-match risk).
-    ///   - exeName: Optional executable name hint for matching.
     ///   - userOverrides: The user's persisted per-program overrides. Every
     ///     non-nil field wins over the GameDB recommendation.
     ///   - entries: The GameDB entries to match against. Defaults to the
@@ -51,20 +47,18 @@ public enum LaunchResolver {
     ///   overrides and empty profile environment.
     public static func plan(
         steamAppId: Int,
-        exeName: String? = nil,
         userOverrides: ProgramOverrides? = nil,
         entries: [GameDBEntry]? = nil
     ) -> LaunchPlan {
         let database = entries ?? GameDBLoader.loadDefaults()
-        let metadata = ProgramMetadata(exeName: exeName ?? "", steamAppId: steamAppId)
+        let metadata = ProgramMetadata(exeName: "", steamAppId: steamAppId)
 
         guard let match = GameMatcher.bestMatch(metadata: metadata, against: database),
               let variant = match.recommendedVariant
         else {
             return LaunchPlan(
                 overrides: userOverrides ?? ProgramOverrides(),
-                gameProfileEnvironment: [:],
-                provenance: []
+                gameProfileEnvironment: [:]
             )
         }
 
@@ -72,10 +66,7 @@ public enum LaunchResolver {
 
         return LaunchPlan(
             overrides: overrides,
-            gameProfileEnvironment: variant.environmentVariables ?? [:],
-            provenance: [
-                "gamedb: \(match.entry.title) — \(variant.label) (\(match.explanation))"
-            ]
+            gameProfileEnvironment: variant.environmentVariables ?? [:]
         )
     }
 

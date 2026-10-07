@@ -33,7 +33,7 @@ import Foundation
 /// let appURL = URL(filePath: "~/Applications/MyGame.app")
 /// let target = ShortcutCreator.liveTarget(for: program.url, bottle: program.bottle)
 /// let script = ShortcutCreator.liveLaunchScript(for: target)
-/// try ShortcutCreator.createShortcutBundle(at: appURL, launchScript: script, name: "MyGame")
+/// try ShortcutCreator.createShortcutBundle(at: appURL, launchScript: script)
 /// ```
 public enum ShortcutCreator {
     /// The Info.plist template for shortcut app bundles.
@@ -70,9 +70,8 @@ public enum ShortcutCreator {
     /// - Parameters:
     ///   - appURL: The destination URL for the `.app` bundle.
     ///   - launchScript: The shell command to execute when the app is launched.
-    ///   - name: The display name for the shortcut (used for logging).
     /// - Throws: An error if the bundle directories or files cannot be created.
-    public static func createShortcutBundle(at appURL: URL, launchScript: String, name: String) throws {
+    public static func createShortcutBundle(at appURL: URL, launchScript: String) throws {
         let contents = appURL.appending(path: "Contents")
         let macos = contents.appending(path: "MacOS")
 

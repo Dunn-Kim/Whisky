@@ -450,7 +450,7 @@ extension Whisky {
             // Generate launch script and create the bundle
             let target = ShortcutCreator.liveTarget(for: program.url, bottle: program.bottle)
             let launchScript = ShortcutCreator.liveLaunchScript(for: target)
-            try ShortcutCreator.createShortcutBundle(at: appURL, launchScript: launchScript, name: shortcutName)
+            try ShortcutCreator.createShortcutBundle(at: appURL, launchScript: launchScript)
 
             print("Created \(appURL.path(percentEncoded: false))")
         }

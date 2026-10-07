@@ -71,7 +71,6 @@ private let logger = Logger(subsystem: Bundle.whiskyBundleIdentifier, category: 
 ///
 /// ### Wine Processes
 /// - ``runWineProcess(name:args:bottle:environment:)``
-/// - ``runWineserverProcess(name:args:bottle:environment:)``
 ///
 /// ### Utilities
 /// - ``wineVersion()``
@@ -95,13 +94,13 @@ public class Wine {
 
     /// Run a process on a executable file given by the `executableURL`
     private static func runProcess(
-        name: String? = nil, args: [String], environment: [String: String], executableURL: URL, directory: URL? = nil,
+        name: String? = nil, args: [String], environment: [String: String], executableURL: URL,
         fileHandle: FileHandle?, qualityOfService: QualityOfService = .userInitiated
     ) throws -> AsyncStream<ProcessOutput> {
         let process = Process()
         process.executableURL = executableURL
         process.arguments = args
-        process.currentDirectoryURL = directory ?? executableURL.deletingLastPathComponent()
+        process.currentDirectoryURL = executableURL.deletingLastPathComponent()
         process.environment = environment
         process.qualityOfService = qualityOfService
 
@@ -148,24 +147,20 @@ public class Wine {
     /// This method is typically used for administrative operations like killing all processes.
     ///
     /// - Parameters:
-    ///   - name: An optional descriptive name for the process, used in logging.
     ///   - args: The command-line arguments to pass to wineserver.
     ///   - bottle: The ``Bottle`` context in which to run the server process.
-    ///   - environment: Additional environment variables to set for this process.
     /// - Returns: An `AsyncStream` of ``ProcessOutput`` containing stdout, stderr, and lifecycle events.
     /// - Throws: An error if the process cannot be started.
     @MainActor
-    public static func runWineserverProcess(
-        name: String? = nil, args: [String], bottle: Bottle, environment: [String: String] = [:]
-    ) throws -> AsyncStream<ProcessOutput> {
+    private static func runWineserverProcess(args: [String], bottle: Bottle) throws -> AsyncStream<ProcessOutput> {
         let fileHandle = try makeFileHandle()
         fileHandle.writeApplicationInfo()
         fileHandle.writeInfo(for: bottle)
 
-        let wineserverEnvironment = constructWineEnvironment(for: bottle, environment: environment)
+        let wineserverEnvironment = constructWineEnvironment(for: bottle)
 
         return try runProcess(
-            name: name, args: args, environment: wineserverEnvironment, executableURL: wineserverBinary,
+            args: args, environment: wineserverEnvironment, executableURL: wineserverBinary,
             fileHandle: fileHandle
         )
     }
@@ -208,11 +203,6 @@ public class Wine {
         public let exitCode: Int32
         /// URL to the log file created for this run.
         public let logFileURL: URL
-        /// The UUID of the run log entry created for this run.
-        ///
-        /// Use this to correlate the run result with the run log history
-        /// entry, e.g., to open the correct log entry in the console UI.
-        public let runLogEntryId: UUID
     }
 
     // swiftlint:disable function_body_length
@@ -324,12 +314,7 @@ public class Wine {
 
         // Create a run log entry to track this session
         let programName = url.lastPathComponent
-        var runLogEntry = RunLogEntry(programName: programName, logFileName: logFileURL.lastPathComponent)
-
-        // Record the active WINEDEBUG preset if one is set
-        if wineEnvironment.keys.contains("WINEDEBUG") {
-            runLogEntry.activeWineDebugPreset = programSettings?.activeWineDebugPreset?.rawValue
-        }
+        let runLogEntry = RunLogEntry(programName: programName, logFileName: logFileURL.lastPathComponent)
 
         // Persist the "running" state immediately
         var runLogHistory = RunLogStore.load(for: programName, in: bottle.url)
@@ -386,7 +371,7 @@ public class Wine {
         )
         RunLogStore.save(updatedHistory, for: programName, in: bottle.url)
 
-        return ProgramRunResult(exitCode: exitCode, logFileURL: logFileURL, runLogEntryId: runLogEntry.id)
+        return ProgramRunResult(exitCode: exitCode, logFileURL: logFileURL)
     }
 
     // swiftlint:enable function_body_length
@@ -672,7 +657,8 @@ public class Wine {
     /// asynchronous ``killBottle(bottle:)`` left every Wine process alive
     /// on quit whatever the kill-on-quit setting said.
     @MainActor
-    public static func killBottleAndWait(bottle: Bottle, timeout: TimeInterval = 5) {
+    public static func killBottleAndWait(bottle: Bottle) {
+        let timeout: TimeInterval = 5
         let process = Process()
         process.executableURL = wineserverBinary
         process.arguments = ["-k"]
@@ -1222,20 +1208,16 @@ public extension Wine {
     /// - Parameters:
     ///   - logFileURL: URL to the Wine log file to analyze.
     ///   - exitCode: The Wine process exit code.
-    ///   - classifier: Optional pre-configured classifier. If `nil`, creates one
-    ///     with default patterns.
     /// - Returns: A ``CrashDiagnosis`` if the log was readable, or `nil` on failure.
     static func classifyLastRun(
         logFileURL: URL,
-        exitCode: Int32,
-        classifier: CrashClassifier? = nil
+        exitCode: Int32
     ) async -> CrashDiagnosis? {
         await Task.detached(priority: .utility) {
             guard let logText = try? classificationWindow(of: logFileURL), !logText.isEmpty else {
                 return nil
             }
-            let resolvedClassifier = classifier ?? CrashClassifier()
-            return resolvedClassifier.classify(log: logText, exitCode: exitCode)
+            return CrashClassifier().classify(log: logText, exitCode: exitCode)
         }.value
     }
 

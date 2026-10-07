@@ -80,18 +80,12 @@ struct AudioDeviceHistoryView: View {
     private func eventIcon(_ eventType: AudioDeviceChangeEvent.EventType) -> String {
         switch eventType {
         case .defaultOutputChanged: "speaker.wave.2"
-        case .disconnected: "speaker.slash"
-        case .reconnected: "speaker.wave.3"
-        case .sampleRateChanged: "waveform"
         }
     }
 
     private func eventColor(_ eventType: AudioDeviceChangeEvent.EventType) -> Color {
         switch eventType {
         case .defaultOutputChanged: .blue
-        case .disconnected: .red
-        case .reconnected: .green
-        case .sampleRateChanged: .orange
         }
     }
 
@@ -99,12 +93,6 @@ struct AudioDeviceHistoryView: View {
         switch event.eventType {
         case .defaultOutputChanged:
             "Default output changed to \(event.deviceName)"
-        case .disconnected:
-            "\(event.deviceName) disconnected"
-        case .reconnected:
-            "\(event.deviceName) reconnected"
-        case .sampleRateChanged:
-            "Sample rate changed on \(event.deviceName)"
         }
     }
 }

@@ -169,12 +169,7 @@ extension DiagnosticExportSheet {
     private func copyMarkdownReport() {
         isExporting = true
         Task {
-            let markdown = await DiagnosticExporter.generateMarkdownReport(
-                diagnosis: diagnosis,
-                bottle: bottle,
-                program: program,
-                options: exportOptions
-            )
+            let markdown = DiagnosticExporter.generateMarkdownReport(diagnosis: diagnosis, bottle: bottle)
 
             NSPasteboard.general.clearContents()
             NSPasteboard.general.setString(markdown, forType: .string)

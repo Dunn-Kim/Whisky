@@ -107,9 +107,6 @@ public struct WhiskyWineSetupDiagnostics: Codable, Sendable {
     /// Maximum report size in UTF-8 bytes to keep sharing manageable.
     public static let maxReportBytes = 8_000
 
-    /// Overhead lines for report sections (header, network, progress, disk, separators).
-    private static let reportSectionOverhead = 20
-
     private static let eventTimestampFormatter = Date.ISO8601FormatStyle()
     private static let issueURL = "https://github.com/frankea/Whisky/issues"
 
@@ -192,10 +189,7 @@ public struct WhiskyWineSetupDiagnostics: Codable, Sendable {
     }
 
     public func reportString(stage: String, error: String? = nil) -> String {
-        let estimatedCapacity = max(Self.maxEventCount, events.count) + installAttempts.count
-            + Self.reportSectionOverhead
         var lines: [String] = []
-        lines.reserveCapacity(estimatedCapacity)
 
         appendHeaderLines(into: &lines, stage: stage, error: error)
         appendVersionLines(into: &lines)

@@ -24,7 +24,7 @@ import Foundation
 /// deduplication. Matches the ``DiagnosisHistory`` pattern from Phase 5.
 ///
 /// Not isolated to any actor -- this is a pure data container.
-public final class AudioDeviceHistory: Codable, @unchecked Sendable {
+public final class AudioDeviceHistory: @unchecked Sendable {
     /// Maximum number of events retained.
     public let maxEvents: Int
 
@@ -65,10 +65,5 @@ public final class AudioDeviceHistory: Codable, @unchecked Sendable {
     /// Removes all events from the history.
     public func clear() {
         events.removeAll()
-    }
-
-    /// Returns a copy of the current events for export or display.
-    public func export() -> [AudioDeviceChangeEvent] {
-        events
     }
 }

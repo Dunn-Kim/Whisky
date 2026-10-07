@@ -265,20 +265,6 @@ final class GameApplicatorTests: XCTestCase {
         XCTAssertEqual(verbs, ["vcrun2022", "dotnet48"], "Revert should return the installed verbs list")
     }
 
-    // MARK: - Test 6: Pending Winetricks Verbs Filters Installed
-
-    func testPendingWinetricksVerbsFiltersInstalled() {
-        let variant = makeTestVariant(winetricksVerbs: ["vcrun2022", "dotnet48"])
-
-        let installedVerbs: Set = ["vcrun2022"]
-        let pending = GameConfigApplicator.pendingWinetricksVerbs(
-            variant: variant,
-            installedVerbs: installedVerbs
-        )
-
-        XCTAssertEqual(pending, ["dotnet48"], "Only uninstalled verbs should be returned")
-    }
-
     // MARK: - Test 7: Preview Changes Shows Diff
 
     @MainActor

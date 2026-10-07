@@ -88,43 +88,14 @@ public enum DiagnosticExporter {
     /// Includes system info, bottle config, diagnosis summary, matched patterns,
     /// suggested remediations, and environment keys (keys only, no values).
     ///
+    /// The ZIP export reuses it as `report.md`.
+    ///
     /// - Parameters:
     ///   - diagnosis: The crash diagnosis to report.
     ///   - bottle: The bottle that was analyzed.
-    ///   - program: The program that was analyzed.
-    ///   - options: Export options (only `includeSensitiveDetails` is relevant; defaults to always-redacted).
     /// - Returns: A Markdown string ready for pasting.
     @MainActor
-    public static func generateMarkdownReport(
-        diagnosis: CrashDiagnosis,
-        bottle: Bottle,
-        program: Program,
-        options: ExportOptions = ExportOptions()
-    ) async -> String {
-        // Markdown copy is always redacted regardless of options
-        let redactedOptions = ExportOptions(
-            includeSensitiveDetails: false,
-            includeFullLog: false,
-            tailLineCount: options.tailLineCount
-        )
-        return generateReportMarkdown(
-            diagnosis: diagnosis,
-            bottle: bottle,
-            program: program,
-            options: redactedOptions
-        )
-    }
-
-    // MARK: - Internal Content Generators
-
-    /// Generates the main report.md content.
-    @MainActor
-    static func generateReportMarkdown(
-        diagnosis: CrashDiagnosis,
-        bottle: Bottle,
-        program: Program,
-        options: ExportOptions
-    ) -> String {
+    public static func generateMarkdownReport(diagnosis: CrashDiagnosis, bottle: Bottle) -> String {
         var markdown = "## Whisky Diagnostic Report\n\n"
         markdown += "**Generated:** \(Date().formatted())\n\n"
 
@@ -137,6 +108,8 @@ public enum DiagnosticExporter {
 
         return markdown
     }
+
+    // MARK: - Internal Content Generators
 
     @MainActor
     private static func generateSystemInfoSection() -> String {
@@ -333,12 +306,7 @@ extension DiagnosticExporter {
     @MainActor
     fileprivate static func prepareZIPContent(context: ZIPExportContext) async -> ZIPContent {
         await ZIPContent(
-            reportMarkdown: generateReportMarkdown(
-                diagnosis: context.diagnosis,
-                bottle: context.bottle,
-                program: context.program,
-                options: context.options
-            ),
+            reportMarkdown: generateMarkdownReport(diagnosis: context.diagnosis, bottle: context.bottle),
             bottleSummary: bottleSettingsSummary(bottle: context.bottle),
             programSummary: programSettingsSummary(program: context.program, options: context.options),
             systemInfo: generateSystemInfoJSON(),

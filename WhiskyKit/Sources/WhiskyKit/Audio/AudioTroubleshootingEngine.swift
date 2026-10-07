@@ -195,17 +195,9 @@ public final class AudioTroubleshootingEngine: ObservableObject {
 
     /// Records a fix attempt and transitions to `.askingDidItWork`.
     ///
-    /// - Parameters:
-    ///   - actionId: The fix action identifier.
-    ///   - beforeValue: The setting value before the fix, if applicable.
-    ///   - afterValue: The setting value after the fix, if applicable.
-    public func applyFix(actionId: String, beforeValue: String? = nil, afterValue: String? = nil) {
-        let attempt = TroubleshootingFixAttempt(
-            actionId: actionId,
-            beforeValue: beforeValue,
-            afterValue: afterValue
-        )
-        attemptedFixes.append(attempt)
+    /// - Parameter actionId: The fix action identifier.
+    public func applyFix(actionId: String) {
+        attemptedFixes.append(TroubleshootingFixAttempt(actionId: actionId))
         wizardState = .askingDidItWork
     }
 

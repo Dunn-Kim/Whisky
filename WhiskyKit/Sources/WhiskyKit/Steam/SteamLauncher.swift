@@ -51,20 +51,17 @@ public enum SteamLauncher {
     ///   - bottle: The bottle whose Steam client to use.
     ///   - installURL: The game's install folder, to save a library rescan when
     ///     the caller already knows it.
-    ///   - record: Whether to remember this bottle for the App ID.
     /// - Throws: ``SteamLaunchError/steamNotInstalled`` if the bottle has no client.
     @MainActor
     @discardableResult
     public static func launch(
-        appId: Int, bottle: Bottle, installURL: URL? = nil, record: Bool = true
+        appId: Int, bottle: Bottle, installURL: URL? = nil
     ) throws -> Task<Void, Never> {
         guard let steamRoot = SteamLibrary.detectInstall(bottleURL: bottle.url) else {
             throw SteamLaunchError.steamNotInstalled
         }
 
-        if record {
-            GameRouting().record(appId: appId, bottleURL: bottle.url)
-        }
+        GameRouting().record(appId: appId, bottleURL: bottle.url)
 
         let installURL = installURL ?? SteamLibrary.enumerate(bottleURL: bottle.url)
             .first { $0.appId == appId }?.installURL

@@ -113,8 +113,6 @@ struct LaunchResolverTests {
         #expect(plan.overrides.dxvkAsync == true)
         #expect(plan.overrides.forceD3D11 == false)
         #expect(plan.gameProfileEnvironment["DXVK_FRAME_RATE"] == "120")
-        #expect(plan.provenance.count == 1)
-        #expect(plan.provenance[0].contains("Casualties: Unknown Demo"))
     }
 
     @Test("User overrides win over GameDB fields")
@@ -143,7 +141,6 @@ struct LaunchResolverTests {
 
         #expect(plan.overrides.graphicsBackend == .wined3d)
         #expect(plan.gameProfileEnvironment.isEmpty)
-        #expect(plan.provenance.isEmpty)
     }
 
     @Test("No match and no user overrides yields an empty plan")

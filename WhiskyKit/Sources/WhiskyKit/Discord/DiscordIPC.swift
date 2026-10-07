@@ -53,16 +53,6 @@ public enum DiscordIPC {
         directory.appending(path: "discord-ipc-\(index)")
     }
 
-    /// The first Discord socket present, or `nil` when Discord is not running.
-    public static func availableSocket(
-        in directory: URL = socketDirectory, fileManager: FileManager = .default
-    ) -> URL? {
-        socketIndices
-            .lazy
-            .map { socketURL(index: $0, in: directory) }
-            .first { fileManager.fileExists(atPath: $0.path(percentEncoded: false)) }
-    }
-
     /// The encoder every payload on this transport goes through.
     ///
     /// Discord's keys are snake_case. Converting them here keeps `CodingKeys`

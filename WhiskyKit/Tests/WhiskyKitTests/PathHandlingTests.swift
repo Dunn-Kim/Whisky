@@ -154,7 +154,7 @@ final class PathHandlingTests: XCTestCase {
         let appURL = tempDir.appending(path: "Test Game.app")
         let launchScript = "echo hello"
 
-        try ShortcutCreator.createShortcutBundle(at: appURL, launchScript: launchScript, name: "Test Game")
+        try ShortcutCreator.createShortcutBundle(at: appURL, launchScript: launchScript)
 
         // Verify bundle structure
         let contentsURL = appURL.appending(path: "Contents")
@@ -185,7 +185,7 @@ final class PathHandlingTests: XCTestCase {
         let appURL = tempDir.appending(path: "John's Game (x86).app")
         let launchScript = "/path/to/wine start /unix /path/to/John\\'s\\ Game\\ \\(x86\\)/game.exe"
 
-        try ShortcutCreator.createShortcutBundle(at: appURL, launchScript: launchScript, name: "John's Game (x86)")
+        try ShortcutCreator.createShortcutBundle(at: appURL, launchScript: launchScript)
 
         let launchURL = appURL.appending(path: "Contents").appending(path: "MacOS").appending(path: "launch")
         XCTAssertTrue(FileManager.default.fileExists(atPath: launchURL.path(percentEncoded: false)))

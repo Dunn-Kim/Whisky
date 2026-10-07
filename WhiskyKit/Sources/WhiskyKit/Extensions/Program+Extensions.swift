@@ -57,12 +57,9 @@ public extension Program {
     @MainActor
     func performClipboardCheck() -> ClipboardCheckResult {
         let policy = bottle.settings.clipboardPolicy
-        let threshold = bottle.settings.clipboardThreshold
         let launcher = bottle.settings.detectedLauncher
 
-        let result = ClipboardManager.shared.checkBeforeLaunch(
-            launcher: launcher, policy: policy, threshold: threshold
-        )
+        let result = ClipboardManager.shared.checkBeforeLaunch(launcher: launcher, policy: policy)
 
         switch result {
         case .safe, .autoCleared:

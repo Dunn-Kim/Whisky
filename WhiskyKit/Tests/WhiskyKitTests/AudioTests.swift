@@ -105,29 +105,6 @@ final class AudioTests: XCTestCase {
         XCTAssertEqual(history.events.count, 2, "Different devices should not be deduplicated")
     }
 
-    func testHistoryDoesNotDeduplicateDifferentEventTypes() {
-        let history = AudioDeviceHistory()
-        let now = Date()
-
-        let event1 = AudioDeviceChangeEvent(
-            timestamp: now,
-            eventType: .disconnected,
-            deviceName: "Speakers",
-            transportType: .builtIn
-        )
-        let event2 = AudioDeviceChangeEvent(
-            timestamp: now.addingTimeInterval(5),
-            eventType: .reconnected,
-            deviceName: "Speakers",
-            transportType: .builtIn
-        )
-
-        history.append(event1)
-        history.append(event2)
-
-        XCTAssertEqual(history.events.count, 2, "Different event types should not be deduplicated")
-    }
-
     func testHistoryAllowsSameDeviceAfter30Seconds() {
         let history = AudioDeviceHistory()
         let now = Date()
@@ -151,7 +128,7 @@ final class AudioTests: XCTestCase {
         XCTAssertEqual(history.events.count, 2, "Same device after 30s should not be deduplicated")
     }
 
-    // MARK: - AudioDeviceHistory: Clear and Export
+    // MARK: - AudioDeviceHistory: Clear
 
     func testHistoryClearEmptiesEvents() {
         let history = AudioDeviceHistory()
@@ -161,17 +138,6 @@ final class AudioTests: XCTestCase {
         history.clear()
 
         XCTAssertTrue(history.events.isEmpty, "clear() should remove all events")
-    }
-
-    func testHistoryExportReturnsCopy() {
-        let history = AudioDeviceHistory()
-        history.append(makeEvent(deviceName: "Device", secondsAgo: 60))
-
-        let exported = history.export()
-        history.clear()
-
-        XCTAssertEqual(exported.count, 1, "export() should return an independent copy")
-        XCTAssertTrue(history.events.isEmpty, "Original should be cleared independently")
     }
 
     // MARK: - AudioStatus

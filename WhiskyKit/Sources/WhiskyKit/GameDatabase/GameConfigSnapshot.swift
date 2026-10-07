@@ -18,10 +18,10 @@
 
 import Foundation
 
-/// A snapshot of bottle and program settings captured before applying a game configuration.
+/// A snapshot of bottle settings captured before applying a game configuration.
 ///
-/// Used for the undo/revert flow: the snapshot stores serialized plist data for both
-/// ``BottleSettings`` and per-program settings, enabling exact restoration. Winetricks
+/// Used for the undo/revert flow: the snapshot stores serialized plist data for
+/// ``BottleSettings``, enabling exact restoration. Winetricks
 /// verbs are recorded for informational display only (they are not reversible).
 ///
 /// ## Storage
@@ -43,12 +43,6 @@ import Foundation
 public struct GameConfigSnapshot: Codable, Sendable, Equatable {
     /// Serialized ``BottleSettings`` plist data from before the apply.
     public var bottleSettingsData: Data?
-
-    /// Map of program URL string to serialized program settings data.
-    ///
-    /// Each key is the string representation of the program's URL. Each value
-    /// is the PropertyList-encoded settings data for that program.
-    public var programSettingsData: [String: Data]?
 
     /// Winetricks verbs installed during this apply (informational, non-reversible).
     ///
@@ -72,21 +66,18 @@ public struct GameConfigSnapshot: Codable, Sendable, Equatable {
     ///
     /// - Parameters:
     ///   - bottleSettingsData: Serialized bottle settings from before apply.
-    ///   - programSettingsData: Map of program URL to serialized settings.
     ///   - installedVerbs: Winetricks verbs installed during this apply.
     ///   - appliedEntryId: The game database entry ID that was applied.
     ///   - appliedVariantId: The variant ID that was applied.
     ///   - timestamp: When the snapshot was created.
     public init(
         bottleSettingsData: Data? = nil,
-        programSettingsData: [String: Data]? = nil,
         installedVerbs: [String]? = nil,
         appliedEntryId: String,
         appliedVariantId: String,
         timestamp: Date = Date()
     ) {
         self.bottleSettingsData = bottleSettingsData
-        self.programSettingsData = programSettingsData
         self.installedVerbs = installedVerbs
         self.appliedEntryId = appliedEntryId
         self.appliedVariantId = appliedVariantId

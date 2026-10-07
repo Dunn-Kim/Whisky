@@ -40,8 +40,6 @@ final class FakeSteamClientDriver: SteamClientDriver {
     private(set) var fixesCalls = 0
     private(set) var launched: [Int] = []
     private(set) var killed: [Int32] = []
-    private(set) var readyCalls = 0
-    private(set) var shutdownCalls = 0
 
     init(script: [[String]]) {
         self.script = script
@@ -86,14 +84,6 @@ final class FakeSteamClientDriver: SteamClientDriver {
 
     func killProcess(winePID: Int32) async {
         killed.append(winePID)
-    }
-
-    func clientDidBecomeReady() {
-        readyCalls += 1
-    }
-
-    func shutdown() {
-        shutdownCalls += 1
     }
 }
 

@@ -78,7 +78,7 @@ public enum GameConfigApplicator {
     /// Applies a game configuration variant to a bottle's settings.
     ///
     /// This method:
-    /// 1. Snapshots the current ``BottleSettings`` (and optionally program settings)
+    /// 1. Snapshots the current ``BottleSettings``
     /// 2. Mutates the bottle's settings based on the variant
     /// 3. Saves the snapshot to the bottle directory
     /// 4. Returns the snapshot for display and future revert
@@ -90,15 +90,13 @@ public enum GameConfigApplicator {
     ///   - entry: The game database entry being applied.
     ///   - variant: The specific variant to apply.
     ///   - bottle: The target bottle whose settings will be mutated.
-    ///   - programURL: Optional program URL for program-level settings snapshot.
     /// - Returns: The snapshot created before applying changes.
     /// - Throws: An error if the snapshot cannot be encoded or saved.
     @MainActor
     public static func apply(
         entry: GameDBEntry,
         variant: GameConfigVariant,
-        to bottle: Bottle,
-        programURL: URL? = nil
+        to bottle: Bottle
     ) throws -> GameConfigSnapshot {
         // 1. Snapshot current state
         let encoder = PropertyListEncoder()
@@ -106,23 +104,13 @@ public enum GameConfigApplicator {
         let bottleSettingsData = try encoder.encode(bottle.settings)
 
         // 2. Create snapshot
-        var snapshot = GameConfigSnapshot(
+        let snapshot = GameConfigSnapshot(
             bottleSettingsData: bottleSettingsData,
             installedVerbs: variant.winetricksVerbs,
             appliedEntryId: entry.id,
             appliedVariantId: variant.id,
             timestamp: Date()
         )
-
-        // Snapshot program settings if a program URL is provided
-        if let programURL {
-            let programURLString = programURL.absoluteString
-            // Find the matching program by URL
-            if let program = bottle.programs.first(where: { $0.url == programURL }) {
-                let programData = try encoder.encode(program.settings)
-                snapshot.programSettingsData = [programURLString: programData]
-            }
-        }
 
         // 3. Apply variant settings to bottle
         applyVariantSettings(variant.settings, to: bottle)
@@ -154,7 +142,7 @@ public enum GameConfigApplicator {
     ///
     /// - Parameters:
     ///   - bottle: The bottle whose settings will be restored.
-    ///   - snapshot: The snapshot from a previous ``apply(entry:variant:to:programURL:)`` call.
+    ///   - snapshot: The snapshot from a previous ``apply(entry:variant:to:)`` call.
     /// - Returns: A list of winetricks verbs that were installed during the original apply
     ///   (non-reversible, for UI display: "Settings reverted; installed components remain").
     /// - Throws: An error if the snapshot data cannot be decoded or the snapshot file cannot be deleted.
@@ -175,24 +163,6 @@ public enum GameConfigApplicator {
 
         // 3. Return installed verbs as non-reversible items
         return snapshot.installedVerbs ?? []
-    }
-
-    // MARK: - Pending Winetricks Verbs
-
-    /// Returns winetricks verbs required by the variant that are not yet installed.
-    ///
-    /// - Parameters:
-    ///   - variant: The game configuration variant.
-    ///   - installedVerbs: The set of verbs already installed in the bottle.
-    /// - Returns: An array of verb names that still need to be installed.
-    public static func pendingWinetricksVerbs(
-        variant: GameConfigVariant,
-        installedVerbs: Set<String>
-    ) -> [String] {
-        guard let requiredVerbs = variant.winetricksVerbs else {
-            return []
-        }
-        return requiredVerbs.filter { !installedVerbs.contains($0) }
     }
 
     // MARK: - Preview Changes

@@ -76,15 +76,10 @@ public enum TerminalApp: String, CaseIterable, Identifiable {
     /// The user's preferred terminal application.
     /// Falls back to Terminal.app if the preferred app is not installed.
     public static var preferred: TerminalApp {
-        get {
-            let rawValue = UserDefaults.standard.string(forKey: "preferredTerminal") ?? "terminal"
-            let preferred = TerminalApp(rawValue: rawValue) ?? .terminal
-            // Fall back to Terminal if preferred is not installed
-            return preferred.isInstalled ? preferred : .terminal
-        }
-        set {
-            UserDefaults.standard.set(newValue.rawValue, forKey: "preferredTerminal")
-        }
+        let rawValue = UserDefaults.standard.string(forKey: "preferredTerminal") ?? "terminal"
+        let preferred = TerminalApp(rawValue: rawValue) ?? .terminal
+        // Fall back to Terminal if preferred is not installed
+        return preferred.isInstalled ? preferred : .terminal
     }
 
     /// Generates an AppleScript to run the given script file in this terminal.

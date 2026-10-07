@@ -26,8 +26,6 @@ import Foundation
 public struct ProgramMetadata: Sendable {
     /// The executable filename (e.g., "eldenring.exe").
     public let exeName: String
-    /// The URL to the executable file, if available.
-    public let exeURL: URL?
     /// The Steam App ID, if discovered from manifest or steam_appid.txt.
     public let steamAppId: Int?
     /// The install path of the program within the Wine prefix.
@@ -35,12 +33,10 @@ public struct ProgramMetadata: Sendable {
 
     public init(
         exeName: String,
-        exeURL: URL? = nil,
         steamAppId: Int? = nil,
         installPath: String? = nil
     ) {
         self.exeName = exeName
-        self.exeURL = exeURL
         self.steamAppId = steamAppId
         self.installPath = installPath
     }
@@ -338,7 +334,6 @@ public enum GameMatcher {
         guard !entry.variants.isEmpty else { return nil }
 
         let currentArch = machineArchitecture()
-        let currentOS = operatingSystemVersion()
 
         // Filter variants whose constraints match current machine
         // Sort variants: prefer those tested on current architecture
@@ -356,7 +351,7 @@ public enum GameMatcher {
             return defaultVariant
         }
 
-        return matching.first ?? entry.variants.first
+        return matching.first
     }
 
     // MARK: - Tokenization
@@ -393,12 +388,6 @@ public enum GameMatcher {
                 String(cString: $0)
             }
         }
-    }
-
-    /// Returns the current macOS version string (e.g., "15.3.0").
-    private static func operatingSystemVersion() -> String {
-        let version = ProcessInfo.processInfo.operatingSystemVersion
-        return "\(version.majorVersion).\(version.minorVersion).\(version.patchVersion)"
     }
 }
 

@@ -107,11 +107,6 @@ final class LocalesEnumTests: XCTestCase {
         XCTAssertEqual(Locales.chineseTraditional.rawValue, "zh_TW.UTF-8")
     }
 
-    func testLocalesUkrainianAlias() {
-        XCTAssertEqual(Locales.ukrainian, Locales.ukranian)
-        XCTAssertEqual(Locales.ukrainian.rawValue, "uk_UA.UTF-8")
-    }
-
     func testLocalesPrettyDisplayNames() {
         XCTAssertEqual(Locales.german.pretty(), "Deutsch")
         XCTAssertEqual(Locales.english.pretty(), "English")

@@ -106,7 +106,6 @@ public struct WinePrefixDiagnostics: Codable, Sendable {
     /// - Returns: A formatted diagnostic report bounded to `maxReportBytes`.
     public func reportString(error: String? = nil) -> String {
         var prefixLines: [String] = []
-        prefixLines.reserveCapacity(20)
 
         appendHeaderLines(into: &prefixLines, error: error)
         appendPrefixStateLines(into: &prefixLines)

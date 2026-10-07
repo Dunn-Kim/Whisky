@@ -188,7 +188,6 @@ final class RunLogTests: XCTestCase {
         var entry = RunLogEntry(programName: "test.exe", logFileName: "2025-01-01T00:00:00Z.log")
         entry.endTime = entry.startTime.addingTimeInterval(300)
         entry.exitCode = 0
-        entry.activeWineDebugPreset = "verbose"
         entry.hasWineDebugOutput = true
 
         let encoder = PropertyListEncoder()
@@ -200,7 +199,6 @@ final class RunLogTests: XCTestCase {
         XCTAssertEqual(decoded.programName, entry.programName)
         XCTAssertEqual(decoded.logFileName, entry.logFileName)
         XCTAssertEqual(decoded.exitCode, entry.exitCode)
-        XCTAssertEqual(decoded.activeWineDebugPreset, entry.activeWineDebugPreset)
         XCTAssertEqual(decoded.hasWineDebugOutput, entry.hasWineDebugOutput)
         // Plist encoding rounds Date to whole seconds
         XCTAssertEqual(decoded.startTime.timeIntervalSince1970, entry.startTime.timeIntervalSince1970, accuracy: 1.0)

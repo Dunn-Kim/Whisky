@@ -80,7 +80,7 @@ public final class CheckRegistry: @unchecked Sendable {
     /// - Parameters:
     ///   - checkId: The stable identifier of the check to run.
     ///   - params: Key-value parameters from the flow step node.
-    ///   - context: The check context with bottle, program, and session state.
+    ///   - context: The check context with bottle, program, and preflight data.
     /// - Returns: The check result for flow branching.
     public func run(
         checkId: String,

@@ -19,8 +19,7 @@
 import Foundation
 
 /// Everything ``SteamClientOrchestrator`` needs from the outside world: process
-/// lists, starting the client, launching and killing games, and two lifecycle
-/// hooks. The orchestrator owns the sequencing (single-flight client startup,
+/// lists, starting the client, and launching and killing games. The orchestrator owns the sequencing (single-flight client startup,
 /// per-game phases, the shared process snapshot); the driver owns the side
 /// effects, so tests can script one without Wine.
 @MainActor
@@ -48,13 +47,6 @@ public protocol SteamClientDriver: AnyObject {
 
     /// Asks one of the bottle's processes to close.
     func killProcess(winePID: Int32) async
-
-    /// The client is up (started here or found already running).
-    func clientDidBecomeReady()
-
-    /// The orchestrator is being stopped; release anything started in
-    /// ``clientDidBecomeReady()``.
-    func shutdown()
 }
 
 /// The production driver: Wine, `tasklist.exe`, `ps`, and ``SteamLauncher``.
@@ -132,8 +124,4 @@ public final class WineSteamClientDriver: SteamClientDriver {
     public func killProcess(winePID: Int32) async {
         await Wine.killProcess(winePID: winePID, bottle: bottle, force: false)
     }
-
-    public func clientDidBecomeReady() {}
-
-    public func shutdown() {}
 }

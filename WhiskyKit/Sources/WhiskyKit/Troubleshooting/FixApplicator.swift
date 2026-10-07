@@ -172,9 +172,7 @@ public enum FixApplicator { // swiftlint:disable:this type_body_length
         case "apply-game-config":
             guard let program,
                   let match = GameMatcher.bestMatch(
-                      metadata: ProgramMetadata(
-                          exeName: program.url.lastPathComponent, exeURL: program.url
-                      ),
+                      metadata: ProgramMetadata(exeName: program.url.lastPathComponent),
                       against: GameDBLoader.loadDefaults()
                   ),
                   let variant = match.entry.defaultVariant
@@ -308,9 +306,7 @@ public enum FixApplicator { // swiftlint:disable:this type_body_length
         case "apply-game-config":
             guard let program,
                   let match = GameMatcher.bestMatch(
-                      metadata: ProgramMetadata(
-                          exeName: program.url.lastPathComponent, exeURL: program.url
-                      ),
+                      metadata: ProgramMetadata(exeName: program.url.lastPathComponent),
                       against: GameDBLoader.loadDefaults()
                   ),
                   let variant = match.entry.defaultVariant
@@ -319,9 +315,7 @@ public enum FixApplicator { // swiftlint:disable:this type_body_length
                 return FixAttempt(fixId: fixId, result: .failed)
             }
             do {
-                _ = try GameConfigApplicator.apply(
-                    entry: match.entry, variant: variant, to: bottle, programURL: program.url
-                )
+                _ = try GameConfigApplicator.apply(entry: match.entry, variant: variant, to: bottle)
                 return FixAttempt(
                     fixId: fixId,
                     beforeValue: nil,

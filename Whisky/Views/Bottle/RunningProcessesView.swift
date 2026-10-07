@@ -263,9 +263,6 @@ extension RunningProcessesView {
                 VStack(alignment: .leading, spacing: 4) {
                     detailRow(label: "process.detail.source", value: localizedSource(process.source))
                     detailRow(label: "process.detail.kind", value: localizedKind(process.kind))
-                    if let commandLine = process.commandLine {
-                        detailRow(label: "process.column.name", value: commandLine)
-                    }
                 }
                 Spacer()
             }

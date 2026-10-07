@@ -44,9 +44,6 @@ public struct RunLogEntry: Codable, Identifiable, Equatable, Sendable {
     /// Display name of the program that was launched.
     public let programName: String
 
-    /// Name of the WINEDEBUG preset active during this run, if any.
-    public var activeWineDebugPreset: String?
-
     /// Whether WINEDEBUG output was captured during this run.
     public var hasWineDebugOutput: Bool = false
 
