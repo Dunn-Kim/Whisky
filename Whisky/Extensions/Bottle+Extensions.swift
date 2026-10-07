@@ -240,7 +240,6 @@ extension Bottle {
 
         BottleOperations.remove(bottleAt: url, deleteFiles: delete, registry: BottleVM.shared)
     }
-
 }
 
 extension Program {
@@ -254,7 +253,7 @@ extension Program {
     ) {
         Telemetry.capture(.firstProgramLaunchAttempted)
         Task {
-            completion(await launchWithUserMode(useTerminal: useTerminal))
+            await completion(launchWithUserMode(useTerminal: useTerminal))
         }
     }
 }

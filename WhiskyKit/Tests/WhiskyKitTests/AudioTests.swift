@@ -29,7 +29,7 @@ final class AudioTests: XCTestCase {
         for index in 0 ..< 25 {
             let event = makeEvent(
                 deviceName: "Device-\(index)",
-                    secondsAgo: Double(25 - index) * 60
+                secondsAgo: Double(25 - index) * 60
             )
             history.append(event)
         }

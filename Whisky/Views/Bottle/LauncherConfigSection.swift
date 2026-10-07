@@ -342,7 +342,9 @@ private struct ActiveEnvironmentOverrides: View {
 
             ForEach(sortedCategories, id: \.self) { category in
                 if let fixes = grouped[category] {
-                    categoryGroup(category: category, rows: fixes.map { ($0.key, $0.value, $0.reason) })
+                    categoryGroup(category: category, rows: fixes.map {
+                        FixRow(key: $0.key, value: $0.value, reason: $0.reason)
+                    })
                 }
             }
         }
@@ -367,7 +369,10 @@ private struct ActiveEnvironmentOverrides: View {
                     if let fixes = grouped[category] {
                         categoryGroup(category: category, rows: fixes.map { fix in
                             let since = fix.appliesFrom.description
-                            return (fix.key, fix.value, "Applied because macOS >= \(since): \(fix.reason)")
+                            return FixRow(
+                                key: fix.key, value: fix.value,
+                                reason: "Applied because macOS >= \(since): \(fix.reason)"
+                            )
                         })
                     }
                 }
@@ -377,10 +382,13 @@ private struct ActiveEnvironmentOverrides: View {
 
     // MARK: - Category Group Views
 
-    private func categoryGroup(
-        category: FixCategory,
-        rows: [(key: String, value: String, reason: String)]
-    ) -> some View {
+    private struct FixRow {
+        let key: String
+        let value: String
+        let reason: String
+    }
+
+    private func categoryGroup(category: FixCategory, rows: [FixRow]) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(categoryDisplayName(category))
                 .font(.caption2)

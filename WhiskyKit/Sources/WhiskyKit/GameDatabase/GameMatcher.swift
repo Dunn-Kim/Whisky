@@ -1,4 +1,3 @@
-// swiftlint:disable file_length
 //
 //  GameMatcher.swift
 //  WhiskyKit
@@ -390,5 +389,3 @@ public enum GameMatcher {
         }
     }
 }
-
-// swiftlint:enable file_length

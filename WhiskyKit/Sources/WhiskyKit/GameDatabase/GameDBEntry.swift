@@ -1,4 +1,3 @@
-// swiftlint:disable file_length
 //
 //  GameDBEntry.swift
 //  WhiskyKit
@@ -388,5 +387,3 @@ public struct GameDBEntry: Codable, Sendable, Equatable {
         self.provenance = try container.decodeIfPresent(Provenance.self, forKey: .provenance)
     }
 }
-
-// swiftlint:enable file_length

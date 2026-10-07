@@ -1,4 +1,3 @@
-// swiftlint:disable file_length
 //
 //  GameConfigApplicator.swift
 //  WhiskyKit
@@ -395,5 +394,3 @@ public enum GameConfigApplicator {
         bottle.settings.dllOverrides = updatedOverrides
     }
 }
-
-// swiftlint:enable file_length

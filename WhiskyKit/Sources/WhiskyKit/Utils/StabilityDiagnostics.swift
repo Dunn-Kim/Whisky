@@ -163,7 +163,6 @@ public enum StabilityDiagnostics {
         return snapshot
     }
 
-    // swiftlint:disable:next function_body_length
     private static func generateLogSummary(config: Configuration) async -> String {
         await Task.detached(priority: .utility) {
             var logs = """

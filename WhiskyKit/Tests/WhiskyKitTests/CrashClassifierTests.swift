@@ -23,8 +23,7 @@ final class CrashClassifierTests: XCTestCase {
     // MARK: - PatternLoader Tests
 
     func testLoadDefaultPatterns() {
-        let patterns = PatternLoader.defaultPatterns()
-        let remediations = PatternLoader.defaultRemediations()
+        let (patterns, remediations) = (PatternLoader.defaultPatterns(), PatternLoader.defaultRemediations())
         XCTAssertGreaterThanOrEqual(patterns.count, 15, "Should load at least 15 patterns")
         XCTAssertGreaterThanOrEqual(remediations.count, 8, "Should load at least 8 remediation actions")
     }
