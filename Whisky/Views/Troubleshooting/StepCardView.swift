@@ -67,7 +67,7 @@ extension StepCardView {
             }
             Spacer()
             if let checkResult, let confidence = checkResult.confidence {
-                confidenceBadge(confidence)
+                ConfidenceBadge(tier: confidence)
             }
         }
     }
@@ -183,28 +183,6 @@ extension StepCardView {
         case .fail: .red
         case .unknown: .orange
         case .error: .red
-        }
-    }
-}
-
-// MARK: - Confidence Badge
-
-extension StepCardView {
-    private func confidenceBadge(_ tier: ConfidenceTier) -> some View {
-        Text(tier.displayName)
-            .font(.caption2)
-            .fontWeight(.medium)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 3)
-            .background(badgeColor(tier).opacity(0.15), in: Capsule())
-            .foregroundStyle(badgeColor(tier))
-    }
-
-    private func badgeColor(_ tier: ConfidenceTier) -> Color {
-        switch tier {
-        case .high: .green
-        case .medium: .yellow
-        case .low: .gray
         }
     }
 }

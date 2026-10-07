@@ -42,7 +42,7 @@ extension Bottle {
             return cached
         }
         let usersDir = url.appending(path: "drive_c").appending(path: "users")
-        let username = WinePrefixValidation.detectWineUsername(in: usersDir) ?? "crossover"
+        let username = WinePrefixValidation.detectWineUsername(in: usersDir) ?? WineUserProfile.crossOverName
         wineUsernameCache[url] = username
         return username
     }
@@ -96,8 +96,6 @@ extension Bottle {
         }
     }
 
-    @discardableResult
-    // swiftlint:disable:next function_body_length
     func getStartMenuPrograms() -> [Program] {
         let globalStartMenu = url
             .appending(path: "drive_c")
@@ -118,25 +116,16 @@ extension Bottle {
 
         var startMenuPrograms: [Program] = []
         var linkURLs: [URL] = []
-        let globalEnumerator = FileManager.default.enumerator(
-            at: globalStartMenu,
-            includingPropertiesForKeys: [.isRegularFileKey],
-            options: [.skipsHiddenFiles]
-        )
-        while let url = globalEnumerator?.nextObject() as? URL {
-            if url.pathExtension == "lnk" {
-                linkURLs.append(url)
-            }
-        }
-
-        let userEnumerator = FileManager.default.enumerator(
-            at: userStartMenu,
-            includingPropertiesForKeys: [.isRegularFileKey],
-            options: [.skipsHiddenFiles]
-        )
-        while let url = userEnumerator?.nextObject() as? URL {
-            if url.pathExtension == "lnk" {
-                linkURLs.append(url)
+        for root in [globalStartMenu, userStartMenu] {
+            let enumerator = FileManager.default.enumerator(
+                at: root,
+                includingPropertiesForKeys: [.isRegularFileKey],
+                options: [.skipsHiddenFiles]
+            )
+            while let url = enumerator?.nextObject() as? URL {
+                if url.pathExtension == "lnk" {
+                    linkURLs.append(url)
+                }
             }
         }
 
@@ -218,13 +207,19 @@ extension Bottle {
         }
     }
 
+    /// Whether the bottle's wineserver is up or the registry still tracks a
+    /// process for it.
+    @MainActor
+    func hasRunningProcesses() async -> Bool {
+        let isRunning = await Wine.isWineserverRunning(for: self)
+        let trackedCount = ProcessRegistry.shared.getProcessCount(for: self)
+        return isRunning || trackedCount > 0
+    }
+
     @MainActor
     func remove(delete: Bool) async {
         // Check for running processes before deletion
-        let isRunning = await Wine.isWineserverRunning(for: self)
-        let trackedCount = ProcessRegistry.shared.getProcessCount(for: self)
-
-        if isRunning || trackedCount > 0 {
+        if await hasRunningProcesses() {
             let alert = NSAlert()
             alert.messageText = String(localized: "bottle.remove.hasProcesses.title")
             alert.informativeText = String(localized: "bottle.remove.hasProcesses.message")

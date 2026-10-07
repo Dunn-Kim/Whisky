@@ -76,8 +76,8 @@ extension EscalationView {
 
                 ForEach(engine.session.fixAttempts, id: \.fixId) { attempt in
                     HStack(spacing: 6) {
-                        Image(systemName: resultIcon(for: attempt.result))
-                            .foregroundStyle(resultColor(for: attempt.result))
+                        Image(systemName: attempt.result.sfSymbol)
+                            .foregroundStyle(attempt.result.color)
                             .font(.caption)
                         Text(attempt.fixId)
                             .font(.caption)
@@ -96,9 +96,12 @@ extension EscalationView {
             )
         }
     }
+}
 
-    private func resultIcon(for result: FixResult) -> String {
-        switch result {
+/// The icon and color a fix attempt's result is shown with.
+extension FixResult {
+    var sfSymbol: String {
+        switch self {
         case .verified: "checkmark.circle.fill"
         case .applied: "checkmark.circle"
         case .failed: "xmark.circle"
@@ -107,8 +110,8 @@ extension EscalationView {
         }
     }
 
-    private func resultColor(for result: FixResult) -> Color {
-        switch result {
+    var color: Color {
+        switch self {
         case .verified: .green
         case .applied: .blue
         case .failed: .red

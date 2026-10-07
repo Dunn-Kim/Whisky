@@ -204,9 +204,9 @@ extension TroubleshootingWizardView {
                         .foregroundStyle(.secondary)
                     ForEach(engine.session.fixAttempts, id: \.fixId) { attempt in
                         HStack(spacing: 6) {
-                            Image(systemName: resultIcon(for: attempt.result))
+                            Image(systemName: attempt.result.sfSymbol)
                                 .font(.caption)
-                                .foregroundStyle(resultColor(for: attempt.result))
+                                .foregroundStyle(attempt.result.color)
                             Text(attempt.fixId)
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
@@ -222,26 +222,6 @@ extension TroubleshootingWizardView {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 40)
-    }
-
-    private func resultIcon(for result: FixResult) -> String {
-        switch result {
-        case .verified: "checkmark.circle.fill"
-        case .applied: "checkmark.circle"
-        case .failed: "xmark.circle"
-        case .undone: "arrow.uturn.backward.circle"
-        case .pending: "clock"
-        }
-    }
-
-    private func resultColor(for result: FixResult) -> Color {
-        switch result {
-        case .verified: .green
-        case .applied: .blue
-        case .failed: .red
-        case .undone: .orange
-        case .pending: .gray
-        }
     }
 }
 

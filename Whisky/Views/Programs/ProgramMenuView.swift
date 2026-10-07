@@ -26,14 +26,11 @@ struct ProgramMenuView: View {
 
     var body: some View {
         Button("button.run", systemImage: "play") {
-            Telemetry.capture(.firstProgramLaunchAttempted)
             // Program-list and pin launches historically skipped launcher
             // detection; only FileOpenView and the bottle Run button had it.
             LauncherFixes.detectAndApply(from: program.url, for: program.bottle)
-            // Capture modifier flags synchronously before entering async context
-            let useTerminal = NSEvent.modifierFlags.contains(.shift)
-            Task {
-                if case let .launchFailed(_, error) = await program.launchWithUserMode(useTerminal: useTerminal) {
+            program.launchFromUI { result in
+                if case let .launchFailed(_, error) = result {
                     program.showRunError(message: error)
                 }
             }

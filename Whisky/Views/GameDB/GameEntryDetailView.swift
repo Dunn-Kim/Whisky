@@ -111,10 +111,10 @@ extension GameEntryDetailView {
     private var ratingRow: some View {
         HStack {
             Image(systemName: entry.rating.systemImage)
-                .foregroundStyle(ratingColor)
+                .foregroundStyle(entry.rating.color)
             Text(entry.rating.displayName)
                 .fontWeight(.semibold)
-                .foregroundStyle(ratingColor)
+                .foregroundStyle(entry.rating.color)
             Spacer()
             if let store = entry.store {
                 Text(store.capitalized)
@@ -183,9 +183,12 @@ extension GameEntryDetailView {
             .background(.yellow.opacity(0.1), in: RoundedRectangle(cornerRadius: 8))
         }
     }
+}
 
-    private var ratingColor: Color {
-        switch entry.rating {
+extension CompatibilityRating {
+    /// The color a rating is shown in.
+    var color: Color {
+        switch self {
         case .works: .green
         case .playable: .yellow
         case .unverified: .gray

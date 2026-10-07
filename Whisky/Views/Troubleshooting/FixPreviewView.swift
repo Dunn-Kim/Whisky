@@ -296,16 +296,7 @@ extension FixPreviewView {
         isApplying = true
         engine.applyFix(fixId: fixId, beforeValue: nil, afterValue: verb)
         Task {
-            var exitCode: Int32?
-            var failure: String?
-            for await progress in Winetricks.installVerb(verb, for: bottle) {
-                switch progress {
-                case let .completed(code): exitCode = code
-                case let .failed(message): failure = message
-                case .preparing, .output: break
-                }
-            }
-            if failure == nil, exitCode == 0 {
+            if await Winetricks.install(verb, for: bottle) == nil {
                 engine.confirmFixApplied(fixId: fixId)
             } else {
                 engine.markFixFailed(fixId: fixId)

@@ -67,7 +67,7 @@ public final class ClickOnceManager: @unchecked Sendable {
     /// directory found in `drive_c/users/` and falling back to "crossover".
     private static func resolveWineUsername(for bottle: Bottle) -> String {
         let usersDir = bottle.url.appending(path: "drive_c").appending(path: "users")
-        return WinePrefixValidation.detectWineUsername(in: usersDir) ?? "crossover"
+        return WinePrefixValidation.detectWineUsername(in: usersDir) ?? WineUserProfile.crossOverName
     }
 
     // MARK: - Detection

@@ -183,7 +183,7 @@ extension DiagnosticsView {
                 if let category = diagnosis.primaryCategory {
                     Image(systemName: category.sfSymbol)
                         .font(.title2)
-                        .foregroundStyle(colorForCategory(category))
+                        .foregroundStyle(category.color)
                 }
 
                 VStack(alignment: .leading, spacing: 2) {
@@ -196,7 +196,7 @@ extension DiagnosticsView {
                     if let confidence = diagnosis.primaryConfidence {
                         HStack(spacing: 4) {
                             Circle()
-                                .fill(colorForConfidence(confidence))
+                                .fill(confidence.color)
                                 .frame(width: 8, height: 8)
                             Text("\(confidence.displayName) confidence")
                                 .font(.caption)
@@ -278,7 +278,7 @@ extension DiagnosticsView {
                             Capsule()
                                 .fill(
                                     activeCategoryFilter == category
-                                        ? colorForCategory(category).opacity(0.2)
+                                        ? category.color.opacity(0.2)
                                         : Color(.controlBackgroundColor)
                                 )
                         )
@@ -286,7 +286,7 @@ extension DiagnosticsView {
                             Capsule()
                                 .strokeBorder(
                                     activeCategoryFilter == category
-                                        ? colorForCategory(category)
+                                        ? category.color
                                         : Color.secondary.opacity(0.3),
                                     lineWidth: 1
                                 )
@@ -396,9 +396,12 @@ extension DiagnosticsView {
         }
         return ConfidenceTier(score: bestConfidence)
     }
+}
 
-    func colorForCategory(_ category: CrashCategory) -> Color {
-        switch category {
+extension CrashCategory {
+    /// The color a crash category is tinted with.
+    var color: Color {
+        switch self {
         case .coreCrashFatal:
             .red
         case .graphics:
@@ -413,17 +416,6 @@ extension DiagnosticsView {
             .gray
         case .otherUnknown:
             .secondary
-        }
-    }
-
-    func colorForConfidence(_ tier: ConfidenceTier) -> Color {
-        switch tier {
-        case .high:
-            .green
-        case .medium:
-            .yellow
-        case .low:
-            .gray
         }
     }
 }

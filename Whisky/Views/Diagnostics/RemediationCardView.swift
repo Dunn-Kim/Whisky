@@ -49,7 +49,7 @@ extension RemediationCardView {
                     .font(.subheadline)
                     .fontWeight(.semibold)
                 Spacer()
-                confidenceBadge
+                ConfidenceBadge(tier: confidenceTier)
             }
 
             // Body: what will change
@@ -143,19 +143,25 @@ extension RemediationCardView {
 
 // MARK: - Confidence Badge
 
-extension RemediationCardView {
-    private var confidenceBadge: some View {
-        Text(confidenceTier.displayName)
+/// A capsule naming a ``ConfidenceTier`` in the tier's color.
+struct ConfidenceBadge: View {
+    let tier: ConfidenceTier
+
+    var body: some View {
+        Text(tier.displayName)
             .font(.caption2)
             .fontWeight(.medium)
             .padding(.horizontal, 8)
             .padding(.vertical, 3)
-            .background(badgeColor.opacity(0.15), in: Capsule())
-            .foregroundStyle(badgeColor)
+            .background(tier.color.opacity(0.15), in: Capsule())
+            .foregroundStyle(tier.color)
     }
+}
 
-    private var badgeColor: Color {
-        switch confidenceTier {
+extension ConfidenceTier {
+    /// Green, yellow or gray, from high to low.
+    var color: Color {
+        switch self {
         case .high:
             .green
         case .medium:

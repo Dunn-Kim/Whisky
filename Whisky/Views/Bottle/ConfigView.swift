@@ -235,31 +235,13 @@ struct ConfigView: View {
             HStack {
                 Spacer()
                 Button("config.controlPanel") {
-                    Task(priority: .userInitiated) {
-                        do {
-                            try await Wine.control(bottle: bottle)
-                        } catch {
-                            logger.error("Failed to launch control: \(error.localizedDescription)")
-                        }
-                    }
+                    launchTool("control", Wine.control(bottle:))
                 }
                 Button("config.regedit") {
-                    Task(priority: .userInitiated) {
-                        do {
-                            try await Wine.regedit(bottle: bottle)
-                        } catch {
-                            logger.error("Failed to launch regedit: \(error.localizedDescription)")
-                        }
-                    }
+                    launchTool("regedit", Wine.regedit(bottle:))
                 }
                 Button("config.winecfg") {
-                    Task(priority: .userInitiated) {
-                        do {
-                            try await Wine.cfg(bottle: bottle)
-                        } catch {
-                            logger.error("Failed to launch winecfg: \(error.localizedDescription)")
-                        }
-                    }
+                    launchTool("winecfg", Wine.cfg(bottle:))
                 }
             }
             .padding()
@@ -304,6 +286,17 @@ struct ConfigView: View {
                         dpiConfigLoadingState = .failed
                     }
                 }
+            }
+        }
+    }
+
+    /// Opens a Wine system tool, logging a launch failure under `name`.
+    private func launchTool(_ name: String, _ launch: @escaping @MainActor (Bottle) async throws -> String) {
+        Task(priority: .userInitiated) {
+            do {
+                _ = try await launch(bottle)
+            } catch {
+                logger.error("Failed to launch \(name, privacy: .public): \(error.localizedDescription)")
             }
         }
     }

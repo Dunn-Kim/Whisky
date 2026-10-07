@@ -61,23 +61,13 @@ enum RemediationExecutor {
             }
             onUpdate(String(format: String(localized: "remediation.installing"), verb))
             Task {
-                var exitCode: Int32?
-                var failure: String?
-                for await progress in Winetricks.installVerb(verb, for: bottle) {
-                    switch progress {
-                    case let .completed(code): exitCode = code
-                    case let .failed(message): failure = message
-                    case .preparing, .output: break
-                    }
-                }
-                if failure == nil, exitCode == 0 {
-                    onUpdate(String(format: String(localized: "remediation.installed"), verb))
-                } else {
-                    let detail = failure ?? "exit \(exitCode ?? -1)"
+                if let detail = await Winetricks.install(verb, for: bottle) {
                     logger.error(
                         "winetricks \(verb, privacy: .public) failed: \(detail, privacy: .public)"
                     )
                     onUpdate(String(format: String(localized: "remediation.installFailed"), verb))
+                } else {
+                    onUpdate(String(format: String(localized: "remediation.installed"), verb))
                 }
             }
 

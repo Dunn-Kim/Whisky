@@ -45,6 +45,11 @@ struct WinetricksCategory {
 }
 
 class Winetricks {
+    /// The app bundle Resources folder, where winetricks ships alongside cabextract.
+    static var bundledResourcesURL: URL? {
+        Bundle.main.url(forResource: "cabextract", withExtension: nil)?.deletingLastPathComponent()
+    }
+
     @MainActor
     static func runCommand(command: String, bottle: Bottle) async {
         await runCommandInternal(command: command, bottle: bottle, isRetryAfterRepair: false)
@@ -71,9 +76,7 @@ class Winetricks {
             return
         }
 
-        guard let resourcesURL = Bundle.main.url(forResource: "cabextract", withExtension: nil)?
-            .deletingLastPathComponent()
-        else {
+        guard let resourcesURL = bundledResourcesURL else {
             showMissingResourcesAlert(command: command)
             return
         }

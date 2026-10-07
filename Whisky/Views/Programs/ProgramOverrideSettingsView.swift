@@ -114,22 +114,16 @@ struct ProgramOverrideSettingsView: View {
     }
 
     private func viewDiagnosisDetails(for entry: DiagnosisHistoryEntry) {
-        let logURL = Wine.logsFolder.appendingPathComponent(entry.logFileRef)
-        Task {
-            guard let diagnosis = await Wine.classifyLastRun(
-                logFileURL: logURL,
-                exitCode: 1
-            )
-            else { return }
-            diagnosisPresentation = DiagnosisPresentation(
-                diagnosis: diagnosis,
-                logText: (try? String(contentsOf: logURL, encoding: .utf8)) ?? ""
-            )
-        }
+        presentDiagnosis(logURL: Wine.logsFolder.appendingPathComponent(entry.logFileRef))
     }
 
     private func analyzeLastRun() {
         guard let logURL = program.settings.lastLogFileURL else { return }
+        presentDiagnosis(logURL: logURL)
+    }
+
+    /// Classifies the log at `logURL` and presents the diagnosis with its text.
+    private func presentDiagnosis(logURL: URL) {
         Task {
             guard let diagnosis = await Wine.classifyLastRun(
                 logFileURL: logURL,
@@ -215,7 +209,7 @@ struct ProgramOverrideSettingsView: View {
                         Spacer()
                         Text(match.entry.rating.displayName)
                             .font(.caption)
-                            .foregroundStyle(ratingColor(match.entry.rating))
+                            .foregroundStyle(match.entry.rating.color)
                         Image(systemName: "chevron.right")
                             .font(.caption)
                             .foregroundStyle(.secondary)
@@ -240,16 +234,6 @@ struct ProgramOverrideSettingsView: View {
 
         await MainActor.run {
             gameMatch = match
-        }
-    }
-
-    private func ratingColor(_ rating: CompatibilityRating) -> Color {
-        switch rating {
-        case .works: .green
-        case .playable: .yellow
-        case .unverified: .gray
-        case .broken: .red
-        case .notSupported: .red
         }
     }
 

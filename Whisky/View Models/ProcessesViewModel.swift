@@ -237,20 +237,7 @@ class ProcessesViewModel: ObservableObject {
         }
 
         // Step 3: SIGKILL remaining tracked macOS PIDs as last resort
-        let registryEntries = ProcessRegistry.shared.getProcesses(for: bottle)
-        for entry in registryEntries where entry.pid > 0 {
-            kill(entry.pid, SIGKILL)
-            logger.info("Sent SIGKILL to macOS PID \(entry.pid) (\(entry.programName))")
-        }
-
-        // Cleanup
-        ProcessRegistry.shared.clearRegistry(for: bottle.url)
-        shutdownState = .idle
-        await refreshProcessListDuringShutdown()
-        startPolling()
-
-        let stoppedCount = initialCount - processes.count
-        return max(stoppedCount, 0)
+        return await finishShutdown(initialCount: initialCount, logPrefix: "Sent")
     }
 
     /// Executes a force shutdown: skips graceful step, goes directly to wineserver -k + SIGKILL.
@@ -266,10 +253,20 @@ class ProcessesViewModel: ObservableObject {
         try? await Task.sleep(for: .seconds(2.0))
 
         // SIGKILL remaining tracked macOS PIDs
+        return await finishShutdown(initialCount: initialCount, logPrefix: "Force sent")
+    }
+
+    // MARK: - Private Helpers
+
+    /// SIGKILLs the remaining tracked macOS PIDs, clears the registry and
+    /// resumes polling.
+    ///
+    /// - Returns: The number of processes stopped since `initialCount`.
+    private func finishShutdown(initialCount: Int, logPrefix: String) async -> Int {
         let registryEntries = ProcessRegistry.shared.getProcesses(for: bottle)
         for entry in registryEntries where entry.pid > 0 {
             kill(entry.pid, SIGKILL)
-            logger.info("Force sent SIGKILL to macOS PID \(entry.pid) (\(entry.programName))")
+            logger.info("\(logPrefix, privacy: .public) SIGKILL to macOS PID \(entry.pid) (\(entry.programName))")
         }
 
         // Cleanup
@@ -281,8 +278,6 @@ class ProcessesViewModel: ObservableObject {
         let stoppedCount = initialCount - processes.count
         return max(stoppedCount, 0)
     }
-
-    // MARK: - Private Helpers
 
     /// Refreshes the process list bypassing the shutdown guard. Used during shutdown steps.
     private func refreshProcessListDuringShutdown() async {

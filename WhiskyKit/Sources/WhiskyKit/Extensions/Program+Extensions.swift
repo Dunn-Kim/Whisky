@@ -200,10 +200,7 @@ public extension Program {
                 programPath: programPath
             )
 
-            let historyURL = bottleURL
-                .appending(path: "Program Settings")
-                .appending(path: programName)
-                .appendingPathExtension("diagnosis-history.plist")
+            let historyURL = DiagnosisHistory.url(for: programName, in: bottleURL)
             var history = DiagnosisHistory.load(from: historyURL)
             history.append(entry)
             try? history.save(to: historyURL)

@@ -109,6 +109,19 @@ public struct DiagnosisHistory: Codable, Sendable {
         entries.isEmpty
     }
 
+    /// Returns the URL for a program's diagnosis history plist file.
+    ///
+    /// - Parameters:
+    ///   - programName: The program's file name (e.g., `"game.exe"`).
+    ///   - bottleURL: The bottle's root directory URL.
+    /// - Returns: URL to `{bottle}/Program Settings/{programName}.diagnosis-history.plist`.
+    public static func url(for programName: String, in bottleURL: URL) -> URL {
+        bottleURL
+            .appending(path: "Program Settings")
+            .appending(path: programName)
+            .appendingPathExtension("diagnosis-history.plist")
+    }
+
     /// Loads a diagnosis history from a plist file.
     ///
     /// Returns an empty history if the file does not exist or cannot be decoded.

@@ -205,9 +205,7 @@ struct ResolutionConfigSection: View {
     }
 
     func checkRunningProcesses() async {
-        let wineserverActive = await Wine.isWineserverRunning(for: bottle)
-        let trackedCount = ProcessRegistry.shared.getProcessCount(for: bottle)
-        hasRunningProcesses = wineserverActive || trackedCount > 0
+        hasRunningProcesses = await bottle.hasRunningProcesses()
     }
 }
 

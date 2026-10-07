@@ -69,22 +69,25 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         UserDefaults.standard.object(forKey: "killOnTerminate") as? Bool ?? true
     }
 
-    func applicationWillTerminate(_ notification: Notification) {
-        let globalKill = Self.killOnTerminate
+    /// Whether `bottle`'s kill-on-quit policy, falling back to
+    /// ``killOnTerminate``, has its Wine processes killed.
+    @MainActor
+    private static func shouldKill(_ bottle: Bottle) -> Bool {
+        switch bottle.settings.killOnQuit {
+        case .inherit:
+            killOnTerminate
+        case .alwaysKill:
+            true
+        case .neverKill:
+            false
+        }
+    }
 
+    func applicationWillTerminate(_ notification: Notification) {
         // Per-bottle kill-on-quit with policy overrides
         for bottle in BottleVM.shared.bottles {
             let bottlePolicy = bottle.settings.killOnQuit
-            let shouldKill: Bool = switch bottlePolicy {
-            case .inherit:
-                globalKill
-            case .alwaysKill:
-                true
-            case .neverKill:
-                false
-            }
-
-            if shouldKill {
+            if Self.shouldKill(bottle) {
                 // Synchronous: the app exits when this delegate returns.
                 Wine.killBottleAndWait(bottle: bottle)
                 ProcessRegistry.shared.clearRegistry(for: bottle.url)
@@ -174,15 +177,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             guard isRunning else { continue }
 
             let bottleName = bottle.settings.name
-            let policy = bottle.settings.killOnQuit
-            let globalKill = Self.killOnTerminate
-            let shouldAutoClean: Bool = switch policy {
-            case .inherit: globalKill
-            case .alwaysKill: true
-            case .neverKill: false
-            }
-
-            if shouldAutoClean {
+            if Self.shouldKill(bottle) {
                 // Auto-clean orphans per kill-on-quit policy
                 Wine.killBottle(bottle: bottle)
                 cleanedCount += 1

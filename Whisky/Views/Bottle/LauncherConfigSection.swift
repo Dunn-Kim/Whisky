@@ -21,10 +21,7 @@ import os.log
 import SwiftUI
 import WhiskyKit
 
-private let launcherConfigLogger = Logger(
-    subsystem: Bundle.main.bundleIdentifier ?? "com.franke.Whisky",
-    category: "LauncherConfig"
-)
+private let launcherConfigLogger = Logger(subsystem: Bundle.whiskyBundleIdentifier, category: "LauncherConfig")
 
 struct LauncherConfigSection: View {
     @ObservedObject var bottle: Bottle
@@ -345,7 +342,7 @@ private struct ActiveEnvironmentOverrides: View {
 
             ForEach(sortedCategories, id: \.self) { category in
                 if let fixes = grouped[category] {
-                    categoryGroup(category: category, fixes: fixes)
+                    categoryGroup(category: category, rows: fixes.map { ($0.key, $0.value, $0.reason) })
                 }
             }
         }
@@ -368,7 +365,10 @@ private struct ActiveEnvironmentOverrides: View {
 
                 ForEach(sortedCategories, id: \.self) { category in
                     if let fixes = grouped[category] {
-                        macOSCategoryGroup(category: category, fixes: fixes)
+                        categoryGroup(category: category, rows: fixes.map { fix in
+                            let since = fix.appliesFrom.description
+                            return (fix.key, fix.value, "Applied because macOS >= \(since): \(fix.reason)")
+                        })
                     }
                 }
             }
@@ -379,7 +379,7 @@ private struct ActiveEnvironmentOverrides: View {
 
     private func categoryGroup(
         category: FixCategory,
-        fixes: [LauncherFixDetail]
+        rows: [(key: String, value: String, reason: String)]
     ) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(categoryDisplayName(category))
@@ -388,29 +388,8 @@ private struct ActiveEnvironmentOverrides: View {
                 .foregroundColor(.secondary)
                 .textCase(.uppercase)
 
-            ForEach(fixes, id: \.key) { fix in
-                fixRow(key: fix.key, value: fix.value, reason: fix.reason)
-            }
-        }
-    }
-
-    private func macOSCategoryGroup(
-        category: FixCategory,
-        fixes: [MacOSFix]
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(categoryDisplayName(category))
-                .font(.caption2)
-                .fontWeight(.medium)
-                .foregroundColor(.secondary)
-                .textCase(.uppercase)
-
-            ForEach(fixes, id: \.key) { fix in
-                fixRow(
-                    key: fix.key,
-                    value: fix.value,
-                    reason: "Applied because macOS >= \(fix.appliesFrom.description): \(fix.reason)"
-                )
+            ForEach(rows, id: \.key) { row in
+                fixRow(key: row.key, value: row.value, reason: row.reason)
             }
         }
     }

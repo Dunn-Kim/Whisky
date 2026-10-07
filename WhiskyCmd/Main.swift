@@ -38,6 +38,22 @@ struct DomainError: LocalizedError {
     }
 }
 
+/// The bottle named `name`; a ``DomainError`` when there is none.
+@MainActor
+private func loadBottle(named name: String) throws -> Bottle {
+    var bottlesList = BottleData()
+    guard let bottle = bottlesList.loadBottles().first(where: { $0.settings.name == name }) else {
+        throw DomainError("A bottle with that name doesn't exist.")
+    }
+    return bottle
+}
+
+/// Prints `payload` as pretty-printed JSON with sorted keys.
+private func printJSON(_ payload: Any) throws {
+    let data = try JSONSerialization.data(withJSONObject: payload, options: [.prettyPrinted, .sortedKeys])
+    print(String(bytes: data, encoding: .utf8) ?? "")
+}
+
 @main
 struct Whisky: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
@@ -241,12 +257,7 @@ extension Whisky {
                 args.remove(at: terminator)
             }
 
-            var bottlesList = BottleData()
-            let bottles = bottlesList.loadBottles()
-
-            guard let bottle = bottles.first(where: { $0.settings.name == bottleName }) else {
-                throw DomainError("A bottle with that name doesn't exist.")
-            }
+            let bottle = try loadBottle(named: bottleName)
 
             let url = URL(fileURLWithPath: Self.resolveExecutablePath(path, in: bottle))
             let program = Program(url: url, bottle: bottle)
@@ -407,12 +418,7 @@ extension Whisky {
 
         @MainActor
         mutating func run() async throws {
-            var bottlesList = BottleData()
-            let bottles = bottlesList.loadBottles()
-
-            guard let bottle = bottles.first(where: { $0.settings.name == bottleName }) else {
-                throw DomainError("A bottle with that name doesn't exist.")
-            }
+            let bottle = try loadBottle(named: bottleName)
 
             let url = URL(fileURLWithPath: exePath)
 
@@ -462,12 +468,7 @@ extension Whisky {
 
         @MainActor
         mutating func run() async throws {
-            var bottlesList = BottleData()
-            let bottles = bottlesList.loadBottles()
-
-            guard let bottle = bottles.first(where: { $0.settings.name == bottleName }) else {
-                throw DomainError("A bottle with that name doesn't exist.")
-            }
+            let bottle = try loadBottle(named: bottleName)
 
             let envCmd = Wine.generateTerminalEnvironmentCommand(bottle: bottle)
             print(envCmd)
@@ -489,12 +490,7 @@ extension Whisky {
 
         @MainActor
         mutating func run() async throws {
-            var bottlesList = BottleData()
-            let bottles = bottlesList.loadBottles()
-
-            guard let bottle = bottles.first(where: { $0.settings.name == bottleName }) else {
-                throw DomainError("A bottle with that name doesn't exist.")
-            }
+            let bottle = try loadBottle(named: bottleName)
 
             let games = SteamLibrary.enumerate(bottleURL: bottle.url)
 
@@ -506,10 +502,7 @@ extension Whisky {
                         "installPath": game.installURL.path(percentEncoded: false)
                     ]
                 }
-                let data = try JSONSerialization.data(
-                    withJSONObject: payload, options: [.prettyPrinted, .sortedKeys]
-                )
-                print(String(bytes: data, encoding: .utf8) ?? "")
+                try printJSON(payload)
                 return
             }
 
@@ -545,17 +538,12 @@ extension Whisky {
 
         @MainActor
         mutating func run() async throws {
-            var bottlesList = BottleData()
-            let bottles = bottlesList.loadBottles()
-
             let target: Bottle
             if let bottleName = bottle {
-                guard let named = bottles.first(where: { $0.settings.name == bottleName }) else {
-                    throw DomainError("A bottle with that name doesn't exist.")
-                }
-                target = named
+                target = try loadBottle(named: bottleName)
             } else {
-                target = try SteamLauncher.resolveBottle(appId: appId, in: bottles)
+                var bottlesList = BottleData()
+                target = try SteamLauncher.resolveBottle(appId: appId, in: bottlesList.loadBottles())
             }
 
             try SteamLauncher.launch(appId: appId, bottle: target)
@@ -566,10 +554,7 @@ extension Whisky {
                     "bottle": target.settings.name,
                     "status": "launched"
                 ]
-                let data = try JSONSerialization.data(
-                    withJSONObject: payload, options: [.prettyPrinted, .sortedKeys]
-                )
-                print(String(bytes: data, encoding: .utf8) ?? "")
+                try printJSON(payload)
             } else {
                 print("Launched \(appId) in \(target.settings.name)")
             }

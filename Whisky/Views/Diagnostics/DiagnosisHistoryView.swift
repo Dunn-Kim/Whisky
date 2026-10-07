@@ -34,10 +34,7 @@ struct DiagnosisHistoryView: View {
     @State private var selectedPreset: WineDebugPreset = .normal
 
     private var historyURL: URL {
-        bottle.url
-            .appending(path: "Program Settings")
-            .appending(path: program.name)
-            .appendingPathExtension("diagnosis-history.plist")
+        DiagnosisHistory.url(for: program.name, in: bottle.url)
     }
 
     var body: some View {
@@ -114,7 +111,7 @@ extension DiagnosisHistoryView {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
                 Image(systemName: entry.primaryCategory.sfSymbol)
-                    .foregroundStyle(colorForCategory(entry.primaryCategory))
+                    .foregroundStyle(entry.primaryCategory.color)
                     .font(.body)
                 Text(entry.primaryCategory.displayName)
                     .font(.body)
@@ -159,9 +156,9 @@ extension DiagnosisHistoryView {
             .padding(.vertical, 2)
             .background(
                 Capsule()
-                    .fill(colorForConfidence(tier).opacity(0.15))
+                    .fill(tier.color.opacity(0.15))
             )
-            .foregroundStyle(colorForConfidence(tier))
+            .foregroundStyle(tier.color)
     }
 
     private var clearButton: some View {
@@ -222,25 +219,5 @@ extension DiagnosisHistoryView {
         mutableHistory.clear()
         try? mutableHistory.save(to: historyURL)
         history = mutableHistory
-    }
-
-    private func colorForCategory(_ category: CrashCategory) -> Color {
-        switch category {
-        case .coreCrashFatal: .red
-        case .graphics: .orange
-        case .dependenciesLoading: .blue
-        case .prefixFilesystem: .purple
-        case .networkingLaunchers: .cyan
-        case .antiCheatUnsupported: .gray
-        case .otherUnknown: .secondary
-        }
-    }
-
-    private func colorForConfidence(_ tier: ConfidenceTier) -> Color {
-        switch tier {
-        case .high: .green
-        case .medium: .yellow
-        case .low: .gray
-        }
     }
 }

@@ -67,7 +67,7 @@ struct AudioFindingsView: View {
                     .font(.subheadline)
                     .fontWeight(.medium)
                 Spacer()
-                confidenceBadge(finding.confidence)
+                ConfidenceBadge(tier: finding.confidence)
             }
 
             // Expandable details
@@ -110,29 +110,8 @@ struct AudioFindingsView: View {
 
     private func confidenceDot(_ tier: ConfidenceTier) -> some View {
         Circle()
-            .fill(badgeColor(tier))
+            .fill(tier.color)
             .frame(width: 8, height: 8)
-    }
-
-    private func confidenceBadge(_ tier: ConfidenceTier) -> some View {
-        Text(tier.displayName)
-            .font(.caption2)
-            .fontWeight(.medium)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 3)
-            .background(badgeColor(tier).opacity(0.15), in: Capsule())
-            .foregroundStyle(badgeColor(tier))
-    }
-
-    private func badgeColor(_ tier: ConfidenceTier) -> Color {
-        switch tier {
-        case .high:
-            .green
-        case .medium:
-            .yellow
-        case .low:
-            .gray
-        }
     }
 
     // MARK: - Technical Details

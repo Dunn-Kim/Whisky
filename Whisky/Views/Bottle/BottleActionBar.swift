@@ -76,15 +76,7 @@ struct BottleActionBar: View {
                 panel.allowsMultipleSelection = false
                 panel.canChooseDirectories = false
                 panel.canChooseFiles = true
-                panel.allowedContentTypes = [
-                    UTType.exe,
-                    UTType(exportedAs: "com.microsoft.msi-installer"),
-                    UTType(exportedAs: "com.microsoft.bat"),
-                    UTType(exportedAs: "com.microsoft.msix-package"),
-                    UTType(exportedAs: "com.microsoft.appx-package"),
-                    UTType(exportedAs: "com.microsoft.application-reference"),
-                    UTType(exportedAs: "com.microsoft.windows-internet-shortcut")
-                ]
+                panel.allowedContentTypes = UTType.windowsRunnables
                 panel.directoryURL = bottle.url.appending(path: "drive_c")
                 panel.begin { result in
                     programLoading = true
@@ -181,4 +173,17 @@ private extension View {
             }
         }
     }
+}
+
+extension UTType {
+    /// The Windows files the Run and pin pickers accept.
+    static let windowsRunnables: [UTType] = [
+        .exe,
+        UTType(exportedAs: "com.microsoft.msi-installer"),
+        UTType(exportedAs: "com.microsoft.bat"),
+        UTType(exportedAs: "com.microsoft.msix-package"),
+        UTType(exportedAs: "com.microsoft.appx-package"),
+        UTType(exportedAs: "com.microsoft.application-reference"),
+        UTType(exportedAs: "com.microsoft.windows-internet-shortcut")
+    ]
 }

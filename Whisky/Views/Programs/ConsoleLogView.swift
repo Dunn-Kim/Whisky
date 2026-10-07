@@ -80,7 +80,7 @@ struct ConsoleLogView: View {
                         + Text(" ")
                         + Text(runEntry.startTime, style: .time)
                     if let duration = runEntry.duration {
-                        Text(formattedDuration(duration))
+                        Text(Self.formattedDuration(duration))
                             .foregroundStyle(.secondary)
                     } else if isStillRunning {
                         Text("console.running")
@@ -94,7 +94,7 @@ struct ConsoleLogView: View {
             if isStillRunning {
                 liveIndicator
             } else if let exitCode = currentExitCode {
-                exitCodeBadge(exitCode)
+                Self.exitCodeBadge(exitCode)
             }
         }
         .padding(.horizontal, 8)
@@ -276,7 +276,7 @@ struct ConsoleLogView: View {
         }
     }
 
-    private func exitCodeBadge(_ exitCode: Int32) -> some View {
+    static func exitCodeBadge(_ exitCode: Int32) -> some View {
         Text("console.exitCode \(exitCode)")
             .font(.caption)
             .padding(.horizontal, 6)
@@ -292,7 +292,7 @@ struct ConsoleLogView: View {
 // MARK: - ConsoleLogView Data Operations
 
 extension ConsoleLogView {
-    func formattedDuration(_ interval: TimeInterval) -> String {
+    static func formattedDuration(_ interval: TimeInterval) -> String {
         let totalSeconds = Int(interval)
         let hours = totalSeconds / 3_600
         let minutes = (totalSeconds % 3_600) / 60

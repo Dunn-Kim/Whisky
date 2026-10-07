@@ -24,8 +24,6 @@ private let logger = Logger(subsystem: Bundle.whiskyBundleIdentifier, category: 
 
 // MARK: - Installed Verb Discovery
 
-// swiftlint:disable function_body_length
-
 extension Winetricks {
     /// Runs `winetricks list-installed` as a headless process to discover installed verbs.
     ///
@@ -35,28 +33,16 @@ extension Winetricks {
         let bottleURL = await MainActor.run { bottle.url }
         logger.debug("Running winetricks list-installed for bottle at \(bottleURL.path)")
 
-        guard let resourcesURL = Bundle.main.url(forResource: "cabextract", withExtension: nil)?
-            .deletingLastPathComponent()
-        else {
+        guard let resourcesURL = bundledResourcesURL else {
             logger.warning("Could not locate cabextract resource for winetricks")
             return nil
         }
 
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        let winetricksPath = resourcesURL.appending(path: "winetricks").path(percentEncoded: false)
-        process.arguments = ["bash", winetricksPath, "list-installed"]
-        process.environment = [
-            "WINEPREFIX": bottleURL.path(percentEncoded: false),
-            "WINE": "wine64",
-            "PATH": [
-                WhiskyWineInstaller.binFolder.path(percentEncoded: false),
-                resourcesURL.path(percentEncoded: false),
-                "/usr/bin",
-                "/bin"
-            ].joined(separator: ":"),
-            "HOME": NSHomeDirectory()
-        ]
+        let process = winetricksProcess(
+            arguments: ["list-installed"],
+            bottleURL: bottleURL,
+            resourcesURL: resourcesURL
+        )
 
         let stdout = Pipe()
         process.standardOutput = stdout
@@ -69,17 +55,9 @@ extension Winetricks {
             return nil
         }
 
-        // 30-second timeout
-        let timeoutTask = Task {
-            try await Task.sleep(for: .seconds(30))
-            if process.isRunning {
-                logger.warning("winetricks list-installed timed out after 30 seconds")
-                process.terminate()
-            }
+        await awaitProcessCompletion(process, timeout: 30) {
+            logger.warning("winetricks list-installed timed out after 30 seconds")
         }
-
-        process.waitUntilExit()
-        timeoutTask.cancel()
 
         guard process.terminationStatus == 0 else {
             logger.warning(
@@ -206,5 +184,3 @@ extension Winetricks {
         try? WinetricksVerbCache.save(cache, to: bottleURL)
     }
 }
-
-// swiftlint:enable function_body_length

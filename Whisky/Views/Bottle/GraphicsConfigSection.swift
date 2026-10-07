@@ -222,9 +222,7 @@ struct GraphicsConfigSection: View {
     // MARK: - Running Process Check
 
     private func checkRunningProcesses() async {
-        let wineserverActive = await Wine.isWineserverRunning(for: bottle)
-        let trackedCount = ProcessRegistry.shared.getProcessCount(for: bottle)
-        hasRunningProcesses = wineserverActive || trackedCount > 0
+        hasRunningProcesses = await bottle.hasRunningProcesses()
     }
 
     // MARK: - Advanced Settings Badge
