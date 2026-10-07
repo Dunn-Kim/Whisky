@@ -22,8 +22,7 @@ import WhiskyKit
 /// Audio settings controls with Simple/Advanced mode toggle.
 ///
 /// Simple mode shows at most 2 controls (Audio Driver and Latency Preset).
-/// Advanced mode adds all controls including output device pinning and
-/// a destructive Reset Audio State button.
+/// Advanced mode adds a destructive Reset Audio State button.
 struct AudioSettingsView: View {
     @ObservedObject var bottle: Bottle
     let advancedMode: Bool
@@ -105,30 +104,7 @@ struct AudioSettingsView: View {
 
     private var advancedControls: some View {
         VStack(alignment: .leading, spacing: 8) {
-            outputDeviceModePicker
             resetAudioStateButton
-        }
-    }
-
-    // MARK: - Output Device Mode Picker
-
-    private var outputDeviceModePicker: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Picker("Output Device", selection: $bottle.settings.outputDeviceMode) {
-                ForEach(OutputDeviceMode.allCases, id: \.self) { mode in
-                    Text(mode.displayName).tag(mode)
-                }
-            }
-            if bottle.settings.outputDeviceMode == .pinned {
-                HStack {
-                    Text("Pinned device:")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Text(bottle.settings.pinnedDeviceName ?? "Not set")
-                        .font(.caption)
-                        .foregroundStyle(bottle.settings.pinnedDeviceName != nil ? .primary : .tertiary)
-                }
-            }
         }
     }
 

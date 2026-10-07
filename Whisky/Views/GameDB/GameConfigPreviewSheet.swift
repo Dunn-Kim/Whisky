@@ -31,7 +31,6 @@ struct GameConfigPreviewSheet: View {
     @State private var isApplying: Bool = false
     @State private var applyError: String?
     @State private var includeWinetricks: Bool = true
-    @AppStorage("gameConfigSkipPreview") private var skipPreview: Bool = false
     @Binding var toast: ToastData?
 
     private var stalenessMessage: String? {
@@ -291,10 +290,6 @@ extension GameConfigPreviewSheet {
 extension GameConfigPreviewSheet {
     private var sheetFooter: some View {
         HStack {
-            Toggle("gameConfig.preview.dontShowAgain", isOn: $skipPreview)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
             Spacer()
 
             Button("gameConfig.preview.cancel", role: .cancel) {

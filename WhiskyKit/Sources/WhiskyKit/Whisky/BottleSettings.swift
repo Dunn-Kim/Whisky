@@ -452,24 +452,6 @@ public struct BottleSettings: Codable, Equatable {
         set { audioConfig.latencyPreset = newValue }
     }
 
-    /// The output device routing mode for this bottle.
-    ///
-    /// Controls whether Wine follows the macOS default output device
-    /// or is pinned to a specific device by name.
-    public var outputDeviceMode: OutputDeviceMode {
-        get { audioConfig.outputDeviceMode }
-        set { audioConfig.outputDeviceMode = newValue }
-    }
-
-    /// The name of the pinned audio output device, if any.
-    ///
-    /// Only meaningful when ``outputDeviceMode`` is `.pinned`.
-    /// Set to `nil` to clear the pin and follow the system default.
-    public var pinnedDeviceName: String? {
-        get { audioConfig.pinnedDeviceName }
-        set { audioConfig.pinnedDeviceName = newValue }
-    }
-
     // MARK: - Display settings
 
     /// Whether Wine's virtual desktop mode is enabled for this bottle.

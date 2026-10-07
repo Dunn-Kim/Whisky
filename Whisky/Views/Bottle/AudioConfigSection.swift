@@ -127,7 +127,6 @@ extension AudioConfigSection {
     private var hasAdvancedAudioOverrides: Bool {
         bottle.settings.audioDriver != .auto
             || bottle.settings.audioLatencyPreset != .defaultPreset
-            || bottle.settings.outputDeviceMode != .followSystem
     }
 
     /// Aggregated findings from the most recent probe results.
