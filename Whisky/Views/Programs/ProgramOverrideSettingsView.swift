@@ -592,26 +592,33 @@ struct ProgramOverrideSettingsView: View {
         return (cache?.installedVerbs ?? []).sorted()
     }
 
+    /// The backend this program launches with and the DLL overrides it manages, chosen the way
+    /// `Wine.runProgram` chooses them: the program's backend override wins over the bottle's, and
+    /// `.recommended` resolves against this executable, so a launcher gets DXVK's.
+    private var launchPreset: (backend: GraphicsBackend, entries: [DLLOverrideEntry]) {
+        let choice = program.settings.overrides?.graphicsBackend ?? bottle.settings.graphicsBackend
+        let backend = choice == .recommended
+            ? GraphicsBackendResolver.resolve(for: LauncherType.detect(from: program.url))
+            : choice
+        let entries = DLLOverrideResolver.managedPreset(
+            for: backend, builtinD3D12IsD3DMetal: GPTKImporter.isDeployed()
+        )
+        return (backend, entries)
+    }
+
     private var computedManagedOverrides: [(entry: DLLOverrideEntry, source: String)] {
-        var managed: [(entry: DLLOverrideEntry, source: String)] = []
-        if bottle.settings.graphicsBackend == .dxvk {
-            for entry in DLLOverrideResolver.dxvkPreset(builtinD3D12IsD3DMetal: GPTKImporter.isDeployed()) {
-                managed.append((
-                    entry: entry,
-                    source: String(localized: "config.dllOverrides.source.dxvk")
-                ))
-            }
-        }
-        return managed
+        let preset = launchPreset
+        return preset.entries.map { (entry: $0, source: preset.backend.displayName) }
     }
 
     private var computedDLLWarnings: [DLLOverrideWarning] {
-        let managedEntries: [(entry: DLLOverrideEntry, source: DLLOverrideSource)] = computedManagedOverrides.map {
-            ($0.entry, .dxvk)
-        }
+        let preset = launchPreset
+        // Only DXVK and DXMT contribute a preset. Crediting the one that did is
+        // what keeps a conflict warning on a DXMT program from naming DXVK.
+        let source: DLLOverrideSource = preset.backend == .dxmt ? .dxmt : .dxvk
         let programDLLs = program.settings.overrides?.dllOverrides ?? []
         let resolver = DLLOverrideResolver(
-            managed: managedEntries,
+            managed: preset.entries.map { ($0, source) },
             bottleCustom: bottle.settings.dllOverrides,
             programCustom: programDLLs
         )
