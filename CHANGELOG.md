@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- The Mecharashi game database entry caps at a fixed 60 fps instead of
+  `matchDisplay`, which drew twice the frames, and twice the power, on a
+  120 Hz MacBook Pro panel as on a 60 Hz monitor. DXMT stays the backend: on
+  an M5 Pro, D3DMetal 4.0b2 (Wine 11.0) gets past the `__wine_unix_call`
+  abort GPTK 3 hit, but the client then faults creating its D3D11 device.
+
+### Removed
+- Three controls that saved a value nothing read: "Reopen as template" in
+  troubleshooting history, "Don't show again" in the game config preview,
+  and the audio output device picker (follow system / pinned device), which
+  never reached Wine or the audio code. Bottle files written with or without
+  the dropped audio keys load either way.
+- `dependency-history.plist` is no longer written to a bottle on each
+  dependency install; nothing read it back. Existing files are left alone.
+- Dead code, unread state and duplicated logic across WhiskyKit, the app
+  and the CLI; strings, log text and persisted values are unchanged.
+
+### Fixed
+- Loading a bottle no longer replaces its recorded Wine version with the
+  7.7.0 default. Every load did, and saved the file, so stability
+  diagnostics reported 7.7.0 for every bottle.
+- A game database variant whose `enhancedSync` is `"none"` now turns sync
+  off. It decoded as unset, so the bottle kept its ESync/MSync; five entries
+  say "none" (Battlefield 2042, Destiny 2, Fortnite, PUBG, Valorant).
+- The enhanced-diagnostics check sees a program's active WINEDEBUG preset.
+  It looked in the bottle's environment, which never sets it, so
+  troubleshooting offered enhanced diagnostics with a preset already on.
+- A program's DLL override editor lists the managed overrides of the backend
+  it actually launches with (its own override, else the bottle's, with
+  Recommended resolved for the executable). It listed DXVK's only when the
+  bottle was set to DXVK, so DXMT and Recommended programs showed none, and
+  every conflict warning was credited to DXVK.
+
 ## [fork-2026.10.04] - 2026-10-04 (Fork)
 
 First release of the Dunn-Kim fork: everything below sits on upstream
