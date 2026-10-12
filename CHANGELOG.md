@@ -7,12 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- The Enhanced Sync picker, for the bottle and per program, says when the
+  installed Wine runtime has neither msync nor esync, and that the setting
+  then only matters for D3DMetal. WhiskyWine 3.1.1 (Wine 11.0) has neither:
+  `WINEMSYNC` and `WINEESYNC` appear nowhere in its `ntdll.so` or
+  `wineserver`. A runtime that does sets `msyncCapable` in its version plist.
+- The frame rate limit picker, for the bottle and per program, notes that a
+  backend cap paces in whole refreshes of the display the window is on, so it
+  is even only at a divisor of the refresh rate (60 on a 75 Hz display is
+  not), and that a game's own FPS limit avoids this.
+
 ### Changed
-- The Mecharashi game database entry caps at a fixed 60 fps instead of
-  `matchDisplay`, which drew twice the frames, and twice the power, on a
-  120 Hz MacBook Pro panel as on a 60 Hz monitor. DXMT stays the backend: on
-  an M5 Pro, D3DMetal 4.0b2 (Wine 11.0) gets past the `__wine_unix_call`
-  abort GPTK 3 hit, but the client then faults creating its D3D11 device.
+- The Mecharashi game database entry leaves the backend frame cap off
+  instead of `matchDisplay` and asks for the client's own FPS option at 60.
+  DXMT's cap rounds to the refresh of whichever display the window is on, so
+  no fixed value suits every display; the client's limiter gave about 59 fps
+  in the lobby and about 48 in battle on an M5 Pro with a 75 Hz display.
+  DXMT stays the backend: on an M5 Pro, D3DMetal 4.0b2 (Wine 11.0) gets past
+  the `__wine_unix_call` abort GPTK 3 hit, but the client then faults
+  creating its D3D11 device.
 
 ### Removed
 - Three controls that saved a value nothing read: "Reopen as template" in
@@ -24,6 +38,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   dependency install; nothing read it back. Existing files are left alone.
 - Dead code, unread state and duplicated logic across WhiskyKit, the app
   and the CLI; strings, log text and persisted values are unchanged.
+- The Rockstar launcher fix no longer sets `WINE_LARGE_ADDRESS_AWARE`.
+  Nothing in the 3.1.1 runtime reads it (Valve's Wine does, upstream does
+  not), and x64 executables are large-address-aware already. The Rockstar
+  game database entry still sets it.
 
 ### Fixed
 - Loading a bottle no longer replaces its recorded Wine version with the
@@ -40,6 +58,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Recommended resolved for the executable). It listed DXVK's only when the
   bottle was set to DXVK, so DXMT and Recommended programs showed none, and
   every conflict warning was credited to DXVK.
+- Metal Trace sets `MTL_CAPTURE_ENABLED`, the name Apple documents and DXMT
+  checks, next to the older `METAL_CAPTURE_ENABLED`, and a program launched
+  on DXMT gets its executable name in `DXMT_CAPTURE_EXECUTABLE`. DXMT
+  captured nothing before; F10 in the game now writes a capture next to the
+  executable.
+- Turning the shader cache off reaches DXMT, through `DXMT_SHADER_CACHE=0`.
+  It set only DXVK's variable, so DXMT kept caching.
 
 ## [fork-2026.10.04] - 2026-10-04 (Fork)
 
