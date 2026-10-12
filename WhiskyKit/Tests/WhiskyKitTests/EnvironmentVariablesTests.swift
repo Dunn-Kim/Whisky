@@ -349,10 +349,22 @@ final class EnvironmentVariablesTests: XCTestCase {
         var env: [String: String] = [:]
         settings.environmentVariables(wineEnv: &env)
 
-        // The variable DXVK reads, not the NVIDIA GL one the toggle used to set.
+        // The variables DXVK and DXMT read, not the NVIDIA GL one the toggle used to set.
         XCTAssertEqual(env["DXVK_STATE_CACHE"], "0")
+        XCTAssertEqual(env["DXMT_SHADER_CACHE"], "0")
         XCTAssertNil(env["DXVK_SHADER_COMPILE_THREADS"])
         XCTAssertNil(env["__GL_SHADER_DISK_CACHE"])
+    }
+
+    func testEnabledShaderCacheSetsNothing() {
+        var settings = BottleSettings()
+        settings.graphicsBackend = .dxmt
+
+        var env: [String: String] = [:]
+        settings.environmentVariables(wineEnv: &env)
+
+        XCTAssertNil(env["DXVK_STATE_CACHE"])
+        XCTAssertNil(env["DXMT_SHADER_CACHE"])
     }
 
     // MARK: - EnvironmentBuilder Layer Populator Tests
@@ -745,6 +757,44 @@ final class EnvironmentVariablesTests: XCTestCase {
 
         let (resolved, _) = builder.resolve()
         return resolved
+    }
+
+    func testProgramCanDisableShaderCacheOnDXMT() {
+        var settings = BottleSettings()
+        settings.graphicsBackend = .dxmt
+
+        var overrides = ProgramOverrides()
+        overrides.shaderCacheEnabled = false
+
+        let env = resolvedEnvironment(bottleSettings: settings, programOverrides: overrides)
+        XCTAssertEqual(env["DXMT_SHADER_CACHE"], "0")
+    }
+
+    func testProgramCanReenableShaderCacheOnDXMT() {
+        var settings = BottleSettings()
+        settings.graphicsBackend = .dxmt
+        settings.shaderCacheEnabled = false
+
+        var overrides = ProgramOverrides()
+        overrides.shaderCacheEnabled = true
+
+        let env = resolvedEnvironment(bottleSettings: settings, programOverrides: overrides)
+        XCTAssertNil(env["DXMT_SHADER_CACHE"])
+        XCTAssertNil(env["DXVK_STATE_CACHE"])
+    }
+
+    /// A program moved onto DXMT keeps the bottle's disabled cache, because the
+    /// bottle sets DXMT's variable whatever its own backend.
+    func testProgramBackendSwitchToDXMTKeepsDisabledShaderCache() {
+        var settings = BottleSettings()
+        settings.graphicsBackend = .dxvk
+        settings.shaderCacheEnabled = false
+
+        var overrides = ProgramOverrides()
+        overrides.graphicsBackend = .dxmt
+
+        let env = resolvedEnvironment(bottleSettings: settings, programOverrides: overrides)
+        XCTAssertEqual(env["DXMT_SHADER_CACHE"], "0")
     }
 
     func testDXVKProgramOverrideKeepsHardwareSchedulingClaim() {

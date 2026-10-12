@@ -961,11 +961,15 @@ public struct BottleSettings: Codable, Equatable {
         // fixes on every supported macOS, so the toggle's off position changed
         // nothing and its on position only hid the provenance.
 
-        // Shader cache control. DXVK_STATE_CACHE is the variable DXVK actually
-        // reads; the previous pair (a compile-thread throttle and an NVIDIA GL
-        // driver variable) changed nothing on this platform.
+        // Shader cache control. DXVK_STATE_CACHE and DXMT_SHADER_CACHE are the
+        // variables DXVK and DXMT actually read; the previous pair (a
+        // compile-thread throttle and an NVIDIA GL driver variable) changed
+        // nothing on this platform. Each backend ignores the other's variable,
+        // so both are set whatever the backend and a program-level backend
+        // switch still finds the right one.
         if !shaderCacheEnabled {
             builder.set("DXVK_STATE_CACHE", "0", layer: .bottleManaged)
+            builder.set("DXMT_SHADER_CACHE", "0", layer: .bottleManaged)
         }
 
         // Force D3D11 mode - helps with compatibility (whisky-app/whisky#1361)
