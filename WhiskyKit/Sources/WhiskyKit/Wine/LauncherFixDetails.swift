@@ -78,11 +78,6 @@ extension LauncherType {
                     category: .graphics
                 ),
                 LauncherFixDetail(
-                    key: "WINE_LARGE_ADDRESS_AWARE", value: "1",
-                    reason: "Improves launcher initialization memory handling",
-                    category: .compatibility
-                ),
-                LauncherFixDetail(
                     key: "LC_ALL", value: "en_US.UTF-8",
                     reason: "Sets locale for launcher UI rendering",
                     category: .locale

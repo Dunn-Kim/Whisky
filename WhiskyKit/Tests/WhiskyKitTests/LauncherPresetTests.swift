@@ -71,6 +71,9 @@ final class LauncherPresetTests: XCTestCase {
         let env = launcher.environmentOverrides()
         XCTAssertNil(env["DXVK_REQUIRED"])
         XCTAssertEqual(env["D3DM_FORCE_D3D11"], "1")
+        // Nothing in the runtime reads it, and x64 executables are
+        // large-address-aware already.
+        XCTAssertNil(env["WINE_LARGE_ADDRESS_AWARE"])
     }
 
     func testEAAppRequiresGPUDetection() {
