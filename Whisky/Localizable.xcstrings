@@ -34678,6 +34678,12 @@
             "value" : "Frame Rate Limit"
           }
         },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Frame Rate Limit"
+          }
+        },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
@@ -34689,6 +34695,12 @@
     "config.frameRateLimit.info" : {
       "localizations" : {
         "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Frames rendered past the display's refresh rate are discarded before they are shown. Capping cuts GPU power draw and heat with no visible difference."
+          }
+        },
+        "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Frames rendered past the display's refresh rate are discarded before they are shown. Capping cuts GPU power draw and heat with no visible difference."
@@ -34710,6 +34722,12 @@
             "value" : "Match Display Refresh Rate"
           }
         },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Match Display Refresh Rate"
+          }
+        },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
@@ -34726,6 +34744,12 @@
             "value" : "Unlimited"
           }
         },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unlimited"
+          }
+        },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
@@ -34737,6 +34761,12 @@
     "config.frameRateLimit.unsupported" : {
       "localizations" : {
         "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The active graphics backend has no frame limiter. This setting applies to DXVK and DXMT only."
+          }
+        },
+        "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "The active graphics backend has no frame limiter. This setting applies to DXVK and DXMT only."
