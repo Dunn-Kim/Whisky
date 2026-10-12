@@ -274,6 +274,9 @@ struct ProgramOverrideSettingsView: View {
                             Text(limit.label).tag(limit)
                         }
                     }
+                    Text("config.frameRateLimit.pacing")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
 
                 // Resolved, so a program on Recommended that runs DXVK does

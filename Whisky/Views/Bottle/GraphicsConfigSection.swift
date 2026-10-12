@@ -69,6 +69,9 @@ struct GraphicsConfigSection: View {
                     Text("config.frameRateLimit.info")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                    Text("config.frameRateLimit.pacing")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 } else {
                     Text("config.frameRateLimit.unsupported")
                         .font(.caption)

@@ -36000,6 +36000,22 @@
         }
       }
     },
+    "config.frameRateLimit.pacing" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Backend caps pace in whole refreshes of the display the window is on, so they only pace evenly at a divisor of its refresh rate. A game's own FPS limit avoids this."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Backend caps pace in whole refreshes of the display the window is on, so they only pace evenly at a divisor of its refresh rate. A game's own FPS limit avoids this."
+          }
+        }
+      }
+    },
     "config.frameRateLimit.unlimited" : {
       "localizations" : {
         "en" : {
