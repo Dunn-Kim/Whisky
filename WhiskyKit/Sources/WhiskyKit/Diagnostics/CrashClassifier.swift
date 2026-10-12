@@ -73,12 +73,12 @@ public struct CrashClassifier: Sendable {
         // Step 1-2: Scan each line against all patterns
         for (lineIndex, line) in lines.enumerated() {
             for patternIndex in mutablePatterns.indices {
-                if let patternMatch = mutablePatterns[patternIndex].match(line: line) {
+                if let captures = mutablePatterns[patternIndex].match(line: line) {
                     let diagMatch = DiagnosisMatch(
                         pattern: mutablePatterns[patternIndex],
                         lineIndex: lineIndex,
                         lineText: line,
-                        captures: patternMatch.captures
+                        captures: captures
                     )
                     allMatches.append(diagMatch)
                 }

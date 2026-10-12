@@ -92,9 +92,9 @@ final class CrashClassifierTests: XCTestCase {
 
         var matched = false
         for index in patterns.indices where patterns[index].id == "dll-load-failure" {
-            if let result = patterns[index].match(line: line) {
+            if let captures = patterns[index].match(line: line) {
                 matched = true
-                XCTAssertEqual(result.captures.first, "MSVCR100.dll")
+                XCTAssertEqual(captures.first, "MSVCR100.dll")
                 XCTAssertEqual(patterns[index].category, .dependenciesLoading)
             }
         }
@@ -199,12 +199,12 @@ final class CrashClassifierTests: XCTestCase {
         var matched = false
         for index in patterns.indices {
             if patterns[index].id == "dotnet-clr-missing" || patterns[index].id == "dll-load-failure" {
-                if let result = patterns[index].match(line: line) {
+                if let captures = patterns[index].match(line: line) {
                     matched = true
                     // Both patterns may match -- at least one should be dependenciesLoading
                     XCTAssertEqual(patterns[index].category, .dependenciesLoading)
                     if patterns[index].id == "dll-load-failure" {
-                        XCTAssertEqual(result.captures.first, "mscoree.dll")
+                        XCTAssertEqual(captures.first, "mscoree.dll")
                     }
                 }
             }

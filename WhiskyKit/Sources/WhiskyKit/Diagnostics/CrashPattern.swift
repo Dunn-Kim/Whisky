@@ -39,16 +39,6 @@ public enum PatternSeverity: String, Codable, Sendable, Comparable {
     }
 }
 
-/// Result of a successful pattern match against a log line.
-public struct PatternMatch: Sendable {
-    /// Captured groups from the regex match.
-    public let captures: [String]
-
-    public init(captures: [String]) {
-        self.captures = captures
-    }
-}
-
 /// A single crash pattern definition loaded from the pattern database.
 ///
 /// Each pattern specifies a regex to match against Wine log lines, with an
@@ -113,8 +103,8 @@ public struct CrashPattern: Codable, Sendable, Identifiable {
     /// the regex is not evaluated (fast path).
     ///
     /// - Parameter line: A single line of Wine log output.
-    /// - Returns: A `PatternMatch` with captures if the pattern matched, or `nil`.
-    public mutating func match(line: String) -> PatternMatch? {
+    /// - Returns: The regex captures if the pattern matched, or `nil`.
+    public mutating func match(line: String) -> [String]? {
         // Fast path: substring prefilter
         if let prefilter = substringPrefilter, !line.contains(prefilter) {
             return nil
@@ -139,7 +129,7 @@ public struct CrashPattern: Codable, Sendable, Identifiable {
             }
         }
 
-        return PatternMatch(captures: captures)
+        return captures
     }
 
     /// Compiles the regex pattern eagerly. Call at init time for
