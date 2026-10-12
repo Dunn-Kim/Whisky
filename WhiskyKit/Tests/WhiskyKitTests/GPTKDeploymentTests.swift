@@ -200,4 +200,23 @@ struct GPTKDeploymentTests {
         )
         #expect(decodedLegacy.gptkCapable == nil)
     }
+
+    @Test("msyncCapable decodes when present and stays nil when absent")
+    func msyncCapableDecoding() throws {
+        let capable = WhiskyWineVersion(
+            version: .init(4, 0, 0), msyncCapable: true
+        )
+        let encoder = PropertyListEncoder()
+        let decoded = try PropertyListDecoder().decode(
+            WhiskyWineVersion.self, from: encoder.encode(capable)
+        )
+        #expect(decoded.msyncCapable == true)
+
+        // Every runtime to date, 3.1.1 included, omits the key.
+        let legacy = WhiskyWineVersion(version: .init(3, 1, 1))
+        let decodedLegacy = try PropertyListDecoder().decode(
+            WhiskyWineVersion.self, from: encoder.encode(legacy)
+        )
+        #expect(decodedLegacy.msyncCapable == nil)
+    }
 }

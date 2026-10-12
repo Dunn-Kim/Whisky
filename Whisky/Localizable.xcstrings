@@ -35590,6 +35590,22 @@
         }
       }
     },
+    "config.enhancedSync.unavailable" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MSync and ESync are not available in the installed Wine runtime. This setting only matters for D3DMetal."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MSync and ESync are not available in the installed Wine runtime. This setting only matters for D3DMetal."
+          }
+        }
+      }
+    },
     "config.forceD3D11" : {
       "localizations" : {
         "ar" : {

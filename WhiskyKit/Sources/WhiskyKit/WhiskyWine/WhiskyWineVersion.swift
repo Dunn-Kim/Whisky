@@ -73,12 +73,28 @@ public struct WhiskyWineVersion: Codable {
     /// forwarders up in its store, so the runtime restores cleanly.
     public var gptkCapable: Bool?
 
+    /// Whether this runtime's Wine build implements msync or esync.
+    ///
+    /// Wine only takes either path when its own `ntdll` and `wineserver` read
+    /// `WINEMSYNC`/`WINEESYNC`. Measured against Wine Libraries 3.1.1
+    /// (upstream Wine 11.0): neither name appears anywhere in `ntdll.so` or
+    /// `wineserver`, so Wine ignores both. The Enhanced Sync setting still sets
+    /// them, because D3DMetal checks `WINEESYNC` (see the enhanced sync block of
+    /// `BottleSettings.populateBottleManagedLayer`).
+    ///
+    /// Absent (all runtimes to date) means not capable; a runtime whose Wine
+    /// carries the msync or esync patches advertises `true` here. To re-test a
+    /// runtime: `strings` its `ntdll.so` and `wineserver` and look for
+    /// `WINEMSYNC` and `WINEESYNC`.
+    public var msyncCapable: Bool?
+
     enum CodingKeys: String, CodingKey {
         case version
         case dxvkVersion
         case dxmtVersion
         case sha256
         case gptkCapable
+        case msyncCapable
     }
 
     public init(
@@ -86,13 +102,15 @@ public struct WhiskyWineVersion: Codable {
         dxvkVersion: String? = nil,
         dxmtVersion: String? = nil,
         sha256: String? = nil,
-        gptkCapable: Bool? = nil
+        gptkCapable: Bool? = nil,
+        msyncCapable: Bool? = nil
     ) {
         self.version = version
         self.dxvkVersion = Self.normalized(dxvkVersion)
         self.dxmtVersion = Self.normalized(dxmtVersion)
         self.sha256 = Self.normalizedDigest(sha256)
         self.gptkCapable = gptkCapable
+        self.msyncCapable = msyncCapable
     }
 
     public init(from decoder: Decoder) throws {
@@ -106,6 +124,7 @@ public struct WhiskyWineVersion: Codable {
         dxmtVersion = try Self.normalized(container.decodeIfPresent(String.self, forKey: .dxmtVersion))
         sha256 = try Self.normalizedDigest(container.decodeIfPresent(String.self, forKey: .sha256))
         gptkCapable = try container.decodeIfPresent(Bool.self, forKey: .gptkCapable)
+        msyncCapable = try container.decodeIfPresent(Bool.self, forKey: .msyncCapable)
     }
 
     /// Collapses an empty string to `nil` so "absent" and "blank" map to the
@@ -144,6 +163,7 @@ public struct WhiskyWineVersion: Codable {
         try container.encodeIfPresent(dxmtVersion, forKey: .dxmtVersion)
         try container.encodeIfPresent(sha256, forKey: .sha256)
         try container.encodeIfPresent(gptkCapable, forKey: .gptkCapable)
+        try container.encodeIfPresent(msyncCapable, forKey: .msyncCapable)
     }
 
     private enum VersionKeys: String, CodingKey {

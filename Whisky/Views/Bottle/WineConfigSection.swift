@@ -129,6 +129,12 @@ struct WineConfigSection: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
+                if WhiskyWineInstaller.whiskyWineInfo()?.msyncCapable != true {
+                    Text("config.enhancedSync.unavailable")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
             }
             SettingItemView(
                 title: "config.dpi",

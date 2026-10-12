@@ -333,6 +333,11 @@ struct ProgramOverrideSettingsView: View {
                     Text("config.enhancedSync.esync").tag(EnhancedSync.esync)
                     Text("config.enhancedSync.msync").tag(EnhancedSync.msync)
                 }
+                if WhiskyWineInstaller.whiskyWineInfo()?.msyncCapable != true {
+                    Text("config.enhancedSync.unavailable")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             } else {
                 inheritedSummary(bottle.settings.enhancedSync.displayName)
             }
