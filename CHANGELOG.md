@@ -38,6 +38,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   dependency install; nothing read it back. Existing files are left alone.
 - Dead code, unread state and duplicated logic across WhiskyKit, the app
   and the CLI; strings, log text and persisted values are unchanged.
+- Telemetry: the opt-in first-run checkbox, the Settings → Privacy toggle
+  and the PostHog SDK behind them. Whisky now sends no usage data at all.
 - The Rockstar launcher fix no longer sets `WINE_LARGE_ADDRESS_AWARE`.
   Nothing in the 3.1.1 runtime reads it (Valve's Wine does, upstream does
   not), and x64 executables are large-address-aware already. The Rockstar

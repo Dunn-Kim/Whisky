@@ -94,7 +94,6 @@ struct FileOpenView: View {
                 // Auto-detect launcher and apply fixes if compatibility mode enabled,
                 // persisting settings before the launch reads them
                 LauncherFixes.detectAndApply(from: fileURL, for: bottle)
-                Telemetry.capture(.firstProgramLaunchAttempted)
 
                 var failure: String?
                 if fileURL.pathExtension == "bat" {

@@ -192,7 +192,6 @@ final class BottleVM: ObservableObject {
             loadBottles()
             createdBottle.isAvailable = true
             createdBottle.inFlight = false
-            Telemetry.capture(.firstBottleCreated)
         } catch {
             handleBottleCreationFailure(error, request: request, bottle: bottle)
         }

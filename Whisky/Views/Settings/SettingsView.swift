@@ -26,16 +26,6 @@ struct SettingsView: View {
     @AppStorage("checkWhiskyWineUpdates") var checkWhiskyWineUpdates = false
     @AppStorage("defaultBottleLocation") var defaultBottleLocation = BottleData.defaultBottleDir
     @AppStorage("preferredTerminal") var preferredTerminal = "terminal"
-    @AppStorage(Telemetry.consentDefaultsKey) private var telemetryConsentRaw: String = Telemetry.ConsentState
-        .undecided.rawValue
-
-    /// Mirrors the setup-flow opt-in; writing records the explicit choice.
-    private var telemetryOptIn: Binding<Bool> {
-        Binding(
-            get: { telemetryConsentRaw == Telemetry.ConsentState.granted.rawValue },
-            set: { Telemetry.setConsent(granted: $0) }
-        )
-    }
 
     var body: some View {
         Form {
@@ -74,10 +64,6 @@ struct SettingsView: View {
                 Toggle("settings.toggle.whiskywine.updates", isOn: $checkWhiskyWineUpdates)
             }
             GPTKSettingsSection()
-            Section("settings.privacy") {
-                Toggle("settings.toggle.telemetry", isOn: telemetryOptIn)
-                    .help("setup.telemetry.consent.help")
-            }
         }
         .formStyle(.grouped)
         .fixedSize(horizontal: false, vertical: true)

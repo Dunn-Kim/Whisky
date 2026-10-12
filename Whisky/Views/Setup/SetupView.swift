@@ -61,14 +61,10 @@ struct SetupView: View {
         .padding()
         .interactiveDismissDisabled()
         .onAppear {
-            // Skip the welcome screen and go straight to the download stage only
-            // once telemetry consent is already decided. WelcomeView is the sole
-            // screen carrying the consent toggle, so on a genuine first run (consent
-            // still undecided) we must show it even when the runtime is missing —
-            // otherwise the opt-in would be unreachable. A missing Rosetta also
-            // keeps it: the download stage skips the Rosetta step.
-            if Telemetry.consent != .undecided, Rosetta2.isRosettaInstalled,
-               !WhiskyWineInstaller.isWhiskyWineInstalled() {
+            // Skip the welcome screen and go straight to the download stage when
+            // only the runtime is missing. A missing Rosetta keeps it: the download
+            // stage skips the Rosetta step.
+            if Rosetta2.isRosettaInstalled, !WhiskyWineInstaller.isWhiskyWineInstalled() {
                 path = [.whiskyWineDownload]
             }
         }

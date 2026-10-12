@@ -70,19 +70,4 @@ extension WhiskyWineDownloadView {
         let remainingTimeInSeconds = Double(remainingBytes) / downloadSpeed
         return Self.remainingTimeFormatter.string(from: remainingTimeInSeconds) ?? ""
     }
-
-    /// A download/verification failure: user-facing message and telemetry reason set together.
-    struct DownloadFailure: Equatable {
-        let message: String
-        let reason: Telemetry.InstallFailureReason
-    }
-
-    /// Sets the failure state and reports the funnel event together (two
-    /// sequential main-actor statements), so the reported reason always matches
-    /// the surfaced message.
-    @MainActor
-    func setDownloadFailure(_ message: String, reason: Telemetry.InstallFailureReason = .downloadFailed) {
-        downloadFailure = DownloadFailure(message: message, reason: reason)
-        Telemetry.capture(.runtimeInstallFailed(reason: reason))
-    }
 }
