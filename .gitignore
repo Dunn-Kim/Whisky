@@ -103,6 +103,7 @@ strix_runs/
 CLAUDE.md
 plans/
 .claude/
+.omc/
 mise.toml
 
 # Never commit exported signing material (see docs/ReleaseWorkflow.md credential continuity)
