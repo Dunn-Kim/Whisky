@@ -29,14 +29,14 @@ struct GameProfileLayerTests {
         builder.set("SHARED", "launcher", layer: .launcherManaged)
         builder.set("SHARED", "gamedb", layer: .gameProfile)
         builder.set("USER_WINS", "gamedb", layer: .gameProfile)
-        builder.set("USER_WINS", "bottle-user", layer: .bottleUser)
+        builder.set("USER_WINS", "user", layer: .programUser)
         builder.set("PROGRAM_WINS", "gamedb", layer: .gameProfile)
         builder.set("PROGRAM_WINS", "program", layer: .programUser)
 
         let (resolved, _) = builder.resolve()
 
         #expect(resolved["SHARED"] == "gamedb")
-        #expect(resolved["USER_WINS"] == "bottle-user")
+        #expect(resolved["USER_WINS"] == "user")
         #expect(resolved["PROGRAM_WINS"] == "program")
     }
 

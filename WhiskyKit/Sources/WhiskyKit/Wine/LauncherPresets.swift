@@ -29,8 +29,6 @@ public enum FixCategory: String, Codable, CaseIterable, Sendable {
     case sandbox
     /// Graphics driver or rendering fixes (DXVK, D3D, Metal)
     case graphics
-    /// Network timeout or connection pooling fixes
-    case network
     /// Thread management, CPU topology, or synchronization fixes
     case threading
     /// General compatibility workarounds

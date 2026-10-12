@@ -135,8 +135,6 @@ public enum NodeType: String, Codable, Sendable {
     case info
     /// Asks the user whether the problem is resolved.
     case verify
-    /// A decision point that branches based on user input.
-    case branch
 }
 
 /// Preview data for a fix step showing what will change.

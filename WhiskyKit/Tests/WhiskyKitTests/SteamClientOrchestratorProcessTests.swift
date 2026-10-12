@@ -109,7 +109,7 @@ struct SteamClientOrchestratorProcessTests {
         try await Task.sleep(for: .milliseconds(20))
         orchestrator.stop()
 
-        await Fixture.eventually("the cancelled launch should clear its phase") { orchestrator.phases.isEmpty }
+        await Fixture.eventually("the cancelled launch should clear its phase") { orchestrator.launchingAppIds.isEmpty }
         #expect(driver.launched.isEmpty)
     }
 

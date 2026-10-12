@@ -120,7 +120,6 @@ public enum GameConfigApplicator {
         }
 
         // 5. Apply custom environment variables
-        // Store in bottle.settings for the bottleUser layer of EnvironmentBuilder.
         // Note: The EnvironmentBuilder already handles env vars from variant.environmentVariables
         // at launch time when the applicator stores them. For now, env vars are recorded
         // in the snapshot for reference but applied through the existing cascade.

@@ -44,22 +44,22 @@ struct SteamClientOrchestratorLaunchTests {
         let (bottle, games) = try Fixture.makeBottle()
         let driver = FakeSteamClientDriver(script: [[]])
         let orchestrator = SteamClientOrchestrator(bottle: bottle, driver: driver, timing: Fixture.fast)
-        var phaseAtLaunch: SteamClientOrchestrator.Phase?
+        var launchingAtLaunch = false
         driver.onStartClient = { driver.script = [["steam.exe"]] }
         driver.onLaunchGame = { game in
-            phaseAtLaunch = orchestrator.phases[game.appId]
+            launchingAtLaunch = orchestrator.launchingAppIds.contains(game.appId)
             driver.script = [["steam.exe", "game1.exe"]]
         }
 
         orchestrator.launch(games[0])
-        #expect(orchestrator.phases[games[0].appId] == .startingClient)
+        #expect(orchestrator.launchingAppIds.contains(games[0].appId))
         await Fixture.awaitIdle(orchestrator)
 
         #expect(orchestrator.launchError == nil)
         #expect(driver.startClientCalls == 1)
         #expect(driver.fixesCalls == 1)
         #expect(driver.launched == [games[0].appId])
-        #expect(phaseAtLaunch == .launching)
+        #expect(launchingAtLaunch)
     }
 
     @Test("Concurrent launches share one client startup")

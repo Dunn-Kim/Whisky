@@ -439,7 +439,6 @@ private struct ActiveEnvironmentOverrides: View {
         case .locale: "Locale"
         case .sandbox: "Sandbox"
         case .graphics: "Graphics"
-        case .network: "Network"
         case .threading: "Threading"
         case .compatibility: "Compatibility"
         }

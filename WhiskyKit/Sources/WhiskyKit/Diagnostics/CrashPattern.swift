@@ -74,12 +74,6 @@ public struct CrashPattern: Codable, Sendable, Identifiable {
     /// Regular expression pattern string.
     public let regex: String
 
-    /// Searchable tags for this pattern.
-    public let tags: [String]
-
-    /// Names for regex capture groups (documentation only).
-    public let captureGroups: [String]?
-
     /// IDs of remediation actions applicable when this pattern matches.
     public let remediationActionIds: [String]?
 
@@ -92,7 +86,7 @@ public struct CrashPattern: Codable, Sendable, Identifiable {
 
     enum CodingKeys: String, CodingKey {
         case id, category, severity, confidence, substringPrefilter
-        case regex, tags, captureGroups, remediationActionIds
+        case regex, remediationActionIds
     }
 
     public init(
@@ -102,8 +96,6 @@ public struct CrashPattern: Codable, Sendable, Identifiable {
         confidence: Double,
         substringPrefilter: String?,
         regex: String,
-        tags: [String],
-        captureGroups: [String]?,
         remediationActionIds: [String]?
     ) {
         self.id = id
@@ -112,8 +104,6 @@ public struct CrashPattern: Codable, Sendable, Identifiable {
         self.confidence = confidence
         self.substringPrefilter = substringPrefilter
         self.regex = regex
-        self.tags = tags
-        self.captureGroups = captureGroups
         self.remediationActionIds = remediationActionIds
     }
 

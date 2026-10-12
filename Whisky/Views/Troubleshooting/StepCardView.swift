@@ -83,10 +83,6 @@ extension StepCardView {
             Image(systemName: "info.circle.fill")
                 .foregroundStyle(.secondary)
                 .font(.title3)
-        case .branch:
-            Image(systemName: "arrow.triangle.branch")
-                .foregroundStyle(.purple)
-                .font(.title3)
         case .fix:
             Image(systemName: "wrench.and.screwdriver.fill")
                 .foregroundStyle(.orange)

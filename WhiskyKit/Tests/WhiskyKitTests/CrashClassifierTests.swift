@@ -109,8 +109,6 @@ final class CrashClassifierTests: XCTestCase {
             confidence: 0.9,
             substringPrefilter: "import_dll",
             regex: "err:module:import_dll Library (\\S+\\.dll).*not found",
-            tags: [],
-            captureGroups: nil,
             remediationActionIds: nil
         )
 
@@ -254,8 +252,6 @@ final class CrashClassifierTests: XCTestCase {
             confidence: 0.9,
             substringPrefilter: nil,
             regex: "test",
-            tags: [],
-            captureGroups: nil,
             remediationActionIds: ["install-vcredist", "install-dotnet"]
         )
 

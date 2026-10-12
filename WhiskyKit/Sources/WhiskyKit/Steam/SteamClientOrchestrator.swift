@@ -44,18 +44,13 @@ public enum SteamOrchestratorError: LocalizedError, Equatable {
 ///
 /// - **Single-flight client startup.** Concurrent launches await one startup
 ///   attempt instead of each racing to start their own client.
-/// - **Per-game phases.** The launch grace period runs for up to two minutes,
+/// - **Per-game launches.** The launch grace period runs for up to two minutes,
 ///   and starting a second game while the first precompiles shaders is normal.
 /// - **One short-lived process snapshot.** The launch watch polls every 2s and
 ///   the status poller every 10s; sharing a snapshot stops them each running
 ///   their own `tasklist.exe`, and concurrent reads coalesce into one.
 @MainActor
 public final class SteamClientOrchestrator: ObservableObject {
-    public enum Phase: Equatable, Sendable {
-        case startingClient
-        case launching
-    }
-
     /// The waits and intervals, injectable so tests do not sit through them.
     public struct Timing: Sendable {
         /// How long to wait for steam.exe after starting the client.
@@ -86,8 +81,8 @@ public final class SteamClientOrchestrator: ObservableObject {
         }
     }
 
-    /// Where each in-flight launch is, keyed by App ID.
-    @Published public private(set) var phases: [Int: Phase] = [:]
+    /// App IDs with a launch in flight.
+    @Published public private(set) var launchingAppIds: Set<Int> = []
     /// App IDs whose executables are currently in the bottle's process list.
     @Published public private(set) var runningAppIds: Set<Int> = []
     @Published public var launchError: String?
@@ -123,8 +118,8 @@ public final class SteamClientOrchestrator: ObservableObject {
     /// Owns the task rather than the caller so ``stop()`` can cancel a launch
     /// still inside its grace period.
     public func launch(_ game: SteamGame) {
-        guard phases[game.appId] == nil else { return }
-        phases[game.appId] = .startingClient
+        guard !launchingAppIds.contains(game.appId) else { return }
+        launchingAppIds.insert(game.appId)
         launchTasks[game.appId] = Task { await performLaunch(game) }
     }
 
@@ -185,7 +180,7 @@ public final class SteamClientOrchestrator: ObservableObject {
 
     private func performLaunch(_ game: SteamGame) async {
         defer {
-            phases[game.appId] = nil
+            launchingAppIds.remove(game.appId)
             launchTasks[game.appId] = nil
         }
 
@@ -202,7 +197,6 @@ public final class SteamClientOrchestrator: ObservableObject {
             return
         }
 
-        phases[game.appId] = .launching
         do {
             try driver.launchGame(game)
         } catch {

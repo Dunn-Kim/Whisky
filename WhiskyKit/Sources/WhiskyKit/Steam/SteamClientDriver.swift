@@ -21,7 +21,7 @@ import Foundation
 /// Everything ``SteamClientOrchestrator`` needs from the outside world: process
 /// lists, starting the client, and launching and killing games. The
 /// orchestrator owns the sequencing (single-flight client startup, per-game
-/// phases, the shared process snapshot); the driver owns the side effects, so
+/// launches, the shared process snapshot); the driver owns the side effects, so
 /// tests can script one without Wine.
 @MainActor
 public protocol SteamClientDriver: AnyObject {

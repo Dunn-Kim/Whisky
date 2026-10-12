@@ -112,8 +112,6 @@ final class DiagnosticReportTests: XCTestCase {
             confidence: 0.9,
             substringPrefilter: nil,
             regex: "test",
-            tags: [],
-            captureGroups: nil,
             remediationActionIds: ["install-vcredist"]
         )
 

@@ -233,7 +233,7 @@ extension LibraryModel {
 
     /// The orchestrator for a bottle, made once and kept.
     ///
-    /// Its `phases` and `runningAppIds` are what the cards read, so it has to
+    /// Its `launchingAppIds` and `runningAppIds` are what the cards read, so it has to
     /// outlive the launch that created it.
     private func orchestrator(for bottle: Bottle) -> SteamClientOrchestrator {
         if let existing = orchestrators[bottle.url] {
@@ -242,9 +242,9 @@ extension LibraryModel {
 
         let made = SteamClientOrchestrator(bottle: bottle)
         let url = bottle.url
-        made.$phases
-            .sink { [weak self] phases in
-                self?.steamLaunching[url] = Set(phases.keys)
+        made.$launchingAppIds
+            .sink { [weak self] launching in
+                self?.steamLaunching[url] = launching
             }
             .store(in: &cancellables)
         made.$runningAppIds

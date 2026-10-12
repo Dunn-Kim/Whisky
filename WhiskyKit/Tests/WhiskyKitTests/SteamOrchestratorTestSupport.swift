@@ -147,6 +147,6 @@ enum SteamOrchestratorFixture {
     }
 
     static func awaitIdle(_ orchestrator: SteamClientOrchestrator) async {
-        await eventually("launch should finish") { orchestrator.phases.isEmpty }
+        await eventually("launch should finish") { orchestrator.launchingAppIds.isEmpty }
     }
 }

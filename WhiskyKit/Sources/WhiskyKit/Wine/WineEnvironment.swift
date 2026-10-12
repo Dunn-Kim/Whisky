@@ -27,11 +27,11 @@ private let envLogger = Logger(subsystem: Bundle.whiskyBundleIdentifier, categor
 // swiftlint:disable cyclomatic_complexity
 extension Wine {
     /// Construct an environment merging the bottle values with the given values
-    /// using EnvironmentBuilder with 8-layer resolution.
+    /// using EnvironmentBuilder with 7-layer resolution.
     ///
     /// Each Wine process launch resolves through this method, which populates
     /// an ``EnvironmentBuilder`` with base, platform, bottleManaged, launcherManaged,
-    /// bottleUser, programUser, and featureRuntime layers.
+    /// gameProfile, programUser, and featureRuntime layers.
     /// WINEDLLOVERRIDES is composed per-DLL via ``DLLOverrideResolver``.
     ///
     /// Invalid environment variable keys (those not matching `[A-Za-z_][A-Za-z0-9_]*`)

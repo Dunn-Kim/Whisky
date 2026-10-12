@@ -31,16 +31,14 @@ import Foundation
 /// 3. ``bottleManaged`` -- Toggles/presets Whisky owns (DXVK, Metal, sync, performance)
 /// 4. ``launcherManaged`` -- Launcher compatibility mode and detected overrides
 /// 5. ``gameProfile`` -- GameDB variant environment applied for a single launch
-/// 6. ``bottleUser`` -- User-defined bottle-level environment variables
-/// 7. ``programUser`` -- Program settings environment variables and locale
-/// 8. ``featureRuntime`` -- Launch-time feature injectors (ClickOnce, one-off modes)
+/// 6. ``programUser`` -- Program settings environment variables and locale
+/// 7. ``featureRuntime`` -- Launch-time feature injectors (ClickOnce, one-off modes)
 public enum EnvironmentLayer: Int, CaseIterable, Comparable, Sendable, Hashable {
     case base = 0
     case platform
     case bottleManaged
     case launcherManaged
     case gameProfile
-    case bottleUser
     case programUser
     case featureRuntime
 
