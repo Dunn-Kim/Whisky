@@ -21,24 +21,6 @@ import Combine
 import Foundation
 import os.log
 
-// MARK: - Session Store Protocol
-
-/// Protocol for persisting troubleshooting sessions.
-///
-/// A concrete implementation is provided in Plan 05. The engine depends on
-/// this protocol to auto-save session state after each navigation step.
-public protocol TroubleshootingSessionStoring: Sendable {
-    /// Saves the current session state.
-    ///
-    /// - Parameter session: The session to persist.
-    func save(_ session: TroubleshootingSession)
-
-    /// Marks a session as complete and moves it to history.
-    ///
-    /// - Parameter session: The completed session.
-    func completeSession(_ session: TroubleshootingSession)
-}
-
 // MARK: - Flow Engine
 
 /// A JSON-driven state machine that navigates troubleshooting flow graphs.
@@ -83,7 +65,7 @@ public final class TroubleshootingFlowEngine: ObservableObject {
     private let flowDefinitions: [String: FlowDefinition]
     private let fragments: [String: FlowDefinition]
     private let checkRegistry: CheckRegistry
-    private let sessionStore: any TroubleshootingSessionStoring
+    private let sessionStore: TroubleshootingSessionStore
 
     private let logger = Logger(
         subsystem: "com.franke.Whisky",
@@ -113,7 +95,7 @@ public final class TroubleshootingFlowEngine: ObservableObject {
         flowDefinitions: [String: FlowDefinition],
         fragments: [String: FlowDefinition],
         checkRegistry: CheckRegistry,
-        sessionStore: any TroubleshootingSessionStoring,
+        sessionStore: TroubleshootingSessionStore,
         session: TroubleshootingSession = TroubleshootingSession()
     ) {
         self.flowDefinitions = flowDefinitions

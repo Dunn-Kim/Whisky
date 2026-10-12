@@ -25,19 +25,18 @@ import XCTest
 /// and Back are disabled and Close is the only way out.
 @MainActor
 final class TroubleshootingFlowEngineEntryTests: XCTestCase {
-    private let bottleURL = URL(filePath: "/tmp/engine-entry-test-bottle")
-    private let programURL = URL(filePath: "/tmp/engine-entry-test-bottle/drive_c/Game/Game.exe")
+    private lazy var bottleURL = makeBottleDirectory()
+    private lazy var programURL = bottleURL.appending(path: "drive_c/Game/Game.exe")
 
     /// Does what the wizard does on appear when there is no session to
     /// resume: binds the session to the entry point, takes the preflight
     /// snapshot, then starts.
-    private func startEngine(from context: EntryContext) -> (TroubleshootingFlowEngine, SpySessionStore) {
-        let store = SpySessionStore()
+    private func startEngine(from context: EntryContext) -> TroubleshootingFlowEngine {
         let engine = TroubleshootingFlowEngine(
             flowDefinitions: FlowLoader.loadAllFlows(),
             fragments: FlowLoader.loadFragments(),
             checkRegistry: CheckRegistry(),
-            sessionStore: store
+            sessionStore: TroubleshootingSessionStore()
         )
         engine.session.bottleURL = context.bottleURL
         engine.session.programURL = context.programURL
@@ -50,7 +49,7 @@ final class TroubleshootingFlowEngineEntryTests: XCTestCase {
             graphicsBackend: "dxvk"
         )
         engine.start(from: context)
-        return (engine, store)
+        return engine
     }
 
     private func assertHasSomethingToShow(
@@ -67,15 +66,15 @@ final class TroubleshootingFlowEngineEntryTests: XCTestCase {
     }
 
     func testProgramEntryStartsAtSymptomSelection() {
-        let (engine, store) = startEngine(from: .program(programURL: programURL, bottleURL: bottleURL))
+        let engine = startEngine(from: .program(programURL: programURL, bottleURL: bottleURL))
 
         assertHasSomethingToShow(engine)
         XCTAssertEqual(engine.session.phase, .symptom)
-        XCTAssertEqual(store.saveCount, 0)
+        XCTAssertNil(TroubleshootingSessionStore().loadActiveSession(for: bottleURL))
     }
 
     func testLaunchFailureEntryStartsTheLaunchCrashFlow() {
-        let (engine, _) = startEngine(from: .launchFailure(
+        let engine = startEngine(from: .launchFailure(
             programURL: programURL,
             bottleURL: bottleURL,
             evidence: ["crashCategory": "unknown"]
@@ -89,13 +88,13 @@ final class TroubleshootingFlowEngineEntryTests: XCTestCase {
     /// Bottle Configuration's Start Guided Troubleshooting. It has no
     /// program and no evidence, so there is no symptom to assume.
     func testBottleDiagnosticsEntryStartsAtSymptomSelection() {
-        let (engine, store) = startEngine(from: .bottleDiagnostics(bottleURL: bottleURL))
+        let engine = startEngine(from: .bottleDiagnostics(bottleURL: bottleURL))
 
         assertHasSomethingToShow(engine)
         XCTAssertEqual(engine.session.phase, .symptom)
         XCTAssertFalse(engine.isRunningCheck)
         // Opening the wizard and closing it again leaves nothing to resume.
-        XCTAssertEqual(store.saveCount, 0)
+        XCTAssertNil(TroubleshootingSessionStore().loadActiveSession(for: bottleURL))
     }
 
     func testHelpMenuEntryStartsAtSymptomSelection() {
@@ -104,11 +103,11 @@ final class TroubleshootingFlowEngineEntryTests: XCTestCase {
             .helpMenu(bottleURL: bottleURL, programURL: programURL)
         ]
         for context in contexts {
-            let (engine, store) = startEngine(from: context)
+            let engine = startEngine(from: context)
 
             assertHasSomethingToShow(engine)
             XCTAssertEqual(engine.session.phase, .symptom)
-            XCTAssertEqual(store.saveCount, 0)
+            XCTAssertNil(TroubleshootingSessionStore().loadActiveSession(for: bottleURL))
         }
     }
 }

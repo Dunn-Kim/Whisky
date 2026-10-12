@@ -19,27 +19,14 @@
 @testable import WhiskyKit
 import XCTest
 
-/// In-memory session store so engine tests observe auto-save and completion
-/// behavior without touching the filesystem.
-final class SpySessionStore: TroubleshootingSessionStoring, @unchecked Sendable {
-    private let lock = NSLock()
-    private var savedSessions: [TroubleshootingSession] = []
-    private var completedSessions: [TroubleshootingSession] = []
-
-    var saveCount: Int {
-        lock.withLock { savedSessions.count }
-    }
-
-    var completed: [TroubleshootingSession] {
-        lock.withLock { completedSessions }
-    }
-
-    func save(_ session: TroubleshootingSession) {
-        lock.withLock { savedSessions.append(session) }
-    }
-
-    func completeSession(_ session: TroubleshootingSession) {
-        lock.withLock { completedSessions.append(session) }
+extension XCTestCase {
+    /// A fresh bottle directory for the engine's session store to persist
+    /// into, removed when the test ends.
+    func makeBottleDirectory() -> URL {
+        let url = FileManager.default.temporaryDirectory.appending(path: "engine-test-bottle-\(UUID().uuidString)")
+        XCTAssertNoThrow(try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true))
+        addTeardownBlock { try? FileManager.default.removeItem(at: url) }
+        return url
     }
 }
 
@@ -64,29 +51,30 @@ final class TroubleshootingFlowEngineTests: XCTestCase {
     }
 
     /// The "graphics" key matches SymptomCategory.graphics.flowResourceName,
-    /// which is how the engine derives flow lookup keys.
+    /// which is how the engine derives flow lookup keys. Also returns the
+    /// default session's bottle directory, where the store persists.
     private func makeEngine(
         nodes: [String: FlowStepNode],
         entry: String = "start",
         fragments: [String: FlowDefinition] = [:],
         session: TroubleshootingSession? = nil
-    ) -> (TroubleshootingFlowEngine, SpySessionStore) {
+    ) -> (TroubleshootingFlowEngine, URL) {
         let flow = FlowDefinition(version: 1, categoryId: "graphics", nodes: nodes, entryNodeId: entry)
         let registry = CheckRegistry(checks: CheckRegistry.builtIn + [StubCheck(checkId: "stub.outcome")])
-        let store = SpySessionStore()
+        let bottleURL = makeBottleDirectory()
         // Node resolution goes through the session's active flow category, so
         // direct navigateToNode calls need it preset the way selectCategory
         // would have set it.
-        var defaultSession = TroubleshootingSession(bottleURL: URL(filePath: "/tmp/engine-test-bottle"))
+        var defaultSession = TroubleshootingSession(bottleURL: bottleURL)
         defaultSession.currentFlowCategoryId = "graphics"
         let engine = TroubleshootingFlowEngine(
             flowDefinitions: ["graphics": flow],
             fragments: fragments,
             checkRegistry: registry,
-            sessionStore: store,
+            sessionStore: TroubleshootingSessionStore(),
             session: session ?? defaultSession
         )
-        return (engine, store)
+        return (engine, bottleURL)
     }
 
     /// Waits until `condition` holds, yielding to let the engine's check
@@ -104,7 +92,7 @@ final class TroubleshootingFlowEngineTests: XCTestCase {
     // MARK: - Category selection
 
     func testSelectCategoryNavigatesToEntryAndBranchesOnPass() async {
-        let (engine, store) = makeEngine(nodes: [
+        let (engine, bottleURL) = makeEngine(nodes: [
             "start": checkNode("start", outcome: "pass", on: ["pass": "done-pass", "fail": "done-fail"]),
             "done-pass": infoNode("done-pass"),
             "done-fail": infoNode("done-fail")
@@ -117,7 +105,7 @@ final class TroubleshootingFlowEngineTests: XCTestCase {
         XCTAssertEqual(engine.session.checkResults["start"]?.outcome, .pass)
         XCTAssertEqual(engine.session.branchDecisions.last?.toNodeId, "done-pass")
         XCTAssertEqual(engine.session.stepHistory.map(\.nodeId), ["start", "done-pass"])
-        XCTAssertGreaterThan(store.saveCount, 0)
+        XCTAssertNotNil(TroubleshootingSessionStore().loadActiveSession(for: bottleURL))
     }
 
     func testUnmappedOutcomeFallsBackToDefaultBranch() async {
@@ -148,12 +136,11 @@ final class TroubleshootingFlowEngineTests: XCTestCase {
 
     func testUnknownCategoryEscalates() {
         let registry = CheckRegistry()
-        let store = SpySessionStore()
         let engine = TroubleshootingFlowEngine(
             flowDefinitions: [:],
             fragments: [:],
             checkRegistry: registry,
-            sessionStore: store
+            sessionStore: TroubleshootingSessionStore()
         )
 
         engine.selectCategory(.audio)
@@ -254,7 +241,7 @@ final class TroubleshootingFlowEngineTests: XCTestCase {
     // MARK: - Fix lifecycle
 
     func testFixLifecycleThroughUserReportsFixed() {
-        let (engine, store) = makeEngine(nodes: ["start": infoNode("start")])
+        let (engine, bottleURL) = makeEngine(nodes: ["start": infoNode("start")])
 
         engine.applyFix(fixId: "graphics.set_backend_dxvk", beforeValue: "wined3d", afterValue: "dxvk")
         XCTAssertEqual(engine.session.phase, .verify)
@@ -267,7 +254,7 @@ final class TroubleshootingFlowEngineTests: XCTestCase {
         XCTAssertEqual(engine.session.outcome, .resolved)
         XCTAssertEqual(engine.session.phase, .export)
         XCTAssertEqual(engine.session.fixAttempts.last?.result, .verified)
-        XCTAssertEqual(store.completed.count, 1)
+        XCTAssertEqual(TroubleshootingHistory.load(from: bottleURL).entries.count, 1)
     }
 
     func testCheckRunPublishesLastCheckResult() async {
@@ -332,8 +319,7 @@ final class TroubleshootingFlowEngineTests: XCTestCase {
     // MARK: - Start over
 
     func testStartOverPreservesIdentityButClearsProgress() {
-        let bottleURL = URL(filePath: "/tmp/engine-test-bottle")
-        let (engine, _) = makeEngine(nodes: [
+        let (engine, bottleURL) = makeEngine(nodes: [
             "start": infoNode("start"),
             "second": infoNode("second")
         ])

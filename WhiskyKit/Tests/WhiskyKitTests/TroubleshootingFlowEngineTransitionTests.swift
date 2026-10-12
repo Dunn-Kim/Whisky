@@ -39,13 +39,13 @@ final class TroubleshootingFlowEngineTransitionTests: XCTestCase {
         fragments: [String: FlowDefinition] = [:]
     ) -> TroubleshootingFlowEngine {
         let flow = FlowDefinition(version: 1, categoryId: "graphics", nodes: nodes, entryNodeId: "start")
-        var session = TroubleshootingSession(bottleURL: URL(filePath: "/tmp/engine-transition-test-bottle"))
+        var session = TroubleshootingSession(bottleURL: makeBottleDirectory())
         session.currentFlowCategoryId = "graphics"
         return TroubleshootingFlowEngine(
             flowDefinitions: ["graphics": flow],
             fragments: fragments,
             checkRegistry: CheckRegistry(),
-            sessionStore: SpySessionStore(),
+            sessionStore: TroubleshootingSessionStore(),
             session: session
         )
     }

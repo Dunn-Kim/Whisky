@@ -46,15 +46,14 @@ public struct StalenessChange: Sendable {
 
 // MARK: - Session Store
 
-/// Concrete implementation of ``TroubleshootingSessionStoring`` that persists
-/// active sessions to plist files per bottle and manages bounded history.
+/// Persists active sessions to plist files per bottle and manages bounded history.
 ///
 /// Active sessions are stored as `TroubleshootingSession.plist` in the bottle
 /// directory. Stale sessions (older than 14 days) are expired on load. Completed
 /// sessions are archived into ``TroubleshootingHistory`` with bounded retention.
 ///
 /// All file writes use `.atomic` to prevent corruption on crash.
-public struct TroubleshootingSessionStore: TroubleshootingSessionStoring {
+public struct TroubleshootingSessionStore: Sendable {
     /// The plist filename for active sessions within a bottle directory.
     public static let activeSessionFileName = "TroubleshootingSession.plist"
 
@@ -69,7 +68,7 @@ public struct TroubleshootingSessionStore: TroubleshootingSessionStoring {
     /// Creates a new session store.
     public init() {}
 
-    // MARK: - TroubleshootingSessionStoring
+    // MARK: - Saving and Completion
 
     /// Saves the current session state to the bottle directory.
     ///
