@@ -118,7 +118,7 @@ enum QuickLaunch {
     }
 
     /// Targets the user chose to stop being asked about. Written only through
-    /// ``rememberApproval(of:)``.
+    /// ``confirmURLLaunch(of:)``.
     static let approvedURLTargetsKey = "urlLaunchApprovedTargets"
 
     /// Handles a `whisky://` URL. Returns `false` for any other scheme so
@@ -184,16 +184,9 @@ enum QuickLaunch {
             return false
         }
         if alert.suppressionButton?.state == .on {
-            rememberApproval(of: target)
+            UserDefaults.standard.set(approved + [target.consentKey], forKey: approvedURLTargetsKey)
         }
         return true
-    }
-
-    private static func rememberApproval(of target: Target) {
-        var approved = UserDefaults.standard.stringArray(forKey: approvedURLTargetsKey) ?? []
-        guard !approved.contains(target.consentKey) else { return }
-        approved.append(target.consentKey)
-        UserDefaults.standard.set(approved, forKey: approvedURLTargetsKey)
     }
 
     private static func launch(_ target: Target) {
