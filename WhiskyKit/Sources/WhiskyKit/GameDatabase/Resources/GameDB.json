@@ -3714,8 +3714,7 @@
           },
           "environmentVariables": {
             "DXVK_REQUIRED": "1",
-            "D3DM_FORCE_D3D11": "1",
-            "WINE_LARGE_ADDRESS_AWARE": "1"
+            "D3DM_FORCE_D3D11": "1"
           },
           "dllOverrides": [],
           "winetricksVerbs": [
