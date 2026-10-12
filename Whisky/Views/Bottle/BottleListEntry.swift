@@ -95,52 +95,21 @@ struct BottleListEntry: View {
                 bottle.settings.name = newName
             }
         }
-        .sheet(isPresented: $showBottleDuplicate) {
-            RenameView(
-                "duplicate.bottle.title",
-                name: BottleOperations.nextDuplicateName(
-                    baseName: name,
-                    existingNames: BottleVM.shared.bottles.map(\.settings.name)
-                ),
-                confirmTitle: "duplicate.bottle.confirm"
-            ) { newName in
-                Task {
-                    do {
-                        let newURL = try await BottleOperations.duplicate(
-                            bottleAt: bottle.url, newName: newName, registry: BottleVM.shared
-                        ) { phase in
-                            Task { @MainActor in duplicationPhase = phase }
-                        }
-                        await MainActor.run {
-                            duplicationPhase = nil
-                            selected = newURL
-                            withAnimation {
-                                toast = ToastData(
-                                    message: String(
-                                        format: String(localized: "status.duplicateSuccess %@"),
-                                        newName
-                                    ),
-                                    style: .success
-                                )
-                            }
-                        }
-                    } catch {
-                        await MainActor.run {
-                            duplicationPhase = nil
-                            withAnimation {
-                                toast = ToastData(
-                                    message: String(
-                                        format: String(localized: "status.duplicateFailed %@"),
-                                        error.localizedDescription
-                                    ),
-                                    style: .error
-                                )
-                            }
-                        }
-                    }
+        .duplicateBottleSheet(
+            isPresented: $showBottleDuplicate,
+            bottle: bottle,
+            baseName: name,
+            toast: $toast,
+            progress: { phase in
+                Task { @MainActor in duplicationPhase = phase }
+            },
+            finished: { newURL in
+                duplicationPhase = nil
+                if let newURL {
+                    selected = newURL
                 }
             }
-        }
+        )
         .contextMenu {
             Button("button.rename", systemImage: "pencil.line") {
                 showBottleRename.toggle()
@@ -331,6 +300,64 @@ extension BottleListEntry {
                 }
 
                 await bottle.remove(delete: checkbox.state == .on)
+            }
+        }
+    }
+}
+
+extension View {
+    /// The duplicate-bottle sheet: proposes a copy name from `baseName`,
+    /// duplicates `bottle`, and toasts the outcome. `progress` sees each phase;
+    /// `finished` gets the copy's URL, or `nil` when it failed, before the toast.
+    func duplicateBottleSheet(
+        isPresented: Binding<Bool>,
+        bottle: Bottle,
+        baseName: String,
+        toast: Binding<ToastData?>,
+        progress: (@Sendable (DuplicationPhase) -> Void)? = nil,
+        finished: @escaping @MainActor (URL?) -> Void = { _ in }
+    ) -> some View {
+        sheet(isPresented: isPresented) {
+            RenameView(
+                "duplicate.bottle.title",
+                name: BottleOperations.nextDuplicateName(
+                    baseName: baseName,
+                    existingNames: BottleVM.shared.bottles.map(\.settings.name)
+                ),
+                confirmTitle: "duplicate.bottle.confirm"
+            ) { newName in
+                Task {
+                    do {
+                        let newURL = try await BottleOperations.duplicate(
+                            bottleAt: bottle.url, newName: newName, registry: BottleVM.shared, progress: progress
+                        )
+                        await MainActor.run {
+                            finished(newURL)
+                            withAnimation {
+                                toast.wrappedValue = ToastData(
+                                    message: String(
+                                        format: String(localized: "status.duplicateSuccess %@"),
+                                        newName
+                                    ),
+                                    style: .success
+                                )
+                            }
+                        }
+                    } catch {
+                        await MainActor.run {
+                            finished(nil)
+                            withAnimation {
+                                toast.wrappedValue = ToastData(
+                                    message: String(
+                                        format: String(localized: "status.duplicateFailed %@"),
+                                        error.localizedDescription
+                                    ),
+                                    style: .error
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
     }

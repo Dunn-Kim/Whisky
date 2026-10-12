@@ -118,47 +118,9 @@ struct BottleView: View {
             .sheet(isPresented: $showWinetricksSheet) {
                 WinetricksView(bottle: bottle)
             }
-            .sheet(isPresented: $showDuplicate) {
-                RenameView(
-                    "duplicate.bottle.title",
-                    name: BottleOperations.nextDuplicateName(
-                        baseName: bottle.settings.name,
-                        existingNames: BottleVM.shared.bottles.map(\.settings.name)
-                    ),
-                    confirmTitle: "duplicate.bottle.confirm"
-                ) { newName in
-                    Task {
-                        do {
-                            _ = try await BottleOperations.duplicate(
-                                bottleAt: bottle.url, newName: newName, registry: BottleVM.shared
-                            )
-                            await MainActor.run {
-                                withAnimation {
-                                    toast = ToastData(
-                                        message: String(
-                                            format: String(localized: "status.duplicateSuccess %@"),
-                                            newName
-                                        ),
-                                        style: .success
-                                    )
-                                }
-                            }
-                        } catch {
-                            await MainActor.run {
-                                withAnimation {
-                                    toast = ToastData(
-                                        message: String(
-                                            format: String(localized: "status.duplicateFailed %@"),
-                                            error.localizedDescription
-                                        ),
-                                        style: .error
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            .duplicateBottleSheet(
+                isPresented: $showDuplicate, bottle: bottle, baseName: bottle.settings.name, toast: $toast
+            )
             .onChange(of: bottle.settings) { oldValue, newValue in
                 guard oldValue != newValue else { return }
                 // Trigger a reload
