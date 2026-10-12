@@ -312,6 +312,14 @@ public class Wine {
             }
         }
 
+        // DXMT ignores MTL_CAPTURE_ENABLED unless DXMT_CAPTURE_EXECUTABLE equals
+        // the executable's name without ".exe" (dxmt_capture.cpp). A
+        // user-provided value wins.
+        if effectiveBackend == .dxmt, bottle.settings.metalTrace,
+           wineEnvironment["DXMT_CAPTURE_EXECUTABLE"] == nil {
+            wineEnvironment["DXMT_CAPTURE_EXECUTABLE"] = url.deletingPathExtension().lastPathComponent
+        }
+
         // Create a run log entry to track this session
         let programName = url.lastPathComponent
         let runLogEntry = RunLogEntry(programName: programName, logFileName: logFileURL.lastPathComponent)

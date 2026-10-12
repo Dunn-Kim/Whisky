@@ -228,6 +228,9 @@ final class EnvironmentVariablesTests: XCTestCase {
         var env: [String: String] = [:]
         settings.environmentVariables(wineEnv: &env)
 
+        // The documented name, which DXMT also checks, and the older one
+        // Metal.framework still reads.
+        XCTAssertEqual(env["MTL_CAPTURE_ENABLED"], "1")
         XCTAssertEqual(env["METAL_CAPTURE_ENABLED"], "1")
     }
 
