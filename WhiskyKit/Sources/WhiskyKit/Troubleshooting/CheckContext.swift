@@ -46,4 +46,11 @@ public struct CheckContext: Sendable {
         self.programName = programName
         self.preflight = preflight
     }
+
+    /// The bottle's settings, or the `.error` result a check returns when
+    /// `Metadata.plist` cannot be read.
+    func loadBottleSettings() -> Result<BottleSettings, CheckResult> {
+        Result { try BottleSettings.decode(from: bottleURL.appending(path: "Metadata.plist")) }
+            .mapError { .error("Failed to read bottle settings", evidence: ["error": $0.localizedDescription]) }
+    }
 }

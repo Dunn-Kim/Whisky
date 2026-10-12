@@ -32,14 +32,10 @@ public struct AudioDriverCheck: TroubleshootingCheck {
     public func run(params: [String: String], context: CheckContext) async -> CheckResult {
         let expected = params["expected"] ?? "auto"
 
-        let bottleURL = context.bottleURL
-        let metadataURL = bottleURL.appending(path: "Metadata.plist")
-
         let settings: BottleSettings
-        do {
-            settings = try BottleSettings.decode(from: metadataURL)
-        } catch {
-            return .error("Failed to read bottle settings", evidence: ["error": error.localizedDescription])
+        switch context.loadBottleSettings() {
+        case let .success(loaded): settings = loaded
+        case let .failure(result): return result
         }
 
         let currentDriver = settings.audioDriver.rawValue

@@ -31,11 +31,8 @@ public struct DiagnosticsEnhanceCheck: TroubleshootingCheck {
     public init() {}
 
     public func run(params: [String: String], context: CheckContext) async -> CheckResult {
-        let metadataURL = context.bottleURL.appending(path: "Metadata.plist")
-        do {
-            _ = try BottleSettings.decode(from: metadataURL)
-        } catch {
-            return .error("Failed to read bottle settings", evidence: ["error": error.localizedDescription])
+        if case let .failure(result) = context.loadBottleSettings() {
+            return result
         }
 
         // Check if a non-default WINEDEBUG preset is active, as the launch path

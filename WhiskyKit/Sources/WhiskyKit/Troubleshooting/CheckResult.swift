@@ -24,7 +24,7 @@ import Foundation
 /// flow engine can branch on. The ``outcome`` drives JSON-defined branching,
 /// while ``evidence`` carries key-value pairs for UI display via the node's
 /// `evidenceMap`.
-public struct CheckResult: Sendable, Codable {
+public struct CheckResult: Sendable, Codable, Error {
     /// The normalized outcome used for flow branching.
     public let outcome: CheckOutcome
 
