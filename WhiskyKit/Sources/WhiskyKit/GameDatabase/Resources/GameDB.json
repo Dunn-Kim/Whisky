@@ -6109,13 +6109,13 @@
       "variants": [
         {
           "id": "dxmt-capped",
-          "label": "DXMT, frame capped",
+          "label": "DXMT, in-game frame cap",
           "isDefault": true,
-          "whenToUse": "Apple Silicon, when the machine runs hot under this client",
+          "whenToUse": "Apple Silicon. Set the client's own FPS option to 60",
           "rationale": [
-            "Unity IL2CPP client ported from a mobile build: it ships no frame limiter of its own and renders as fast as the GPU allows, even sitting in the lobby",
-            "DXMT is chosen explicitly because it is one of only two backends that can be frame capped at all. Recommended resolves to D3DMetal on a Mac with GPTK installed, and D3DMetal ships no limiter. The other, DXVK, reaches Metal through MoltenVK at a bundled 1.10.3, where DXMT translates this client's D3D11 straight to Metal",
-            "Capped at a fixed 60 rather than matchDisplay, so the GPU load does not scale with the panel: a 120 Hz display would otherwise let the client draw, and draw power for, twice the frames of a 60 Hz one",
+            "Unity IL2CPP client ported from a mobile build. Its own FPS option does cap the frame rate, lobby included; with neither it nor a backend cap set, it renders as fast as the GPU allows",
+            "The cap is left to the client, not DXMT. DXMT's preferredMaxFrameRate holds each frame on screen for a minimum time, which rounds to the refresh of whichever display the window is on and only paces evenly at a divisor of it (60 is not one of 75 Hz). The client's limiter waits on the CPU, so it gives 60 on any display the window lands on",
+            "DXMT translates this client's D3D11 straight to Metal. D3DMetal (GPTK 4.0b2) faults while creating the D3D11 device on the 3.1.1 runtime, and DXVK reaches Metal through MoltenVK at a bundled 1.10.3",
             "The locale is deliberately not overridden: the client and its launcher render CJK text"
           ],
           "settings": {
@@ -6124,7 +6124,7 @@
             "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false,
-            "frameRateLimit": 60
+            "frameRateLimit": "unlimited"
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -6132,16 +6132,16 @@
         }
       ],
       "notes": [
-        "No testedWith block on purpose. These settings are what the client was observed running with plus the frame cap, and the cap has not been measured on this title yet. The rating stays unverified until it has been.",
+        "Measured on an M5 Pro, macOS 27.0.1, DXMT 0.80, a 75 Hz external display, in-game FPS 60 and no backend cap: about 59 fps in the lobby, dipping to about 48 in battle. One machine and one session, so there is no testedWith block yet and the rating stays unverified.",
         "The launcher, ZFGameBrowser.exe, is Chromium-based and never paints on D3DMetal. It is detected as a launcher now, so on the Recommended backend it resolves to DXVK on its own. Launcher auto-detection with Auto-enable DXVK on switches the whole bottle to DXVK; to keep the game on DXMT alongside the launcher, pin DXVK on ZFGameBrowser.exe with a per-program override instead.",
-        "This is a mobile-origin client. Its own graphics menu tops out well below what the Mac can draw, so lowering in-game settings does little for heat. The frame cap is what moves it.",
+        "This is a mobile-origin client. Its own graphics menu tops out well below what the Mac can draw, so lowering in-game settings does little for heat. The FPS option is what moves it. Leave ray tracing and DLSS off: ray tracing needs D3D12 and DLSS needs an NVIDIA GPU, so neither can work through DXMT.",
         "A fixed 1366x768 window is set per program, not here: the database cannot carry launch arguments. Give Mecharashi.exe the arguments -screen-fullscreen 0 -screen-width 1366 -screen-height 768; the client area is then 1366x768 with the title bar outside it."
       ],
       "knownIssues": [
         {
           "description": "The machine runs hot. With no frame cap the GPU sits at its maximum clock even in the lobby, where the client has almost nothing to draw.",
           "severity": "major",
-          "workaround": "Cap the frame rate at 60. Requires the DXMT or DXVK backend; D3DMetal has no limiter."
+          "workaround": "Set the in-game FPS option to 60 and leave the backend frame cap off. A DXMT cap that does not divide the display's refresh rate paces unevenly or rounds down."
         },
         {
           "description": "The launcher window opens and stays blank on D3DMetal.",
