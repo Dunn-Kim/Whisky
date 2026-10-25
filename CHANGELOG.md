@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   backend cap paces in whole refreshes of the display the window is on, so it
   is even only at a divisor of the refresh rate (60 on a 75 Hz display is
   not), and that a game's own FPS limit avoids this.
+- An Icon Composer app icon (`Whisky/AppIcon.icon`), so macOS 26 draws the
+  icon on its own tile instead of the flat PNG, with a dark appearance. The
+  legacy appiconset stays for macOS 15. Cherry-picked from upstream's open
+  PR #310.
 
 ### Changed
 - The Mecharashi game database entry leaves the backend frame cap off
