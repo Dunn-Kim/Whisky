@@ -92,11 +92,41 @@ public struct EnvironmentBuilder: Sendable {
         layers[layer, default: [:]][key] = nil as String?
     }
 
+    /// Variables whose value is a DXVK-style `name=value;name=value` list.
+    ///
+    /// Layers merge these per entry instead of replacing the whole value, so a
+    /// program's own `DXMT_CONFIG` keeps the bottle's frame cap and the reverse.
+    static let listKeys: Set<String> = ["DXMT_CONFIG"]
+
+    /// Merges `entries` into the list `key` holds in `layer`; an entry whose
+    /// name is already there replaces it.
+    public mutating func merge(_ key: String, _ entries: String, layer: EnvironmentLayer) {
+        let current = layers[layer]?[key] ?? nil
+        layers[layer, default: [:]][key] = Self.mergeList(current, entries)
+    }
+
+    /// Joins two `name=value;...` lists, keeping first-seen order and letting
+    /// `overlay` win for a name both contain.
+    static func mergeList(_ base: String?, _ overlay: String) -> String {
+        var names: [String] = []
+        var entries: [String: String] = [:]
+        for part in [base ?? "", overlay].joined(separator: ";").split(separator: ";") {
+            let entry = part.trimmingCharacters(in: .whitespaces)
+            guard !entry.isEmpty else { continue }
+            let name = String(entry.prefix { $0 != "=" }).trimmingCharacters(in: .whitespaces)
+            if entries[name] == nil {
+                names.append(name)
+            }
+            entries[name] = entry
+        }
+        return names.compactMap { entries[$0] }.joined(separator: ";")
+    }
+
     /// Resolves all layers into a final environment dictionary.
     ///
     /// Layers are processed in order of their raw value (ascending). For each key,
-    /// the last layer to set a value wins. Removals are treated as deletions that
-    /// override earlier sets.
+    /// the last layer to set a value wins, except that ``listKeys`` merge per
+    /// entry. Removals are treated as deletions that override earlier sets.
     ///
     /// - Returns: The resolved environment and every layer that supplied at least one winning value.
     public func resolve() -> (environment: [String: String], activeLayers: Set<EnvironmentLayer>) {
@@ -105,7 +135,11 @@ public struct EnvironmentBuilder: Sendable {
 
         for layer in layers.keys.sorted() {
             for (key, value) in layers[layer] ?? [:] {
-                environment[key] = value
+                if let value, Self.listKeys.contains(key), let earlier = environment[key] {
+                    environment[key] = Self.mergeList(earlier, value)
+                } else {
+                    environment[key] = value
+                }
                 winningLayer[key] = value == nil ? nil : layer
             }
         }

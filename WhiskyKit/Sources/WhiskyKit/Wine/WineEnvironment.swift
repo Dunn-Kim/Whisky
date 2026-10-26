@@ -383,13 +383,22 @@ extension Wine {
         // otherwise leave the bottle's cap set on the wrong one.
         if overrides.graphicsBackend != nil || overrides.frameRateLimit != nil {
             let effectiveBackend = (overrides.graphicsBackend ?? bottleBackend).resolved
-            for key in GraphicsBackend.allFrameRateLimitKeys {
+            let limit = overrides.frameRateLimit ?? bottleFrameRateLimit
+            let fps = limit.resolved(displayRefreshRate: displayRefreshRate)
+            for key in GraphicsBackend.allFrameRateLimitKeys where key != "DXMT_CONFIG" {
                 builder.remove(key, layer: .programUser)
             }
-            let limit = overrides.frameRateLimit ?? bottleFrameRateLimit
-            if let fps = limit.resolved(displayRefreshRate: displayRefreshRate) {
-                for (key, value) in effectiveBackend.frameRateLimitEnvironment(fps: fps) {
-                    builder.set(key, value, layer: .programUser)
+            if effectiveBackend == .dxmt {
+                // The cap is one entry of DXMT_CONFIG, so it is merged, not set: a
+                // DXMT_CONFIG from the program's environment keeps its other
+                // entries. 0 is DXMT's "no cap" and cancels the bottle's.
+                builder.merge("DXMT_CONFIG", "d3d11.preferredMaxFrameRate=\(fps ?? 0)", layer: .programUser)
+            } else {
+                builder.remove("DXMT_CONFIG", layer: .programUser)
+                if let fps {
+                    for (key, value) in effectiveBackend.frameRateLimitEnvironment(fps: fps) {
+                        builder.set(key, value, layer: .programUser)
+                    }
                 }
             }
         }

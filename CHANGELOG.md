@@ -50,6 +50,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   game database entry still sets it.
 
 ### Fixed
+- A program's own `DXMT_CONFIG` (its environment, a game database profile)
+  no longer replaces the bottle's DXMT frame cap, and a per-program cap no
+  longer wipes the program's other `DXMT_CONFIG` entries: the entries now
+  merge, with a per-program "unlimited" sent as DXMT's
+  `preferredMaxFrameRate=0`.
 - Loading a bottle no longer replaces its recorded Wine version with the
   7.7.0 default. Every load did, and saved the file, so stability
   diagnostics reported 7.7.0 for every bottle.
