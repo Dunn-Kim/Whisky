@@ -96,8 +96,7 @@ final class GameDatabaseTests: XCTestCase {
                 "enhancedSync": "esync",
                 "forceD3D11": false,
                 "shaderCacheEnabled": true,
-                "avxEnabled": false,
-                "sequoiaCompatMode": false
+                "avxEnabled": false
               },
               "environmentVariables": {
                 "D3DM_SUPPORT_DXR": "0"

@@ -55,11 +55,8 @@ final class ClipboardManagerIntegrationTests: XCTestCase {
         }
 
         // Check size
-        let size = clipboardManager.getSize()
+        let size = clipboardManager.getContent().sizeInBytes
         XCTAssertEqual(size, testText.utf8.count, "Size should match")
-
-        // Check if large
-        XCTAssertFalse(clipboardManager.isLarge(), "Should not be large")
 
         // Clear
         clipboardManager.clear()
@@ -71,28 +68,6 @@ final class ClipboardManagerIntegrationTests: XCTestCase {
         default:
             XCTFail("Content should be empty")
         }
-    }
-
-    func testLargeClipboardDetection() {
-        let pasteboard = NSPasteboard.general
-
-        // Set small content
-        let smallText = "Small"
-        pasteboard.clearContents()
-        pasteboard.setString(smallText, forType: .string)
-
-        XCTAssertFalse(clipboardManager.isLarge(), "Small content should not be large")
-
-        // Set large content
-        let largeText = String(repeating: "X", count: 11_000)
-        pasteboard.clearContents()
-        pasteboard.setString(largeText, forType: .string)
-
-        XCTAssertTrue(clipboardManager.isLarge(), "Large content should be detected")
-
-        // Verify size
-        let size = clipboardManager.getSize()
-        XCTAssertGreaterThan(size, ClipboardManager.largeContentThreshold, "Size should exceed threshold")
     }
 }
 
@@ -158,7 +133,7 @@ final class ClipboardManagerEdgeCaseTests: XCTestCase {
             XCTFail("Unicode should be preserved, got \(content)")
         }
 
-        let size = clipboardManager.getSize()
+        let size = clipboardManager.getContent().sizeInBytes
         XCTAssertGreaterThan(size, 0, "Unicode text should have size")
     }
 

@@ -56,11 +56,9 @@ public actor IconCache {
 
     private init() {
         memoryCache.countLimit = 100
-        memoryCache.totalCostLimit = 50 * 1_024 * 1_024 // 50MB limit
         // Fewer, because these are store banners rather than 44pt icons: a
         // library header is around 600x290 and there is one per game on screen.
         artworkCache.countLimit = 60
-        artworkCache.totalCostLimit = 80 * 1_024 * 1_024
     }
 
     /// Loads artwork from disk and samples its palette, caching both.

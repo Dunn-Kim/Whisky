@@ -76,10 +76,7 @@ public final class ClipboardManager {
     private let logger = Logger(subsystem: Bundle.whiskyBundleIdentifier, category: "ClipboardManager")
 
     /// Size threshold for considering clipboard content "large" (10 KB).
-    ///
-    /// Marked `nonisolated` so it can serve as a default value for non-isolated
-    /// types like `BottleCleanupConfig` without forcing them onto the main actor.
-    public nonisolated static let largeContentThreshold: Int = 10 * 1_024 // 10 KB
+    public static let largeContentThreshold: Int = 10 * 1_024 // 10 KB
 
     /// Types of clipboard content.
     public enum ClipboardContent: @unchecked Sendable {
@@ -134,22 +131,6 @@ public final class ClipboardManager {
         return .empty
     }
 
-    /// Returns the size of the current clipboard content in bytes.
-    ///
-    /// - Returns: Size in bytes (0 if empty or unknown)
-    public func getSize() -> Int {
-        getContent().sizeInBytes
-    }
-
-    /// Checks if the current clipboard content is considered "large".
-    ///
-    /// Content larger than 10 KB is considered large and may cause issues.
-    ///
-    /// - Returns: true if content is larger than threshold, false otherwise
-    public func isLarge() -> Bool {
-        getSize() > Self.largeContentThreshold
-    }
-
     // MARK: - Modification
 
     /// Clears the clipboard.
@@ -170,12 +151,10 @@ public final class ClipboardManager {
     /// - Parameters:
     ///   - launcher: The detected launcher type (optional)
     ///   - policy: The per-bottle clipboard policy
-    ///   - threshold: Size threshold in bytes (defaults to ``largeContentThreshold``)
     /// - Returns: A ``ClipboardCheckResult`` indicating what action was taken or is needed
     public func checkBeforeLaunch(
         launcher: LauncherType? = nil,
-        policy: ClipboardPolicy,
-        threshold: Int = ClipboardManager.largeContentThreshold
+        policy: ClipboardPolicy
     ) -> ClipboardCheckResult {
         // Never policy: skip all checks
         if policy == .never {
@@ -185,8 +164,8 @@ public final class ClipboardManager {
         let content = getContent()
         let size = content.sizeInBytes
 
-        // Content below threshold is always safe
-        guard size > threshold else {
+        // Content at or below the threshold is always safe
+        guard size > Self.largeContentThreshold else {
             return .safe
         }
 

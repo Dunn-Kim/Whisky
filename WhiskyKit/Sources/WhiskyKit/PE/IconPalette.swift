@@ -78,8 +78,8 @@ public extension IconPalette {
     /// field, so averaging everything returns off-white for almost every program
     /// and every card comes out the same colour. What survives the filter is the
     /// mark itself, which is the part a person recognises.
-    static func palette(for image: NSImage, sampleSize: Int = 32) -> IconPalette {
-        guard let pixels = samples(of: image, size: sampleSize), !pixels.isEmpty else { return .neutral }
+    static func palette(for image: NSImage) -> IconPalette {
+        guard let pixels = samples(of: image, size: 32), !pixels.isEmpty else { return .neutral }
 
         var coloured: [WeightedColour] = []
         var greyTotal = (red: 0.0, green: 0.0, blue: 0.0, weight: 0.0)

@@ -46,8 +46,7 @@
             "enhancedSync": "msync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -113,8 +112,7 @@
             "enhancedSync": "msync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -179,8 +177,7 @@
             "enhancedSync": "msync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -242,8 +239,7 @@
             "enhancedSync": "esync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [
@@ -314,8 +310,7 @@
             "enhancedSync": "msync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -387,8 +382,7 @@
             "enhancedSync": "esync",
             "forceD3D11": true,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -472,8 +466,7 @@
             "enhancedSync": "none",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -551,8 +544,7 @@
             "enhancedSync": "msync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": true
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -619,8 +611,7 @@
             "enhancedSync": "msync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -691,8 +682,7 @@
             "enhancedSync": "msync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -762,8 +752,7 @@
             "enhancedSync": "msync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -830,8 +819,7 @@
             "enhancedSync": "esync",
             "forceD3D11": true,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -914,8 +902,7 @@
             "enhancedSync": "msync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -985,8 +972,7 @@
             "enhancedSync": "esync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {
             "D3DM_SUPPORT_DXR": "0"
@@ -1020,8 +1006,7 @@
             "enhancedSync": "esync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -1104,8 +1089,7 @@
             "enhancedSync": "msync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -1178,8 +1162,7 @@
             "enhancedSync": "esync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -1255,8 +1238,7 @@
             "enhancedSync": "esync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -1333,8 +1315,7 @@
             "enhancedSync": "none",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -1410,8 +1391,7 @@
             "enhancedSync": "msync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -1495,8 +1475,7 @@
             "enhancedSync": "msync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -1568,8 +1547,7 @@
             "enhancedSync": "msync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -1645,8 +1623,7 @@
             "enhancedSync": "esync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {
             "D3DM_SUPPORT_DXR": "0"
@@ -1729,8 +1706,7 @@
             "enhancedSync": "msync",
             "forceD3D11": true,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": true
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -1798,8 +1774,7 @@
             "enhancedSync": "msync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [
@@ -1868,8 +1843,7 @@
             "enhancedSync": "msync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -1927,8 +1901,7 @@
             "enhancedSync": "none",
             "forceD3D11": false,
             "shaderCacheEnabled": false,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -2000,8 +1973,7 @@
             "enhancedSync": "msync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -2070,8 +2042,7 @@
             "enhancedSync": "esync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -2150,8 +2121,7 @@
             "enhancedSync": "msync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -2220,8 +2190,7 @@
             "enhancedSync": "msync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {
             "PULSE_LATENCY_MSEC": "60"
@@ -2298,8 +2267,7 @@
             "enhancedSync": "msync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -2366,8 +2334,7 @@
             "enhancedSync": "esync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -2442,8 +2409,7 @@
             "enhancedSync": "esync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {
             "D3DM_SUPPORT_DXR": "0"
@@ -2522,8 +2488,7 @@
             "enhancedSync": "msync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -2592,8 +2557,7 @@
             "enhancedSync": "msync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -2660,8 +2624,7 @@
             "enhancedSync": "esync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -2742,8 +2705,7 @@
             "enhancedSync": "msync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -2809,8 +2771,7 @@
             "enhancedSync": "msync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -2876,8 +2837,7 @@
             "enhancedSync": "msync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -2945,8 +2905,7 @@
             "enhancedSync": "msync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -3019,8 +2978,7 @@
             "enhancedSync": "msync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -3085,8 +3043,7 @@
             "enhancedSync": "msync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -3152,8 +3109,7 @@
             "enhancedSync": "msync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -3223,8 +3179,7 @@
             "enhancedSync": "msync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -3295,8 +3250,7 @@
             "enhancedSync": "none",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -3370,8 +3324,7 @@
             "enhancedSync": "msync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -3439,8 +3392,7 @@
             "enhancedSync": "msync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -3507,8 +3459,7 @@
             "enhancedSync": "msync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -3574,8 +3525,7 @@
             "enhancedSync": "msync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -3641,8 +3591,7 @@
             "enhancedSync": "msync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -3709,8 +3658,7 @@
             "enhancedSync": "esync",
             "forceD3D11": true,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {
             "DXVK_REQUIRED": "1",
@@ -3795,8 +3743,7 @@
             "enhancedSync": "esync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -3870,8 +3817,7 @@
             "enhancedSync": "msync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": true
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -3937,8 +3883,7 @@
             "enhancedSync": "msync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": true
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -4005,8 +3950,7 @@
             "enhancedSync": "msync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -4075,8 +4019,7 @@
             "enhancedSync": "msync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -4151,8 +4094,7 @@
             "enhancedSync": "esync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -4228,8 +4170,7 @@
             "enhancedSync": "msync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -4295,8 +4236,7 @@
             "enhancedSync": "msync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -4361,8 +4301,7 @@
             "enhancedSync": "msync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -4430,8 +4369,7 @@
             "enhancedSync": "msync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -4501,8 +4439,7 @@
             "enhancedSync": "msync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -4569,8 +4506,7 @@
             "enhancedSync": "msync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -4638,8 +4574,7 @@
             "enhancedSync": "msync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -4707,8 +4642,7 @@
             "enhancedSync": "msync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -4737,8 +4671,7 @@
             "enhancedSync": "msync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {
             "DXVK_ASYNC": "1"
@@ -4814,8 +4747,7 @@
             "enhancedSync": "msync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -4882,8 +4814,7 @@
             "enhancedSync": "msync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -4913,8 +4844,7 @@
             "enhancedSync": "msync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -4992,8 +4922,7 @@
             "enhancedSync": "esync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -5070,8 +4999,7 @@
             "enhancedSync": "msync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -5139,8 +5067,7 @@
             "enhancedSync": "msync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -5210,8 +5137,7 @@
             "enhancedSync": "esync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -5294,8 +5220,7 @@
             "enhancedSync": "msync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -5369,8 +5294,7 @@
             "enhancedSync": "msync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -5434,8 +5358,7 @@
             "enhancedSync": "msync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [
@@ -5506,8 +5429,7 @@
             "enhancedSync": "esync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -5572,8 +5494,7 @@
             "enhancedSync": "msync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -5640,8 +5561,7 @@
             "enhancedSync": "msync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -5704,8 +5624,7 @@
             "enhancedSync": "none",
             "forceD3D11": false,
             "shaderCacheEnabled": false,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -5780,8 +5699,7 @@
             "enhancedSync": "msync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -5851,8 +5769,7 @@
             "enhancedSync": "msync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [
@@ -5929,8 +5846,7 @@
             "enhancedSync": "msync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -5995,8 +5911,7 @@
             "enhancedSync": "msync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -6058,8 +5973,7 @@
             "enhancedSync": "msync",
             "forceD3D11": false,
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "sequoiaCompatMode": false
+            "avxEnabled": false
           },
           "environmentVariables": {},
           "dllOverrides": [],

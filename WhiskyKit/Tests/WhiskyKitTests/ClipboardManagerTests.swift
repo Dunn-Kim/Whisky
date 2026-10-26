@@ -114,13 +114,13 @@ final class ClipboardManagerTests: XCTestCase {
         pasteboard.clearContents()
         pasteboard.setString(testText, forType: .string)
 
-        let size = clipboardManager.getSize()
+        let size = clipboardManager.getContent().sizeInBytes
 
         XCTAssertEqual(size, testText.utf8.count, "Size should match text byte count")
     }
 
     func testGetSizeEmpty() {
-        let size = clipboardManager.getSize()
+        let size = clipboardManager.getContent().sizeInBytes
 
         XCTAssertEqual(size, 0, "Size should be 0 for empty clipboard")
     }
@@ -141,27 +141,9 @@ final class ClipboardManagerTests: XCTestCase {
         pasteboard.clearContents()
         pasteboard.setData(tiffData, forType: .tiff)
 
-        let size = clipboardManager.getSize()
+        let size = clipboardManager.getContent().sizeInBytes
 
         XCTAssertGreaterThan(size, 0, "Size should be greater than 0 for image")
-    }
-
-    func testIsLarge() {
-        let largeText = String(repeating: "A", count: 11_000) // > 10 KB
-        let pasteboard = NSPasteboard.general
-        pasteboard.clearContents()
-        pasteboard.setString(largeText, forType: .string)
-
-        XCTAssertTrue(clipboardManager.isLarge(), "Clipboard should be considered large")
-    }
-
-    func testIsNotLarge() {
-        let smallText = "Hello, World!"
-        let pasteboard = NSPasteboard.general
-        pasteboard.clearContents()
-        pasteboard.setString(smallText, forType: .string)
-
-        XCTAssertFalse(clipboardManager.isLarge(), "Clipboard should not be considered large")
     }
 
     func testLargeContentThreshold() {

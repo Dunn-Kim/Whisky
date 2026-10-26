@@ -27,14 +27,10 @@ import WhiskyKit
 /// creation. Prints the message to stderr and exits 1. Exit 64 with the
 /// usage block stays reserved for malformed invocations.
 struct DomainError: LocalizedError {
-    private let message: String
+    let errorDescription: String?
 
     init(_ message: String) {
-        self.message = message
-    }
-
-    var errorDescription: String? {
-        message
+        errorDescription = message
     }
 }
 
@@ -434,9 +430,7 @@ extension Whisky {
             }
 
             // Ensure output directory exists
-            if !FileManager.default.fileExists(atPath: outputDir.path(percentEncoded: false)) {
-                try FileManager.default.createDirectory(at: outputDir, withIntermediateDirectories: true)
-            }
+            try FileManager.default.createDirectory(at: outputDir, withIntermediateDirectories: true)
 
             let appURL = outputDir.appending(path: "\(shortcutName).app")
 

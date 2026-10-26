@@ -72,21 +72,11 @@ struct TextTable {
     /// Add a row of values to the table
     /// - Parameter values: An array of string values, one for each column
     mutating func addRow(values: [String]) {
-        // Pad or truncate the values array to match the number of columns
-        var adjustedValues = values
-        while adjustedValues.count < columns.count {
-            adjustedValues.append("")
-        }
-        if adjustedValues.count > columns.count {
-            adjustedValues = Array(adjustedValues.prefix(columns.count))
-        }
-
-        // Update column widths based on the new values (using terminal width)
-        for (index, value) in adjustedValues.enumerated() {
+        precondition(values.count == columns.count, "one value per column")
+        for (index, value) in values.enumerated() {
             columns[index].width = max(columns[index].width, value.terminalWidth)
         }
-
-        rows.append(adjustedValues)
+        rows.append(values)
     }
 
     /// Render the table as a formatted string
