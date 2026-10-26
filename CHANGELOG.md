@@ -48,6 +48,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Nothing in the 3.1.1 runtime reads it (Valve's Wine does, upstream does
   not), and x64 executables are large-address-aware already. The Rockstar
   game database entry still sets it.
+- The "Disable App Nap" performance toggle. It held an activity in Whisky's
+  own process for the few seconds `wine start` runs, never in the game's.
+  Wine's Mac driver already keeps every Wine GUI process out of App Nap for
+  its whole life (`EnableAppNap` defaults to off). Stored values are ignored.
 
 ### Fixed
 - A program's own `DXMT_CONFIG` (its environment, a game database profile)

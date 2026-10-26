@@ -200,7 +200,7 @@ public struct BottleSettings: Codable, Equatable {
         self.performanceConfig = try container.decodeIfPresent(
             BottlePerformanceConfig.self,
             forKey: .performanceConfig
-        ) ?? .legacyDecodeDefault
+        ) ?? BottlePerformanceConfig()
         self.launcherConfig = try container.decodeIfPresent(
             BottleLauncherConfig.self,
             forKey: .launcherConfig
@@ -521,15 +521,6 @@ public struct BottleSettings: Codable, Equatable {
     public var vcRedistInstalled: Bool {
         get { performanceConfig.vcRedistInstalled }
         set { performanceConfig.vcRedistInstalled = newValue }
-    }
-
-    /// Whether App Nap should be disabled for Wine processes.
-    ///
-    /// When enabled, prevents macOS from throttling Wine processes
-    /// when the application is in the background, improving game performance.
-    public var disableAppNap: Bool {
-        get { performanceConfig.disableAppNap }
-        set { performanceConfig.disableAppNap = newValue }
     }
 
     // MARK: - Launcher compatibility settings

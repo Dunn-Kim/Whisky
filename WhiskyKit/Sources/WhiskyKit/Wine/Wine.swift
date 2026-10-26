@@ -265,23 +265,6 @@ public class Wine {
             try enableDXVK(bottle: bottle)
         }
 
-        // Disable App Nap if requested to prevent macOS from throttling Wine processes.
-        // Note: This token is held while the `wine start` launcher process runs. The actual
-        // game process continues as a child of wineserver after the launcher exits. Full
-        // App Nap prevention for the entire game session would require tracking wineserver,
-        // but this provides protection during the critical startup/initialization phase.
-        let activityToken: NSObjectProtocol? = bottle.settings.disableAppNap
-            ? ProcessInfo.processInfo.beginActivity(
-                options: [.userInitiated, .idleSystemSleepDisabled],
-                reason: "Wine process running for \(bottle.settings.name)"
-            )
-            : nil
-        defer {
-            if let token = activityToken {
-                ProcessInfo.processInfo.endActivity(token)
-            }
-        }
-
         // Build the Wine environment with program overrides flowing through the programUser layer
         let (fileHandle, logFileURL) = try makeFileHandleWithURL()
         fileHandle.writeApplicationInfo()

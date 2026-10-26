@@ -31,7 +31,7 @@ Whisky는 Wine을 SwiftUI로 감싼 macOS 앱입니다. 보틀을 만들고 Wind
 - **한글 표시:** Wine의 한글 대체 글꼴(`Noto Sans CJK KR`, 맑은 고딕, 굴림 등)을 macOS의 Apple SD Gothic Neo에 연결해, 내장 브라우저 공지창과 런처의 한글이 □로 나오지 않습니다.
 - **Finder로 연 exe의 언어:** 파일 열기 창에서 언어(Locale)를 고르고 exe별로 저장합니다.
 - **프레임 제한:** 보틀·프로그램별 FPS 상한(DXVK, DXMT)으로 GPU 발열과 전력을 줄입니다.
-- **DXMT MetalFX 업스케일링** 토글, 백엔드 전환 시 남은 번역 DLL 정리, DXVK 병렬 셰이더 컴파일, App Nap 방지 기본값.
+- **DXMT MetalFX 업스케일링** 토글, 백엔드 전환 시 남은 번역 DLL 정리, DXVK 병렬 셰이더 컴파일.
 - **게임 DB:** Mecharashi 항목, ZFGame Browser 런처 감지.
 - **트러블슈팅 위저드:** 오디오 장치, 최근 로그, 런처 정보를 실제로 채워서 검사가 동작합니다.
 - **정리:** 호출되지 않는 코드 약 6,000줄 삭제.
@@ -92,7 +92,7 @@ Whisky is a native SwiftUI wrapper for Wine on macOS: make bottles, install and 
 - **Korean text:** wine's Hangul fallbacks (`Noto Sans CJK KR`, Malgun Gothic, Gulim, …) map to the host's Apple SD Gothic Neo, so embedded-browser notices and launchers stop drawing boxes.
 - **Locale for files opened from Finder:** the open sheet has a Locale picker, saved per executable.
 - **Frame rate cap** per bottle and per program (DXVK, DXMT), to cut GPU heat and power.
-- **DXMT MetalFX upscaling** toggle, stale translation DLLs restored on backend switch, parallel DXVK shader compilation, App Nap prevention by default.
+- **DXMT MetalFX upscaling** toggle, stale translation DLLs restored on backend switch, parallel DXVK shader compilation.
 - **Game database:** a Mecharashi entry and ZFGame Browser launcher detection.
 - **Guided troubleshooting:** the wizard now fills the audio device, recent log and launcher its checks read.
 - **Cleanup:** about 6,000 lines nothing called were removed.
