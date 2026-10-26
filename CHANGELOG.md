@@ -52,6 +52,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   own process for the few seconds `wine start` runs, never in the game's.
   Wine's Mac driver already keeps every Wine GUI process out of App Nap for
   its whole life (`EnableAppNap` defaults to off). Stored values are ignored.
+- Sparkle, the in-app updater. It was never started (the fork takes upstream
+  by hand, and its feed is upstream's), so the Check for Updates item stayed
+  disabled. The Settings "Check for updates" toggle, which only wrote a
+  Sparkle key, the `SU*` keys in `Info.plist` and the package are gone.
 
 ### Fixed
 - A program's own `DXMT_CONFIG` (its environment, a game database profile)

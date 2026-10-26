@@ -20,7 +20,6 @@ import SwiftUI
 import WhiskyKit
 
 struct SettingsView: View {
-    @AppStorage("SUEnableAutomaticChecks") var whiskyUpdate = true
     @AppStorage("killOnTerminate") var killOnTerminate = true
     @AppStorage("showMenuBarExtra") var showMenuBarExtra = false
     @AppStorage("checkWhiskyWineUpdates") var checkWhiskyWineUpdates = false
@@ -60,7 +59,6 @@ struct SettingsView: View {
                 }
             }
             Section("settings.updates") {
-                Toggle("settings.toggle.whisky.updates", isOn: $whiskyUpdate)
                 Toggle("settings.toggle.whiskywine.updates", isOn: $checkWhiskyWineUpdates)
             }
             GPTKSettingsSection()

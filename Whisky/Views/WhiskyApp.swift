@@ -18,7 +18,6 @@
 //
 
 import os.log
-import Sparkle
 import SwiftUI
 import WhiskyKit
 
@@ -56,18 +55,6 @@ struct WhiskyApp: App {
     @State private var audioAlertTracker = AudioAlertTracker()
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @Environment(\.openURL) var openURL
-    private let updaterController: SPUStandardUpdaterController
-
-    init() {
-        // Never started: this fork takes upstream changes by hand, and Sparkle's
-        // feed is upstream's appcast, so an accepted update would replace the
-        // fork build. Unstarted, the Check for Updates item stays disabled.
-        updaterController = SPUStandardUpdaterController(
-            startingUpdater: false,
-            updaterDelegate: nil,
-            userDriverDelegate: SparkleUpdaterDelegate.shared
-        )
-    }
 
     /// Installs the MetalFX bridge into runtimes that already hold the GPTK
     /// payload.
@@ -170,9 +157,6 @@ struct WhiskyApp: App {
         }
         .handlesExternalEvents(matching: ["*"])
         .commands {
-            CommandGroup(after: .appInfo) {
-                SparkleView(updater: updaterController.updater)
-            }
             CommandGroup(before: .systemServices) {
                 Divider()
                 Button("open.setup") {
