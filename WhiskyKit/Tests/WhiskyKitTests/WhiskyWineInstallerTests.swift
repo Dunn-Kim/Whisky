@@ -227,6 +227,17 @@ final class WhiskyWineInstallerTests: XCTestCase {
         ))
     }
 
+    func testDXMTFollowsRuntimeRecord() {
+        let withoutDXMT = WhiskyWineVersion(version: SemanticVersion(3, 0, 0))
+
+        XCTAssertFalse(WhiskyWineInstaller.backendAvailability(
+            .dxmt, runtimeInfo: withoutDXMT, d3dMetalInstalled: true, dxmtRuntimeNative: true
+        ))
+        XCTAssertFalse(WhiskyWineInstaller.backendAvailability(
+            .dxmt, runtimeInfo: nil, d3dMetalInstalled: true, dxmtRuntimeNative: true
+        ), "No runtime installed: DXMT unavailable")
+    }
+
     func testUniversalBackendsUnaffectedByMissingPayloads() {
         for backend in [GraphicsBackend.recommended, .dxvk, .wined3d] {
             XCTAssertTrue(WhiskyWineInstaller.backendAvailability(

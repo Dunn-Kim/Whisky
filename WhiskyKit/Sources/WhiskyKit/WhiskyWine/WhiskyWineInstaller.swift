@@ -383,11 +383,11 @@ public class WhiskyWineInstaller {
     }
 
     /// Whether `backend` can actually be selected against the currently
-    /// installed runtime. Extends the pure
-    /// ``GraphicsBackend/isAvailable(runtimeInfo:)`` version gate with the
-    /// payload checks version records can't express: DXMT needs the *native*
-    /// payload variant (an older builtin-variant payload would silently
-    /// redirect to wined3d), and D3DMetal needs the GPTK payload on disk —
+    /// installed runtime. DXMT needs a runtime that bundles its payload
+    /// (Wine Libraries >= 3.1.0, signalled by `dxmtVersion` in the runtime
+    /// plist) *and* the *native* payload variant (an older builtin-variant
+    /// payload would silently redirect to wined3d). D3DMetal needs the GPTK
+    /// payload on disk —
     /// without it a d3dMetal bottle silently degrades to wined3d at launch
     /// (issue #146).
     public static func isBackendAvailable(_ backend: GraphicsBackend) -> Bool {
@@ -408,14 +408,13 @@ public class WhiskyWineInstaller {
         d3dMetalInstalled: Bool,
         dxmtRuntimeNative: Bool
     ) -> Bool {
-        let versionAvailable = backend.isAvailable(runtimeInfo: runtimeInfo)
         switch backend {
         case .dxmt:
-            return versionAvailable && dxmtRuntimeNative
+            return runtimeInfo?.dxmtVersion != nil && dxmtRuntimeNative
         case .d3dMetal:
-            return versionAvailable && d3dMetalInstalled
+            return d3dMetalInstalled
         case .recommended, .dxvk, .wined3d:
-            return versionAvailable
+            return true
         }
     }
 

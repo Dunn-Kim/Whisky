@@ -109,11 +109,7 @@ public struct BottleData: Codable {
                 .appendingPathExtension("plist")
                 .path(percentEncoded: false)
 
-            if FileManager.default.fileExists(atPath: bottleMetadata) {
-                bottles.append(Bottle(bottleUrl: path, isAvailable: true))
-            } else {
-                bottles.append(Bottle(bottleUrl: path))
-            }
+            bottles.append(Bottle(bottleUrl: path, isAvailable: FileManager.default.fileExists(atPath: bottleMetadata)))
         }
 
         return bottles

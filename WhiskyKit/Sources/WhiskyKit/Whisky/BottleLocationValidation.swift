@@ -57,18 +57,16 @@ public enum BottleLocationValidation {
     ///   - url: The parent directory the user chose (the bottle itself is a
     ///     not-yet-created subdirectory of this).
     ///   - minimumFreeBytes: The free-space floor to require. Injectable for tests.
-    ///   - fileManager: The file manager to probe with. Injectable for tests.
     /// - Returns: ``ValidationResult/valid`` if the location is usable, otherwise
     ///   the specific reason it is not.
     public static func validate(
         at url: URL,
-        minimumFreeBytes: Int64 = BottleLocationValidation.minimumFreeBytes,
-        fileManager: FileManager = .default
+        minimumFreeBytes: Int64 = BottleLocationValidation.minimumFreeBytes
     ) -> ValidationResult {
-        let ancestor = nearestExistingDirectory(for: url, fileManager: fileManager)
+        let ancestor = nearestExistingDirectory(for: url)
         let path = url.path(percentEncoded: false)
 
-        switch probeWrite(in: ancestor, fileManager: fileManager) {
+        switch probeWrite(in: ancestor) {
         case .succeeded:
             break
         case .denied:
@@ -95,9 +93,9 @@ public enum BottleLocationValidation {
     /// The first existing path may be a regular file (a malformed location); the
     /// caller's write probe then fails and yields `.notWritable` rather than
     /// silently validating the file's parent.
-    static func nearestExistingDirectory(for url: URL, fileManager: FileManager) -> URL {
+    static func nearestExistingDirectory(for url: URL) -> URL {
         var candidate = url.resolvingSymlinksInPath()
-        while !exists(candidate, fileManager: fileManager) {
+        while !exists(candidate) {
             let parent = candidate.deletingLastPathComponent()
             // `deletingLastPathComponent()` on "/" returns "/"; stop at the root
             // rather than looping forever.
@@ -112,12 +110,12 @@ public enum BottleLocationValidation {
     /// `fileExists(atPath:)` with a trailing slash returns `false` for a regular
     /// file, and `deletingLastPathComponent()` introduces trailing slashes — so
     /// strip them before testing existence to detect file components correctly.
-    private static func exists(_ url: URL, fileManager: FileManager) -> Bool {
+    private static func exists(_ url: URL) -> Bool {
         var path = url.path(percentEncoded: false)
         while path.count > 1, path.hasSuffix("/") {
             path.removeLast()
         }
-        return fileManager.fileExists(atPath: path)
+        return FileManager.default.fileExists(atPath: path)
     }
 
     /// Why a write probe did not succeed, kept apart so a refusal can be told
@@ -139,11 +137,11 @@ public enum BottleLocationValidation {
     /// probe is used instead. It writes through `Data` rather than
     /// `createFile(atPath:contents:)` because only the throwing form reports
     /// *why* it failed.
-    static func probeWrite(in directory: URL, fileManager: FileManager) -> WriteProbe {
+    static func probeWrite(in directory: URL) -> WriteProbe {
         let probe = directory.appendingPathComponent(".whisky-write-probe-\(UUID().uuidString)")
         do {
             try Data().write(to: probe, options: .atomic)
-            try? fileManager.removeItem(at: probe)
+            try? FileManager.default.removeItem(at: probe)
             return .succeeded
         } catch {
             let nsError = error as NSError

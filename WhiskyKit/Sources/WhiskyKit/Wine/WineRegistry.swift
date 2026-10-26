@@ -258,10 +258,7 @@ public extension Wine {
     @MainActor
     static func disableVirtualDesktop(bottle: Bottle) async throws {
         do {
-            try await runWine(
-                ["reg", "delete", RegistryKey.explorer.rawValue, "-v", "Desktop", "-f"],
-                bottle: bottle
-            )
+            try await deleteRegistryValue(bottle: bottle, key: RegistryKey.explorer.rawValue, name: "Desktop")
         } catch {
             // Key might not exist; this is expected on bottles that never had virtual desktop
         }

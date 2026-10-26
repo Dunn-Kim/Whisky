@@ -1168,9 +1168,7 @@ public extension Wine {
     /// - Returns: A tuple of the open `FileHandle` and its log file `URL`.
     /// - Throws: An error if the log directory or file cannot be created.
     internal static func makeLogFile(in folder: URL, date: Date) throws -> (FileHandle, URL) {
-        if !FileManager.default.fileExists(atPath: folder.path) {
-            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        }
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
 
         // Enforce retention before creating a new log file.
         // This is best-effort and only impacts Whisky's own log directory.

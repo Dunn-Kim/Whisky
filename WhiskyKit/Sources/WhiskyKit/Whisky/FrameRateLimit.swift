@@ -93,15 +93,6 @@ public extension GraphicsBackend {
         }
     }
 
-    /// Every variable any backend may use to cap the frame rate.
-    ///
-    /// A program-level override has to clear the bottle's cap before applying
-    /// its own, including the variable belonging to a *different* backend when
-    /// the program also overrides which backend is used.
-    static var allFrameRateLimitKeys: [String] {
-        ["DXVK_FRAME_RATE", "DXMT_CONFIG"]
-    }
-
     /// Environment entries that cap presentation at `fps` for this backend.
     ///
     /// - Parameter fps: The cap in frames per second. Values below 1 are ignored.

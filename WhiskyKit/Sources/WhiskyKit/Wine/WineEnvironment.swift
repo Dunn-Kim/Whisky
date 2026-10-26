@@ -399,9 +399,9 @@ extension Wine {
             let effectiveBackend = (overrides.graphicsBackend ?? bottleBackend).resolved
             let limit = overrides.frameRateLimit ?? bottleFrameRateLimit
             let fps = limit.resolved(displayRefreshRate: displayRefreshRate)
-            for key in GraphicsBackend.allFrameRateLimitKeys where key != "DXMT_CONFIG" {
-                builder.remove(key, layer: .programUser)
-            }
+            // A program-level cap must clear the bottle's DXVK one even when the
+            // program switches to a backend that does not use it.
+            builder.remove("DXVK_FRAME_RATE", layer: .programUser)
             if effectiveBackend == .dxmt {
                 // The cap is one entry of DXMT_CONFIG, so it is merged, not set: a
                 // DXMT_CONFIG from the program's environment keeps its other

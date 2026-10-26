@@ -281,16 +281,12 @@ final class BottleOperationsDuplicateTests: BottleOperationsTestCase {
     }
 
     @MainActor
-    func testDuplicateStripsTransientArtifactsFromClone() async throws {
+    func testDuplicateStripsDiagnosisHistoryFromClone() async throws {
         let registry = RegistryFixture()
         _ = makeRegisteredBottle(in: registry)
-        let logFile = bottleURL.appending(path: "logs/old-run.log")
-        try FileManager.default.createDirectory(
-            at: bottleURL.appending(path: "logs"),
-            withIntermediateDirectories: true
-        )
-        try Data("log".utf8).write(to: logFile)
-        let historyFile = bottleURL.appending(path: "drive_c/game.exe.diagnosis-history.plist")
+        let settingsDir = bottleURL.appending(path: "Program Settings")
+        try FileManager.default.createDirectory(at: settingsDir, withIntermediateDirectories: true)
+        let historyFile = settingsDir.appending(path: "game.exe.diagnosis-history.plist")
         try Data("history".utf8).write(to: historyFile)
 
         let newURL = try await BottleOperations.duplicate(
@@ -300,13 +296,9 @@ final class BottleOperationsDuplicateTests: BottleOperationsTestCase {
         )
 
         let fileManager = FileManager.default
-        XCTAssertFalse(
-            fileManager.fileExists(atPath: newURL.appending(path: "logs/old-run.log").path(percentEncoded: false))
-        )
-        let clonedHistory = newURL.appending(path: "drive_c/game.exe.diagnosis-history.plist")
+        let clonedHistory = newURL.appending(path: "Program Settings/game.exe.diagnosis-history.plist")
         XCTAssertFalse(fileManager.fileExists(atPath: clonedHistory.path(percentEncoded: false)))
-        // The source keeps its artifacts.
-        XCTAssertTrue(fileManager.fileExists(atPath: logFile.path(percentEncoded: false)))
+        // The source keeps its history.
         XCTAssertTrue(fileManager.fileExists(atPath: historyFile.path(percentEncoded: false)))
     }
 

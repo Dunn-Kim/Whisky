@@ -330,35 +330,14 @@ public enum BottleOperations {
         return total
     }
 
-    /// Removes transient artifacts from a cloned bottle directory.
-    ///
-    /// Deletes old log files, diagnosis history sidecars, and temp files so the
-    /// duplicate starts clean.
+    /// Removes the diagnosis history sidecars (`Program Settings/*.diagnosis-history.plist`)
+    /// from a cloned bottle directory so the duplicate starts clean.
     private static func removeTransientArtifacts(in bottleDir: URL) {
         let fileManager = FileManager.default
-
-        // Remove .log files from the logs directory
-        let logsDir = bottleDir.appending(path: "logs")
-        if let logEnumerator = fileManager.enumerator(
-            at: logsDir,
-            includingPropertiesForKeys: nil,
-            options: [.skipsSubdirectoryDescendants]
-        ) {
-            for case let fileURL as URL in logEnumerator where fileURL.pathExtension == "log" {
-                try? fileManager.removeItem(at: fileURL)
-            }
-        }
-
-        // Remove diagnosis history sidecar files
-        if let enumerator = fileManager.enumerator(
-            at: bottleDir,
-            includingPropertiesForKeys: nil,
-            options: []
-        ) {
-            for case let fileURL as URL in enumerator
-                where fileURL.lastPathComponent.hasSuffix(".diagnosis-history.plist") {
-                try? fileManager.removeItem(at: fileURL)
-            }
+        let settingsDir = bottleDir.appending(path: "Program Settings")
+        let files = (try? fileManager.contentsOfDirectory(at: settingsDir, includingPropertiesForKeys: nil)) ?? []
+        for fileURL in files where fileURL.lastPathComponent.hasSuffix(".diagnosis-history.plist") {
+            try? fileManager.removeItem(at: fileURL)
         }
     }
 }

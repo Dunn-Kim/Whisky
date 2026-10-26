@@ -96,11 +96,7 @@ public struct RunLogHistory: Codable, Equatable {
     @discardableResult
     public mutating func append(_ entry: RunLogEntry) -> [RunLogEntry] {
         entries.append(entry)
-        var removed: [RunLogEntry] = []
-        while entries.count > Self.maxEntriesPerProgram {
-            removed.append(entries.removeFirst())
-        }
-        return removed
+        return deleteOldEntries()
     }
 
     /// Marks a run entry as completed with an exit code.
@@ -195,9 +191,7 @@ public enum RunLogStore {
         let settingsFolder = bottleURL.appending(path: "Program Settings")
 
         do {
-            if !FileManager.default.fileExists(atPath: settingsFolder.path(percentEncoded: false)) {
-                try FileManager.default.createDirectory(at: settingsFolder, withIntermediateDirectories: true)
-            }
+            try FileManager.default.createDirectory(at: settingsFolder, withIntermediateDirectories: true)
 
             let encoder = PropertyListEncoder()
             encoder.outputFormat = .xml
