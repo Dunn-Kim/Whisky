@@ -20,8 +20,7 @@ import Foundation
 
 /// A record of a single fix application during a troubleshooting session.
 ///
-/// Extends the pattern from ``TroubleshootingFixAttempt`` (Phase 6) with
-/// explicit result tracking and before/after value capture for undo support.
+/// Tracks the result of each fix and captures before/after values for undo support.
 public struct FixAttempt: Codable, Sendable {
     /// The stable fix identifier from the flow step node.
     public let fixId: String

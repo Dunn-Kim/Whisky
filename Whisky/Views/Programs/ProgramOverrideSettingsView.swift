@@ -33,6 +33,7 @@ struct ProgramOverrideSettingsView: View {
     @Binding var isExpanded: Bool
 
     @State private var showResetConfirmation = false
+    @State private var showAudioWizard = false
     @State private var diagnosisPresentation: DiagnosisPresentation?
     @State private var gameMatch: MatchResult?
     @State private var showGameConfigDetail: Bool = false
@@ -142,12 +143,17 @@ struct ProgramOverrideSettingsView: View {
     private var audioTroubleshootingSection: some View {
         Section("Audio") {
             Button("Troubleshoot Audio\u{2026}") {
-                NotificationCenter.default.post(
-                    name: .openAudioTroubleshooting,
-                    object: nil
-                )
+                showAudioWizard = true
             }
             .help("Open audio diagnostics and troubleshooting for this bottle")
+        }
+        .sheet(isPresented: $showAudioWizard) {
+            TroubleshootingWizardView(
+                bottle: bottle,
+                program: program,
+                entryContext: .program(programURL: program.url, bottleURL: bottle.url),
+                startingCategory: .audio
+            )
         }
     }
 

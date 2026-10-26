@@ -28,6 +28,8 @@ struct TroubleshootingWizardView: View {
     let bottle: Bottle
     let program: Program?
     let entryContext: EntryContext
+    /// Skips the symptom picker for entry points that already know the category.
+    var startingCategory: SymptomCategory?
 
     @StateObject private var engine: TroubleshootingFlowEngine
     @Environment(\.dismiss) private var dismiss
@@ -38,10 +40,11 @@ struct TroubleshootingWizardView: View {
 
     private let sessionStore = TroubleshootingSessionStore()
 
-    init(bottle: Bottle, program: Program?, entryContext: EntryContext) {
+    init(bottle: Bottle, program: Program?, entryContext: EntryContext, startingCategory: SymptomCategory? = nil) {
         self.bottle = bottle
         self.program = program
         self.entryContext = entryContext
+        self.startingCategory = startingCategory
 
         let store = TroubleshootingSessionStore()
         let engine = TroubleshootingFlowEngine(
@@ -246,7 +249,11 @@ extension TroubleshootingWizardView {
             // Collect preflight and populate session
             let preflight = collectPreflight()
             engine.session.preflightSnapshot = preflight
-            engine.start(from: entryContext)
+            if let startingCategory {
+                engine.selectCategory(startingCategory)
+            } else {
+                engine.start(from: entryContext)
+            }
         }
     }
 

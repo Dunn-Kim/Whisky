@@ -25,9 +25,9 @@ import os.log
 
 /// A JSON-driven state machine that navigates troubleshooting flow graphs.
 ///
-/// Generalizes the ``AudioTroubleshootingEngine`` pattern into a category-agnostic
-/// engine that loads flow definitions from JSON, runs checks via a ``CheckRegistry``,
-/// branches on normalized outcomes, and auto-saves session state.
+/// A category-agnostic engine that loads flow definitions from JSON, runs checks
+/// via a ``CheckRegistry``, branches on normalized outcomes, and auto-saves
+/// session state.
 ///
 /// The engine is `@MainActor` for safe SwiftUI observation but has **no SwiftUI imports**.
 /// It publishes state via `@Published` properties that the view layer observes.

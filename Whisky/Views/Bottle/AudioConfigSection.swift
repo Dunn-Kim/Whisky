@@ -37,11 +37,7 @@ struct AudioConfigSection: View {
     /// Debounce timer for Bluetooth device change events.
     @State private var debounceTask: Task<Void, Never>?
 
-    /// The wizard and its engine, created when it opens. Item-based so the
-    /// sheet is built from the engine that presents it; with a flag plus a
-    /// separate optional the content closure could run before the engine
-    /// landed and show an empty sheet.
-    @State private var wizardPresentation: AudioWizardPresentation?
+    @State private var showTroubleshootingWizard = false
 
     var body: some View {
         Section("Audio") {
@@ -96,25 +92,19 @@ struct AudioConfigSection: View {
 
             // 8. Troubleshooting link
             Button("Audio Troubleshooting\u{2026}") {
-                openTroubleshootingWizard()
+                showTroubleshootingWizard = true
             }
         }
         .animation(.default, value: advancedMode)
         .onAppear {
             startDeviceListening()
         }
-        .onReceive(NotificationCenter.default.publisher(for: .openAudioTroubleshooting)) { _ in
-            openTroubleshootingWizard()
-        }
-        .sheet(item: $wizardPresentation) { presentation in
-            AudioTroubleshootingWizardView(
-                engine: presentation.engine,
-                onDismiss: {
-                    wizardPresentation = nil
-                },
-                onOpenAdvanced: {
-                    advancedMode = true
-                }
+        .sheet(isPresented: $showTroubleshootingWizard) {
+            TroubleshootingWizardView(
+                bottle: bottle,
+                program: nil,
+                entryContext: .bottleDiagnostics(bottleURL: bottle.url),
+                startingCategory: .audio
             )
         }
     }
@@ -194,22 +184,6 @@ extension AudioConfigSection {
     }
 }
 
-// MARK: - Troubleshooting Wizard
-
-extension AudioConfigSection {
-    private func openTroubleshootingWizard() {
-        let probes: [any AudioProbe] = [
-            CoreAudioDeviceProbe(monitor: monitor),
-            WineRegistryAudioProbe(bottle: bottle),
-            WineAudioTestProbe(
-                bottle: bottle,
-                testExeURL: Bundle.main.url(forResource: "WhiskyAudioTest", withExtension: "exe")
-            )
-        ]
-        wizardPresentation = AudioWizardPresentation(engine: AudioTroubleshootingEngine(probes: probes))
-    }
-}
-
 // MARK: - Device Listening
 
 extension AudioConfigSection {
@@ -231,10 +205,4 @@ extension AudioConfigSection {
             }
         }
     }
-}
-
-/// What the audio troubleshooting sheet is built from.
-struct AudioWizardPresentation: Identifiable {
-    let id = UUID()
-    let engine: AudioTroubleshootingEngine
 }

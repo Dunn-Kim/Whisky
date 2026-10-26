@@ -52,12 +52,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   own process for the few seconds `wine start` runs, never in the game's.
   Wine's Mac driver already keeps every Wine GUI process out of App Nap for
   its whole life (`EnableAppNap` defaults to off). Stored values are ignored.
+- The audio troubleshooting wizard. Its "Apply fix" only recorded the attempt
+  and changed nothing, and the guided wizard already has the audio flow that
+  sets the audio driver and buffer size. "Audio Troubleshooting..." in the
+  bottle's Audio section now opens that wizard on the audio flow.
 - Sparkle, the in-app updater. It was never started (the fork takes upstream
   by hand, and its feed is upstream's), so the Check for Updates item stayed
   disabled. The Settings "Check for updates" toggle, which only wrote a
   Sparkle key, the `SU*` keys in `Info.plist` and the package are gone.
 
 ### Fixed
+- "Troubleshoot Audio..." in a program's settings did nothing: it posted a
+  notification only the bottle's Audio section listens for, and that section
+  is not on screen at the same time. It now opens the audio troubleshooting
+  wizard directly.
 - Launching a program now records it in the process registry, which nothing
   ever wrote to. The running badge and count, the Processes list's
   Whisky-launched marker, the "is a process running" troubleshooting check and
