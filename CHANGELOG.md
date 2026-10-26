@@ -58,6 +58,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Sparkle key, the `SU*` keys in `Info.plist` and the package are gone.
 
 ### Fixed
+- Launching a program now records it in the process registry, which nothing
+  ever wrote to. The running badge and count, the Processes list's
+  Whisky-launched marker, the "is a process running" troubleshooting check and
+  the keep-display-awake assertion all read it and saw nothing. The entry
+  covers the `wine start` process (or the desktop `explorer` process), which
+  for a plain launch exits soon after the game starts.
 - A program's own `DXMT_CONFIG` (its environment, a game database profile)
   no longer replaces the bottle's DXMT frame cap, and a per-program cap no
   longer wipes the program's other `DXMT_CONFIG` entries: the entries now

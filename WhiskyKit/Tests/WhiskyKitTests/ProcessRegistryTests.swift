@@ -65,6 +65,20 @@ final class ProcessRegistryTests: XCTestCase {
         XCTAssertEqual(processes.first?.pid, 0, "PID should be 0 before launch")
     }
 
+    func testRegisterLaunchedRecordsPID() throws {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/bin/sleep")
+        process.arguments = ["30"]
+        try process.run()
+        defer { process.terminate() }
+
+        Wine.registerLaunched(process, bottle: testBottle, programName: "game.exe")
+
+        let processes = ProcessRegistry.shared.getProcesses(for: testBottle)
+        XCTAssertEqual(processes.count, 1)
+        XCTAssertEqual(processes.first?.pid, process.processIdentifier)
+    }
+
     func testRegisterMultipleProcesses() {
         let process1 = Process()
         let process2 = Process()

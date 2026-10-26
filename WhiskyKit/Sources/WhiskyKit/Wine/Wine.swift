@@ -95,9 +95,9 @@ public class Wine {
     /// Run a process on a executable file given by the `executableURL`
     private static func runProcess(
         name: String? = nil, args: [String], environment: [String: String], executableURL: URL,
-        fileHandle: FileHandle?, qualityOfService: QualityOfService = .userInitiated
+        fileHandle: FileHandle?, qualityOfService: QualityOfService = .userInitiated,
+        process: Process = Process()
     ) throws -> AsyncStream<ProcessOutput> {
-        let process = Process()
         process.executableURL = executableURL
         process.arguments = args
         process.currentDirectoryURL = executableURL.deletingLastPathComponent()
@@ -338,16 +338,24 @@ public class Wine {
         DiscordIntegration.shared.programLaunching(url, bottle: bottle)
 
         var exitCode: Int32 = 0
+        let process = Process()
         // Game launches run user-interactive: on Apple Silicon the QoS class
         // decides whether the scheduler offers performance or efficiency
         // cores first, and a frame-producing process belongs on the former.
         // Utility Wine invocations and wineserver stay at .userInitiated.
-        for await output in try runProcess(
+        let stream = try runProcess(
             name: programName,
             args: launchArgs,
             environment: wineEnvironment, executableURL: wineBinary,
-            fileHandle: fileHandle, qualityOfService: .userInteractive
-        ) {
+            fileHandle: fileHandle, qualityOfService: .userInteractive, process: process
+        )
+        // Registered once it is running, so a failed launch leaves nothing behind.
+        // Only this `wine start` / desktop `explorer` process is tracked, not the
+        // game's own processes, so a plain launch is listed for as long as
+        // `wine start` runs.
+        registerLaunched(process, bottle: bottle, programName: programName)
+        defer { ProcessRegistry.shared.unregister(pid: process.processIdentifier) }
+        for await output in stream {
             if case let .terminated(code) = output {
                 exitCode = code
             }
@@ -366,6 +374,12 @@ public class Wine {
     }
 
     // swiftlint:enable function_body_length
+
+    /// Records a launched Wine process in ``ProcessRegistry``.
+    static func registerLaunched(_ process: Process, bottle: Bottle, programName: String) {
+        ProcessRegistry.shared.register(process: process, bottle: bottle, programName: programName)
+        ProcessRegistry.shared.updatePID(pid: process.processIdentifier, for: process)
+    }
 
     /// Windows-visible path to a program's DXVK state cache, outside any bottle.
     ///
