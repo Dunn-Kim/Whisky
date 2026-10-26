@@ -134,6 +134,7 @@ extension Wine {
             applyProgramOverrides(
                 overrides,
                 frameGeneration: bottle.settings.frameGeneration,
+                dxvkAsync: bottle.settings.dxvkAsync,
                 builtinD3D12IsD3DMetal: builtinD3D12IsD3DMetal,
                 builder: &builder,
                 dllResolver: &dllResolver,
@@ -193,6 +194,7 @@ extension Wine {
     static func applyProgramOverrides(
         _ overrides: ProgramOverrides,
         frameGeneration: Bool = false,
+        dxvkAsync: Bool = true,
         builtinD3D12IsD3DMetal: Bool = GPTKImporter.isDeployed(),
         builder: inout EnvironmentBuilder,
         dllResolver: inout DLLOverrideResolver,
@@ -203,6 +205,16 @@ extension Wine {
         let dxvkPreset = DLLOverrideResolver.dxvkPreset(builtinD3D12IsD3DMetal: builtinD3D12IsD3DMetal)
         let dxmtPreset = DLLOverrideResolver.dxmtPreset(builtinD3D12IsD3DMetal: builtinD3D12IsD3DMetal)
         let translationReset = translationDLLResetEntries(builtinD3D12IsD3DMetal: builtinD3D12IsD3DMetal)
+
+        // What the bottle layer sets under DXVK, for a program that turns DXVK on
+        // in a bottle running something else; without it the program compiles
+        // shaders synchronously and serially.
+        func addDXVKEnvironment() {
+            if dxvkAsync {
+                builder.set("DXVK_ASYNC", "1", layer: .programUser)
+            }
+            builder.set("MVK_CONFIG_SHOULD_MAXIMIZE_CONCURRENT_COMPILATION", "1", layer: .programUser)
+        }
 
         // Graphics backend override: replaces bottle-level backend entirely
         if let backend = overrides.graphicsBackend {
@@ -226,6 +238,7 @@ extension Wine {
                 // Enable DXVK DLLs at program level
                 dllResolver.programCustom.append(contentsOf: dxvkPreset)
                 builder.remove("WINED3DMETAL", layer: .programUser)
+                addDXVKEnvironment()
                 // CX_ACTIVE_GRAPHICS_BACKEND deliberately survives. It selects no
                 // backend: win32u is the only thing in the runtime that reads it,
                 // and all it does is answer KMTQAITYPE_WDDM_2_7_CAPS. Stripping it
@@ -268,6 +281,7 @@ extension Wine {
             if dxvk {
                 // Program forces DXVK on -- add DXVK preset to program custom DLLs
                 dllResolver.programCustom.append(contentsOf: dxvkPreset)
+                addDXVKEnvironment()
             } else {
                 // Program forces DXVK off -- override each DXVK DLL to builtin
                 for entry in dxvkPreset {

@@ -471,6 +471,34 @@ final class EnvironmentVariablesTests: XCTestCase {
         return overrideString
     }
 
+    /// A program steered onto DXVK in a bottle running something else used to
+    /// get DXVK's DLLs but neither async compilation nor MoltenVK's concurrent
+    /// compile, both of which the bottle layer only sets under DXVK.
+    func testProgramDXVKOverrideGetsBottleDXVKEnvironment() {
+        for (dxvkAsync, legacyFlag) in [(true, false), (false, false), (true, true)] {
+            var settings = BottleSettings()
+            settings.graphicsBackend = .dxmt
+            var builder = EnvironmentBuilder()
+            var dllResolver = DLLOverrideResolver(managed: [], bottleCustom: [], programCustom: [])
+            _ = settings.populateBottleManagedLayer(builder: &builder, builtinD3D12IsD3DMetal: false)
+
+            var overrides = ProgramOverrides()
+            if legacyFlag {
+                overrides.dxvk = true
+            } else {
+                overrides.graphicsBackend = .dxvk
+            }
+            Wine.applyProgramOverrides(
+                overrides, dxvkAsync: dxvkAsync, builtinD3D12IsD3DMetal: false,
+                builder: &builder, dllResolver: &dllResolver
+            )
+
+            let env = builder.resolve().environment
+            XCTAssertEqual(env["DXVK_ASYNC"], dxvkAsync ? "1" : nil)
+            XCTAssertEqual(env["MVK_CONFIG_SHOULD_MAXIMIZE_CONCURRENT_COMPILATION"], "1")
+        }
+    }
+
     func testProgramBackendOverrideDXMTAppendsPreset() {
         // A D3DMetal bottle with a per-program DXMT override gets DXMT's overrides.
         // The full translation-DLL union is reset to builtin first, so d3d9 (which

@@ -55,6 +55,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   longer wipes the program's other `DXMT_CONFIG` entries: the entries now
   merge, with a per-program "unlimited" sent as DXMT's
   `preferredMaxFrameRate=0`.
+- A program steered onto DXVK in a bottle that runs another backend
+  (per-program backend, the legacy DXVK flag, a launcher pinned to DXVK)
+  now gets `DXVK_ASYNC` (per the bottle's async setting) and MoltenVK's
+  concurrent shader compilation, as a DXVK bottle does.
 - Loading a bottle no longer replaces its recorded Wine version with the
   7.7.0 default. Every load did, and saved the file, so stability
   diagnostics reported 7.7.0 for every bottle.
