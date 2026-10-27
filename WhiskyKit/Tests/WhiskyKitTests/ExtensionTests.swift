@@ -23,109 +23,40 @@ import XCTest
 // MARK: - String.esc Tests
 
 final class StringEscapeTests: XCTestCase {
-    func testEscapesSpaces() {
-        XCTAssertEqual("hello world".esc, "hello\\ world")
-        XCTAssertEqual("path with spaces".esc, "path\\ with\\ spaces")
-    }
-
-    func testEscapesDoubleQuotes() {
-        XCTAssertEqual("hello\"world".esc, "hello\\\"world")
-    }
-
-    func testEscapesSingleQuotes() {
-        XCTAssertEqual("hello'world".esc, "hello\\'world")
-    }
-
-    func testEscapesBackslashes() {
-        XCTAssertEqual("hello\\world".esc, "hello\\\\world")
-    }
-
-    func testEscapesParentheses() {
-        XCTAssertEqual("(test)".esc, "\\(test\\)")
-        XCTAssertEqual("func()".esc, "func\\(\\)")
-    }
-
-    func testEscapesBrackets() {
-        XCTAssertEqual("[test]".esc, "\\[test\\]")
-        XCTAssertEqual("{test}".esc, "\\{test\\}")
-    }
-
-    func testEscapesShellOperators() {
-        XCTAssertEqual("cmd1 & cmd2".esc, "cmd1\\ \\&\\ cmd2")
-        XCTAssertEqual("cmd1 | cmd2".esc, "cmd1\\ \\|\\ cmd2")
-        XCTAssertEqual("cmd1 ; cmd2".esc, "cmd1\\ \\;\\ cmd2")
-    }
-
-    func testEscapesRedirectionOperators() {
-        XCTAssertEqual("input < file".esc, "input\\ \\<\\ file")
-        XCTAssertEqual("output > file".esc, "output\\ \\>\\ file")
-    }
-
-    func testEscapesBackticks() {
-        XCTAssertEqual("`command`".esc, "\\`command\\`")
-    }
-
-    func testEscapesDollarSign() {
-        XCTAssertEqual("$PATH".esc, "\\$PATH")
-        XCTAssertEqual("${VAR}".esc, "\\$\\{VAR\\}")
-    }
-
-    func testEscapesExclamation() {
-        XCTAssertEqual("test!".esc, "test\\!")
-    }
-
-    func testEscapesWildcards() {
-        XCTAssertEqual("*.txt".esc, "\\*.txt")
-        XCTAssertEqual("file?.txt".esc, "file\\?.txt")
-    }
-
-    func testEscapesHash() {
-        XCTAssertEqual("#comment".esc, "\\#comment")
-    }
-
-    func testEscapesTilde() {
-        XCTAssertEqual("~/Documents".esc, "\\~/Documents")
-    }
-
-    func testEscapesEquals() {
-        XCTAssertEqual("KEY=VALUE".esc, "KEY\\=VALUE")
-    }
-
-    func testRemovesControlCharacters() {
-        XCTAssertEqual("hello\nworld".esc, "helloworld")
-        XCTAssertEqual("hello\tworld".esc, "helloworld")
-        XCTAssertEqual("hello\rworld".esc, "helloworld")
-    }
-
-    func testRemovesNullCharacter() {
-        XCTAssertEqual("hello\0world".esc, "helloworld")
-    }
-
-    func testRemovesDeleteCharacter() {
-        let deleteChar = Character(UnicodeScalar(127))
-        XCTAssertEqual("hello\(deleteChar)world".esc, "helloworld")
-    }
-
-    func testPreservesUnicodeCharacters() {
-        XCTAssertEqual("日本語".esc, "日本語")
-        XCTAssertEqual("émoji 🎉".esc, "émoji\\ 🎉")
-        XCTAssertEqual("Ü".esc, "Ü")
-    }
-
-    func testEmptyString() {
-        XCTAssertEqual("".esc, "")
-    }
-
-    func testAlreadySimpleString() {
-        XCTAssertEqual("simple".esc, "simple")
-        XCTAssertEqual("file.txt".esc, "file.txt")
-        XCTAssertEqual("path/to/file".esc, "path/to/file")
-    }
-
-    func testComplexPathWithMultipleMetacharacters() {
-        let input = "Program Files (x86)/Game's Name"
-        let expected = "Program\\ Files\\ \\(x86\\)/Game\\'s\\ Name"
-        XCTAssertEqual(input.esc, expected)
+    func testEsc() {
+        let cases: [(input: String, expected: String)] = [
+            // Metacharacters
+            ("hello world", "hello\\ world"),
+            ("hello\"world", "hello\\\"world"),
+            ("hello'world", "hello\\'world"),
+            ("hello\\world", "hello\\\\world"),
+            ("func()", "func\\(\\)"),
+            ("[test]{x}", "\\[test\\]\\{x\\}"),
+            ("a & b | c ; d", "a\\ \\&\\ b\\ \\|\\ c\\ \\;\\ d"),
+            ("in < f > o", "in\\ \\<\\ f\\ \\>\\ o"),
+            ("`cmd`", "\\`cmd\\`"),
+            ("${VAR}", "\\$\\{VAR\\}"),
+            ("test!", "test\\!"),
+            ("*.txt file?", "\\*.txt\\ file\\?"),
+            ("#comment", "\\#comment"),
+            ("~/Documents", "\\~/Documents"),
+            ("KEY=VALUE", "KEY\\=VALUE"),
+            ("Program Files (x86)/Game's Name", "Program\\ Files\\ \\(x86\\)/Game\\'s\\ Name"),
+            ("/path/to/Game [Special]/Tom & Jerry", "/path/to/Game\\ \\[Special\\]/Tom\\ \\&\\ Jerry"),
+            // Control characters are dropped before escaping (command-injection guard)
+            ("a\nb\n\n\tc\rd\r\ne", "abcde"),
+            ("a\0b\u{07}c\u{1B}d\u{7F}e", "abcde"),
+            ("file\nwith spaces\t& special$chars\r", "filewith\\ spaces\\&\\ special\\$chars"),
+            // Non-ASCII passes through
+            ("日本語Ü", "日本語Ü"),
+            ("émoji 🎉 файл", "émoji\\ 🎉\\ файл"),
+            // Nothing to escape
+            ("", ""),
+            ("path/to/file.txt", "path/to/file.txt")
+        ]
+        for (input, expected) in cases {
+            XCTAssertEqual(input.esc, expected, "esc of \(input.debugDescription)")
+        }
     }
 }
 
