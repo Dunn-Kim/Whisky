@@ -29,7 +29,6 @@ struct ConsoleRunHistoryView: View {
     @Binding var selectedRunId: UUID?
 
     @State private var history = RunLogHistory()
-    @State private var refreshTimer: Timer?
 
     var body: some View {
         Group {
@@ -40,8 +39,12 @@ struct ConsoleRunHistoryView: View {
             }
         }
         .onAppear { loadHistory() }
-        .onDisappear { stopRefreshTimer() }
-        .task { startRefreshTimer() }
+        .task {
+            while true {
+                guard (try? await Task.sleep(for: .seconds(2))) != nil else { return }
+                loadHistory()
+            }
+        }
     }
 
     // MARK: - Empty State
@@ -238,21 +241,5 @@ struct ConsoleRunHistoryView: View {
             try? FileManager.default.removeItem(at: logURL)
         }
         RunLogStore.save(history, for: program.name, in: program.bottle.url)
-    }
-
-    // MARK: - Refresh Timer
-
-    private func startRefreshTimer() {
-        stopRefreshTimer()
-        refreshTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { _ in
-            Task { @MainActor in
-                loadHistory()
-            }
-        }
-    }
-
-    private func stopRefreshTimer() {
-        refreshTimer?.invalidate()
-        refreshTimer = nil
     }
 }

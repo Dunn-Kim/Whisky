@@ -37,7 +37,6 @@ struct ConsoleLogView: View {
     @State private var currentExitCode: Int32?
     @State private var isStillRunning: Bool = false
     @State private var lastFileOffset: UInt64 = 0
-    @State private var refreshTimer: Timer?
 
     /// Regex patterns that indicate WINEDEBUG output.
     private static let wineDebugPatterns: [String] = [
@@ -58,12 +57,13 @@ struct ConsoleLogView: View {
             actionBar
         }
         .onAppear { loadLog() }
-        .onDisappear { stopRefreshTimer() }
         .task {
             isStillRunning = runEntry.isRunning
             currentExitCode = runEntry.exitCode
-            if runEntry.isRunning {
-                startRefreshTimer()
+            // Live-tail once a second until the process exits (loadNewContent clears isStillRunning).
+            while isStillRunning {
+                guard (try? await Task.sleep(for: .seconds(1))) != nil else { return }
+                loadNewContent()
             }
         }
     }
@@ -359,7 +359,6 @@ extension ConsoleLogView {
         if let updated = history.entries.first(where: { $0.id == runEntry.id }), !updated.isRunning {
             isStillRunning = false
             currentExitCode = updated.exitCode
-            stopRefreshTimer()
         }
     }
 
@@ -419,20 +418,6 @@ extension ConsoleLogView {
                 // Best-effort export
             }
         }
-    }
-
-    func startRefreshTimer() {
-        stopRefreshTimer()
-        refreshTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
-            Task { @MainActor in
-                loadNewContent()
-            }
-        }
-    }
-
-    func stopRefreshTimer() {
-        refreshTimer?.invalidate()
-        refreshTimer = nil
     }
 }
 
