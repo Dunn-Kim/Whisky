@@ -20,7 +20,7 @@ import Foundation
 
 /// Loads and validates crash pattern and remediation action definitions from JSON resources.
 ///
-/// Pattern and remediation definitions are stored as versioned JSON files in the
+/// Pattern and remediation definitions are stored as JSON files in the
 /// SPM resource bundle. The loader validates structure at load time and fails
 /// fast in debug builds.
 public enum PatternLoader {

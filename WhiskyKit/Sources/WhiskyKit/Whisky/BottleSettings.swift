@@ -794,7 +794,6 @@ public struct BottleSettings: Codable, Equatable {
 
     /// Populates the ``EnvironmentLayer/bottleManaged`` layer with settings-derived env vars.
     ///
-    /// This method replaces the direct dict mutation in the deprecated ``environmentVariables(wineEnv:)``.
     /// DLL override entries are returned separately for composition by ``DLLOverrideResolver``.
     ///
     /// - Parameters:

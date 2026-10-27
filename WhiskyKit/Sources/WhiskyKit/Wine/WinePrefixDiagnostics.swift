@@ -85,8 +85,6 @@ public struct WinePrefixDiagnostics: Codable, Sendable {
     /// Whether AppData/Local exists.
     public var localAppDataExists: Bool = false
 
-    // MARK: - Initialization
-
     // MARK: - Event Recording
 
     /// Records a diagnostic event with timestamp.
