@@ -424,19 +424,19 @@ extension ConfigView {
             .max { ($0.settings.lastDiagnosisDate ?? .distantPast) < ($1.settings.lastDiagnosisDate ?? .distantPast) }
     }
 
-    private func latestDiagnosis() async -> DiagnosisPresentation? {
+    private func latestDiagnosis(readLog: Bool) async -> DiagnosisPresentation? {
         guard let program = mostRecentlyDiagnosedProgram,
               let logURL = program.settings.lastLogFileURL
         else { return nil }
-        return await DiagnosisPresentation.load(logURL: logURL, program: program)
+        return await DiagnosisPresentation.load(logURL: logURL, program: program, readLog: readLog)
     }
 
     func loadLatestDiagnosisAndExport() {
-        Task { exportPresentation = await latestDiagnosis() }
+        Task { exportPresentation = await latestDiagnosis(readLog: false) }
     }
 
     func loadLatestDiagnosisAndView() {
-        Task { crashPresentation = await latestDiagnosis() }
+        Task { crashPresentation = await latestDiagnosis(readLog: true) }
     }
 }
 
@@ -448,13 +448,13 @@ struct DiagnosisPresentation: Identifiable {
     let program: Program
     let logText: String
 
-    /// Classifies the log at `logURL` and reads its text, or `nil` when nothing in it classifies.
-    static func load(logURL: URL, program: Program) async -> DiagnosisPresentation? {
+    /// Classifies the log at `logURL` and, when `readLog`, reads its text; `nil` when nothing in it classifies.
+    static func load(logURL: URL, program: Program, readLog: Bool = true) async -> DiagnosisPresentation? {
         guard let diagnosis = await Wine.classifyLastRun(logFileURL: logURL, exitCode: 1) else { return nil }
         return DiagnosisPresentation(
             diagnosis: diagnosis,
             program: program,
-            logText: (try? String(contentsOf: logURL, encoding: .utf8)) ?? ""
+            logText: readLog ? (try? String(contentsOf: logURL, encoding: .utf8)) ?? "" : ""
         )
     }
 }
