@@ -45,10 +45,7 @@ struct DiagnosticExportSheet: View {
     }
 
     private var suggestedFilename: String {
-        let dateString = DiagnosticExporter.formatDateForFilename(Date())
-        let bottleName = DiagnosticExporter.sanitizeName(bottle.settings.name)
-        let programName = DiagnosticExporter.sanitizeName(program.name)
-        return "Whisky-Diagnostics-\(bottleName)-\(programName)-\(dateString).zip"
+        DiagnosticExporter.zipFilename(bottleName: bottle.settings.name, programName: program.name, date: Date())
     }
 
     var body: some View {

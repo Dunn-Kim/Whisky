@@ -28,17 +28,9 @@ public struct ExportOptions: Sendable {
     /// Whether to include the full log file in the ZIP export.
     public var includeFullLog: Bool
 
-    /// Number of lines to include in the tail log excerpt.
-    public var tailLineCount: Int
-
-    public init(
-        includeSensitiveDetails: Bool = false,
-        includeFullLog: Bool = true,
-        tailLineCount: Int = 500
-    ) {
+    public init(includeSensitiveDetails: Bool = false, includeFullLog: Bool = true) {
         self.includeSensitiveDetails = includeSensitiveDetails
         self.includeFullLog = includeFullLog
-        self.tailLineCount = tailLineCount
     }
 }
 
@@ -69,15 +61,52 @@ public enum DiagnosticExporter {
         logFileURL: URL?,
         options: ExportOptions = ExportOptions()
     ) async -> URL {
-        let context = ZIPExportContext(
-            diagnosis: diagnosis,
-            bottle: bottle,
-            program: program,
-            logFileURL: logFileURL,
-            options: options
+        let name = "Whisky-Diagnostics-\(sanitizeName(bottle.settings.name))-\(sanitizeName(program.name))"
+        let tempDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let contentDir = tempDir.appendingPathComponent(name, isDirectory: true)
+        let zipURL = tempDir.appendingPathComponent(
+            zipFilename(bottleName: bottle.settings.name, programName: program.name, date: Date())
         )
 
-        return await buildZIPArchive(context: context)
+        let report = generateMarkdownReport(diagnosis: diagnosis, bottle: bottle)
+        let files: [(name: String, text: String)] = [
+            ("report.md", report),
+            ("env.json", generateEnvironmentJSON(bottle: bottle, options: options)),
+            ("bottle-settings.json", bottleSettingsSummary(bottle: bottle)),
+            ("program-settings.json", programSettingsSummary(program: program, options: options))
+        ]
+        let systemInfo = await generateSystemInfoJSON()
+
+        await Task.detached(priority: .utility) {
+            do {
+                try FileManager.default.createDirectory(at: contentDir, withIntermediateDirectories: true)
+                let crashEncoder = JSONEncoder()
+                crashEncoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+                crashEncoder.dateEncodingStrategy = .iso8601
+                try crashEncoder.encode(CrashDiagnosisCodableWrapper(diagnosis))
+                    .write(to: contentDir.appendingPathComponent("crash.json"))
+                for (fileName, text) in files {
+                    try text.write(to: contentDir.appendingPathComponent(fileName), atomically: true, encoding: .utf8)
+                }
+                writeLogFiles(contentDir: contentDir, logFileURL: logFileURL, options: options)
+                try systemInfo.write(
+                    to: contentDir.appendingPathComponent("system.json"), atomically: true, encoding: .utf8
+                )
+            } catch {
+                // Best effort
+            }
+            compressZIP(from: contentDir, to: zipURL)
+            try? FileManager.default.removeItem(at: contentDir)
+        }.value
+
+        return zipURL
+    }
+
+    /// The default file name of a diagnostic ZIP export.
+    public static func zipFilename(bottleName: String, programName: String, date: Date) -> String {
+        "Whisky-Diagnostics-\(sanitizeName(bottleName))-\(sanitizeName(programName))"
+            + "-\(formatDateForFilename(date)).zip"
     }
 
     // MARK: - Markdown Export
@@ -277,93 +306,13 @@ public enum DiagnosticExporter {
 // MARK: - DiagnosticExporter ZIP Building
 
 extension DiagnosticExporter {
-    @MainActor
-    fileprivate static func buildZIPArchive(context: ZIPExportContext) async -> URL {
-        let bottleName = sanitizeName(context.bottle.settings.name)
-        let programName = sanitizeName(context.program.name)
-        let dateString = formatDateForFilename(Date())
-        let zipFilename = "Whisky-Diagnostics-\(bottleName)-\(programName)-\(dateString).zip"
+    fileprivate static func writeLogFiles(contentDir: URL, logFileURL: URL?, options: ExportOptions) {
+        guard let logURL = logFileURL else { return }
 
-        let tempDir = FileManager.default.temporaryDirectory
-            .appendingPathComponent(UUID().uuidString, isDirectory: true)
-        let contentDir = tempDir.appendingPathComponent(
-            "Whisky-Diagnostics-\(bottleName)-\(programName)",
-            isDirectory: true
-        )
-        let zipURL = tempDir.appendingPathComponent(zipFilename)
-
-        let content = await prepareZIPContent(context: context)
-
-        await Task.detached(priority: .utility) {
-            writeZIPContent(content: content, contentDir: contentDir, context: context)
-            compressZIP(from: contentDir, to: zipURL)
-            try? FileManager.default.removeItem(at: contentDir)
-        }.value
-
-        return zipURL
-    }
-
-    @MainActor
-    fileprivate static func prepareZIPContent(context: ZIPExportContext) async -> ZIPContent {
-        await ZIPContent(
-            reportMarkdown: generateMarkdownReport(diagnosis: context.diagnosis, bottle: context.bottle),
-            bottleSummary: bottleSettingsSummary(bottle: context.bottle),
-            programSummary: programSettingsSummary(program: context.program, options: context.options),
-            systemInfo: generateSystemInfoJSON(),
-            environmentJSON: generateEnvironmentJSON(bottle: context.bottle, options: context.options)
-        )
-    }
-
-    fileprivate static func writeZIPContent(content: ZIPContent, contentDir: URL, context: ZIPExportContext) {
-        do {
-            try FileManager.default.createDirectory(at: contentDir, withIntermediateDirectories: true)
-            try content.reportMarkdown.write(
-                to: contentDir.appendingPathComponent("report.md"),
-                atomically: true,
-                encoding: .utf8
-            )
-
-            let crashEncoder = JSONEncoder()
-            crashEncoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-            crashEncoder.dateEncodingStrategy = .iso8601
-            let crashData = try crashEncoder.encode(CrashDiagnosisCodableWrapper(context.diagnosis))
-            try crashData.write(to: contentDir.appendingPathComponent("crash.json"))
-
-            try content.environmentJSON.write(
-                to: contentDir.appendingPathComponent("env.json"),
-                atomically: true,
-                encoding: .utf8
-            )
-            try content.bottleSummary.write(
-                to: contentDir.appendingPathComponent("bottle-settings.json"),
-                atomically: true,
-                encoding: .utf8
-            )
-            try content.programSummary.write(
-                to: contentDir.appendingPathComponent("program-settings.json"),
-                atomically: true,
-                encoding: .utf8
-            )
-
-            writeLogFiles(contentDir: contentDir, context: context)
-
-            try content.systemInfo.write(
-                to: contentDir.appendingPathComponent("system.json"),
-                atomically: true,
-                encoding: .utf8
-            )
-        } catch {
-            // Best effort
-        }
-    }
-
-    fileprivate static func writeLogFiles(contentDir: URL, context: ZIPExportContext) {
-        guard let logURL = context.logFileURL else { return }
-
-        if context.options.includeFullLog,
+        if options.includeFullLog,
            FileManager.default.fileExists(atPath: logURL.path(percentEncoded: false)) {
             if let logContent = try? String(contentsOf: logURL, encoding: .utf8) {
-                let redacted = context.options.includeSensitiveDetails ? logContent
+                let redacted = options.includeSensitiveDetails ? logContent
                     : Redactor.redactLogText(logContent)
                 try? redacted.write(
                     to: contentDir.appendingPathComponent("wine.log"),
@@ -374,9 +323,9 @@ extension DiagnosticExporter {
         }
 
         let tailText = StabilityDiagnostics.tailOfLogFile(
-            logURL, lineCount: context.options.tailLineCount, maxBytes: 256 * 1_024
+            logURL, lineCount: 500, maxBytes: 256 * 1_024
         )
-        let redactedTail = context.options.includeSensitiveDetails ? tailText
+        let redactedTail = options.includeSensitiveDetails ? tailText
             : Redactor.redactLogText(tailText)
         try? redactedTail.write(
             to: contentDir.appendingPathComponent("wine.tail.log"),
@@ -397,22 +346,6 @@ extension DiagnosticExporter {
         ]
         try? process.run()
         process.waitUntilExit()
-    }
-
-    fileprivate struct ZIPExportContext {
-        let diagnosis: CrashDiagnosis
-        let bottle: Bottle
-        let program: Program
-        let logFileURL: URL?
-        let options: ExportOptions
-    }
-
-    fileprivate struct ZIPContent {
-        let reportMarkdown: String
-        let bottleSummary: String
-        let programSummary: String
-        let systemInfo: String
-        let environmentJSON: String
     }
 }
 
