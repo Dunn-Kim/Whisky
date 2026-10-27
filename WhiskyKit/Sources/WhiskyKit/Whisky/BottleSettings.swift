@@ -1104,46 +1104,6 @@ public struct BottleSettings: Codable, Equatable {
             builder.set("SDL_GAMECONTROLLER_USE_BUTTON_LABELS", "0", layer: .bottleManaged)
         }
     }
-
-    // MARK: - Deprecated Environment Variable API
-
-    /// Populates a Wine environment dictionary based on these settings.
-    ///
-    /// - Parameter wineEnv: The environment dictionary to populate.
-    ///   Existing values may be modified or removed based on settings.
-    @available(*, deprecated, message: "Use EnvironmentBuilder layer populators instead")
-    public func environmentVariables(wineEnv: inout [String: String]) {
-        var builder = EnvironmentBuilder()
-
-        // Call layer populators
-        let managedOverrides = populateBottleManagedLayer(builder: &builder)
-        let launcherOverrides = populateLauncherManagedLayer(builder: &builder)
-        populateInputCompatibilityLayer(builder: &builder)
-
-        // Resolve and merge
-        let (resolved, _) = builder.resolve()
-
-        // Handle explicit key removals that the builder encoded as nil entries.
-        // Since resolve() omits removed keys, we must also remove them from the caller's dict.
-        if enhancedSync == .none, MacOSVersion.current < .sequoia15_4 {
-            wineEnv.removeValue(forKey: "WINEESYNC")
-            wineEnv.removeValue(forKey: "WINEMSYNC")
-        }
-
-        // Merge resolved values into caller's dict (new values overwrite existing)
-        wineEnv.merge(resolved) { _, new in new }
-
-        // Compose WINEDLLOVERRIDES via DLLOverrideResolver
-        let resolver = DLLOverrideResolver(
-            managed: managedOverrides + launcherOverrides,
-            bottleCustom: dllOverrides,
-            programCustom: []
-        )
-        let (overrideString, _) = resolver.resolve()
-        if !overrideString.isEmpty {
-            wineEnv["WINEDLLOVERRIDES"] = overrideString
-        }
-    }
 }
 
 // swiftlint:enable type_body_length

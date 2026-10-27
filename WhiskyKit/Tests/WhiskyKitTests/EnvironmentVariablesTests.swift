@@ -20,6 +20,21 @@
 @testable import WhiskyKit
 import XCTest
 
+extension BottleSettings {
+    /// Resolved bottle + launcher env (and composed WINEDLLOVERRIDES) merged into `wineEnv`.
+    func environmentVariables(wineEnv: inout [String: String]) {
+        var builder = EnvironmentBuilder()
+        let managed = populateBottleManagedLayer(builder: &builder)
+        let launcher = populateLauncherManagedLayer(builder: &builder)
+        populateInputCompatibilityLayer(builder: &builder)
+        wineEnv.merge(builder.resolve().0) { _, new in new }
+        let overrides = DLLOverrideResolver(
+            managed: managed + launcher, bottleCustom: dllOverrides, programCustom: []
+        ).resolve().0
+        if !overrides.isEmpty { wineEnv["WINEDLLOVERRIDES"] = overrides }
+    }
+}
+
 // swiftlint:disable:next type_body_length
 final class EnvironmentVariablesTests: XCTestCase {
     // MARK: - DXVK Environment Variables
