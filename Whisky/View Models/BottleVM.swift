@@ -28,10 +28,6 @@ enum BottleCreationError: LocalizedError, Equatable {
     /// The Wine runtime (WhiskyWine) is not installed, so the prefix can't be
     /// initialized. Surfaced with a "Run Setup" action in the failure alert.
     case runtimeMissing
-    /// The chosen location failed pre-flight validation. Carries the already
-    /// localized, user-facing message (built at the throw site) since the alert
-    /// displays `errorDescription` verbatim.
-    case locationUnsuitable(message: String)
 
     var errorDescription: String? {
         switch self {
@@ -39,14 +35,12 @@ enum BottleCreationError: LocalizedError, Equatable {
             String(localized: "bottle.creation.error.persistenceSaveFailed")
         case .runtimeMissing:
             String(localized: "bottle.creation.error.runtimeMissing")
-        case let .locationUnsuitable(message):
-            message
         }
     }
 }
 
 /// Why a bottle location was refused, phrased for the user, or `nil` when it is
-/// usable. Shared so the creation sheet and the failure alert cannot drift.
+/// usable.
 func bottleLocationRefusal(_ result: BottleLocationValidation.ValidationResult) -> String? {
     switch result {
     case .valid:
@@ -147,13 +141,6 @@ final class BottleVM: ObservableObject {
             // failure from the wine invocation (issue #61).
             guard WhiskyWineInstaller.isWhiskyWineInstalled() else {
                 throw BottleCreationError.runtimeMissing
-            }
-
-            // Pre-flight the chosen location before creating anything, so an
-            // unwritable or near-full destination surfaces a clear error up
-            // front instead of a cryptic late wineboot failure (issue #61).
-            if let refusal = bottleLocationRefusal(BottleLocationValidation.validate(at: request.bottleURL)) {
-                throw BottleCreationError.locationUnsuitable(message: refusal)
             }
 
             try FileManager.default.createDirectory(at: request.newBottleDir, withIntermediateDirectories: true)

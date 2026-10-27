@@ -80,59 +80,11 @@ struct BottleActionBar: View {
                 panel.directoryURL = bottle.url.appending(path: "drive_c")
                 panel.begin { result in
                     programLoading = true
-                    Task(priority: .userInitiated) {
-                        if result == .OK {
-                            if let url = panel.urls.first {
-                                do {
-                                    // Auto-detect launcher and apply fixes if compatibility mode enabled
-                                    // This completes synchronously on MainActor, ensuring settings are
-                                    // persisted before Wine.runProgram() reads them
-                                    LauncherFixes.detectAndApply(from: url, for: bottle)
-
-                                    if url.pathExtension == "bat" {
-                                        try await Wine.runBatchFile(url: url, bottle: bottle)
-                                        await MainActor.run {
-                                            withAnimation {
-                                                toast = ToastData(
-                                                    message: String(
-                                                        localized: "status.launched \(url.lastPathComponent)"
-                                                    ),
-                                                    style: .success
-                                                )
-                                            }
-                                        }
-                                    } else {
-                                        // Through Program, not Wine.runProgram, so the executable's
-                                        // saved settings (locale, arguments, overrides) apply.
-                                        let result = await bottle.program(at: url)
-                                            .launchWithUserMode(useTerminal: false)
-                                        withAnimation {
-                                            toast = result.toastData
-                                        }
-                                    }
-                                } catch {
-                                    let errDesc = error.localizedDescription
-                                    await MainActor.run {
-                                        withAnimation {
-                                            toast = ToastData(
-                                                message: String(
-                                                    localized: "status.launchFailed \(errDesc)"
-                                                ),
-                                                style: .error,
-                                                autoDismiss: false
-                                            )
-                                        }
-                                    }
-                                }
-                                await MainActor.run {
-                                    programLoading = false
-                                }
-                            }
-                        } else {
-                            await MainActor.run {
-                                programLoading = false
-                            }
+                    Task(priority: .userInitiated) { @MainActor in
+                        if result == .OK, let url = panel.urls.first {
+                            toast = await bottle.run(fileAt: url).toastData
                         }
+                        programLoading = false
                         await onLaunch()
                     }
                 }

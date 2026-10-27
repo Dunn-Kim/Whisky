@@ -62,10 +62,7 @@ struct WhiskyMenuBarView: View {
     /// settings and are always loaded, so they're the right source here.
     private func bottleMenu(_ bottle: Bottle) -> some View {
         Menu(bottle.settings.name) {
-            let pins = bottle.settings.pins.filter { pin in
-                guard let path = pin.url?.path(percentEncoded: false) else { return false }
-                return FileManager.default.fileExists(atPath: path)
-            }
+            let pins = QuickLaunch.availablePins().filter { $0.bottle === bottle }.map(\.pin)
             if pins.isEmpty {
                 Text("menubar.bottle.noPins")
             } else {

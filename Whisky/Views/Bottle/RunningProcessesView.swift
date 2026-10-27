@@ -117,12 +117,10 @@ struct RunningProcessesView: View {
         Button(String(localized: "process.action.stopBottle"), role: .destructive) {
             Task {
                 let count = await viewModel.stopBottle()
-                withAnimation {
-                    toast = ToastData(
-                        message: String(localized: "process.toast.stopped \(count)"),
-                        style: .success
-                    )
-                }
+                toast = ToastData(
+                    message: String(localized: "process.toast.stopped \(count)"),
+                    style: .success
+                )
             }
         }
         Button("button.cancel", role: .cancel) {}
@@ -145,12 +143,10 @@ struct RunningProcessesView: View {
         Button(String(localized: "process.action.forceStop"), role: .destructive) {
             Task {
                 let count = await viewModel.forceStopBottle()
-                withAnimation {
-                    toast = ToastData(
-                        message: String(localized: "process.toast.stopped \(count)"),
-                        style: .success
-                    )
-                }
+                toast = ToastData(
+                    message: String(localized: "process.toast.stopped \(count)"),
+                    style: .success
+                )
             }
         }
         Button("button.cancel", role: .cancel) {}

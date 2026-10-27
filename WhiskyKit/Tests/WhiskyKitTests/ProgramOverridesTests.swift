@@ -33,12 +33,6 @@ final class ProgramOverridesTests: XCTestCase {
         XCTAssertFalse(overrides.isEmpty)
     }
 
-    func testTaggedVerbsAloneStayEmpty() {
-        var overrides = ProgramOverrides()
-        overrides.taggedVerbs = ["vcrun2019"]
-        XCTAssertTrue(overrides.isEmpty)
-    }
-
     // MARK: - Codable Round-Trip
 
     func testCodableRoundTripAllNil() throws {

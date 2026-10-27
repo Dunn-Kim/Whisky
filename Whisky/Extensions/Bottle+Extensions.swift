@@ -98,21 +98,12 @@ extension Bottle {
 
     func getStartMenuPrograms() -> [Program] {
         let globalStartMenu = url
-            .appending(path: "drive_c")
-            .appending(path: "ProgramData")
-            .appending(path: "Microsoft")
-            .appending(path: "Windows")
-            .appending(path: "Start Menu")
+            .appending(path: "drive_c/ProgramData/Microsoft/Windows/Start Menu")
 
         let userStartMenu = url
-            .appending(path: "drive_c")
-            .appending(path: "users")
+            .appending(path: "drive_c/users")
             .appending(path: wineUsername)
-            .appending(path: "AppData")
-            .appending(path: "Roaming")
-            .appending(path: "Microsoft")
-            .appending(path: "Windows")
-            .appending(path: "Start Menu")
+            .appending(path: "AppData/Roaming/Microsoft/Windows/Start Menu")
 
         var startMenuPrograms: [Program] = []
         var linkURLs: [URL] = []
@@ -242,6 +233,31 @@ extension Bottle {
     }
 }
 
+extension Bottle {
+    /// Runs a picked file: a `.bat` through Wine directly, anything else through
+    /// its `Program` so the executable's saved settings (locale, arguments,
+    /// overrides) apply. `locale`, when given, is saved to that program first.
+    /// Launcher fixes are applied before the launch reads the settings.
+    @MainActor
+    func run(fileAt url: URL, locale: Locales? = nil) async -> LaunchResult {
+        LauncherFixes.detectAndApply(from: url, for: self)
+        let name = url.lastPathComponent
+        if url.pathExtension == "bat" {
+            do {
+                try await Wine.runBatchFile(url: url, bottle: self)
+                return .launchedSuccessfully(programName: name)
+            } catch {
+                return .launchFailed(programName: name, errorDescription: error.localizedDescription)
+            }
+        }
+        let program = program(at: url)
+        if let locale, program.settings.locale != locale {
+            program.settings.locale = locale
+        }
+        return await program.launchWithUserMode(useTerminal: false)
+    }
+}
+
 extension Program {
     /// A launch from a click: launches, in Terminal when `useTerminal`. That
     /// defaults to Shift, read at the call, before anything async, so it is the
@@ -254,37 +270,6 @@ extension Program {
         Task {
             await completion(launchWithUserMode(useTerminal: useTerminal))
         }
-    }
-}
-
-extension TerminalApp {
-    /// Has the preferred terminal `source` `script`, written to a temp `.sh`
-    /// tracked for cleanup. Throws when the script can't be written; an
-    /// AppleScript failure is shown as the run-error alert naming `subject`.
-    @discardableResult
-    static func runScript(_ script: String, namePrefix: String, subject: String) async throws -> URL {
-        let scriptURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent("\(namePrefix)-\(UUID().uuidString).sh")
-        try script.write(to: scriptURL, atomically: true, encoding: .utf8)
-        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: scriptURL.path)
-        TempFileTracker.shared.register(file: scriptURL)
-
-        var error: NSDictionary?
-        NSAppleScript(source: preferred.generateAppleScript(for: scriptURL.path))?.executeAndReturnError(&error)
-        if let error {
-            Logger.wineKit.error("Failed to run terminal script \(error)")
-            if let description = error["NSAppleScriptErrorMessage"] as? String {
-                await MainActor.run {
-                    let alert = NSAlert()
-                    alert.messageText = String(localized: "alert.message")
-                    alert.informativeText = String(localized: "alert.info") + " \(subject): " + description
-                    alert.alertStyle = .critical
-                    alert.addButton(withTitle: String(localized: "button.ok"))
-                    alert.runModal()
-                }
-            }
-        }
-        return scriptURL
     }
 }
 

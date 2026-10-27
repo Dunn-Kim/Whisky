@@ -163,27 +163,23 @@ struct BottleListEntry: View {
                                         bottleAt: bottle.url, to: url, registry: BottleVM.shared
                                     )
                                     await MainActor.run {
-                                        withAnimation {
-                                            toast = ToastData(
-                                                message: String(
-                                                    format: String(localized: "status.exportSuccess %@"),
-                                                    bottle.settings.name
-                                                ),
-                                                style: .success
-                                            )
-                                        }
+                                        toast = ToastData(
+                                            message: String(
+                                                format: String(localized: "status.exportSuccess %@"),
+                                                bottle.settings.name
+                                            ),
+                                            style: .success
+                                        )
                                     }
                                 } catch {
                                     await MainActor.run {
-                                        withAnimation {
-                                            toast = ToastData(
-                                                message: String(
-                                                    format: String(localized: "status.exportFailed %@"),
-                                                    error.localizedDescription
-                                                ),
-                                                style: .error
-                                            )
-                                        }
+                                        toast = ToastData(
+                                            message: String(
+                                                format: String(localized: "status.exportFailed %@"),
+                                                error.localizedDescription
+                                            ),
+                                            style: .error
+                                        )
                                     }
                                 }
                             }
@@ -333,28 +329,24 @@ extension View {
                         )
                         await MainActor.run {
                             finished(newURL)
-                            withAnimation {
-                                toast.wrappedValue = ToastData(
-                                    message: String(
-                                        format: String(localized: "status.duplicateSuccess %@"),
-                                        newName
-                                    ),
-                                    style: .success
-                                )
-                            }
+                            toast.wrappedValue = ToastData(
+                                message: String(
+                                    format: String(localized: "status.duplicateSuccess %@"),
+                                    newName
+                                ),
+                                style: .success
+                            )
                         }
                     } catch {
                         await MainActor.run {
                             finished(nil)
-                            withAnimation {
-                                toast.wrappedValue = ToastData(
-                                    message: String(
-                                        format: String(localized: "status.duplicateFailed %@"),
-                                        error.localizedDescription
-                                    ),
-                                    style: .error
-                                )
-                            }
+                            toast.wrappedValue = ToastData(
+                                message: String(
+                                    format: String(localized: "status.duplicateFailed %@"),
+                                    error.localizedDescription
+                                ),
+                                style: .error
+                            )
                         }
                     }
                 }

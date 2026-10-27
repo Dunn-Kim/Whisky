@@ -50,7 +50,6 @@ struct ProgramOverrideSettingsView: View {
             inputGroup
             displayGroup
             dllOverridesGroup
-            winetricksSection
             resetButton
         }
         diagnosticsSection
@@ -491,45 +490,6 @@ struct ProgramOverrideSettingsView: View {
         }
     }
 
-    // MARK: - Winetricks Verbs Section (Read-Only)
-
-    private var winetricksSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("program.overrides.winetricks.title")
-                .font(.headline)
-            Text("program.overrides.winetricks.subtitle")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            let verbs = installedVerbs
-            if verbs.isEmpty {
-                Text("program.overrides.winetricks.none")
-                    .foregroundStyle(.secondary)
-                    .font(.callout)
-            } else {
-                ForEach(verbs, id: \.self) { verb in
-                    HStack {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundStyle(.green)
-                            .font(.caption)
-                        Text(verb)
-                            .font(.system(.body, design: .monospaced))
-                        Spacer()
-                        Toggle(
-                            "program.overrides.winetricks.usedByProgram",
-                            isOn: verbTagBinding(for: verb)
-                        )
-                        .toggleStyle(.checkbox)
-                        .labelsHidden()
-                        Text("program.overrides.winetricks.usedByProgram")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
-        }
-    }
-
     // MARK: - Reset Button
 
     private var resetButton: some View {
@@ -599,11 +559,6 @@ struct ProgramOverrideSettingsView: View {
 
     private var hasDLLOverride: Bool {
         program.settings.overrides?.dllOverrides != nil
-    }
-
-    private var installedVerbs: [String] {
-        let cache = WinetricksVerbCache.load(from: bottle.url)
-        return (cache?.installedVerbs ?? []).sorted()
     }
 
     /// The backend this program launches with and the DLL overrides it manages, chosen the way
@@ -776,27 +731,6 @@ struct ProgramOverrideSettingsView: View {
         Binding(
             get: { program.settings.overrides?.customResolutionHeight ?? 1_080 },
             set: { program.settings.overrides?.customResolutionHeight = min(max($0, 480), 4_320) }
-        )
-    }
-
-    private func verbTagBinding(for verb: String) -> Binding<Bool> {
-        Binding(
-            get: {
-                program.settings.overrides?.taggedVerbs?.contains(verb) ?? false
-            },
-            set: { isTagged in
-                ensureOverrides()
-                if program.settings.overrides?.taggedVerbs == nil {
-                    program.settings.overrides?.taggedVerbs = []
-                }
-                if isTagged {
-                    if !(program.settings.overrides?.taggedVerbs?.contains(verb) ?? false) {
-                        program.settings.overrides?.taggedVerbs?.append(verb)
-                    }
-                } else {
-                    program.settings.overrides?.taggedVerbs?.removeAll { $0 == verb }
-                }
-            }
         )
     }
 

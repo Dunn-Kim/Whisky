@@ -120,10 +120,7 @@ struct ConfigView: View {
                 }
                 .disabled(mostRecentlyDiagnosedProgram == nil)
 
-                TroubleshootingHistoryView(
-                    bottleURL: bottle.url,
-                    programURL: nil
-                )
+                TroubleshootingHistoryView(bottleURL: bottle.url)
             }
             Section("Stability") {
                 Button("Generate Stability Diagnostics") {

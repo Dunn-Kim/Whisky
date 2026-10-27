@@ -60,7 +60,6 @@ struct ProgramsView: View {
                                 let existing = Set(bottle.settings.blocklist)
                                 let additions = selectedPrograms.map(\.url).filter { !existing.contains($0) }
                                 bottle.settings.blocklist.append(contentsOf: additions)
-                                blocklist = bottle.settings.blocklist
                             }
                             .labelStyle(.titleAndIcon)
                         } else {
@@ -71,7 +70,6 @@ struct ProgramsView: View {
                                     if !bottle.settings.blocklist.contains(program.url) {
                                         bottle.settings.blocklist.append(program.url)
                                     }
-                                    blocklist = bottle.settings.blocklist
                                 }
                                 .labelStyle(.titleAndIcon)
                             }
@@ -79,7 +77,6 @@ struct ProgramsView: View {
                     }
                 }
             }
-            .animation(.whiskyDefault, value: sortedPrograms)
 
             Section("program.blocklist", isExpanded: $isBlocklistExpanded) {
                 List(searchedBlocklists, id: \.self, selection: $selectedBlockitems) { blockedUrl in
@@ -90,14 +87,12 @@ struct ProgramsView: View {
                         if selectedBlockitems.contains(blockedUrl) {
                             Button("program.remove.selected.blocklist", systemImage: "hand.raised") {
                                 bottle.settings.blocklist.removeAll(where: { selectedBlockitems.contains($0) })
-                                blocklist = bottle.settings.blocklist
                             }
                             .labelStyle(.titleAndIcon)
                             .symbolVariant(.slash)
                         } else {
                             Button("program.remove.blocklist", systemImage: "hand.raised") {
                                 bottle.settings.blocklist.removeAll(where: { $0 == blockedUrl })
-                                blocklist = bottle.settings.blocklist
                             }
                             .labelStyle(.titleAndIcon)
                             .symbolVariant(.slash)
@@ -251,20 +246,16 @@ struct ProgramItemView: View {
         let clipResult = program.performClipboardCheck()
         if case let .autoCleared(contentType, sizeBytes) = clipResult {
             let sizeKB = String(format: "%.1f", Double(sizeBytes) / 1_024.0)
-            withAnimation {
-                toast = ToastData(
-                    message: String(localized: "clipboard.cleared.toast")
-                        .replacingOccurrences(of: "{contentType}", with: contentType)
-                        .replacingOccurrences(of: "{sizeKB}", with: sizeKB),
-                    style: .info
-                )
-            }
+            toast = ToastData(
+                message: String(localized: "clipboard.cleared.toast")
+                    .replacingOccurrences(of: "{contentType}", with: contentType)
+                    .replacingOccurrences(of: "{sizeKB}", with: sizeKB),
+                style: .info
+            )
         }
 
         program.launchFromUI(useTerminal: useTerminal) { result in
-            withAnimation {
-                toast = result.toastData
-            }
+            toast = result.toastData
             isLaunching = false
         }
     }

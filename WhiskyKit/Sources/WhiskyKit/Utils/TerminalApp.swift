@@ -18,6 +18,7 @@
 
 import AppKit
 import Foundation
+import os.log
 
 /// Supported terminal applications for running Wine commands.
 ///
@@ -80,6 +81,39 @@ public enum TerminalApp: String, CaseIterable, Identifiable {
         let preferred = TerminalApp(rawValue: rawValue) ?? .terminal
         // Fall back to Terminal if preferred is not installed
         return preferred.isInstalled ? preferred : .terminal
+    }
+
+    /// Has the preferred terminal `source` `script`, written to a temp `.sh`
+    /// tracked for cleanup. Throws when the script can't be written; an
+    /// AppleScript failure is shown as the run-error alert naming `subject`.
+    @discardableResult
+    public static func runScript(_ script: String, namePrefix: String, subject: String) async throws -> URL {
+        let scriptURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("\(namePrefix)-\(UUID().uuidString).sh")
+        try script.write(to: scriptURL, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: scriptURL.path)
+        TempFileTracker.shared.register(file: scriptURL)
+
+        var error: NSDictionary?
+        NSAppleScript(source: preferred.generateAppleScript(for: scriptURL.path))?.executeAndReturnError(&error)
+        if let error {
+            Logger.wineKit.error("Failed to run terminal script \(error)")
+            if let description = error["NSAppleScriptErrorMessage"] as? String {
+                await showError("\(subject): " + description)
+            }
+        }
+        return scriptURL
+    }
+
+    /// The critical "failed to open" alert, `detail` appended to the standard text.
+    @MainActor
+    public static func showError(_ detail: String) {
+        let alert = NSAlert()
+        alert.messageText = String(localized: "alert.message")
+        alert.informativeText = String(localized: "alert.info") + detail
+        alert.alertStyle = .critical
+        alert.addButton(withTitle: String(localized: "button.ok"))
+        alert.runModal()
     }
 
     /// Generates an AppleScript to run the given script file in this terminal.

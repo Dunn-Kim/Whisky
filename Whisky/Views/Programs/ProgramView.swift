@@ -157,9 +157,7 @@ struct ProgramView: View {
     private func launchProgram() {
         programLoading = true
         program.launchFromUI { result in
-            withAnimation {
-                toast = result.toastData
-            }
+            toast = result.toastData
             programLoading = false
         }
     }

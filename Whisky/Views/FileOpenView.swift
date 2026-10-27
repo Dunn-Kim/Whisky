@@ -91,46 +91,17 @@ struct FileOpenView: View {
         if let bottle = bottles.first(where: { $0.url == selection }) {
             let locale = locale
             Task(priority: .userInitiated) { @MainActor in
-                // Auto-detect launcher and apply fixes if compatibility mode enabled,
-                // persisting settings before the launch reads them
-                LauncherFixes.detectAndApply(from: fileURL, for: bottle)
-
-                var failure: String?
-                if fileURL.pathExtension == "bat" {
-                    do {
-                        try await Wine.runBatchFile(url: fileURL, bottle: bottle)
-                    } catch {
-                        failure = error.localizedDescription
-                    }
-                } else {
-                    // Through Program, not Wine.runProgram, so the executable's saved
-                    // settings (locale, arguments, overrides) apply as they do from
-                    // the program list.
-                    let program = bottle.program(at: fileURL)
-                    if program.settings.locale != locale {
-                        program.settings.locale = locale
-                    }
-                    if case let .launchFailed(_, errorDescription) = await program
-                        .launchWithUserMode(useTerminal: false) {
-                        failure = errorDescription
-                    }
-                }
+                let result = await bottle.run(fileAt: fileURL, locale: locale)
 
                 // Surface the failure on the presenting view's toast (the sheet
                 // dismisses immediately, so a local toast wouldn't be seen) —
                 // otherwise a launch error here, including DXMT's actionable
                 // payloadMissing, vanishes silently.
-                guard let failure else { return }
+                guard case let .launchFailed(_, failure) = result else { return }
                 logger.error(
                     "Failed to launch \(fileURL.lastPathComponent, privacy: .public): \(failure, privacy: .public)"
                 )
-                withAnimation {
-                    toast = ToastData(
-                        message: String(localized: "status.launchFailed \(failure)"),
-                        style: .error,
-                        autoDismiss: false
-                    )
-                }
+                toast = result.toastData
             }
             dismiss()
         } else {

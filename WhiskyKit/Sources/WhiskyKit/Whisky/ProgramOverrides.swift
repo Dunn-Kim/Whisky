@@ -97,23 +97,9 @@ public struct ProgramOverrides: Codable, Equatable, Sendable {
     /// Program-specific DLL overrides. `nil` inherits from bottle.
     public var dllOverrides: [DLLOverrideEntry]?
 
-    // MARK: - Winetricks Verb Tagging
-
-    /// Winetricks verbs tagged as "used by this program" for user organization.
-    ///
-    /// This is metadata only -- it does not change which verbs are installed in the prefix.
-    /// Verbs are installed at the bottle level; this field tracks which verbs the user
-    /// considers relevant to this specific program.
-    public var taggedVerbs: [String]?
-
     /// Returns `true` when all override fields are `nil`, meaning no overrides are active.
-    ///
-    /// Note: `taggedVerbs` is excluded from this check since it is organizational metadata,
-    /// not a settings override.
     public var isEmpty: Bool {
-        var settingsOnly = self
-        settingsOnly.taggedVerbs = nil
-        return settingsOnly == ProgramOverrides()
+        self == ProgramOverrides()
     }
 
     /// Creates a new ProgramOverrides with all fields set to `nil` (inherit everything).
@@ -144,6 +130,5 @@ public struct ProgramOverrides: Codable, Equatable, Sendable {
         self.customResolutionWidth = try container.decodeIfPresent(Int.self, forKey: .customResolutionWidth)
         self.customResolutionHeight = try container.decodeIfPresent(Int.self, forKey: .customResolutionHeight)
         self.dllOverrides = try container.decodeIfPresent([DLLOverrideEntry].self, forKey: .dllOverrides)
-        self.taggedVerbs = try container.decodeIfPresent([String].self, forKey: .taggedVerbs)
     }
 }

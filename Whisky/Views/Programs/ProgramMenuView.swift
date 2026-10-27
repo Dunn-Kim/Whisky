@@ -31,7 +31,7 @@ struct ProgramMenuView: View {
             LauncherFixes.detectAndApply(from: program.url, for: program.bottle)
             program.launchFromUI { result in
                 if case let .launchFailed(_, error) = result {
-                    program.showRunError(message: error)
+                    TerminalApp.showError("\(program.url.lastPathComponent): \(error)")
                 }
             }
         }

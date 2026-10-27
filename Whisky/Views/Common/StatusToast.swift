@@ -100,9 +100,7 @@ struct ToastModifier: ViewModifier {
                     }
                     .onTapGesture {
                         dismissTask?.cancel()
-                        withAnimation(.easeInOut(duration: 0.3)) {
-                            self.toast = nil
-                        }
+                        self.toast = nil
                     }
                 }
             }
@@ -119,9 +117,7 @@ struct ToastModifier: ViewModifier {
             guard !Task.isCancelled else { return }
             await MainActor.run {
                 if self.toast?.message == currentMessage {
-                    withAnimation(.easeInOut(duration: 0.3)) {
-                        self.toast = nil
-                    }
+                    self.toast = nil
                 }
             }
         }

@@ -26,20 +26,19 @@ import WhiskyKit
 /// export a session report.
 struct TroubleshootingHistoryView: View {
     let bottleURL: URL
-    let programURL: URL?
 
     @State private var history: TroubleshootingHistory = .init()
     @State private var expandedEntryId: UUID?
 
     var body: some View {
         Group {
-            if filteredEntries.isEmpty {
+            if history.recentEntries.isEmpty {
                 ContentUnavailableView(
                     String(localized: "troubleshooting.history.empty"),
                     systemImage: "clock.arrow.circlepath"
                 )
             } else {
-                ForEach(filteredEntries) { entry in
+                ForEach(history.recentEntries) { entry in
                     entryRow(entry)
                 }
             }
@@ -47,15 +46,6 @@ struct TroubleshootingHistoryView: View {
         .onAppear {
             history = TroubleshootingHistory.load(from: bottleURL)
         }
-    }
-
-    private var filteredEntries: [TroubleshootingHistoryEntry] {
-        let recent = history.recentEntries
-        if let programURL {
-            let programName = programURL.deletingPathExtension().lastPathComponent
-            return recent.filter { $0.programName == programName }
-        }
-        return recent
     }
 }
 

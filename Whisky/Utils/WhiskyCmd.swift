@@ -41,15 +41,7 @@ class WhiskyCmd {
                 if let error {
                     logger.error("Failed to install WhiskyCmd: \(error)")
                     if let description = error["NSAppleScriptErrorMessage"] as? String {
-                        await MainActor.run {
-                            let alert = NSAlert()
-                            alert.messageText = String(localized: "alert.message")
-                            alert.informativeText = String(localized: "alert.info")
-                                + description
-                            alert.alertStyle = .critical
-                            alert.addButton(withTitle: String(localized: "button.ok"))
-                            alert.runModal()
-                        }
+                        await TerminalApp.showError(description)
                     }
                 }
             }

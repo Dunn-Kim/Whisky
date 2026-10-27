@@ -111,9 +111,7 @@ struct PinView: View {
         }
 
         program.launchFromUI { result in
-            withAnimation {
-                toast = result.toastData
-            }
+            toast = result.toastData
         }
     }
 }
