@@ -19,27 +19,9 @@
 import Foundation
 
 extension FileManager {
-    func replaceDLLs(in destinationDirectory: URL, withContentsIn sourceDirectory: URL) throws {
-        let enumerator = FileManager.default.enumerator(
-            at: sourceDirectory, includingPropertiesForKeys: [.isRegularFileKey]
-        )
-
-        while let fileURL = enumerator?.nextObject() as? URL {
-            // Skip non-DLL entries and keep scanning. The enumerator is
-            // recursive, so it also yields subdirectory URLs and stray files
-            // (.DS_Store, license text). Using `return` here would abort the
-            // whole copy on the first such entry, silently leaving later DLLs
-            // uninstalled.
-            guard fileURL.pathExtension == "dll" else { continue }
-            let originalURL = destinationDirectory.appending(path: fileURL.lastPathComponent)
-            try FileManager.default.replaceFile(at: originalURL, with: fileURL)
-        }
-    }
-
-    /// Installs `sourceURL` at `destinationURL`, replacing any existing file —
-    /// unlike ``replaceFile(at:with:)``, the copy also happens
-    /// when the destination does not exist yet. A silently skipped install
-    /// would leave a translation layer half-deployed with no error.
+    /// Installs `sourceURL` at `destinationURL`, replacing any existing file;
+    /// the copy also happens when the destination does not exist yet. A silently
+    /// skipped install would leave a translation layer half-deployed with no error.
     ///
     /// The replace is non-destructive on failure: the source is copied to a
     /// sibling temp file first and only swapped into place once the copy
@@ -73,12 +55,5 @@ extension FileManager {
         }
         try installFile(at: destinationURL, from: sourceURL)
         return true
-    }
-
-    func replaceFile(at originalURL: URL, with replacementURL: URL) throws {
-        if fileExists(atPath: originalURL.path(percentEncoded: false)) {
-            try FileManager.default.removeItem(at: originalURL)
-            try FileManager.default.copyItem(at: replacementURL, to: originalURL)
-        }
     }
 }

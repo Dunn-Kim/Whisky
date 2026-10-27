@@ -73,6 +73,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Sparkle key, the `SU*` keys in `Info.plist` and the package are gone.
 
 ### Fixed
+- Enabling DXVK in a bottle now installs its DLLs into system32/syswow64 even
+  when the prefix lacks them, and no longer deletes and recopies every DLL on
+  each launch.
 - "Troubleshoot Audio..." in a program's settings did nothing: it posted a
   notification only the bottle's Audio section listens for, and that section
   is not on screen at the same time. It now opens the audio troubleshooting

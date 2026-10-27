@@ -671,8 +671,9 @@ public class Wine {
     /// Installs DXVK libraries into a bottle's Windows system directories.
     ///
     /// DXVK translates DirectX 9/10/11 calls to Vulkan, often providing better
-    /// performance than Wine's built-in DirectX implementation. This method copies
-    /// the DXVK DLL files to the bottle's system32 and syswow64 directories.
+    /// performance than Wine's built-in DirectX implementation. This method installs
+    /// the DXVK DLL files into the bottle's system32 and syswow64 directories,
+    /// rewriting only those whose contents differ.
     ///
     /// - Parameter bottle: The ``Bottle`` to install DXVK into.
     /// - Throws: An error if the DLL files cannot be copied.
@@ -681,14 +682,19 @@ public class Wine {
     ///   when DXVK is enabled in the bottle settings.
     @MainActor
     public static func enableDXVK(bottle: Bottle) throws {
-        try FileManager.default.replaceDLLs(
-            in: bottle.url.appending(path: "drive_c").appending(path: "windows").appending(path: "system32"),
-            withContentsIn: Wine.dxvkFolder.appending(path: "x64")
-        )
-        try FileManager.default.replaceDLLs(
-            in: bottle.url.appending(path: "drive_c").appending(path: "windows").appending(path: "syswow64"),
-            withContentsIn: Wine.dxvkFolder.appending(path: "x32")
-        )
+        let fileManager = FileManager.default
+        let windowsDir = bottle.url.appending(path: "drive_c").appending(path: "windows")
+        for (arch, systemDir) in [("x64", "system32"), ("x32", "syswow64")] {
+            let source = dxvkFolder.appending(path: arch)
+            let destination = windowsDir.appending(path: systemDir)
+            guard fileManager.fileExists(atPath: destination.path(percentEncoded: false)) else { continue }
+            let names = (try? fileManager.contentsOfDirectory(atPath: source.path(percentEncoded: false))) ?? []
+            for name in names where name.hasSuffix(".dll") {
+                try fileManager.installFileIfContentDiffers(
+                    at: destination.appending(path: name), from: source.appending(path: name)
+                )
+            }
+        }
     }
 
     /// Every DLL a translation backend may install natively into a prefix.
