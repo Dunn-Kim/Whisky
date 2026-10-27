@@ -243,11 +243,6 @@ extension BottleListEntry {
     }
 
     func showRemoveAlert(bottle: Bottle) {
-        let checkbox = NSButton(
-            checkboxWithTitle: String(localized: "button.removeAlert.checkbox"),
-            target: self,
-            action: nil
-        )
         let alert = NSAlert()
         alert.messageText = String(
             format: String(localized: "button.removeAlert.msg"),
@@ -259,10 +254,12 @@ extension BottleListEntry {
         delete.hasDestructiveAction = true
         alert.addButton(withTitle: String(localized: "button.removeAlert.cancel"))
         if bottle.isAvailable {
-            alert.accessoryView = checkbox
+            alert.showsSuppressionButton = true
+            alert.suppressionButton?.title = String(localized: "button.removeAlert.checkbox")
         }
 
         let response = alert.runModal()
+        let deleteFiles = alert.suppressionButton?.state == .on
 
         if response == .alertFirstButtonReturn {
             Task(priority: .userInitiated) {
@@ -270,7 +267,7 @@ extension BottleListEntry {
                     selected = nil
                 }
 
-                await bottle.remove(delete: checkbox.state == .on)
+                await bottle.remove(delete: deleteFiles)
             }
         }
     }

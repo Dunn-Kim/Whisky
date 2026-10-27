@@ -150,11 +150,6 @@ extension ContentView {
 extension ContentView {
     @MainActor
     func showProcessCloseAlert(for bottle: Bottle) {
-        let checkbox = NSButton(
-            checkboxWithTitle: String(localized: "bottle.close.remember"),
-            target: nil,
-            action: nil
-        )
         let alert = NSAlert()
         alert.messageText = String(localized: "bottle.close.confirm.title")
         alert.informativeText = String(localized: "bottle.close.confirm.message")
@@ -162,18 +157,19 @@ extension ContentView {
         alert.addButton(withTitle: String(localized: "bottle.close.keepRunning"))
         let stopButton = alert.addButton(withTitle: String(localized: "bottle.close.stopBottle"))
         stopButton.hasDestructiveAction = true
-        alert.accessoryView = checkbox
+        alert.showsSuppressionButton = true
+        alert.suppressionButton?.title = String(localized: "bottle.close.remember")
 
         let response = alert.runModal()
 
         if response == .alertFirstButtonReturn {
             // Keep Running (default)
-            if checkbox.state == .on {
+            if alert.suppressionButton?.state == .on {
                 bottle.settings.closeWithProcessesPolicy = .alwaysKeepRunning
             }
         } else if response == .alertSecondButtonReturn {
             // Stop Bottle
-            if checkbox.state == .on {
+            if alert.suppressionButton?.state == .on {
                 bottle.settings.closeWithProcessesPolicy = .alwaysStop
             }
             Wine.killBottle(bottle: bottle)
