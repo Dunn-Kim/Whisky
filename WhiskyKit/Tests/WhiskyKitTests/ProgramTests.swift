@@ -69,6 +69,7 @@ final class ProgramCoreTests: XCTestCase {
         let program = Program(url: programURL, bottle: bottle)
 
         XCTAssertEqual(program.id, programURL)
+        XCTAssertNotEqual(program, Program(url: otherURL, bottle: bottle))
         // Custom ==/hash compare the URL only
         let programs = [program, Program(url: programURL, bottle: bottle), Program(url: otherURL, bottle: bottle)]
         XCTAssertEqual(Set(programs).count, 2)

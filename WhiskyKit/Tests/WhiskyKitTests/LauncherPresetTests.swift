@@ -117,6 +117,13 @@ final class LauncherPresetTests: XCTestCase {
         XCTAssertNil(env["WINE_CPU_TOPOLOGY"], "Unread by the shipped runtime")
     }
 
+    func testZfGameFixDetails() {
+        // fixDetails() is what the UI shows; the overrides alone don't cover it.
+        XCTAssertEqual(
+            LauncherType.zfGame.fixDetails().first { $0.key == "DXVK_ASYNC" }?.value, "1"
+        )
+    }
+
     func testParadoxPreset() {
         let env = LauncherType.paradox.environmentOverrides()
 

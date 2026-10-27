@@ -49,6 +49,7 @@ final class BottleCoreTests: XCTestCase {
         let bottle = Bottle(bottleUrl: bottleURL)
 
         XCTAssertEqual(bottle.id, bottleURL)
+        XCTAssertNotEqual(bottle, Bottle(bottleUrl: otherURL))
         // Custom ==/hash compare the URL only
         XCTAssertEqual(Set([bottle, Bottle(bottleUrl: bottleURL), Bottle(bottleUrl: otherURL)]).count, 2)
     }

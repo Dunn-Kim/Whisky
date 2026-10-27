@@ -60,6 +60,7 @@ final class CrashClassifierPatternTests: XCTestCase {
             ("wine: Unhandled page fault on read access to 0x00000000 at address 0x7b012345", .coreCrashFatal, .high),
             ("err:d3d11:device_lost D3D11 device lost (DXGI_ERROR_DEVICE_REMOVED)", .graphics, .medium),
             ("EasyAntiCheat.exe: Fatal error - EasyAntiCheat is not installed", .antiCheatUnsupported, .high),
+            ("BattlEye Service: error initializing - BattlEye not supported", .antiCheatUnsupported, .high),
             (
                 "0024:err:module:import_dll Library mscoree.dll (which is needed by L\"app.exe\") not found",
                 .dependenciesLoading, .high

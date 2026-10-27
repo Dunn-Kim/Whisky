@@ -41,6 +41,8 @@ final class BottleLauncherConfigTests: XCTestCase {
         config.launcherLocale = .english
         config.gpuVendor = .amd
         config.networkTimeout = 90_000
+        config.autoEnableDXVK = false
+        config.gpuSpoofing = false
 
         // Encode
         let encoder = PropertyListEncoder()
@@ -56,6 +58,8 @@ final class BottleLauncherConfigTests: XCTestCase {
         XCTAssertEqual(decoded.launcherLocale, .english)
         XCTAssertEqual(decoded.gpuVendor, .amd)
         XCTAssertEqual(decoded.networkTimeout, 90_000)
+        XCTAssertFalse(decoded.autoEnableDXVK)
+        XCTAssertFalse(decoded.gpuSpoofing)
     }
 
     func testLauncherModeEnum() {

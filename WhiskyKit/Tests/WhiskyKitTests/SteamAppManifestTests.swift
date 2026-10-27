@@ -140,5 +140,9 @@ struct SteamAppManifestTests {
 
         let found = SteamAppManifest.findAppIdForProgram(at: exeDir.appending(path: "game.exe"))
         #expect(found == 4_576_510)
+
+        // The first loop pass: steam_appid.txt next to the exe wins over a parent's.
+        try Data("42\n".utf8).write(to: exeDir.appending(path: "steam_appid.txt"))
+        #expect(SteamAppManifest.findAppIdForProgram(at: exeDir.appending(path: "game.exe")) == 42)
     }
 }
