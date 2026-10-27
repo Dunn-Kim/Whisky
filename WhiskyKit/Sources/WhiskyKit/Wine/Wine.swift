@@ -141,28 +141,18 @@ public class Wine {
         )
     }
 
-    /// Runs a Wine server process with the given arguments and returns a stream of output.
+    /// A `wineserver <arg>` process with its output discarded, started from the binary's own folder.
     ///
-    /// The Wine server manages shared resources and state for all Wine processes in a bottle.
-    /// This method is typically used for administrative operations like killing all processes.
-    ///
-    /// - Parameters:
-    ///   - args: The command-line arguments to pass to wineserver.
-    ///   - bottle: The ``Bottle`` context in which to run the server process.
-    /// - Returns: An `AsyncStream` of ``ProcessOutput`` containing stdout, stderr, and lifecycle events.
-    /// - Throws: An error if the process cannot be started.
-    @MainActor
-    private static func runWineserverProcess(args: [String], bottle: Bottle) throws -> AsyncStream<ProcessOutput> {
-        let fileHandle = try makeFileHandle()
-        fileHandle.writeApplicationInfo()
-        fileHandle.writeInfo(for: bottle)
-
-        let wineserverEnvironment = constructWineEnvironment(for: bottle)
-
-        return try runProcess(
-            args: args, environment: wineserverEnvironment, executableURL: wineserverBinary,
-            fileHandle: fileHandle
-        )
+    /// Not run through ``runProcess``: kills and `-k0` probes have no output worth a log file.
+    static func makeWineserverProcess(_ arg: String, environment: [String: String]) -> Process {
+        let process = Process()
+        process.executableURL = wineserverBinary
+        process.arguments = [arg]
+        process.currentDirectoryURL = wineserverBinary.deletingLastPathComponent()
+        process.environment = environment
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+        return process
     }
 
     /// Runs a Windows executable within a Wine bottle.
@@ -646,12 +636,19 @@ public class Wine {
     /// - Note: This is intentionally non-blocking. Errors are logged but not propagated.
     @MainActor
     public static func killBottle(bottle: Bottle) {
-        Task {
-            do {
-                _ = try await collectOutput(runWineserverProcess(args: ["-k"], bottle: bottle))
-            } catch {
-                Logger.wineKit.error("Failed to kill bottle '\(bottle.settings.name)': \(error.localizedDescription)")
-            }
+        startKill(bottle: bottle)
+    }
+
+    @MainActor
+    @discardableResult
+    private static func startKill(bottle: Bottle) -> Process? {
+        let process = makeWineserverProcess("-k", environment: constructWineEnvironment(for: bottle))
+        do {
+            try process.run()
+            return process
+        } catch {
+            Logger.wineKit.error("Failed to kill bottle '\(bottle.settings.name)': \(error.localizedDescription)")
+            return nil
         }
     }
 
@@ -664,19 +661,7 @@ public class Wine {
     @MainActor
     public static func killBottleAndWait(bottle: Bottle) {
         let timeout: TimeInterval = 5
-        let process = Process()
-        process.executableURL = wineserverBinary
-        process.arguments = ["-k"]
-        process.currentDirectoryURL = wineserverBinary.deletingLastPathComponent()
-        process.environment = constructWineEnvironment(for: bottle, environment: [:])
-        process.standardOutput = FileHandle.nullDevice
-        process.standardError = FileHandle.nullDevice
-        do {
-            try process.run()
-        } catch {
-            Logger.wineKit.error("Failed to kill bottle '\(bottle.settings.name)': \(error.localizedDescription)")
-            return
-        }
+        guard let process = startKill(bottle: bottle) else { return }
         let deadline = Date().addingTimeInterval(timeout)
         while process.isRunning, Date() < deadline {
             Thread.sleep(forTimeInterval: 0.05)

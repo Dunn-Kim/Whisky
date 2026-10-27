@@ -37,17 +37,12 @@ public extension Wine {
     /// - Returns: `true` if the wineserver is active, `false` otherwise.
     @MainActor
     static func isWineserverRunning(for bottle: Bottle) async -> Bool {
-        // Deliberately does NOT go through runWineserverProcess: a -k0 probe
+        // Deliberately not the full launch path: a -k0 probe
         // only needs WINEPREFIX, while the full path builds the entire launch
         // environment and creates + retention-scans a log file per call — the
         // sidebar repeats this probe every 60 seconds for every visible bottle.
         let running: Bool = await withCheckedContinuation { continuation in
-            let process = Process()
-            process.executableURL = WhiskyWineInstaller.binFolder.appending(path: "wineserver")
-            process.arguments = ["-k0"]
-            process.environment = ["WINEPREFIX": bottle.url.path]
-            process.standardOutput = FileHandle.nullDevice
-            process.standardError = FileHandle.nullDevice
+            let process = makeWineserverProcess("-k0", environment: ["WINEPREFIX": bottle.url.path])
             process.terminationHandler = { probe in
                 continuation.resume(returning: probe.terminationStatus == 0)
             }
