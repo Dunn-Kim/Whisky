@@ -25,8 +25,6 @@ final class FlowDefinitionTests: XCTestCase {
     func testDecodesMinimalFlow() throws {
         let json = """
         {
-            "version": 1,
-            "categoryId": "graphics",
             "entryNodeId": "start",
             "nodes": {
                 "start": {
@@ -42,8 +40,6 @@ final class FlowDefinitionTests: XCTestCase {
         """
         let flow = try JSONDecoder().decode(FlowDefinition.self, from: Data(json.utf8))
 
-        XCTAssertEqual(flow.version, 1)
-        XCTAssertEqual(flow.categoryId, "graphics")
         XCTAssertEqual(flow.entryNodeId, "start")
         let node = try XCTUnwrap(flow.nodes["start"])
         XCTAssertEqual(node.type, .check)
@@ -54,11 +50,10 @@ final class FlowDefinitionTests: XCTestCase {
         // Absent optionals decode to nil rather than failing the parent decode
         XCTAssertNil(node.title)
         XCTAssertNil(node.fixId)
-        XCTAssertNil(node.fixPreview)
         XCTAssertNil(node.fragmentRef)
     }
 
-    func testDecodesFixNodeWithPreview() throws {
+    func testDecodesFixNode() throws {
         let json = """
         {
             "id": "fix-backend",
@@ -66,27 +61,14 @@ final class FlowDefinitionTests: XCTestCase {
             "phase": "fix",
             "title": "Switch to DXVK",
             "fixId": "graphics.set_backend_dxvk",
-            "isReversible": true,
-            "requiresConfirmation": false,
-            "fixPreview": {
-                "settingName": "Graphics Backend",
-                "currentValueKey": "current",
-                "newValue": "dxvk",
-                "scope": "bottle"
-            }
+            "requiresConfirmation": false
         }
         """
         let node = try JSONDecoder().decode(FlowStepNode.self, from: Data(json.utf8))
 
         XCTAssertEqual(node.type, .fix)
         XCTAssertEqual(node.fixId, "graphics.set_backend_dxvk")
-        XCTAssertEqual(node.isReversible, true)
         XCTAssertEqual(node.requiresConfirmation, false)
-        let preview = try XCTUnwrap(node.fixPreview)
-        XCTAssertEqual(preview.settingName, "Graphics Backend")
-        XCTAssertEqual(preview.currentValueKey, "current")
-        XCTAssertEqual(preview.newValue, "dxvk")
-        XCTAssertEqual(preview.scope, "bottle")
     }
 
     func testUnknownNodeTypeFailsDecode() {

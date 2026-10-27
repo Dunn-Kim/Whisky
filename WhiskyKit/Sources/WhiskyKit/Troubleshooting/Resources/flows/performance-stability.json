@@ -1,6 +1,4 @@
 {
-  "version": 1,
-  "categoryId": "performance-stability",
   "entryNodeId": "check_enhanced_sync",
   "nodes": {
     "check_enhanced_sync": {
@@ -12,7 +10,6 @@
       "checkId": "setting.value_check",
       "params": {
         "setting": "enhancedSync",
-        "scope": "bottle",
         "expected": "esync"
       },
       "on": {
@@ -34,7 +31,6 @@
       "title": "Enable enhanced sync",
       "description": "Enabling enhanced sync reduces CPU overhead and improves frame pacing. Enable the DXVK HUD in Graphics settings to monitor frame times after applying this fix.",
       "fixId": "enable-esync",
-      "isReversible": true,
       "requiresConfirmation": false,
       "on": {
         "skipped": "escalate"

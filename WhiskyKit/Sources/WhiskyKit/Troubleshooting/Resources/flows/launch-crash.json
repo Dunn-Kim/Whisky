@@ -1,6 +1,4 @@
 {
-  "version": 1,
-  "categoryId": "launch-crash",
   "entryNodeId": "check_crash_log",
   "nodes": {
     "check_crash_log": {
@@ -10,7 +8,6 @@
       "title": "Analyze crash log",
       "description": "Examining the most recent log for crash patterns and error signatures.",
       "checkId": "crash.log_classify",
-      "params": {},
       "on": {
         "pass": "check_winetricks",
         "fail": "check_graphics_backend",
@@ -57,13 +54,6 @@
       "params": {
         "backend": "dxvk"
       },
-      "fixPreview": {
-        "settingName": "Graphics Backend",
-        "currentValueKey": "current",
-        "newValue": "dxvk",
-        "scope": "bottle"
-      },
-      "isReversible": true,
       "requiresConfirmation": false,
       "on": {
         "skipped": "check_winetricks"
@@ -97,7 +87,6 @@
       "title": "Install recommended components",
       "description": "Install missing runtime components that may resolve the access violation crash.",
       "fixId": "install-winetricks-verb",
-      "isReversible": false,
       "requiresConfirmation": true,
       "on": {
         "skipped": "escalate"

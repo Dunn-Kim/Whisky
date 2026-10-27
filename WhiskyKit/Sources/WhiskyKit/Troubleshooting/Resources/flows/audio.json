@@ -1,6 +1,4 @@
 {
-  "version": 1,
-  "categoryId": "audio",
   "entryNodeId": "check_audio_device",
   "nodes": {
     "check_audio_device": {
@@ -10,7 +8,6 @@
       "title": "Check audio output device",
       "description": "Verifying that a valid audio output device is available and configured.",
       "checkId": "audio.device_check",
-      "params": {},
       "on": {
         "pass": "check_audio_driver",
         "fail": "show_device_issue",
@@ -63,13 +60,6 @@
       "title": "Configure Wine audio driver",
       "description": "Setting the Wine audio driver to the recommended value for macOS compatibility.",
       "fixId": "set-audio-driver",
-      "fixPreview": {
-        "settingName": "Wine Audio Driver",
-        "currentValueKey": "currentDriver",
-        "newValue": "pulseaudio",
-        "scope": "bottle"
-      },
-      "isReversible": true,
       "requiresConfirmation": false,
       "on": {
         "skipped": "check_audio_buffer"
@@ -105,7 +95,6 @@
       "title": "Switch to the stable audio buffer",
       "description": "Applies the stable audio latency preset, which uses a larger DirectSound buffer. The change takes effect on the next launch of the program.",
       "fixId": "set-buffer-size",
-      "isReversible": true,
       "requiresConfirmation": false,
       "on": {
         "skipped": "check_sample_rate"
@@ -121,9 +110,6 @@
       "title": "Check audio sample rate",
       "description": "Verifying that the system audio sample rate is compatible with Wine audio output.",
       "checkId": "audio.device_check",
-      "params": {
-        "check": "sample_rate_compat"
-      },
       "on": {
         "pass": "escalate",
         "already_configured": "escalate",

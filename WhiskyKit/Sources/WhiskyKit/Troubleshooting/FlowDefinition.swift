@@ -24,21 +24,13 @@ import Foundation
 /// a graph of step nodes the engine traverses. The ``entryNodeId`` identifies
 /// the first node to evaluate when the flow begins.
 public struct FlowDefinition: Codable, Sendable {
-    /// Schema version for forward-compatible decoding.
-    public let version: Int
-
-    /// Identifier of the symptom category this flow covers.
-    public let categoryId: String
-
     /// Graph of step nodes keyed by node ID.
     public let nodes: [String: FlowStepNode]
 
     /// The node ID where execution begins.
     public let entryNodeId: String
 
-    public init(version: Int, categoryId: String, nodes: [String: FlowStepNode], entryNodeId: String) {
-        self.version = version
-        self.categoryId = categoryId
+    public init(nodes: [String: FlowStepNode], entryNodeId: String) {
         self.nodes = nodes
         self.entryNodeId = entryNodeId
     }
@@ -79,12 +71,6 @@ public struct FlowStepNode: Codable, Sendable, Identifiable {
     /// Stable fix identifier for fix application.
     public let fixId: String?
 
-    /// Diff-style preview data for fix steps.
-    public let fixPreview: FixPreviewData?
-
-    /// Whether this fix can be undone after application.
-    public let isReversible: Bool?
-
     /// Whether an extra confirmation dialog is shown before applying.
     public let requiresConfirmation: Bool?
 
@@ -102,8 +88,6 @@ public struct FlowStepNode: Codable, Sendable, Identifiable {
         on: [String: String]? = nil, // swiftlint:disable:this identifier_name
         evidenceMap: [String: String]? = nil,
         fixId: String? = nil,
-        fixPreview: FixPreviewData? = nil,
-        isReversible: Bool? = nil,
         requiresConfirmation: Bool? = nil,
         fragmentRef: String? = nil
     ) {
@@ -117,8 +101,6 @@ public struct FlowStepNode: Codable, Sendable, Identifiable {
         self.on = on
         self.evidenceMap = evidenceMap
         self.fixId = fixId
-        self.fixPreview = fixPreview
-        self.isReversible = isReversible
         self.requiresConfirmation = requiresConfirmation
         self.fragmentRef = fragmentRef
     }
@@ -132,29 +114,4 @@ public enum NodeType: String, Codable, Sendable {
     case fix
     /// Displays informational content to the user.
     case info
-}
-
-/// Preview data for a fix step showing what will change.
-///
-/// Displayed in a diff-style card so users can see the exact
-/// setting modification before confirming the fix.
-public struct FixPreviewData: Codable, Sendable {
-    /// The human-readable name of the setting being changed.
-    public let settingName: String
-
-    /// Evidence key whose value shows the current setting value.
-    public let currentValueKey: String?
-
-    /// The new value that will be applied.
-    public let newValue: String
-
-    /// Whether the change applies at bottle or program scope.
-    public let scope: String
-
-    public init(settingName: String, currentValueKey: String? = nil, newValue: String, scope: String) {
-        self.settingName = settingName
-        self.currentValueKey = currentValueKey
-        self.newValue = newValue
-        self.scope = scope
-    }
 }

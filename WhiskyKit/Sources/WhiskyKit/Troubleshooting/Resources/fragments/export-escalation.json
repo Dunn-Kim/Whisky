@@ -1,6 +1,4 @@
 {
-  "version": 1,
-  "categoryId": "fragment-export-escalation",
   "entryNodeId": "escalation_summary",
   "nodes": {
     "escalation_summary": {
@@ -40,7 +38,6 @@
       "title": "Run enhanced diagnostics",
       "description": "Enable a targeted WINEDEBUG preset to capture detailed debug output on the next launch. This will produce more verbose logs for analysis.",
       "fixId": "run-enhanced-diagnostics",
-      "isReversible": true,
       "requiresConfirmation": true,
       "on": {
         "skipped": "export_bundle"

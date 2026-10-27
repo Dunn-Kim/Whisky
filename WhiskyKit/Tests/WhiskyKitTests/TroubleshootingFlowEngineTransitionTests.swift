@@ -38,7 +38,7 @@ final class TroubleshootingFlowEngineTransitionTests: XCTestCase {
         nodes: [String: FlowStepNode],
         fragments: [String: FlowDefinition] = [:]
     ) -> TroubleshootingFlowEngine {
-        let flow = FlowDefinition(version: 1, categoryId: "graphics", nodes: nodes, entryNodeId: "start")
+        let flow = FlowDefinition(nodes: nodes, entryNodeId: "start")
         var session = TroubleshootingSession(bottleURL: makeBottleDirectory())
         session.currentFlowCategoryId = "graphics"
         let engine = TroubleshootingFlowEngine(
@@ -98,8 +98,6 @@ final class TroubleshootingFlowEngineTransitionTests: XCTestCase {
 
     func testNodeReferencingTheEscalationFragmentEscalates() {
         let fragment = FlowDefinition(
-            version: 1,
-            categoryId: "export-escalation",
             nodes: ["export-start": infoNode("export-start", phase: .export)],
             entryNodeId: "export-start"
         )

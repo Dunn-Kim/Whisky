@@ -1,6 +1,4 @@
 {
-  "version": 1,
-  "categoryId": "network-download",
   "entryNodeId": "check_launcher_type",
   "nodes": {
     "check_launcher_type": {
@@ -10,7 +8,6 @@
       "title": "Detect launcher type",
       "description": "Identifying which launcher is being used to determine the appropriate network troubleshooting path.",
       "checkId": "launcher.type_check",
-      "params": {},
       "on": {
         "pass": "branch_by_launcher",
         "fail": "check_wine_dns",
@@ -62,7 +59,6 @@
       "title": "Restart Steam",
       "description": "Killing the Wine server and relaunching Steam can resolve download stalls caused by stuck processes.",
       "fixId": "restart-wineserver",
-      "isReversible": false,
       "requiresConfirmation": true,
       "on": {
         "skipped": "fix_download_region"
@@ -108,7 +104,6 @@
       "title": "Clear the Wine DNS override",
       "description": "Removes the DNS server override from the Wine registry so Wine resolves names through macOS. Takes effect on the next launch.",
       "fixId": "set-registry-value",
-      "isReversible": true,
       "requiresConfirmation": false,
       "on": {
         "skipped": "escalate"

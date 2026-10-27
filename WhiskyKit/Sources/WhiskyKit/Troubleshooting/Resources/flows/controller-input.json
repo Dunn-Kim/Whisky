@@ -1,6 +1,4 @@
 {
-  "version": 1,
-  "categoryId": "controller-input",
   "entryNodeId": "check_controller_setting",
   "nodes": {
     "check_controller_setting": {
@@ -11,8 +9,7 @@
       "description": "Checking whether controller compatibility mode is enabled and SDL environment variables are correctly configured.",
       "checkId": "setting.value_check",
       "params": {
-        "setting": "controllerCompatibilityMode",
-        "scope": "program"
+        "setting": "controllerCompatibilityMode"
       },
       "on": {
         "pass": "escalate",
@@ -33,13 +30,6 @@
       "title": "Enable controller compatibility mode",
       "description": "Enabling controller compatibility mode improves detection and button mapping. If using Bluetooth, also try unpairing and re-pairing in macOS System Settings > Bluetooth.",
       "fixId": "enable-controller-compat",
-      "fixPreview": {
-        "settingName": "Controller Compatibility Mode",
-        "currentValueKey": "currentValue",
-        "newValue": "true",
-        "scope": "program"
-      },
-      "isReversible": true,
       "requiresConfirmation": false,
       "on": {
         "skipped": "escalate"

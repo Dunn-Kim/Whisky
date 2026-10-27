@@ -1,6 +1,4 @@
 {
-  "version": 1,
-  "categoryId": "graphics",
   "entryNodeId": "check_backend",
   "nodes": {
     "check_backend": {
@@ -36,13 +34,6 @@
       "params": {
         "backend": "dxvk"
       },
-      "fixPreview": {
-        "settingName": "Graphics Backend",
-        "currentValueKey": "current",
-        "newValue": "dxvk",
-        "scope": "bottle"
-      },
-      "isReversible": true,
       "requiresConfirmation": false,
       "on": {
         "skipped": "check_crash_log"
@@ -55,7 +46,6 @@
       "title": "Analyze log for graphics errors",
       "description": "Checking the recent log for GPU-related crash patterns and error signatures.",
       "checkId": "crash.log_classify",
-      "params": {},
       "on": {
         "pass": "check_dxvk_settings",
         "fail": "show_crash_findings",
@@ -108,13 +98,6 @@
       "title": "Enable DXVK async compilation",
       "description": "Enabling async shader compilation reduces stuttering caused by shader compilation at runtime.",
       "fixId": "enable-dxvk-async",
-      "fixPreview": {
-        "settingName": "DXVK Async",
-        "currentValueKey": "asyncEnabled",
-        "newValue": "true",
-        "scope": "bottle"
-      },
-      "isReversible": true,
       "requiresConfirmation": false,
       "on": {
         "skipped": "check_game_config"
@@ -127,7 +110,6 @@
       "title": "Check for known game configuration",
       "description": "Checking the game database for recommended graphics settings for this program.",
       "checkId": "game.config_available",
-      "params": {},
       "on": {
         "pass": "suggest_game_config",
         "fail": "escalate",
@@ -146,7 +128,6 @@
       "title": "Apply recommended game configuration",
       "description": "A known-good configuration exists for this program. Applying recommended graphics settings may resolve the issue.",
       "fixId": "apply-game-config",
-      "isReversible": true,
       "requiresConfirmation": true,
       "on": {
         "skipped": "escalate"

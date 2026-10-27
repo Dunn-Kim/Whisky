@@ -58,7 +58,7 @@ final class TroubleshootingFlowEngineTests: XCTestCase {
         entry: String = "start",
         fragments: [String: FlowDefinition] = [:]
     ) -> (TroubleshootingFlowEngine, URL) {
-        let flow = FlowDefinition(version: 1, categoryId: "graphics", nodes: nodes, entryNodeId: entry)
+        let flow = FlowDefinition(nodes: nodes, entryNodeId: entry)
         let registry = CheckRegistry(checks: CheckRegistry.builtIn + [StubCheck(checkId: "stub.outcome")])
         let bottleURL = makeBottleDirectory()
         // Node resolution goes through the session's active flow category, so
@@ -148,8 +148,6 @@ final class TroubleshootingFlowEngineTests: XCTestCase {
 
     func testEscalationNavigatesToFragmentEntryWhenAvailable() {
         let fragment = FlowDefinition(
-            version: 1,
-            categoryId: "export-escalation",
             nodes: ["export-start": infoNode("export-start")],
             entryNodeId: "export-start"
         )

@@ -89,8 +89,6 @@ final class BackendFixCoherenceTests: XCTestCase {
     func testValidatorRejectsSwitchBackendWithoutTargetBackend() {
         func flow(params: [String: String]?) -> FlowDefinition {
             FlowDefinition(
-                version: 1,
-                categoryId: "test",
                 nodes: [
                     "start": FlowStepNode(
                         id: "start", type: .fix, phase: .fix, params: params, fixId: "switch-backend"

@@ -78,8 +78,8 @@ final class FlowLoaderValidatorTests: XCTestCase {
         // directly to the export fragment (the engine's no-flow path).
         for category in SymptomCategory.allCases where category != .other {
             let categoryId = category.flowResourceName
-            XCTAssertEqual(
-                flows[categoryId]?.categoryId, categoryId,
+            XCTAssertNotNil(
+                flows[categoryId],
                 "\(categoryId).json must load; a silently skipped flow means a dead symptom path"
             )
         }
@@ -141,8 +141,6 @@ final class FlowLoaderValidatorTests: XCTestCase {
 
     func testValidatorFlagsDanglingNodeReference() {
         let flow = FlowDefinition(
-            version: 1,
-            categoryId: "test",
             nodes: ["start": makeNode(id: "start", on: ["pass": "does-not-exist"])],
             entryNodeId: "start"
         )
@@ -154,8 +152,6 @@ final class FlowLoaderValidatorTests: XCTestCase {
 
     func testValidatorFlagsUnknownFixId() {
         let flow = FlowDefinition(
-            version: 1,
-            categoryId: "test",
             nodes: [
                 "start": FlowStepNode(
                     id: "start", type: .fix, phase: .fix, fixId: "not-a-real-fix"
@@ -174,8 +170,6 @@ final class FlowLoaderValidatorTests: XCTestCase {
 
     func testValidatorFlagsMissingEntryNode() {
         let flow = FlowDefinition(
-            version: 1,
-            categoryId: "test",
             nodes: ["start": makeNode(id: "start")],
             entryNodeId: "nope"
         )
@@ -185,8 +179,6 @@ final class FlowLoaderValidatorTests: XCTestCase {
 
     func testValidatorAcceptsWellFormedFlow() {
         let flow = FlowDefinition(
-            version: 1,
-            categoryId: "test",
             nodes: [
                 "start": makeNode(id: "start", on: ["pass": "done", "fail": "done"]),
                 "done": makeNode(id: "done", type: .info, checkId: nil)

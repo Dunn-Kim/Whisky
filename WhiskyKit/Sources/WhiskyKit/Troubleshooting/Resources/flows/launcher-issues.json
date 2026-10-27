@@ -1,6 +1,4 @@
 {
-  "version": 1,
-  "categoryId": "launcher-issues",
   "entryNodeId": "check_launcher_type",
   "nodes": {
     "check_launcher_type": {
@@ -10,7 +8,6 @@
       "title": "Detect launcher type",
       "description": "Identifying which game launcher is being used to determine the appropriate troubleshooting path.",
       "checkId": "launcher.type_check",
-      "params": {},
       "on": {
         "pass": "branch_by_launcher",
         "fail": "escalate",
@@ -65,7 +62,6 @@
       "title": "Restart launcher processes",
       "description": "Launcher processes appear to be stuck or not running. Restarting the Wine server and relaunching may resolve the issue.",
       "fixId": "restart-wineserver",
-      "isReversible": false,
       "requiresConfirmation": true,
       "on": {
         "skipped": "fix_launcher_env"
@@ -88,7 +84,6 @@
       "title": "Reapply launcher compatibility fixes",
       "description": "Applies Whisky's known fixes for the detected launcher again, even if they were applied before: locale, DXVK, GPU visibility, and network timeout adjustments.",
       "fixId": "apply-launcher-fixes",
-      "isReversible": true,
       "requiresConfirmation": false,
       "on": {
         "skipped": "escalate"
