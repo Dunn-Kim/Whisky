@@ -25,39 +25,23 @@ import Foundation
 /// - Avoid leaking secrets or sensitive values (environment keys only).
 /// - Provide enough system/bottle context to reproduce and triage.
 public enum StabilityDiagnostics {
-    public struct Configuration: Sendable {
-        public var bundle: Bundle
-        public var logsFolder: URL
-        public var now: @Sendable () -> Date
-
-        public init(
-            bundle: Bundle = .main,
-            logsFolder: URL = Wine.logsFolder,
-            now: @escaping @Sendable () -> Date = Date.init
-        ) {
-            self.bundle = bundle
-            self.logsFolder = logsFolder
-            self.now = now
-        }
-    }
-
     @MainActor
     public static func generateDiagnosticReport(
         for bottle: Bottle,
-        config: Configuration = .init()
+        logsFolder: URL = Wine.logsFolder
     ) async -> String {
         var report = """
         ═══════════════════════════════════════════════════════
         Whisky Stability Diagnostics Report
-        Generated: \(config.now().formatted())
+        Generated: \(Date().formatted())
         ═══════════════════════════════════════════════════════
 
         """
 
-        report += await generateSystemInfo(config: config)
+        report += await generateSystemInfo()
         report += generateBottleSummary(for: bottle)
         report += generateEnvironmentKeySnapshot(for: bottle)
-        report += await generateLogSummary(config: config)
+        report += await generateLogSummary(logsFolder: logsFolder)
 
         report += """
 
@@ -70,7 +54,7 @@ public enum StabilityDiagnostics {
     }
 
     @MainActor
-    private static func generateSystemInfo(config: Configuration) async -> String {
+    private static func generateSystemInfo() async -> String {
         var info = """
 
         [SYSTEM INFORMATION]
@@ -90,8 +74,8 @@ public enum StabilityDiagnostics {
             info += "Architecture: Intel (x86_64)\n"
         }
 
-        let appVersion = config.bundle.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
-        let buildNumber = config.bundle.infoDictionary?["CFBundleVersion"] as? String ?? ""
+        let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
+        let buildNumber = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? ""
         if !appVersion.isEmpty {
             info += "Whisky Version: \(appVersion)\(buildNumber.isEmpty ? "" : " (\(buildNumber))")\n"
         }
@@ -163,14 +147,13 @@ public enum StabilityDiagnostics {
         return snapshot
     }
 
-    private static func generateLogSummary(config: Configuration) async -> String {
+    private static func generateLogSummary(logsFolder folder: URL) async -> String {
         await Task.detached(priority: .utility) {
             var logs = """
             [LOGS]
 
             """
 
-            let folder = config.logsFolder
             let folderPath = folder.path(percentEncoded: false)
             logs += "Logs Folder: \(folderPath)\n"
 

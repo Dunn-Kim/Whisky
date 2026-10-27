@@ -29,13 +29,7 @@ final class StabilityDiagnosticsTests: XCTestCase {
         let bottle = Bottle(bottleUrl: bottleURL, inFlight: false, isAvailable: true)
 
         let missingLogsFolder = bottleURL.appendingPathComponent("does-not-exist")
-        let config = StabilityDiagnostics.Configuration(
-            bundle: Bundle(for: StabilityDiagnosticsTests.self),
-            logsFolder: missingLogsFolder,
-            now: { Date(timeIntervalSince1970: 0) }
-        )
-
-        let report = await StabilityDiagnostics.generateDiagnosticReport(for: bottle, config: config)
+        let report = await StabilityDiagnostics.generateDiagnosticReport(for: bottle, logsFolder: missingLogsFolder)
         XCTAssertTrue(report.contains("Whisky Stability Diagnostics Report"))
         XCTAssertTrue(report.contains("[LOGS]"))
         XCTAssertTrue(report.contains("Logs Folder Status: Not found"))
@@ -51,13 +45,7 @@ final class StabilityDiagnosticsTests: XCTestCase {
         let logsFolder = bottleURL.appendingPathComponent("logs")
         try FileManager.default.createDirectory(at: logsFolder, withIntermediateDirectories: true)
 
-        let config = StabilityDiagnostics.Configuration(
-            bundle: Bundle(for: StabilityDiagnosticsTests.self),
-            logsFolder: logsFolder,
-            now: Date.init
-        )
-
-        let report = await StabilityDiagnostics.generateDiagnosticReport(for: bottle, config: config)
+        let report = await StabilityDiagnostics.generateDiagnosticReport(for: bottle, logsFolder: logsFolder)
         XCTAssertTrue(report.contains("Log Files: None found"))
     }
 
@@ -100,13 +88,7 @@ final class StabilityDiagnosticsTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: bottleURL) }
 
         let bottle = Bottle(bottleUrl: bottleURL, inFlight: false, isAvailable: true)
-        let config = StabilityDiagnostics.Configuration(
-            bundle: Bundle(for: StabilityDiagnosticsTests.self),
-            logsFolder: bottleURL.appendingPathComponent("does-not-exist"),
-            now: Date.init
-        )
-
-        let report = await StabilityDiagnostics.generateDiagnosticReport(for: bottle, config: config)
+        let report = await StabilityDiagnostics.generateDiagnosticReport(for: bottle, logsFolder: bottleURL.appendingPathComponent("does-not-exist"))
 
         #if arch(arm64)
         XCTAssertTrue(report.contains("Architecture: Apple Silicon (arm64)"))
