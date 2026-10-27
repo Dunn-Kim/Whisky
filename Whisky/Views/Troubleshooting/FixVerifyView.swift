@@ -71,13 +71,8 @@ extension FixVerifyView {
 
 extension FixVerifyView {
     private var attemptCounter: some View {
-        let totalAttempts = engine.session.fixAttempts.count
-        let maxAttempts = 3
-        return Text(String(
-            format: String(localized: "troubleshooting.verify.attempt %d %d"),
-            totalAttempts,
-            maxAttempts
-        ))
+        let label = String(localized: "troubleshooting.history.fixesAttempted")
+        return Text(verbatim: "\(label) \(engine.session.fixAttempts.count)")
         .font(.caption)
         .foregroundStyle(.tertiary)
     }
