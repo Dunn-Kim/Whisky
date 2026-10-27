@@ -26,13 +26,11 @@ import Foundation
 public enum PatternLoader {
     // MARK: - JSON Schema Types
 
-    private struct PatternFile: Codable {
-        let version: Int
+    private struct PatternFile: Decodable {
         let patterns: [CrashPattern]
     }
 
-    private struct RemediationFile: Codable {
-        let version: Int
+    private struct RemediationFile: Decodable {
         let actions: [RemediationAction]
     }
 

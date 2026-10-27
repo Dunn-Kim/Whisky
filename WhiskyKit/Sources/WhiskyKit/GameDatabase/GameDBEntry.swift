@@ -251,26 +251,6 @@ public struct GameConfigVariant: Codable, Sendable, Equatable {
         self.winetricksVerbs = winetricksVerbs
         self.testedWith = testedWith
     }
-
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.id = try container.decode(String.self, forKey: .id)
-        self.label = try container.decode(String.self, forKey: .label)
-        self.isDefault = try container.decodeIfPresent(Bool.self, forKey: .isDefault)
-        self.whenToUse = try container.decodeIfPresent(String.self, forKey: .whenToUse)
-        self.rationale = try container.decodeIfPresent([String].self, forKey: .rationale)
-        self.settings = try container.decodeIfPresent(
-            GameConfigVariantSettings.self,
-            forKey: .settings
-        ) ?? GameConfigVariantSettings()
-        self.environmentVariables = try container.decodeIfPresent(
-            [String: String].self,
-            forKey: .environmentVariables
-        )
-        self.dllOverrides = try container.decodeIfPresent([DLLOverrideEntry].self, forKey: .dllOverrides)
-        self.winetricksVerbs = try container.decodeIfPresent([String].self, forKey: .winetricksVerbs)
-        self.testedWith = try container.decodeIfPresent(TestedWith.self, forKey: .testedWith)
-    }
 }
 
 // MARK: - Game Database Entry
@@ -364,27 +344,5 @@ public struct GameDBEntry: Codable, Sendable, Equatable {
         self.notes = notes
         self.knownIssues = knownIssues
         self.provenance = provenance
-    }
-
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.id = try container.decode(String.self, forKey: .id)
-        self.title = try container.decode(String.self, forKey: .title)
-        self.aliases = try container.decodeIfPresent([String].self, forKey: .aliases)
-        self.subtitle = try container.decodeIfPresent(String.self, forKey: .subtitle)
-        self.store = try container.decodeIfPresent(String.self, forKey: .store)
-        self.steamAppId = try container.decodeIfPresent(Int.self, forKey: .steamAppId)
-        self.rating = try container.decodeIfPresent(
-            CompatibilityRating.self,
-            forKey: .rating
-        ) ?? .unverified
-        self.exeNames = try container.decodeIfPresent([String].self, forKey: .exeNames)
-        self.pathPatterns = try container.decodeIfPresent([String].self, forKey: .pathPatterns)
-        self.antiCheat = try container.decodeIfPresent(String.self, forKey: .antiCheat)
-        self.constraints = try container.decodeIfPresent(GameConstraints.self, forKey: .constraints)
-        self.variants = try container.decodeIfPresent([GameConfigVariant].self, forKey: .variants) ?? []
-        self.notes = try container.decodeIfPresent([String].self, forKey: .notes)
-        self.knownIssues = try container.decodeIfPresent([KnownIssue].self, forKey: .knownIssues)
-        self.provenance = try container.decodeIfPresent(Provenance.self, forKey: .provenance)
     }
 }
