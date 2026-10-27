@@ -202,8 +202,6 @@ public final class TroubleshootingFlowEngine: ObservableObject {
                 preflight: session.preflightSnapshot ?? PreflightData(
                     bottleURL: session.bottleURL ?? URL(filePath: "/"),
                     bottleName: "Unknown",
-                    isWineserverRunning: false,
-                    processCount: 0,
                     graphicsBackend: "unknown"
                 )
             )

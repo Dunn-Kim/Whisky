@@ -37,12 +37,18 @@ public extension Wine {
     /// - Returns: `true` if the wineserver is active, `false` otherwise.
     @MainActor
     static func isWineserverRunning(for bottle: Bottle) async -> Bool {
+        await isWineserverRunning(at: bottle.url)
+    }
+
+    /// ``isWineserverRunning(for:)`` for a bottle known only by its URL.
+    @MainActor
+    static func isWineserverRunning(at bottleURL: URL) async -> Bool {
         // Deliberately not the full launch path: a -k0 probe
         // only needs WINEPREFIX, while the full path builds the entire launch
         // environment and creates + retention-scans a log file per call — the
         // sidebar repeats this probe every 60 seconds for every visible bottle.
         let running: Bool = await withCheckedContinuation { continuation in
-            let process = makeWineserverProcess("-k0", environment: ["WINEPREFIX": bottle.url.path])
+            let process = makeWineserverProcess("-k0", environment: ["WINEPREFIX": bottleURL.path])
             process.terminationHandler = { probe in
                 continuation.resume(returning: probe.terminationStatus == 0)
             }
@@ -56,7 +62,7 @@ public extension Wine {
         }
 
         processLogger.debug(
-            "Wineserver probe for '\(bottle.settings.name)': \(running ? "active" : "idle")"
+            "Wineserver probe for '\(bottleURL.lastPathComponent)': \(running ? "active" : "idle")"
         )
         return running
     }
@@ -89,8 +95,6 @@ public extension Wine {
     /// ```
     ///
     /// Lines that cannot be parsed (wrong field count, non-numeric PID) are silently skipped.
-    /// All returned processes have ``ProcessSource/untracked`` source; the caller should
-    /// update the source after merging with ``ProcessRegistry`` data.
     ///
     /// - Parameter output: The raw string output from `tasklist.exe`.
     /// - Returns: An array of parsed ``WineProcess`` instances.

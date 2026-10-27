@@ -71,6 +71,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   by hand, and its feed is upstream's), so the Check for Updates item stayed
   disabled. The Settings "Check for updates" toggle, which only wrote a
   Sparkle key, the `SU*` keys in `Info.plist` and the package are gone.
+- The process registry. Nothing wrote to it until a program launch started
+  recording the `wine start` process, which exits seconds after the game
+  starts, so it never tracked a game. Gone with it: the process count on
+  the sidebar entry and the Processes tab, the Source and Started columns
+  and the macOS PID on the Processes page, and the SIGKILL of recorded PIDs
+  at the end of Stop. A bottle now counts as running while its wineserver
+  does: the sidebar warning, the leave-bottle and remove-bottle prompts and
+  the "is a process running" troubleshooting check probe it. Troubleshooting
+  sessions no longer record the wineserver state and process count, so the
+  resume banner no longer reports them changing. Saved sessions that have
+  them still load.
 
 ### Fixed
 - Executable icons stored as 1, 2 or 4-bit bitmaps (and 16-bit ones, whose colors
@@ -83,12 +94,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   notification only the bottle's Audio section listens for, and that section
   is not on screen at the same time. It now opens the audio troubleshooting
   wizard directly.
-- Launching a program now records it in the process registry, which nothing
-  ever wrote to. The running badge and count, the Processes list's
-  Whisky-launched marker, the "is a process running" troubleshooting check and
-  the keep-display-awake assertion all read it and saw nothing. The entry
-  covers the `wine start` process (or the desktop `explorer` process), which
-  for a plain launch exits soon after the game starts.
 - A program's own `DXMT_CONFIG` (its environment, a game database profile)
   no longer replaces the bottle's DXMT frame cap, and a per-program cap no
   longer wipes the program's other `DXMT_CONFIG` entries: the entries now

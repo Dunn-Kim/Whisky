@@ -31,7 +31,7 @@ enum LibraryEntryState: Equatable {
     case idle
     /// Whisky has been asked to start it and Wine has not put a window up yet.
     case launching
-    /// It has a process of its own in ``ProcessRegistry``.
+    /// Its own processes are in the bottle's process list.
     case running
 }
 

@@ -29,8 +29,7 @@ struct BottleListEntry: View {
     @State private var showBottleRename: Bool = false
     @State private var showBottleDuplicate: Bool = false
     @State private var name: String = ""
-    @State private var runningCount: Int = 0
-    @State private var hasOrphanProcesses: Bool = false
+    @State private var isRunning: Bool = false
     @State private var probeTask: Task<Void, Never>?
     @State private var duplicationPhase: DuplicationPhase?
 
@@ -43,15 +42,7 @@ struct BottleListEntry: View {
                     // identifies it.
                     .help(name)
                 Spacer()
-                if runningCount > 0 {
-                    Text("\(runningCount)")
-                        .font(.caption2)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(.blue.opacity(0.15))
-                        .clipShape(Capsule())
-                        .foregroundStyle(.blue)
-                } else if hasOrphanProcesses {
+                if isRunning {
                     // A button, not a decoration: this is the strongest signal
                     // in the sidebar and it used to be a tooltip with nothing
                     // behind it.
@@ -63,7 +54,7 @@ struct BottleListEntry: View {
                             .foregroundStyle(.orange)
                     }
                     .buttonStyle(.plain)
-                    .help(String(localized: "bottle.orphan.tooltip"))
+                    .help(String(localized: "bottle.close.confirm.title"))
                     .accessibilityLabel(Text("bottle.orphan.stop"))
                 }
             }
@@ -203,7 +194,6 @@ struct BottleListEntry: View {
     @MainActor
     private func stopBottle() {
         Wine.killBottle(bottle: bottle)
-        ProcessRegistry.shared.clearRegistry(for: bottle.url)
         Task {
             try? await Task.sleep(for: .seconds(1))
             await probeRunningState()
@@ -212,15 +202,7 @@ struct BottleListEntry: View {
 
     @MainActor
     private func probeRunningState() async {
-        let trackedCount = ProcessRegistry.shared.getProcessCount(for: bottle)
-        runningCount = trackedCount
-
-        if trackedCount == 0 {
-            let active = await Wine.isWineserverRunning(for: bottle)
-            hasOrphanProcesses = active
-        } else {
-            hasOrphanProcesses = false
-        }
+        isRunning = await Wine.isWineserverRunning(for: bottle)
     }
 }
 

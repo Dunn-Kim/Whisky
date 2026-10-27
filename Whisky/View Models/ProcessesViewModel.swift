@@ -20,12 +20,12 @@ import os.log
 import SwiftUI
 import WhiskyKit
 
-/// Drives the Processes page with hybrid polling, registry merging, and shutdown orchestration.
+/// Drives the Processes page with hybrid polling and shutdown orchestration.
 @MainActor
 class ProcessesViewModel: ObservableObject {
     // MARK: - Published State
 
-    /// Merged, sorted process list from tasklist + registry.
+    /// Sorted process list from tasklist.
     @Published var processes: [WineProcess] = []
     /// Whether the first refresh has finished, so an empty list means "none" rather than "not loaded yet".
     @Published var hasRefreshed = false
@@ -133,7 +133,7 @@ class ProcessesViewModel: ObservableObject {
 
     // MARK: - Data Refresh
 
-    /// Fetches the current process list from tasklist.exe, merges with registry data, and updates the published list.
+    /// Fetches the current process list from tasklist.exe and updates the published list.
     func refreshProcessList() async {
         // Skip refresh during shutdown to avoid race conditions
         guard shutdownState == .idle else { return }
@@ -144,30 +144,6 @@ class ProcessesViewModel: ObservableObject {
     private func reloadProcessList() async {
         do {
             var parsed = try await Wine.listProcesses(for: bottle)
-
-            // Merge with registry data
-            let registryProcesses = ProcessRegistry.shared.getProcesses(for: bottle)
-
-            for index in parsed.indices {
-                let lowerImageName = parsed[index].imageName.lowercased()
-                if let match = registryProcesses.first(where: {
-                    $0.programName.lowercased() == lowerImageName
-                }) {
-                    parsed[index].source = .whisky
-                    parsed[index].launchTime = match.launchTime
-                    parsed[index].macosPID = match.pid
-                }
-            }
-
-            // Clean up stale registry entries (in registry but not in tasklist)
-            let tasklistNames = Set(parsed.map { $0.imageName.lowercased() })
-            for registryEntry in registryProcesses
-                where !tasklistNames.contains(registryEntry.programName.lowercased()) {
-                ProcessRegistry.shared.unregister(pid: registryEntry.pid)
-                logger.debug(
-                    "Unregistered stale registry entry: \(registryEntry.programName)"
-                )
-            }
 
             // Sort: apps first, then services, then system; alphabetically within each group
             parsed.sort { lhs, rhs in
@@ -207,7 +183,7 @@ class ProcessesViewModel: ObservableObject {
 
     // MARK: - Shutdown Orchestration
 
-    /// Executes a 3-step graceful shutdown: per-app kill, wineserver -k, SIGKILL fallback.
+    /// Executes a 2-step graceful shutdown: per-app kill, then wineserver -k.
     ///
     /// - Returns: The number of processes that were stopped.
     func stopBottle() async -> Int {
@@ -232,11 +208,10 @@ class ProcessesViewModel: ObservableObject {
             try? await Task.sleep(for: .seconds(2.0))
         }
 
-        // Step 3: SIGKILL remaining tracked macOS PIDs as last resort
-        return await finishShutdown(initialCount: initialCount, logPrefix: "Sent")
+        return await finishShutdown(initialCount: initialCount)
     }
 
-    /// Executes a force shutdown: skips graceful step, goes directly to wineserver -k + SIGKILL.
+    /// Executes a force shutdown: skips graceful step, goes directly to wineserver -k.
     ///
     /// - Returns: The number of processes that were stopped.
     func forceStopBottle() async -> Int {
@@ -248,25 +223,15 @@ class ProcessesViewModel: ObservableObject {
         Wine.killBottle(bottle: bottle)
         try? await Task.sleep(for: .seconds(2.0))
 
-        // SIGKILL remaining tracked macOS PIDs
-        return await finishShutdown(initialCount: initialCount, logPrefix: "Force sent")
+        return await finishShutdown(initialCount: initialCount)
     }
 
     // MARK: - Private Helpers
 
-    /// SIGKILLs the remaining tracked macOS PIDs, clears the registry and
-    /// resumes polling.
+    /// Resumes polling after a shutdown.
     ///
     /// - Returns: The number of processes stopped since `initialCount`.
-    private func finishShutdown(initialCount: Int, logPrefix: String) async -> Int {
-        let registryEntries = ProcessRegistry.shared.getProcesses(for: bottle)
-        for entry in registryEntries where entry.pid > 0 {
-            kill(entry.pid, SIGKILL)
-            logger.info("\(logPrefix, privacy: .public) SIGKILL to macOS PID \(entry.pid) (\(entry.programName))")
-        }
-
-        // Cleanup
-        ProcessRegistry.shared.clearRegistry(for: bottle.url)
+    private func finishShutdown(initialCount: Int) async -> Int {
         shutdownState = .idle
         await reloadProcessList()
         startPolling()

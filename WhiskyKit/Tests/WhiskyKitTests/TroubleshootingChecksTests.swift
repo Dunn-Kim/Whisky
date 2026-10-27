@@ -46,8 +46,6 @@ func makeCheckContext(
         bottleName: "Test Bottle",
         programName: programName,
         launcherType: launcherType,
-        isWineserverRunning: false,
-        processCount: 0,
         graphicsBackend: "dxmt"
     )
     return CheckContext(
@@ -186,12 +184,11 @@ final class TroubleshootingChecksTests: XCTestCase {
     // MARK: - ProcessRunningCheck
 
     func testProcessRunningCheckNoProcessesIsFail() async {
-        // The context's bottle URL is unique per test, so the shared process
-        // registry has no entries for it.
+        // The context's bottle URL is unique per test, so no wineserver runs for it.
         let result = await ProcessRunningCheck().run(params: [:], context: makeCheckContext())
 
         XCTAssertEqual(result.outcome, .fail)
-        XCTAssertEqual(result.evidence["count"], "0")
+        XCTAssertEqual(result.evidence["running"], "false")
     }
 
     // MARK: - GameConfigAvailableCheck

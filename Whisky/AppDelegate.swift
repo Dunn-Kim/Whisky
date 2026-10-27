@@ -85,7 +85,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             if Self.shouldKill(bottle) {
                 // Synchronous: the app exits when this delegate returns.
                 Wine.killBottleAndWait(bottle: bottle)
-                ProcessRegistry.shared.clearRegistry(for: bottle.url)
                 logger.info(
                     "Killing bottle '\(bottle.settings.name)' on quit (policy: \(String(describing: bottlePolicy)))"
                 )

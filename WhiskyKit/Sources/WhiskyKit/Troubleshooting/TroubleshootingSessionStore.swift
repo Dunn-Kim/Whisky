@@ -198,22 +198,6 @@ public struct TroubleshootingSessionStore: Sendable {
             changes.append("Audio output device changed from \(oldAudio) to \(newAudio)")
         }
 
-        // Wineserver running state changed
-        if snapshot.isWineserverRunning != currentPreflight.isWineserverRunning {
-            let oldState = snapshot.isWineserverRunning ? "running" : "stopped"
-            let newState = currentPreflight.isWineserverRunning ? "running" : "stopped"
-            changes.append("Wine server is now \(newState) (was \(oldState))")
-        }
-
-        // Process count significantly different (>50% change or delta > 5)
-        let oldCount = snapshot.processCount
-        let newCount = currentPreflight.processCount
-        let delta = abs(oldCount - newCount)
-        let threshold = max(oldCount / 2, 5)
-        if delta >= threshold, oldCount != newCount {
-            changes.append("Wine process count changed from \(oldCount) to \(newCount)")
-        }
-
         return changes
     }
 }

@@ -41,12 +41,6 @@ public struct PreflightData: Codable, Sendable {
     /// Detected launcher type raw value, if any (e.g., "steam", "eaApp").
     public let launcherType: String?
 
-    /// Whether the Wine server process is currently running for this bottle.
-    public let isWineserverRunning: Bool
-
-    /// Number of tracked Wine processes in this bottle.
-    public let processCount: Int
-
     /// URL of the most recent log file for the program, if available.
     public let recentLogURL: URL?
 
@@ -68,8 +62,6 @@ public struct PreflightData: Codable, Sendable {
         programURL: URL? = nil,
         programName: String? = nil,
         launcherType: String? = nil,
-        isWineserverRunning: Bool,
-        processCount: Int,
         recentLogURL: URL? = nil,
         lastExitCode: Int32? = nil,
         audioDeviceName: String? = nil,
@@ -81,8 +73,6 @@ public struct PreflightData: Codable, Sendable {
         self.programURL = programURL
         self.programName = programName
         self.launcherType = launcherType
-        self.isWineserverRunning = isWineserverRunning
-        self.processCount = processCount
         self.recentLogURL = recentLogURL
         self.lastExitCode = lastExitCode
         self.audioDeviceName = audioDeviceName

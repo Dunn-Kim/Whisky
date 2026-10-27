@@ -44,8 +44,6 @@ final class TroubleshootingFlowEngineEntryTests: XCTestCase {
             bottleURL: context.bottleURL,
             bottleName: "Entry Test",
             programURL: context.programURL,
-            isWineserverRunning: false,
-            processCount: 0,
             graphicsBackend: "dxvk"
         )
         engine.start(from: context)

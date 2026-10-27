@@ -51,8 +51,7 @@
       },
       "evidenceMap": {
         "processName": "Process",
-        "running": "Running",
-        "processCount": "Instance count"
+        "running": "Running"
       }
     },
     "fix_restart_launcher": {

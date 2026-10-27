@@ -62,19 +62,7 @@ struct BottleView: View {
                     }
                     .accessibilityIdentifier("nav.bottleConfiguration")
                     NavigationLink(value: BottleStage.processes) {
-                        HStack {
-                            Label("tab.processes", systemImage: "hockey.puck.circle")
-                            let count = ProcessRegistry.shared.getProcessCount(for: bottle)
-                            if count > 0 {
-                                Text("\(count)")
-                                    .font(.caption2)
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 2)
-                                    .background(.blue.opacity(0.15))
-                                    .clipShape(Capsule())
-                                    .foregroundStyle(.blue)
-                            }
-                        }
+                        Label("tab.processes", systemImage: "hockey.puck.circle")
                     }
                     .accessibilityIdentifier("nav.runningProcesses")
                     NavigationLink(value: BottleStage.gameConfigs) {

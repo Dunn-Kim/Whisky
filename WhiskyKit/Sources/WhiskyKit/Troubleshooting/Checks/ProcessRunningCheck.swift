@@ -18,29 +18,28 @@
 
 import Foundation
 
-/// Checks whether Wine processes are running for the current bottle.
+/// Checks whether Wine is running for the current bottle.
 ///
-/// Delegates to ``ProcessRegistry`` for the tracked process count.
-/// Returns `.pass` if processes are running (with count in evidence),
-/// `.fail` if none are running. Uses `params["process"]` as an optional
-/// filter name for reporting purposes.
+/// Probes the bottle's wineserver (`wineserver -k0`), which is up for as long
+/// as any Wine process in the prefix is. Returns `.pass` if it is running and
+/// `.fail` if not. Uses `params["process"]` as an optional name for reporting
+/// purposes.
 public struct ProcessRunningCheck: TroubleshootingCheck {
     public let checkId = "process.running_check"
 
     public func run(params: [String: String], context: CheckContext) async -> CheckResult {
         let processName = params["process"] ?? "wineserver"
-        let count = ProcessRegistry.shared.getProcessCount(for: context.bottleURL)
-
+        let running = await Wine.isWineserverRunning(at: context.bottleURL)
         let evidence = [
             "process": processName,
-            "count": "\(count)"
+            "running": "\(running)"
         ]
 
-        if count > 0 {
+        if running {
             return CheckResult(
                 outcome: .pass,
                 evidence: evidence,
-                summary: "\(count) Wine process(es) running",
+                summary: "Wine is running for this bottle",
                 confidence: .high
             )
         }

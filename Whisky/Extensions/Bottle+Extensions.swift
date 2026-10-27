@@ -198,13 +198,10 @@ extension Bottle {
         }
     }
 
-    /// Whether the bottle's wineserver is up or the registry still tracks a
-    /// process for it.
+    /// Whether the bottle's wineserver is up.
     @MainActor
     func hasRunningProcesses() async -> Bool {
-        let isRunning = await Wine.isWineserverRunning(for: self)
-        let trackedCount = ProcessRegistry.shared.getProcessCount(for: self)
-        return isRunning || trackedCount > 0
+        await Wine.isWineserverRunning(for: self)
     }
 
     @MainActor
@@ -226,7 +223,6 @@ extension Bottle {
 
             Wine.killBottle(bottle: self)
             try? await Task.sleep(for: .seconds(2))
-            ProcessRegistry.shared.clearRegistry(for: url)
         }
 
         BottleOperations.remove(bottleAt: url, deleteFiles: delete, registry: BottleVM.shared)

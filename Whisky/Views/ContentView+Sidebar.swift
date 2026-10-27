@@ -173,7 +173,6 @@ extension ContentView {
                 bottle.settings.closeWithProcessesPolicy = .alwaysStop
             }
             Wine.killBottle(bottle: bottle)
-            ProcessRegistry.shared.clearRegistry(for: bottle.url)
         }
     }
 }

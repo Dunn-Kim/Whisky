@@ -76,7 +76,7 @@ final class TroubleshootingFlowEngineTransitionTests: XCTestCase {
             let engine = makeEngine(nodes: nodes)
             engine.session.preflightSnapshot = PreflightData(
                 bottleURL: URL(filePath: "/tmp/b"), bottleName: "b", launcherType: launcher,
-                isWineserverRunning: false, processCount: 0, graphicsBackend: "dxmt"
+                graphicsBackend: "dxmt"
             )
             engine.navigateToNode("start")
             engine.continueStep()

@@ -210,8 +210,6 @@ extension EscalationView {
             if let audio = preflight.audioDeviceName {
                 lines.append("Audio: \(audio)")
             }
-            lines.append("Wineserver: \(preflight.isWineserverRunning ? "running" : "stopped")")
-            lines.append("Processes: \(preflight.processCount)")
         }
 
         NSPasteboard.general.clearContents()
