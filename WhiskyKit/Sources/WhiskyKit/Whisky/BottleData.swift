@@ -21,7 +21,7 @@ import os.log
 import SemanticVersion
 
 /// Paths-only registry shape older releases wrote as a fallback; still decoded.
-private struct BottleDataMinimal: Decodable {
+struct BottleDataMinimal: Decodable {
     var paths: [URL]
 }
 
@@ -104,12 +104,7 @@ public struct BottleData: Codable {
         var bottles: [Bottle] = []
 
         for path in paths {
-            let bottleMetadata = path
-                .appending(path: "Metadata")
-                .appendingPathExtension("plist")
-                .path(percentEncoded: false)
-
-            bottles.append(Bottle(bottleUrl: path, isAvailable: FileManager.default.fileExists(atPath: bottleMetadata)))
+            bottles.append(Bottle(bottleUrl: path, isAvailable: Self.hasMetadata(at: path)))
         }
 
         return bottles
@@ -154,14 +149,30 @@ public struct BottleData: Codable {
         return entries
             .filter { (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true }
             .filter { !registered.contains(Self.comparablePath($0)) }
-            .compactMap { url in
-                let metadataURL = url.appending(path: "Metadata").appendingPathExtension("plist")
-                guard let data = try? Data(contentsOf: metadataURL),
-                      let settings = try? PropertyListDecoder().decode(BottleSettings.self, from: data)
-                else { return nil }
-                return OrphanedBottle(url: url, name: settings.name)
-            }
+            .compactMap { url in Self.metadataName(at: url).map { OrphanedBottle(url: url, name: $0) } }
             .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    }
+
+    /// Whether `bottleURL` holds a `Metadata.plist`, the marker of a real bottle on disk.
+    static func hasMetadata(at bottleURL: URL) -> Bool {
+        let metadata = bottleURL.appending(path: "Metadata").appendingPathExtension("plist")
+        return FileManager.default.fileExists(atPath: metadata.path(percentEncoded: false))
+    }
+
+    /// Reads a bottle's display name from its `Metadata.plist` **without writing anything**.
+    ///
+    /// This decodes `BottleSettings` directly via `PropertyListDecoder` (whose `init(from:)` is
+    /// pure). It deliberately does **not** use `BottleSettings.decode(from:)` or construct a
+    /// `Bottle`: both of those rewrite the metadata file when the bottle's file/wine version
+    /// differs from the current app's defaults, which would silently mutate bottles that are
+    /// only being listed (orphans, or the original app's bottles in the migration sheet).
+    /// Returns `nil` if the metadata is missing or undecodable.
+    static func metadataName(at bottleURL: URL) -> String? {
+        let metadata = bottleURL.appending(path: "Metadata").appendingPathExtension("plist")
+        guard let data = try? Data(contentsOf: metadata),
+              let settings = try? PropertyListDecoder().decode(BottleSettings.self, from: data)
+        else { return nil }
+        return settings.name
     }
 
     /// Canonical path form for registry-membership comparison: trailing
