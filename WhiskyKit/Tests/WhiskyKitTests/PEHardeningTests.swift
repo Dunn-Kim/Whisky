@@ -274,7 +274,7 @@ final class BestIconEndToEndTests: XCTestCase {
 
     // The icon edge of the synthetic bitmap. Stored height is doubled (image +
     // AND mask) by convention, and `renderBitmap` emits height/2 rows.
-    private let iconEdge: Int32 = 4
+    private let iconEdge: Int32 = 16
     private let rsrcRawPointer: UInt32 = 0x400
     private let rsrcVirtualAddress: UInt32 = 0x2000
 
@@ -311,7 +311,7 @@ final class BestIconEndToEndTests: XCTestCase {
     }
 
     /// A valid 40-byte BITMAPINFOHEADER plus 32bpp BGRA pixel data for the
-    /// rendered (image) half of the icon.
+    /// rendered (image) half of the icon, then the AND mask.
     private func iconBitmap(width: Int32, storedHeight: Int32) -> Data {
         var data = Data()
         data.append(contentsOf: littleEndianBytes(UInt32(40))) // biSize
@@ -330,6 +330,8 @@ final class BestIconEndToEndTests: XCTestCase {
         for _ in 0 ..< (renderedRows * Int(width)) {
             data.append(contentsOf: [0x10, 0x20, 0x30, 0xFF]) // BGRA opaque pixel
         }
+        // 1-bit AND mask, rows padded to 4 bytes, as every real icon resource carries.
+        data.append(Data(repeating: 0, count: (Int(width) + 31) / 32 * 4 * renderedRows))
         return data
     }
 
@@ -393,6 +395,34 @@ final class BestIconEndToEndTests: XCTestCase {
         XCTAssertTrue(icon.isValid)
         XCTAssertEqual(Int(icon.size.width), Int(iconEdge))
         XCTAssertEqual(Int(icon.size.height), Int(iconEdge))
+    }
+
+    func testFourBitIconRendersNonEmptyImage() throws {
+        // 4-bit palette DIB (16 BGRA palette entries) + pixel rows + 1-bit AND mask:
+        // the old hand-rolled decoder rendered nothing for bit depths below 8.
+        let edge = 16
+        var bitmap = Data()
+        bitmap.append(contentsOf: littleEndianBytes(UInt32(40)))
+        bitmap.append(contentsOf: littleEndianBytes(Int32(edge)))
+        bitmap.append(contentsOf: littleEndianBytes(Int32(edge * 2)))
+        bitmap.append(contentsOf: littleEndianBytes(UInt16(1)))
+        bitmap.append(contentsOf: littleEndianBytes(UInt16(4)))
+        bitmap.append(contentsOf: littleEndianBytes(UInt32(0)))
+        bitmap.append(contentsOf: littleEndianBytes(UInt32(0)))
+        bitmap.append(contentsOf: littleEndianBytes(Int32(0)))
+        bitmap.append(contentsOf: littleEndianBytes(Int32(0)))
+        bitmap.append(contentsOf: littleEndianBytes(UInt32(16)))
+        bitmap.append(contentsOf: littleEndianBytes(UInt32(0)))
+        for index in 0 ..< 16 {
+            bitmap.append(contentsOf: [UInt8(index * 16), 0x80, 0x40, 0]) // BGR + reserved
+        }
+        bitmap.append(Data(repeating: 0x11, count: edge * edge / 2)) // every pixel uses palette entry 1
+        bitmap.append(Data(repeating: 0, count: edge / 8 * edge)) // AND mask: all opaque 
+
+        let url = try writePE(makePE(rsrcBody: rsrcBody(bitmap: bitmap)), name: "four_bit_icon")
+        let icon = try XCTUnwrap(PEFile(url: url).bestIcon())
+        XCTAssertTrue(icon.isValid)
+        XCTAssertEqual(Int(icon.size.width), edge)
     }
 
     func testUnparseableIconYieldsNilForFallback() throws {

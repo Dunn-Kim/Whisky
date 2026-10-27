@@ -73,6 +73,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Sparkle key, the `SU*` keys in `Info.plist` and the package are gone.
 
 ### Fixed
+- Executable icons stored as 1, 2 or 4-bit bitmaps (and 16-bit ones, whose colors
+  were wrong) now show their real icon in thumbnails instead of falling back
+  to a generic one; icon decoding is done by the system's image decoder.
 - Enabling DXVK in a bottle now installs its DLLs into system32/syswow64 even
   when the prefix lacks them, and no longer deletes and recopies every DLL on
   each launch.
