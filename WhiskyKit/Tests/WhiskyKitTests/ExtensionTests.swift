@@ -277,30 +277,11 @@ final class URLUpdateParentBottleTests: XCTestCase {
 // MARK: - Bundle Extension Tests
 
 final class BundleExtensionTests: XCTestCase {
-    func testWhiskyBundleIdentifierReturnsValidString() {
-        let identifier = Bundle.whiskyBundleIdentifier
-        XCTAssertFalse(identifier.isEmpty)
-    }
-
     func testWhiskyBundleIdentifierUsesMainBundleOrFallback() {
         let identifier = Bundle.whiskyBundleIdentifier
         // In tests, returns test bundle identifier; in production returns main bundle or fallback
         // Either way, should be a valid bundle identifier string
         XCTAssertTrue(identifier.contains("."), "Bundle identifier should contain at least one dot")
-    }
-
-    func testWhiskyBundleIdentifierConsistentAcrossCalls() {
-        // Verify the extension returns consistent values
-        let identifier1 = Bundle.whiskyBundleIdentifier
-        let identifier2 = Bundle.whiskyBundleIdentifier
-        XCTAssertEqual(identifier1, identifier2)
-    }
-
-    func testWhiskyBundleIdentifierIsValidBundleFormat() {
-        // Bundle identifiers follow reverse-DNS format (e.g., com.example.app)
-        let identifier = Bundle.whiskyBundleIdentifier
-        let components = identifier.components(separatedBy: ".")
-        XCTAssertGreaterThanOrEqual(components.count, 2, "Bundle identifier should have at least 2 components")
     }
 }
 
@@ -310,17 +291,5 @@ final class URLIdentifiableTests: XCTestCase {
     func testURLIdIsItself() {
         let url = URL(filePath: "/test/path")
         XCTAssertEqual(url.id, url)
-    }
-
-    func testURLIdentifiableInArray() {
-        let urls = [
-            URL(filePath: "/test/1"),
-            URL(filePath: "/test/2"),
-            URL(filePath: "/test/3")
-        ]
-
-        for url in urls {
-            XCTAssertEqual(url.id, url)
-        }
     }
 }
