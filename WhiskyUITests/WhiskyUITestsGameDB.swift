@@ -178,7 +178,11 @@ final class WhiskyUITestsGameDB: WhiskyUITestCase {
         // button is hittable, or the Form sheet lagging the AX tree). Wait for
         // hittable, click, wait generously, and retry the click once — guarded on
         // the button still being hittable so we never click behind an open sheet.
-        waitUntilHittable(createButton, "+ toolbar button", timeout: 10)
+        let hittable = XCTWaiter().wait(
+            for: [XCTNSPredicateExpectation(predicate: NSPredicate(format: "isHittable == true"), object: createButton)],
+            timeout: 10
+        )
+        XCTAssertEqual(hittable, .completed, "Element never became hittable: + toolbar button")
         let cancelButton = app.buttons["create.cancelButton"]
         createButton.click()
         if !cancelButton.waitForExistence(timeout: 15) {

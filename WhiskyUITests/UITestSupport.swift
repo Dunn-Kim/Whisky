@@ -57,28 +57,6 @@ class WhiskyUITestCase: XCTestCase {
         return element
     }
 
-    /// Wait up to `timeout` for an element to become *hittable* (interactive),
-    /// not merely present — a click before a control is hittable silently no-ops.
-    @discardableResult
-    func waitUntilHittable(
-        _ element: XCUIElement,
-        _ description: String,
-        timeout: TimeInterval = 5,
-        file: StaticString = #filePath,
-        line: UInt = #line
-    ) -> Bool {
-        let predicate = NSPredicate(format: "isHittable == true")
-        let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
-        let result = XCTWaiter().wait(for: [expectation], timeout: timeout)
-        XCTAssertEqual(
-            result, .completed,
-            "Element never became hittable: \(description)",
-            file: file,
-            line: line
-        )
-        return result == .completed
-    }
-
     /// Walk every visible static text label and return any that look like raw localization keys.
     /// Heuristic: contains a `.`, no whitespace, starts lowercase.
     func rawKeyLeaks() -> [String] {
