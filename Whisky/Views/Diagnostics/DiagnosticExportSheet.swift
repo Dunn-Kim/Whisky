@@ -156,7 +156,7 @@ extension DiagnosticExportSheet {
                     options: exportOptions
                 )
 
-                _ = try? FileManager.default.replaceItemAt(destination, withItemAt: zipURL)
+                try? moveFile(from: zipURL, to: destination)
                 isExporting = false
                 dismiss()
             }
@@ -180,5 +180,17 @@ extension DiagnosticExportSheet {
                 showCopySuccess = false
             }
         }
+    }
+}
+
+// MARK: - Helpers
+
+extension DiagnosticExportSheet {
+    private func moveFile(from source: URL, to destination: URL) throws {
+        let fileManager = FileManager.default
+        if fileManager.fileExists(atPath: destination.path(percentEncoded: false)) {
+            try fileManager.removeItem(at: destination)
+        }
+        try fileManager.moveItem(at: source, to: destination)
     }
 }
