@@ -220,15 +220,14 @@ struct ContentView: View {
             let task = Task.detached {
                 await WhiskyWineInstaller.shouldUpdateWhiskyWine()
             }
-            let updateInfo = await task.value
-            if updateInfo.0 {
+            if let remoteVersion = await task.value {
                 let alert = NSAlert()
                 alert.messageText = String(localized: "update.whiskywine.title")
                 alert.informativeText = String(
                     format: String(localized: "update.whiskywine.description"),
                     String(WhiskyWineInstaller.whiskyWineVersion()
                         ?? SemanticVersion(0, 0, 0)),
-                    String(updateInfo.1)
+                    String(remoteVersion)
                 )
                 alert.alertStyle = .warning
                 alert.addButton(withTitle: String(localized: "update.whiskywine.update"))
