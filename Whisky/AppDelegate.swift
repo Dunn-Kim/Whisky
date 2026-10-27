@@ -38,7 +38,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         if !hasShownMoveToApplicationsAlert, !AppDelegate.insideAppsFolder {
-            DispatchQueue.main.asyncAfter(deadline: .now()) {
+            DispatchQueue.main.async {
                 NSApp.activate(ignoringOtherApps: true)
                 self.showAlertOnFirstLaunch()
                 self.hasShownMoveToApplicationsAlert = true
@@ -114,14 +114,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Dock Menu
 
     /// The pin behind a Dock menu item.
-    private final class DockPin: NSObject {
+    private struct DockPin {
         let bottleURL: URL
         let pinURL: URL
-
-        init(bottleURL: URL, pinURL: URL) {
-            self.bottleURL = bottleURL
-            self.pinURL = pinURL
-        }
     }
 
     /// Right-clicking Whisky in the Dock lists the pinned games, launchable
@@ -155,17 +150,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         QuickLaunch.launch(pin: pin, in: bottle)
     }
 
-    private static var appUrl: URL? {
-        Bundle.main.resourceURL?.deletingLastPathComponent().deletingLastPathComponent()
-    }
-
     private static let expectedUrl = URL(fileURLWithPath: "/Applications/Whisky.app")
 
     private static var insideAppsFolder: Bool {
-        if let url = appUrl {
-            return url.path.contains("Xcode") || url.path.contains(expectedUrl.path)
-        }
-        return false
+        let path = Bundle.main.bundleURL.path
+        return path.contains("Xcode") || path.contains(expectedUrl.path)
     }
 
     @MainActor

@@ -228,42 +228,17 @@ struct BottleListEntry: View {
 
 extension BottleListEntry {
     func duplicationProgressRow(phase: DuplicationPhase) -> some View {
-        HStack(spacing: 4) {
-            switch phase {
-            case .calculatingSize:
-                ProgressView()
-                    .controlSize(.mini)
-                Text("status.duplicating.calculatingSize")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            case let .copying(bytesCopied, totalBytes):
-                if totalBytes > 0, bytesCopied > 0 {
-                    ProgressView(
-                        value: Double(bytesCopied),
-                        total: Double(totalBytes)
-                    )
-                    .controlSize(.mini)
-                    .frame(maxWidth: 60)
-                } else {
-                    ProgressView()
-                        .controlSize(.mini)
-                }
-                Text("status.duplicating.copying")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            case .updatingMetadata:
-                ProgressView()
-                    .controlSize(.mini)
-                Text("status.duplicating.updatingMetadata")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            case .finalizing:
-                ProgressView()
-                    .controlSize(.mini)
-                Text("status.duplicating.finalizing")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
+        let label: LocalizedStringKey = switch phase {
+        case .copying: "status.duplicating.copying"
+        case .updatingMetadata: "status.duplicating.updatingMetadata"
+        case .finalizing: "status.duplicating.finalizing"
+        }
+        return HStack(spacing: 4) {
+            ProgressView()
+                .controlSize(.mini)
+            Text(label)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
         }
     }
 

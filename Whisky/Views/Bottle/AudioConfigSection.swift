@@ -42,13 +42,14 @@ struct AudioConfigSection: View {
     var body: some View {
         Section("Audio") {
             // 1. Status line
+            let device = monitor.defaultOutputDevice()
             AudioStatusView(
                 audioStatus: audioStatus,
                 lastTestedDate: lastTestedDate,
-                defaultDeviceName: monitor.defaultOutputDevice()?.name,
-                transportType: monitor.defaultOutputDevice()?.transportType,
-                sampleRate: monitor.defaultOutputDevice()?.sampleRate,
-                channelCount: monitor.defaultOutputDevice()?.outputChannelCount
+                defaultDeviceName: device?.name,
+                transportType: device?.transportType,
+                sampleRate: device?.sampleRate,
+                channelCount: device?.outputChannelCount
             )
 
             // 2. Test buttons row

@@ -27,8 +27,6 @@ class ProcessesViewModel: ObservableObject {
 
     /// Merged, sorted process list from tasklist + registry.
     @Published var processes: [WineProcess] = []
-    /// Whether the polling loop is active.
-    @Published var isPolling: Bool = false
     /// Current shutdown state for UI feedback.
     @Published var shutdownState: ShutdownState = .idle
     /// Filter mode for the process list.
@@ -89,7 +87,6 @@ class ProcessesViewModel: ObservableObject {
     /// Starts the periodic polling loop. Guards against double-start.
     func startPolling() {
         guard pollingTask == nil else { return }
-        isPolling = true
         // Force a full refresh on the first tick even if the view model is reused.
         lastScannedPIDs = nil
 
@@ -130,7 +127,6 @@ class ProcessesViewModel: ObservableObject {
     func stopPolling() {
         pollingTask?.cancel()
         pollingTask = nil
-        isPolling = false
     }
 
     // MARK: - Data Refresh
@@ -139,7 +135,11 @@ class ProcessesViewModel: ObservableObject {
     func refreshProcessList() async {
         // Skip refresh during shutdown to avoid race conditions
         guard shutdownState == .idle else { return }
+        await reloadProcessList()
+    }
 
+    /// The refresh itself, without the shutdown guard; the shutdown steps use it directly.
+    private func reloadProcessList() async {
         do {
             var parsed = try await Wine.listProcesses(for: bottle)
 
@@ -195,18 +195,11 @@ class ProcessesViewModel: ObservableObject {
 
     // MARK: - Kill Actions
 
-    /// Gracefully quits a single process via taskkill.exe.
-    func quitProcess(_ process: WineProcess) async {
-        await Wine.killProcess(winePID: process.winePID, bottle: bottle, force: false)
-        try? await Task.sleep(for: .seconds(1.0))
-        await refreshProcessListDuringShutdown()
-    }
-
-    /// Force quits a single process via taskkill.exe /F.
-    func forceQuitProcess(_ process: WineProcess) async {
-        await Wine.killProcess(winePID: process.winePID, bottle: bottle, force: true)
-        try? await Task.sleep(for: .seconds(0.5))
-        await refreshProcessListDuringShutdown()
+    /// Quits a single process via taskkill.exe, with /F when `force`.
+    func quitProcess(_ process: WineProcess, force: Bool = false) async {
+        await Wine.killProcess(winePID: process.winePID, bottle: bottle, force: force)
+        try? await Task.sleep(for: .seconds(force ? 0.5 : 1.0))
+        await reloadProcessList()
     }
 
     // MARK: - Shutdown Orchestration
@@ -227,7 +220,7 @@ class ProcessesViewModel: ObservableObject {
         try? await Task.sleep(for: .seconds(4.0))
 
         // Check remaining
-        await refreshProcessListDuringShutdown()
+        await reloadProcessList()
 
         // Step 2: wineserver -k if processes remain
         if !processes.isEmpty {
@@ -272,18 +265,10 @@ class ProcessesViewModel: ObservableObject {
         // Cleanup
         ProcessRegistry.shared.clearRegistry(for: bottle.url)
         shutdownState = .idle
-        await refreshProcessListDuringShutdown()
+        await reloadProcessList()
         startPolling()
 
         let stoppedCount = initialCount - processes.count
         return max(stoppedCount, 0)
-    }
-
-    /// Refreshes the process list bypassing the shutdown guard. Used during shutdown steps.
-    private func refreshProcessListDuringShutdown() async {
-        let savedState = shutdownState
-        shutdownState = .idle
-        await refreshProcessList()
-        shutdownState = savedState
     }
 }

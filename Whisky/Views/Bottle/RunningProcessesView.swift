@@ -72,18 +72,10 @@ struct RunningProcessesView: View {
 
     private var emptyStateView: some View {
         VStack(spacing: 12) {
-            if viewModel.isPolling {
-                ProgressView()
-                    .controlSize(.small)
-                Text("process.checking")
-                    .foregroundStyle(.secondary)
-            } else {
-                Text("process.empty")
-                    .foregroundStyle(.secondary)
-                Button("process.action.refresh") {
-                    Task { await viewModel.refreshProcessList() }
-                }
-            }
+            ProgressView()
+                .controlSize(.small)
+            Text("process.checking")
+                .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -223,7 +215,7 @@ extension RunningProcessesView {
         .disabled(viewModel.shutdownState != .idle)
 
         Button {
-            Task { await viewModel.forceQuitProcess(process) }
+            Task { await viewModel.quitProcess(process, force: true) }
         } label: {
             Label("process.action.forceQuit", systemImage: "xmark.circle.fill")
         }

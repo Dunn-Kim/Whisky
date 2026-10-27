@@ -40,7 +40,7 @@ final class RegistryFixture: BottleRegistry {
     }
 }
 
-/// Thread-safe collector for duplication progress phases; the early phases are
+/// Thread-safe collector for duplication progress phases; the first phase is
 /// reported from a background task, the later ones from the main actor.
 private final class PhaseRecorder: @unchecked Sendable {
     private let lock = NSLock()
@@ -267,17 +267,7 @@ final class BottleOperationsDuplicateTests: BottleOperationsTestCase {
             registry: registry
         ) { recorder.record($0) }
 
-        let phases = recorder.phases
-        XCTAssertEqual(phases.count, 5)
-        guard phases.count == 5 else { return }
-        XCTAssertEqual(phases[0], .calculatingSize)
-        guard case let .copying(bytesCopied: startBytes, totalBytes: total) = phases[1] else {
-            return XCTFail("expected a copying start phase, got \(phases[1])")
-        }
-        XCTAssertEqual(startBytes, 0)
-        XCTAssertEqual(phases[2], .copying(bytesCopied: total, totalBytes: total))
-        XCTAssertEqual(phases[3], .updatingMetadata)
-        XCTAssertEqual(phases[4], .finalizing)
+        XCTAssertEqual(recorder.phases, [.copying, .updatingMetadata, .finalizing])
     }
 
     @MainActor

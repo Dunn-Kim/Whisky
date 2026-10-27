@@ -37,7 +37,6 @@ struct DependencyInstallSheet: View {
 
     @State private var stage: InstallStage = .info
     @State private var logLines: [String] = []
-    @State private var isInstalling: Bool = false
     @State private var installResult: InstallResult?
     @State private var showLog: Bool = false
     @State private var preflightResult: PreflightResult?
@@ -380,24 +379,18 @@ extension DependencyInstallSheet {
 extension DependencyInstallSheet {
     private func runPreflightChecks() {
         Task {
-            let result = await MainActor.run {
-                WinePrefixValidation.validatePrefix(for: bottle)
-            }
-            let preflight = PreflightResult(
+            let result = WinePrefixValidation.validatePrefix(for: bottle)
+            preflightResult = PreflightResult(
                 prefixValid: result.isValid,
                 prefixMessage: result.isValid
                     ? "Prefix is healthy and ready for installation"
                     : result.diagnostics?.events.last ?? "Prefix validation failed"
             )
-            await MainActor.run {
-                preflightResult = preflight
-            }
         }
     }
 
     private func startInstallation() {
         stage = .running
-        isInstalling = true
         logLines = []
 
         installTask = Task {
@@ -406,19 +399,17 @@ extension DependencyInstallSheet {
             var hadError = false
 
             for await (verb, progress) in verbStream {
-                await MainActor.run {
-                    switch progress {
-                    case .preparing:
-                        logLines.append("[\(verb)] Preparing\u{2026}")
-                    case let .output(line):
-                        logLines.append("[\(verb)] \(line)")
-                    case let .completed(exitCode):
-                        logLines.append("[\(verb)] Completed (exit code: \(exitCode))")
-                        lastExitCode = exitCode
-                    case let .failed(message):
-                        logLines.append("[\(verb)] FAILED: \(message)")
-                        hadError = true
-                    }
+                switch progress {
+                case .preparing:
+                    logLines.append("[\(verb)] Preparing\u{2026}")
+                case let .output(line):
+                    logLines.append("[\(verb)] \(line)")
+                case let .completed(exitCode):
+                    logLines.append("[\(verb)] Completed (exit code: \(exitCode))")
+                    lastExitCode = exitCode
+                case let .failed(message):
+                    logLines.append("[\(verb)] FAILED: \(message)")
+                    hadError = true
                 }
             }
 
@@ -434,11 +425,8 @@ extension DependencyInstallSheet {
                 .failure(exitCode: lastExitCode)
             }
 
-            await MainActor.run {
-                installResult = result
-                isInstalling = false
-                stage = .verify
-            }
+            installResult = result
+            stage = .verify
 
             await runVerification()
         }
@@ -448,10 +436,9 @@ extension DependencyInstallSheet {
     /// through the stream, and the bottle's wine processes are killed so the
     /// redist installer it spawned does not keep running headless.
     private func cancelInstall() {
-        guard isInstalling else { return }
+        guard stage == .running else { return }
         installTask?.cancel()
         installTask = nil
-        isInstalling = false
         Wine.killBottle(bottle: bottle)
     }
 
@@ -460,9 +447,7 @@ extension DependencyInstallSheet {
             for: bottle,
             definitions: [definition]
         )
-        await MainActor.run {
-            verifyStatus = statuses.first?.status ?? .unknown
-        }
+        verifyStatus = statuses.first?.status ?? .unknown
     }
 }
 

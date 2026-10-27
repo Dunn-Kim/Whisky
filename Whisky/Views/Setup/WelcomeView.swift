@@ -99,9 +99,16 @@ struct WelcomeView: View {
 struct InstallStatusView: View {
     @Binding var isInstalled: Bool?
     @Binding var shouldCheckInstallStatus: Bool
-    @State var showUninstall: Bool = false
-    @State var name: String
-    @State var text: String = .init(localized: "setup.install.checking")
+    var showUninstall: Bool = false
+    let name: String
+
+    private var text: String {
+        switch isInstalled {
+        case true?: String(localized: "setup.install.installed")
+        case false?: String(localized: "setup.install.notInstalled")
+        case nil: String(localized: "setup.install.checking")
+        }
+    }
 
     var body: some View {
         HStack {
@@ -123,17 +130,6 @@ struct InstallStatusView: View {
                         uninstall()
                     }
                 }
-            }
-        }
-        .onChange(of: isInstalled) {
-            if let installed = isInstalled {
-                if installed {
-                    text = String(localized: "setup.install.installed")
-                } else {
-                    text = String(localized: "setup.install.notInstalled")
-                }
-            } else {
-                text = String(localized: "setup.install.checking")
             }
         }
     }

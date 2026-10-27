@@ -63,10 +63,7 @@ struct WhiskyWineInstallView: View {
             // Guard against multiple onAppear calls from NavigationStack
             guard !hasStartedInstallation else { return }
             hasStartedInstallation = true
-            startInstallation(
-                startLogMessage: "Entered install stage",
-                finishLogMessage: "Install finished (installer returned)"
-            )
+            startInstallation()
         }
     }
 
@@ -117,10 +114,7 @@ struct WhiskyWineInstallView: View {
                 guard !installing else { return }
                 installError = nil
                 installing = true
-                startInstallation(
-                    startLogMessage: "Install started (retry)",
-                    finishLogMessage: "Install finished (retry)"
-                )
+                startInstallation()
             }
             .buttonStyle(.borderedProminent)
             .disabled(installing)
@@ -132,14 +126,13 @@ struct WhiskyWineInstallView: View {
         }
     }
 
-    private func startInstallation(startLogMessage: String, finishLogMessage: String) {
+    private func startInstallation() {
         Task {
             let attemptStartedAt = Date()
             let attemptNumber = diagnostics.installAttempts.count + 1
             diagnostics.installFinishedAt = nil
             diagnostics.installStartedAt = attemptStartedAt
             diagnostics.record("Install attempt \(attemptNumber) started")
-            diagnostics.record(startLogMessage)
 
             let capturedTarURL = tarLocation
             diagnostics.record("Invoking WhiskyWineInstaller.install(from:) in detached task")
@@ -148,10 +141,6 @@ struct WhiskyWineInstallView: View {
             if case let .failure(message?) = outcome {
                 diagnostics.record("Install failed: \(message)")
             }
-            let installStatus = isInstalled ? "installed" : "not installed"
-            diagnostics.record(
-                "Detached WhiskyWineInstaller.install(from:) task completed: \(installStatus)"
-            )
             let attemptFinishedAt = Date()
             diagnostics.installFinishedAt = attemptFinishedAt
             diagnostics.recordInstallAttempt(
@@ -161,7 +150,6 @@ struct WhiskyWineInstallView: View {
             )
             let attemptResult = isInstalled ? "success" : "failed"
             diagnostics.record("Install attempt \(attemptNumber) finished (\(attemptResult))")
-            diagnostics.record(finishLogMessage)
             installing = false
             applyInstallOutcome(outcome)
             guard isInstalled else { return }

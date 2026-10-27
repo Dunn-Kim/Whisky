@@ -45,6 +45,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the crash diagnosis history (it did what "View Details" does), and the
   game config preview's "Install components" switch, which never installed
   anything; the list of verbs and the note on installing them stay.
+- The bottle duplication progress bar. The copy is a single call, so the bar
+  only ever showed empty or full; the list entry shows a spinner with the
+  current step ("Copying", "Updating metadata", "Finalizing") instead, and
+  no longer walks the bottle first to size it.
 - `dependency-history.plist` is no longer written to a bottle on each
   dependency install; nothing read it back. Existing files are left alone.
 - Dead code, unread state and duplicated logic across WhiskyKit, the app
