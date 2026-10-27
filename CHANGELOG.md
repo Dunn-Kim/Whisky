@@ -123,6 +123,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`controllerCompatibilityMode` = `true`) to the setting check. It passed
   none, so the check always errored and the flow skipped its "Enable
   controller compatibility mode" fix.
+- "Remove everything" in the uninstall alert now deletes the default bottles
+  and the bottle list. It removed `Application Support/Bottles` and
+  `BottleData.plist`, which nothing creates, so the bottles under the
+  app container (`Bottles`, `BottleVM.plist`) were left behind. Bottles at
+  custom paths are still kept.
 
 ## [fork-2026.10.04] - 2026-10-04 (Fork)
 

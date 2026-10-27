@@ -304,25 +304,25 @@ public class WhiskyWineInstaller {
         // Drop the runtime first so partial failures still leave a coherent state.
         uninstall()
 
-        // Default bottles directory (matches `Bottle.defaultBottlesDirectory`).
-        let defaultBottles = applicationFolder.appending(path: "Bottles")
-        if FileManager.default.fileExists(atPath: defaultBottles.path(percentEncoded: false)) {
-            do {
-                try FileManager.default.removeItem(at: defaultBottles)
-            } catch {
-                logger.error("Failed to remove default bottles folder: \(error.localizedDescription)")
-            }
-        }
+        removeBottleStorage(defaultBottlesDir: BottleData.defaultBottleDir, registryFile: BottleData.bottleEntriesDir)
 
         // The GPTK store sits outside Libraries so it survives engine updates;
         // a full uninstall is the one case where it should not.
         try? FileManager.default.removeItem(at: GPTKImporter.storeFolder)
+    }
 
-        // BottleData.plist registers bottle paths; remove it so a reinstall
-        // starts with no orphaned entries pointing at deleted directories.
-        let bottleData = applicationFolder.appending(path: "BottleData.plist")
-        if FileManager.default.fileExists(atPath: bottleData.path(percentEncoded: false)) {
-            try? FileManager.default.removeItem(at: bottleData)
+    /// Removes the default bottles directory and the registry file that lists
+    /// bottle paths, so a reinstall starts with no orphaned entries pointing at
+    /// deleted directories. Bottles at custom paths are not touched. The
+    /// locations are parameters so tests can use temporary directories.
+    static func removeBottleStorage(defaultBottlesDir: URL, registryFile: URL) {
+        for url in [defaultBottlesDir, registryFile]
+            where FileManager.default.fileExists(atPath: url.path(percentEncoded: false)) {
+            do {
+                try FileManager.default.removeItem(at: url)
+            } catch {
+                logger.error("Failed to remove \(url.lastPathComponent): \(error.localizedDescription)")
+            }
         }
     }
 
