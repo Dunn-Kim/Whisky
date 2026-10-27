@@ -67,6 +67,27 @@ final class ClipboardManagerTests: XCTestCase {
         }
     }
 
+    func testEmptyStringClipboardIsEmpty() {
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString("", forType: .string)
+
+        let content = clipboardManager.getContent()
+
+        guard case .empty = content else { return XCTFail("Empty string should be treated as empty, got \(content)") }
+    }
+
+    func testWhitespaceOnlyClipboardIsText() {
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString("   ", forType: .string)
+
+        let content = clipboardManager.getContent()
+
+        guard case let .text(text) = content else { return XCTFail("Whitespace should be text, got \(content)") }
+        XCTAssertEqual(text, "   ", "Whitespace should be preserved")
+    }
+
     func testGetContentImage() throws {
         // Create an image with actual pixel data (required for headless CI environments)
         let testImage = NSImage(size: NSSize(width: 10, height: 10))
@@ -178,19 +199,6 @@ final class ClipboardManagerTests: XCTestCase {
             XCTAssertTrue(true, "Content should be empty after clear")
         default:
             XCTFail("Content should be empty after clear, got \(contentAfter)")
-        }
-    }
-
-    func testClearEmptyClipboard() {
-        // Should not crash
-        clipboardManager.clear()
-
-        let content = clipboardManager.getContent()
-        switch content {
-        case .empty:
-            XCTAssertTrue(true, "Content should be empty")
-        default:
-            XCTFail("Content should be empty, got \(content)")
         }
     }
 

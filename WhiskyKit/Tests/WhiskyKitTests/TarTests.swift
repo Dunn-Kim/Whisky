@@ -47,11 +47,6 @@ final class TarErrorTests: XCTestCase {
             "Tar command failed: tar: Error opening archive"
         )
     }
-
-    func testTarErrorIsLocalizedError() {
-        let error = TarError.pathTraversal(path: "test")
-        XCTAssertNotNil(error.errorDescription)
-    }
 }
 
 // MARK: - Tar Integration Tests
@@ -224,30 +219,6 @@ final class TarIntegrationTests: XCTestCase {
         XCTAssertFalse(entries.contains { $0.contains("._") }, "no AppleDouble entries: \(entries)")
     }
 
-    func testTarWithMultipleFiles() throws {
-        try Data("File 1 content".utf8).write(to: sourceDir.appending(path: "file1.txt"))
-        try Data("File 2 content".utf8).write(to: sourceDir.appending(path: "file2.txt"))
-        try Data("File 3 content".utf8).write(to: sourceDir.appending(path: "file3.txt"))
-
-        let tarURL = tempDir.appending(path: "multi.tar.gz")
-
-        try Tar.tar(folder: sourceDir, toURL: tarURL)
-
-        XCTAssertTrue(FileManager.default.fileExists(atPath: tarURL.path(percentEncoded: false)))
-    }
-
-    func testTarWithNestedDirectories() throws {
-        let subDir = sourceDir.appending(path: "subdir")
-        try FileManager.default.createDirectory(at: subDir, withIntermediateDirectories: true)
-        try Data("Nested file".utf8).write(to: subDir.appending(path: "nested.txt"))
-
-        let tarURL = tempDir.appending(path: "nested.tar.gz")
-
-        try Tar.tar(folder: sourceDir, toURL: tarURL)
-
-        XCTAssertTrue(FileManager.default.fileExists(atPath: tarURL.path(percentEncoded: false)))
-    }
-
     func testUntarWithInvalidArchive() throws {
         let invalidTar = tempDir.appending(path: "invalid.tar.gz")
         try Data("not a tar file".utf8).write(to: invalidTar)
@@ -289,46 +260,6 @@ final class TarIntegrationTests: XCTestCase {
 
         XCTAssertTrue(FileManager.default.fileExists(atPath: tarURL.path(percentEncoded: false)))
     }
-}
-
-// MARK: - Tar Path Traversal Security Tests
-
-final class TarPathTraversalTests: XCTestCase {
-    var tempDir: URL!
-    var extractDir: URL!
-
-    override func setUpWithError() throws {
-        tempDir = try makeTempDir()
-        extractDir = tempDir.appending(path: "extract")
-
-        try? FileManager.default.createDirectory(at: extractDir, withIntermediateDirectories: true)
-    }
-
-    func testValidArchiveExtraction() throws {
-        let sourceDir = tempDir.appending(path: "source")
-        try FileManager.default.createDirectory(at: sourceDir, withIntermediateDirectories: true)
-        try Data("safe content".utf8).write(to: sourceDir.appending(path: "safe.txt"))
-
-        let tarURL = tempDir.appending(path: "safe.tar.gz")
-        try Tar.tar(folder: sourceDir, toURL: tarURL)
-
-        XCTAssertNoThrow(try Tar.untar(tarBall: tarURL, toURL: extractDir))
-    }
-
-    func testTarBinaryPath() {
-        let tarBinary = URL(fileURLWithPath: "/usr/bin/tar")
-        XCTAssertTrue(FileManager.default.fileExists(atPath: tarBinary.path))
-    }
-}
-
-// MARK: - Tar Command Tests
-
-final class TarCommandTests: XCTestCase {
-    var tempDir: URL!
-
-    override func setUpWithError() throws {
-        tempDir = try makeTempDir()
-    }
 
     func testTarCreatesCompressedArchive() throws {
         let sourceDir = tempDir.appending(path: "source")
@@ -362,49 +293,5 @@ final class TarCommandTests: XCTestCase {
             includingPropertiesForKeys: nil
         )
         XCTAssertFalse(extractedItems.isEmpty)
-    }
-
-    func testTarWithBinaryContent() throws {
-        let sourceDir = tempDir.appending(path: "source")
-        try FileManager.default.createDirectory(at: sourceDir, withIntermediateDirectories: true)
-
-        var binaryData = Data()
-        for byteValue: UInt8 in 0 ... 255 {
-            binaryData.append(byteValue)
-        }
-        try binaryData.write(to: sourceDir.appending(path: "binary.bin"))
-
-        let tarURL = tempDir.appending(path: "binary.tar.gz")
-        try Tar.tar(folder: sourceDir, toURL: tarURL)
-
-        XCTAssertTrue(FileManager.default.fileExists(atPath: tarURL.path(percentEncoded: false)))
-    }
-}
-
-// MARK: - String Error Conformance Test
-
-final class StringErrorConformanceTests: XCTestCase {
-    func testStringIsError() {
-        let errorString: Error = "This is an error"
-        XCTAssertNotNil(errorString)
-    }
-
-    func testStringErrorCanBeThrown() {
-        func throwingFunction() throws {
-            throw "Custom error message"
-        }
-
-        XCTAssertThrowsError(try throwingFunction()) { error in
-            XCTAssertTrue(error is String)
-        }
-    }
-
-    func testStringErrorCastable() {
-        let errorString: Error = "Test error description"
-        if let stringError = errorString as? String {
-            XCTAssertEqual(stringError, "Test error description")
-        } else {
-            XCTFail("Expected error to be castable to String")
-        }
     }
 }

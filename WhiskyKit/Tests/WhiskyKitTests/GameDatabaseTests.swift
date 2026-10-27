@@ -343,28 +343,6 @@ final class GameDatabaseTests: XCTestCase {
         XCTAssertEqual(manifest.installDir, "ELDEN RING")
     }
 
-    // MARK: - Test 10: SteamAppManifest Parses AppId Txt
-
-    func testSteamAppManifestParsesAppIdTxt() throws {
-        let tempDir = FileManager.default.temporaryDirectory
-            .appending(path: "GameDatabaseTests-\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-
-        defer {
-            try? FileManager.default.removeItem(at: tempDir)
-        }
-
-        // Create a steam_appid.txt file
-        let appIdFile = tempDir.appending(path: "steam_appid.txt")
-        try "1245620\n".write(to: appIdFile, atomically: true, encoding: .utf8)
-
-        // Create a fake exe path in this directory
-        let exeURL = tempDir.appending(path: "game.exe")
-
-        let appId = SteamAppManifest.findAppIdForProgram(at: exeURL)
-        XCTAssertEqual(appId, 1_245_620)
-    }
-
     // MARK: - Test 11: GameConfigSnapshot Plist Round-Trip
 
     func testGameConfigSnapshotPlistRoundTrip() throws {

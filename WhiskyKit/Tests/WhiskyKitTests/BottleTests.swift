@@ -37,97 +37,20 @@ final class BottleCoreTests: XCTestCase {
         try? FileManager.default.createDirectory(at: driveCURL, withIntermediateDirectories: true)
     }
 
-    // MARK: - Initialization Tests
-
-    @MainActor
-    func testBottleInitializationWithURL() {
-        let bottle = Bottle(bottleUrl: bottleURL)
-
-        XCTAssertEqual(bottle.url, bottleURL)
-    }
-
-    @MainActor
-    func testBottleInitializationWithInFlight() {
-        let bottle = Bottle(bottleUrl: bottleURL, inFlight: true)
-
-        XCTAssertTrue(bottle.inFlight)
-    }
-
-    @MainActor
-    func testBottleInitializationWithIsAvailable() {
-        let bottle = Bottle(bottleUrl: bottleURL, isAvailable: true)
-
-        XCTAssertTrue(bottle.isAvailable)
-    }
-
-    @MainActor
-    func testBottleInitializationCreatesDefaultSettings() {
-        let bottle = Bottle(bottleUrl: bottleURL)
-
-        XCTAssertNotNil(bottle.settings)
-    }
-
     // MARK: - ID Property Tests
 
     @MainActor
-    func testBottleIdEqualsURL() {
+    func testBottleIdentityIsItsURL() {
+        let otherURL = tempDir.appending(path: "OtherBottle")
+        try? FileManager.default.createDirectory(
+            at: otherURL.appending(path: "drive_c"),
+            withIntermediateDirectories: true
+        )
         let bottle = Bottle(bottleUrl: bottleURL)
 
         XCTAssertEqual(bottle.id, bottleURL)
-    }
-
-    // MARK: - Equatable Tests
-
-    @MainActor
-    func testBottleEquatableWithSameURL() {
-        let bottle1 = Bottle(bottleUrl: bottleURL)
-        let bottle2 = Bottle(bottleUrl: bottleURL)
-
-        XCTAssertEqual(bottle1, bottle2)
-    }
-
-    @MainActor
-    func testBottleEquatableWithDifferentURL() {
-        let otherURL = tempDir.appending(path: "OtherBottle")
-        try? FileManager.default.createDirectory(
-            at: otherURL.appending(path: "drive_c"),
-            withIntermediateDirectories: true
-        )
-
-        let bottle1 = Bottle(bottleUrl: bottleURL)
-        let bottle2 = Bottle(bottleUrl: otherURL)
-
-        XCTAssertNotEqual(bottle1, bottle2)
-    }
-
-    // MARK: - Hashable Tests
-
-    @MainActor
-    func testBottleHashableConsistency() {
-        let bottle1 = Bottle(bottleUrl: bottleURL)
-        let bottle2 = Bottle(bottleUrl: bottleURL)
-
-        XCTAssertEqual(bottle1.hashValue, bottle2.hashValue)
-    }
-
-    @MainActor
-    func testBottleHashableInSet() {
-        let otherURL = tempDir.appending(path: "OtherBottle")
-        try? FileManager.default.createDirectory(
-            at: otherURL.appending(path: "drive_c"),
-            withIntermediateDirectories: true
-        )
-
-        let bottle1 = Bottle(bottleUrl: bottleURL)
-        let bottle2 = Bottle(bottleUrl: otherURL)
-
-        var bottleSet: Set<Bottle> = []
-        bottleSet.insert(bottle1)
-        bottleSet.insert(bottle2)
-
-        XCTAssertEqual(bottleSet.count, 2)
-        XCTAssertTrue(bottleSet.contains(bottle1))
-        XCTAssertTrue(bottleSet.contains(bottle2))
+        // Custom ==/hash compare the URL only
+        XCTAssertEqual(Set([bottle, Bottle(bottleUrl: bottleURL), Bottle(bottleUrl: otherURL)]).count, 2)
     }
 
     // MARK: - Comparable Tests

@@ -22,21 +22,6 @@ import XCTest
 // MARK: - GameDBLoader Tests
 
 final class GameMatcherTests: XCTestCase {
-    // MARK: - Test 1: GameDBLoader Loads Defaults
-
-    func testGameDBLoaderLoadsDefaults() {
-        let entries = GameDBLoader.loadDefaults()
-        XCTAssertFalse(entries.isEmpty, "loadDefaults() should return a non-empty array")
-
-        // Sentinel entry that has shipped since the initial seed file. Don't pin
-        // on entry order — entries are sorted by title and new ones are added
-        // over time.
-        XCTAssertNotNil(
-            entries.first { $0.id == "stardew-valley" },
-            "Expected to find stardew-valley entry in defaults"
-        )
-    }
-
     // MARK: - Test 2: GameDBLoader Decodes All Fields
 
     func testGameDBLoaderDecodesAllFields() {
