@@ -45,11 +45,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
 
-        // Background cleanup of orphaned temp files from previous sessions
-        Task.detached {
-            await TempFileTracker.shared.cleanupOldFiles(olderThan: 24 * 60 * 60)
-        }
-
         // Startup orphan process detection
         // Probe each known bottle's wineserver to detect processes from previous sessions
         Task {
@@ -95,12 +90,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                     "Killing bottle '\(bottle.settings.name)' on quit (policy: \(String(describing: bottlePolicy)))"
                 )
             }
-        }
-
-        // Synchronous best-effort temp file cleanup (cannot await in applicationWillTerminate)
-        let trackedFiles = TempFileTracker.shared.getAllTrackedFiles()
-        for (fileURL, _) in trackedFiles {
-            try? FileManager.default.removeItem(at: fileURL)
         }
     }
 

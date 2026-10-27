@@ -84,7 +84,7 @@ public enum TerminalApp: String, CaseIterable, Identifiable {
     }
 
     /// Has the preferred terminal `source` `script`, written to a temp `.sh`
-    /// tracked for cleanup. Throws when the script can't be written; an
+    /// the caller deletes. Throws when the script can't be written; an
     /// AppleScript failure is shown as the run-error alert naming `subject`.
     @discardableResult
     public static func runScript(_ script: String, namePrefix: String, subject: String) async throws -> URL {
@@ -92,7 +92,6 @@ public enum TerminalApp: String, CaseIterable, Identifiable {
             .appendingPathComponent("\(namePrefix)-\(UUID().uuidString).sh")
         try script.write(to: scriptURL, atomically: true, encoding: .utf8)
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: scriptURL.path)
-        TempFileTracker.shared.register(file: scriptURL)
 
         var error: NSDictionary?
         NSAppleScript(source: preferred.generateAppleScript(for: scriptURL.path))?.executeAndReturnError(&error)

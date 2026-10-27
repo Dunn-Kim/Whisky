@@ -92,7 +92,7 @@ extension Bottle {
 
             // Clean up temp script after a delay to ensure the terminal has read it
             try? await Task.sleep(for: .seconds(5))
-            await TempFileTracker.shared.cleanupWithRetry(file: scriptURL)
+            try? FileManager.default.removeItem(at: scriptURL)
         }
     }
 
