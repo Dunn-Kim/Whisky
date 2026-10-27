@@ -111,33 +111,4 @@ final class WhiskyWineVersionSHA256Tests: XCTestCase {
             XCTAssertNil(versionInfo.sha256, "Malformed digest \"\(malformed)\" should normalize to nil")
         }
     }
-
-    func testRoundTripPreservesSHA256() throws {
-        let original = WhiskyWineVersion(
-            version: SemanticVersion(3, 0, 0),
-            dxvkVersion: "1.10.3",
-            sha256: sampleHash
-        )
-
-        let encoder = PropertyListEncoder()
-        encoder.outputFormat = .xml
-        let data = try encoder.encode(original)
-        let decoded = try PropertyListDecoder().decode(WhiskyWineVersion.self, from: data)
-
-        XCTAssertEqual(decoded.version, original.version)
-        XCTAssertEqual(decoded.dxvkVersion, "1.10.3")
-        XCTAssertEqual(decoded.sha256, sampleHash)
-    }
-
-    func testNilSHA256IsOmittedFromEncoding() throws {
-        let original = WhiskyWineVersion(version: SemanticVersion(3, 0, 0))
-
-        let encoder = PropertyListEncoder()
-        encoder.outputFormat = .xml
-        let data = try encoder.encode(original)
-        let plist = try PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any]
-
-        XCTAssertNotNil(plist)
-        XCTAssertNil(plist?["sha256"], "A nil SHA-256 should not be written to the plist")
-    }
 }

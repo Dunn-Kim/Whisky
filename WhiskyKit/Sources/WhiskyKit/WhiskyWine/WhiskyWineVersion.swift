@@ -32,7 +32,7 @@ import SemanticVersion
 ///     <integer>0</integer>
 /// </dict>
 /// ```
-public struct WhiskyWineVersion: Codable {
+public struct WhiskyWineVersion: Decodable {
     public var version: SemanticVersion
 
     /// The bundled DXVK (macOS) version recorded alongside the runtime version,
@@ -97,22 +97,6 @@ public struct WhiskyWineVersion: Codable {
         case msyncCapable
     }
 
-    public init(
-        version: SemanticVersion,
-        dxvkVersion: String? = nil,
-        dxmtVersion: String? = nil,
-        sha256: String? = nil,
-        gptkCapable: Bool? = nil,
-        msyncCapable: Bool? = nil
-    ) {
-        self.version = version
-        self.dxvkVersion = Self.normalized(dxvkVersion)
-        self.dxmtVersion = Self.normalized(dxmtVersion)
-        self.sha256 = Self.normalizedDigest(sha256)
-        self.gptkCapable = gptkCapable
-        self.msyncCapable = msyncCapable
-    }
-
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let versionDict = try container.nestedContainer(keyedBy: VersionKeys.self, forKey: .version)
@@ -151,19 +135,6 @@ public struct WhiskyWineVersion: Codable {
         // download as a mismatch instead of collapsing to nil (skip).
         let isHexDigest = trimmed.count == 64 && trimmed.allSatisfy { $0.isHexDigit && $0.isASCII }
         return isHexDigest ? trimmed : nil
-    }
-
-    public func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        var versionDict = container.nestedContainer(keyedBy: VersionKeys.self, forKey: .version)
-        try versionDict.encode(version.major, forKey: .major)
-        try versionDict.encode(version.minor, forKey: .minor)
-        try versionDict.encode(version.patch, forKey: .patch)
-        try container.encodeIfPresent(dxvkVersion, forKey: .dxvkVersion)
-        try container.encodeIfPresent(dxmtVersion, forKey: .dxmtVersion)
-        try container.encodeIfPresent(sha256, forKey: .sha256)
-        try container.encodeIfPresent(gptkCapable, forKey: .gptkCapable)
-        try container.encodeIfPresent(msyncCapable, forKey: .msyncCapable)
     }
 
     private enum VersionKeys: String, CodingKey {
