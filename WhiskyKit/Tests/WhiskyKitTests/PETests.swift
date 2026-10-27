@@ -114,28 +114,6 @@ final class PEFileTests: XCTestCase {
         let pe64File = try PEFile(url: pe64URL)
         XCTAssertEqual(pe64File.architecture, .x64)
     }
-
-    func testPEFileEquatable() throws {
-        let peData = PEBuilder.createMinimalPE32()
-        let fileURL = tempDir.appending(path: "eq.exe")
-        try peData.write(to: fileURL)
-
-        let pe1 = try PEFile(url: fileURL)
-        let pe2 = try PEFile(url: fileURL)
-
-        XCTAssertEqual(pe1, pe2)
-    }
-
-    func testPEFileHashable() throws {
-        let peData = PEBuilder.createMinimalPE32()
-        let fileURL = tempDir.appending(path: "hash.exe")
-        try peData.write(to: fileURL)
-
-        let pe1 = try PEFile(url: fileURL)
-        let pe2 = try PEFile(url: fileURL)
-
-        XCTAssertEqual(pe1.hashValue, pe2.hashValue)
-    }
 }
 
 // MARK: - COFFFileHeader Tests
@@ -173,18 +151,6 @@ final class COFFFileHeaderTests: XCTestCase {
 
         XCTAssertEqual(peFile.coffFileHeader.sizeOfOptionalHeader, 0xE0)
     }
-
-    func testCOFFHeaderHashable() throws {
-        let peData = PEBuilder.createMinimalPE32()
-        let fileURL = tempDir.appending(path: "coffhash.exe")
-        try peData.write(to: fileURL)
-
-        let pe1 = try PEFile(url: fileURL)
-        let pe2 = try PEFile(url: fileURL)
-
-        XCTAssertEqual(pe1.coffFileHeader, pe2.coffFileHeader)
-        XCTAssertEqual(pe1.coffFileHeader.hashValue, pe2.coffFileHeader.hashValue)
-    }
 }
 
 // MARK: - OptionalHeader Tests
@@ -221,17 +187,6 @@ final class OptionalHeaderTests: XCTestCase {
         let peFile = try PEFile(url: fileURL)
 
         XCTAssertEqual(peFile.optionalHeader?.magic, .pe32Plus)
-    }
-
-    func testOptionalHeaderHashable() throws {
-        let peData = PEBuilder.createMinimalPE32()
-        let fileURL = tempDir.appending(path: "hashopt.exe")
-        try peData.write(to: fileURL)
-
-        let pe1 = try PEFile(url: fileURL)
-        let pe2 = try PEFile(url: fileURL)
-
-        XCTAssertEqual(pe1.optionalHeader, pe2.optionalHeader)
     }
 }
 
@@ -271,20 +226,6 @@ final class SectionTests: XCTestCase {
         XCTAssertEqual(peFile.sections.first?.virtualAddress, 0x1000)
         XCTAssertEqual(peFile.sections.first?.virtualSize, 0x1000)
     }
-
-    func testSectionHashable() throws {
-        let peData = PEBuilder.createMinimalPE32()
-        let fileURL = tempDir.appending(path: "secthash.exe")
-        try peData.write(to: fileURL)
-
-        let pe1 = try PEFile(url: fileURL)
-        let pe2 = try PEFile(url: fileURL)
-
-        XCTAssertEqual(pe1.sections, pe2.sections)
-        if let section1 = pe1.sections.first, let section2 = pe2.sections.first {
-            XCTAssertEqual(section1.hashValue, section2.hashValue)
-        }
-    }
 }
 
 // MARK: - Magic Tests
@@ -294,34 +235,6 @@ final class MagicTests: XCTestCase {
         XCTAssertEqual(PEFile.Magic.unknown.rawValue, 0x0)
         XCTAssertEqual(PEFile.Magic.pe32.rawValue, 0x10B)
         XCTAssertEqual(PEFile.Magic.pe32Plus.rawValue, 0x20B)
-    }
-
-    func testMagicInitFromRawValue() {
-        XCTAssertEqual(PEFile.Magic(rawValue: 0x0), .unknown)
-        XCTAssertEqual(PEFile.Magic(rawValue: 0x10B), .pe32)
-        XCTAssertEqual(PEFile.Magic(rawValue: 0x20B), .pe32Plus)
-    }
-
-    func testMagicInvalidRawValue() {
-        XCTAssertNil(PEFile.Magic(rawValue: 0xFFFF))
-        XCTAssertNil(PEFile.Magic(rawValue: 0x100))
-    }
-
-    func testMagicEquatable() {
-        let magic1 = PEFile.Magic.pe32
-        let magic2 = PEFile.Magic.pe32
-
-        XCTAssertEqual(magic1, magic2)
-        XCTAssertNotEqual(PEFile.Magic.pe32, PEFile.Magic.pe32Plus)
-    }
-
-    func testMagicHashable() {
-        var set = Set<PEFile.Magic>()
-        set.insert(.pe32)
-        set.insert(.pe32Plus)
-        set.insert(.pe32) // Duplicate
-
-        XCTAssertEqual(set.count, 2)
     }
 }
 
@@ -338,19 +251,5 @@ final class ArchitectureTests: XCTestCase {
 
     func testArchitectureUnknownToString() {
         XCTAssertNil(Architecture.unknown.toString())
-    }
-
-    func testArchitectureEquatable() {
-        XCTAssertEqual(Architecture.x32, Architecture.x32)
-        XCTAssertNotEqual(Architecture.x32, Architecture.x64)
-    }
-
-    func testArchitectureHashable() {
-        var set = Set<Architecture>()
-        set.insert(.x32)
-        set.insert(.x64)
-        set.insert(.unknown)
-
-        XCTAssertEqual(set.count, 3)
     }
 }

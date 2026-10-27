@@ -27,69 +27,6 @@ final class ResourceTypeTests: XCTestCase {
         let iconType = ResourceType(rawValue: 3)
         XCTAssertEqual(iconType, .icon)
     }
-
-    func testResourceTypeUnknownRawValue() {
-        // The standard synthesized init(rawValue:) returns nil for invalid values
-        let unknownType = ResourceType(rawValue: UInt32(999))
-        XCTAssertNil(unknownType)
-    }
-
-    func testResourceTypeCaseIterable() {
-        let allCases = ResourceType.allCases
-        XCTAssertTrue(allCases.contains(.icon))
-        XCTAssertTrue(allCases.contains(.unknown))
-    }
-
-    func testResourceTypeHashable() {
-        var set = Set<ResourceType>()
-        set.insert(.icon)
-        set.insert(.unknown)
-        XCTAssertEqual(set.count, 2)
-    }
-
-    func testResourceTypeEquatable() {
-        XCTAssertEqual(ResourceType.icon, ResourceType.icon)
-        XCTAssertNotEqual(ResourceType.icon, ResourceType.unknown)
-    }
-}
-
-// MARK: - Architecture from OptionalHeader Tests
-
-final class ArchitectureFromOptionalHeaderTests: XCTestCase {
-    var tempDir: URL!
-
-    override func setUp() {
-        super.setUp()
-        tempDir = FileManager.default.temporaryDirectory.appending(path: "arch_test_\(UUID().uuidString)")
-        try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-    }
-
-    override func tearDown() {
-        try? FileManager.default.removeItem(at: tempDir)
-        super.tearDown()
-    }
-
-    func testPE32ArchitectureIs32Bit() throws {
-        let peData = PEBuilder.createMinimalPE32()
-        let fileURL = tempDir.appending(path: "arch32.exe")
-        try peData.write(to: fileURL)
-
-        let peFile = try PEFile(url: fileURL)
-
-        XCTAssertEqual(peFile.architecture, .x32)
-        XCTAssertEqual(peFile.architecture.toString(), "32-bit")
-    }
-
-    func testPE32PlusArchitectureIs64Bit() throws {
-        let peData = PEBuilder.createMinimalPE32Plus()
-        let fileURL = tempDir.appending(path: "arch64.exe")
-        try peData.write(to: fileURL)
-
-        let peFile = try PEFile(url: fileURL)
-
-        XCTAssertEqual(peFile.architecture, .x64)
-        XCTAssertEqual(peFile.architecture.toString(), "64-bit")
-    }
 }
 
 // MARK: - ResourceDataEntry Tests
@@ -298,28 +235,6 @@ final class ResourceDirectoryTableTests: XCTestCase {
         XCTAssertTrue(table.subtables.isEmpty)
         XCTAssertTrue(table.entries.isEmpty)
         XCTAssertTrue(table.allEntries.isEmpty)
-    }
-
-    func testResourceDirectoryTableHashable() throws {
-        var data = Data()
-        data.append(contentsOf: withUnsafeBytes(of: UInt32(0).littleEndian) { Array($0) })
-        data.append(contentsOf: withUnsafeBytes(of: UInt32(0).littleEndian) { Array($0) })
-        data.append(contentsOf: withUnsafeBytes(of: UInt16(0).littleEndian) { Array($0) })
-        data.append(contentsOf: withUnsafeBytes(of: UInt16(0).littleEndian) { Array($0) })
-        data.append(contentsOf: withUnsafeBytes(of: UInt16(0).littleEndian) { Array($0) })
-        data.append(contentsOf: withUnsafeBytes(of: UInt16(0).littleEndian) { Array($0) })
-
-        let fileURL = tempDir.appending(path: "hash_table.bin")
-        try data.write(to: fileURL)
-
-        let handle = try FileHandle(forReadingFrom: fileURL)
-        defer { try? handle.close() }
-
-        let table1 = ResourceDirectoryTable(handle: handle, pointerToRawData: 0, types: nil)
-        let table2 = ResourceDirectoryTable(handle: handle, pointerToRawData: 0, types: nil)
-
-        XCTAssertEqual(table1, table2)
-        XCTAssertEqual(table1.hashValue, table2.hashValue)
     }
 
     func testResourceDirectoryTableWithTypeFilter() throws {

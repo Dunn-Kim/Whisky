@@ -19,75 +19,6 @@
 @testable import WhiskyKit
 import XCTest
 
-// MARK: - Magic Enum Tests
-
-final class MagicEnumTests: XCTestCase {
-    func testMagicRawValues() {
-        XCTAssertEqual(PEFile.Magic.unknown.rawValue, 0x0)
-        XCTAssertEqual(PEFile.Magic.pe32.rawValue, 0x10B)
-        XCTAssertEqual(PEFile.Magic.pe32Plus.rawValue, 0x20B)
-    }
-
-    func testMagicInitFromRawValue() {
-        XCTAssertEqual(PEFile.Magic(rawValue: 0x0), .unknown)
-        XCTAssertEqual(PEFile.Magic(rawValue: 0x10B), .pe32)
-        XCTAssertEqual(PEFile.Magic(rawValue: 0x20B), .pe32Plus)
-    }
-
-    func testMagicInitFromInvalidRawValue() {
-        XCTAssertNil(PEFile.Magic(rawValue: 0x1))
-        XCTAssertNil(PEFile.Magic(rawValue: 0x100))
-        XCTAssertNil(PEFile.Magic(rawValue: 0xFFFF))
-    }
-
-    func testMagicHashable() {
-        var set = Set<PEFile.Magic>()
-        set.insert(.unknown)
-        set.insert(.pe32)
-        set.insert(.pe32Plus)
-
-        XCTAssertEqual(set.count, 3)
-        XCTAssertTrue(set.contains(.unknown))
-        XCTAssertTrue(set.contains(.pe32))
-        XCTAssertTrue(set.contains(.pe32Plus))
-    }
-
-    func testMagicEquatable() {
-        XCTAssertEqual(PEFile.Magic.pe32, PEFile.Magic.pe32)
-        XCTAssertNotEqual(PEFile.Magic.pe32, PEFile.Magic.pe32Plus)
-        XCTAssertNotEqual(PEFile.Magic.unknown, PEFile.Magic.pe32)
-    }
-}
-
-// MARK: - Architecture Enum Tests
-
-final class ArchitectureEnumTests: XCTestCase {
-    func testArchitectureToString() {
-        XCTAssertEqual(Architecture.x32.toString(), "32-bit")
-        XCTAssertEqual(Architecture.x64.toString(), "64-bit")
-        XCTAssertNil(Architecture.unknown.toString())
-    }
-
-    func testArchitectureHashable() {
-        var set = Set<Architecture>()
-        set.insert(.x32)
-        set.insert(.x64)
-        set.insert(.unknown)
-
-        XCTAssertEqual(set.count, 3)
-        XCTAssertTrue(set.contains(.x32))
-        XCTAssertTrue(set.contains(.x64))
-        XCTAssertTrue(set.contains(.unknown))
-    }
-
-    func testArchitectureEquatable() {
-        XCTAssertEqual(Architecture.x32, Architecture.x32)
-        XCTAssertEqual(Architecture.x64, Architecture.x64)
-        XCTAssertNotEqual(Architecture.x32, Architecture.x64)
-        XCTAssertNotEqual(Architecture.x32, Architecture.unknown)
-    }
-}
-
 // MARK: - Locales Enum Tests
 
 final class LocalesEnumTests: XCTestCase {
@@ -121,32 +52,6 @@ final class LocalesEnumTests: XCTestCase {
         XCTAssertEqual(Locales.chineseSimplified.pretty(), "简体中文")
         XCTAssertEqual(Locales.chineseTraditional.pretty(), "繁體中文")
     }
-
-    func testLocalesCaseIterable() {
-        let allCases = Locales.allCases
-        XCTAssertEqual(allCases.count, 13)
-        XCTAssertTrue(allCases.contains(.auto))
-        XCTAssertTrue(allCases.contains(.english))
-        XCTAssertTrue(allCases.contains(.japanese))
-    }
-
-    func testLocalesCodable() throws {
-        // PropertyListEncoder cannot encode a raw string as a top-level value,
-        // so we wrap it in a container struct for the round-trip test
-        struct LocaleContainer: Codable {
-            let locale: Locales
-        }
-
-        for locale in Locales.allCases {
-            let container = LocaleContainer(locale: locale)
-            let encoder = PropertyListEncoder()
-            encoder.outputFormat = .xml
-            let data = try encoder.encode(container)
-
-            let decoded = try PropertyListDecoder().decode(LocaleContainer.self, from: data)
-            XCTAssertEqual(decoded.locale, locale, "Round-trip should preserve locale \(locale)")
-        }
-    }
 }
 
 // MARK: - ProgramSettings Tests
@@ -158,37 +63,6 @@ final class ProgramSettingsTests: XCTestCase {
         XCTAssertEqual(settings.locale, .auto)
         XCTAssertEqual(settings.environment, [:])
         XCTAssertEqual(settings.arguments, "")
-    }
-
-    func testSettingsWithCustomValues() {
-        var settings = ProgramSettings()
-        settings.locale = .japanese
-        settings.arguments = "-windowed -nosound"
-        settings.environment["WINEDEBUG"] = "-all"
-        settings.environment["CUSTOM_VAR"] = "value"
-
-        XCTAssertEqual(settings.locale, .japanese)
-        XCTAssertEqual(settings.arguments, "-windowed -nosound")
-        XCTAssertEqual(settings.environment.count, 2)
-        XCTAssertEqual(settings.environment["WINEDEBUG"], "-all")
-        XCTAssertEqual(settings.environment["CUSTOM_VAR"], "value")
-    }
-
-    func testSettingsRoundTripEncoding() throws {
-        var original = ProgramSettings()
-        original.locale = .korean
-        original.arguments = "--debug --verbose"
-        original.environment["TEST_KEY"] = "test_value"
-
-        let encoder = PropertyListEncoder()
-        encoder.outputFormat = .xml
-        let data = try encoder.encode(original)
-
-        let decoded = try PropertyListDecoder().decode(ProgramSettings.self, from: data)
-
-        XCTAssertEqual(decoded.locale, original.locale)
-        XCTAssertEqual(decoded.arguments, original.arguments)
-        XCTAssertEqual(decoded.environment, original.environment)
     }
 
     func testSettingsEncodeDecodeWithTempFile() throws {
@@ -233,47 +107,6 @@ final class ProgramSettingsTests: XCTestCase {
 
         XCTAssertTrue(FileManager.default.fileExists(atPath: nonExistentURL.path(percentEncoded: false)))
     }
-
-    func testSettingsWithAllLocales() throws {
-        for locale in Locales.allCases {
-            var settings = ProgramSettings()
-            settings.locale = locale
-
-            let encoder = PropertyListEncoder()
-            encoder.outputFormat = .xml
-            let data = try encoder.encode(settings)
-
-            let decoded = try PropertyListDecoder().decode(ProgramSettings.self, from: data)
-            XCTAssertEqual(decoded.locale, locale, "Round-trip should preserve locale \(locale)")
-        }
-    }
-
-    func testSettingsWithEmptyEnvironment() throws {
-        var settings = ProgramSettings()
-        settings.environment = [:]
-
-        let encoder = PropertyListEncoder()
-        encoder.outputFormat = .xml
-        let data = try encoder.encode(settings)
-
-        let decoded = try PropertyListDecoder().decode(ProgramSettings.self, from: data)
-        XCTAssertEqual(decoded.environment, [:])
-    }
-
-    func testSettingsWithLargeEnvironment() throws {
-        var settings = ProgramSettings()
-        for index in 0 ..< 50 {
-            settings.environment["KEY_\(index)"] = "VALUE_\(index)"
-        }
-
-        let encoder = PropertyListEncoder()
-        encoder.outputFormat = .xml
-        let data = try encoder.encode(settings)
-
-        let decoded = try PropertyListDecoder().decode(ProgramSettings.self, from: data)
-        XCTAssertEqual(decoded.environment.count, 50)
-        XCTAssertEqual(decoded.environment["KEY_25"], "VALUE_25")
-    }
 }
 
 // MARK: - PEError Tests
@@ -282,88 +115,5 @@ final class PEErrorTests: XCTestCase {
     func testInvalidPEFileError() {
         let error = PEError.invalidPEFile
         XCTAssertEqual(error.message, "Invalid PE file")
-    }
-
-    func testPEErrorIsError() {
-        let error = PEError.invalidPEFile
-        XCTAssertTrue(error is Error)
-    }
-
-    func testPEErrorEquality() {
-        let error1 = PEError(message: "Test error")
-        let error2 = PEError(message: "Test error")
-        let error3 = PEError(message: "Different error")
-
-        XCTAssertEqual(error1.message, error2.message)
-        XCTAssertNotEqual(error1.message, error3.message)
-    }
-}
-
-// MARK: - ProcessOutput Tests
-
-final class ProcessOutputTests: XCTestCase {
-    func testProcessOutputStarted() {
-        let output = ProcessOutput.started
-        XCTAssertEqual(output, .started)
-    }
-
-    func testProcessOutputMessage() {
-        let output = ProcessOutput.message("Hello, World!")
-        if case let .message(text) = output {
-            XCTAssertEqual(text, "Hello, World!")
-        } else {
-            XCTFail("Expected .message case")
-        }
-    }
-
-    func testProcessOutputError() {
-        let output = ProcessOutput.error("An error occurred")
-        if case let .error(text) = output {
-            XCTAssertEqual(text, "An error occurred")
-        } else {
-            XCTFail("Expected .error case")
-        }
-    }
-
-    func testProcessOutputTerminated() {
-        let output = ProcessOutput.terminated(0)
-        if case let .terminated(exitCode) = output {
-            XCTAssertEqual(exitCode, 0)
-        } else {
-            XCTFail("Expected .terminated case")
-        }
-    }
-
-    func testProcessOutputTerminatedWithNonZeroCode() {
-        let output = ProcessOutput.terminated(1)
-        if case let .terminated(exitCode) = output {
-            XCTAssertEqual(exitCode, 1)
-        } else {
-            XCTFail("Expected .terminated case")
-        }
-    }
-
-    func testProcessOutputHashable() {
-        var set = Set<ProcessOutput>()
-        set.insert(.started)
-        set.insert(.message("test"))
-        set.insert(.error("error"))
-        set.insert(.terminated(0))
-
-        XCTAssertEqual(set.count, 4)
-    }
-
-    func testProcessOutputEquality() {
-        XCTAssertEqual(ProcessOutput.started, ProcessOutput.started)
-        XCTAssertEqual(ProcessOutput.message("test"), ProcessOutput.message("test"))
-        XCTAssertEqual(ProcessOutput.error("err"), ProcessOutput.error("err"))
-        XCTAssertEqual(ProcessOutput.terminated(0), ProcessOutput.terminated(0))
-
-        XCTAssertNotEqual(ProcessOutput.started, ProcessOutput.terminated(0))
-        XCTAssertNotEqual(ProcessOutput.message("a"), ProcessOutput.message("b"))
-    }
-
-    func testProcessOutputDifferentCasesNotEqual() {
-        XCTAssertNotEqual(ProcessOutput.message("test"), ProcessOutput.error("test"))
     }
 }

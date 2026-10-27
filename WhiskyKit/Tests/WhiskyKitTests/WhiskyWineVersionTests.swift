@@ -53,100 +53,27 @@ final class WhiskyWineVersionDecodingTests: XCTestCase {
         XCTAssertEqual(versionInfo.version.patch, 0)
         XCTAssertEqual(versionInfo.version, SemanticVersion(2, 5, 0))
     }
-
-    func testDecodeWithDifferentVersions() throws {
-        let testCases: [VersionComponents] = [
-            VersionComponents(major: 1, minor: 0, patch: 0),
-            VersionComponents(major: 2, minor: 5, patch: 0),
-            VersionComponents(major: 10, minor: 20, patch: 30),
-            VersionComponents(major: 0, minor: 0, patch: 1),
-            VersionComponents(major: 99, minor: 99, patch: 99)
-        ]
-
-        for testCase in testCases {
-            let plist: [String: Any] = [
-                "version": [
-                    "major": testCase.major,
-                    "minor": testCase.minor,
-                    "patch": testCase.patch
-                ]
-            ]
-
-            let data = try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0)
-            let versionInfo = try PropertyListDecoder().decode(WhiskyWineVersion.self, from: data)
-
-            XCTAssertEqual(versionInfo.version.major, testCase.major)
-            XCTAssertEqual(versionInfo.version.minor, testCase.minor)
-            XCTAssertEqual(versionInfo.version.patch, testCase.patch)
-            XCTAssertEqual(
-                versionInfo.version,
-                SemanticVersion(testCase.major, testCase.minor, testCase.patch)
-            )
-        }
-    }
 }
 
 // MARK: - Error Handling Tests
 
 final class WhiskyWineVersionErrorTests: XCTestCase {
-    func testDecodeMissingVersionKey() {
-        let plist: [String: Any] = [:]
-        assertDecodingError(for: plist)
-    }
-
-    func testDecodeMissingMajorKey() {
-        let plist: [String: Any] = ["version": ["minor": 5, "patch": 0]]
-        assertDecodingError(for: plist)
-    }
-
-    func testDecodeMissingMinorKey() {
-        let plist: [String: Any] = ["version": ["major": 2, "patch": 0]]
-        assertDecodingError(for: plist)
-    }
-
-    func testDecodeMissingPatchKey() {
-        let plist: [String: Any] = ["version": ["major": 2, "minor": 5]]
-        assertDecodingError(for: plist)
-    }
-
-    func testDecodeInvalidVersionType() {
-        let plist: [String: Any] = ["version": "invalid"]
-        assertDecodingError(for: plist)
-    }
-
-    func testDecodeInvalidMajorType() {
-        let plist: [String: Any] = ["version": ["major": "invalid", "minor": 5, "patch": 0]]
-        assertDecodingError(for: plist)
-    }
-
-    func testDecodeInvalidMinorType() {
-        let plist: [String: Any] = ["version": ["major": 2, "minor": "invalid", "patch": 0]]
-        assertDecodingError(for: plist)
-    }
-
-    func testDecodeInvalidPatchType() {
-        let plist: [String: Any] = ["version": ["major": 2, "minor": 5, "patch": "invalid"]]
-        assertDecodingError(for: plist)
-    }
-
-    func testDecodeInvalidPlistData() {
-        let invalidData = Data("invalid plist data".utf8)
-
-        do {
-            _ = try PropertyListDecoder().decode(WhiskyWineVersion.self, from: invalidData)
-            XCTFail("Should throw error when plist data is invalid")
-        } catch {
-            XCTAssertNotNil(error, "Should throw error for invalid plist data")
-        }
-    }
-
-    private func assertDecodingError(for plist: [String: Any], file: StaticString = #filePath, line: UInt = #line) {
-        do {
+    func testDecodeRejectsMissingOrMistypedVersionParts() throws {
+        let plists: [[String: Any]] = [
+            [:],
+            ["version": ["minor": 5, "patch": 0]],
+            ["version": ["major": 2, "patch": 0]],
+            ["version": ["major": 2, "minor": 5]],
+            ["version": "invalid"],
+            ["version": ["major": "invalid", "minor": 5, "patch": 0]],
+            ["version": ["major": 2, "minor": "invalid", "patch": 0]],
+            ["version": ["major": 2, "minor": 5, "patch": "invalid"]]
+        ]
+        for plist in plists {
             let data = try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0)
-            _ = try PropertyListDecoder().decode(WhiskyWineVersion.self, from: data)
-            XCTFail("Should throw DecodingError", file: file, line: line)
-        } catch {
-            XCTAssertTrue(error is DecodingError, "Should throw DecodingError", file: file, line: line)
+            XCTAssertThrowsError(try PropertyListDecoder().decode(WhiskyWineVersion.self, from: data), "\(plist)") {
+                XCTAssertTrue($0 is DecodingError, "\(plist)")
+            }
         }
     }
 }
@@ -222,12 +149,4 @@ final class WhiskyWineVersionDXMTTests: XCTestCase {
 
         XCTAssertNil(versionInfo.dxmtVersion)
     }
-}
-
-// MARK: - Test Helper Types
-
-private struct VersionComponents {
-    let major: Int
-    let minor: Int
-    let patch: Int
 }

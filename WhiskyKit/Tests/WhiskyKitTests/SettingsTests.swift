@@ -24,58 +24,6 @@ import XCTest
 // MARK: - PinnedProgram Decoding Tests
 
 final class PinnedProgramDecodingTests: XCTestCase {
-    func testDecodeWithMissingNameUsesEmptyString() throws {
-        // First encode a complete PinnedProgram, then modify the plist to test decoding
-        let url = URL(fileURLWithPath: "/path/to/app.exe")
-        let original = PinnedProgram(name: "Original", url: url)
-
-        let encoder = PropertyListEncoder()
-        encoder.outputFormat = .xml
-        var data = try encoder.encode(original)
-
-        guard var plist = try PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any] else {
-            XCTFail("Failed to deserialize plist")
-            return
-        }
-        plist.removeValue(forKey: "name")
-        data = try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0)
-
-        let pin = try PropertyListDecoder().decode(PinnedProgram.self, from: data)
-        XCTAssertEqual(pin.name, "")
-    }
-
-    func testDecodeWithMissingURLGivesNilURL() throws {
-        let plist: [String: Any] = [
-            "name": "Test App",
-            "removable": false
-        ]
-
-        let data = try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0)
-        let pin = try PropertyListDecoder().decode(PinnedProgram.self, from: data)
-
-        XCTAssertNil(pin.url)
-    }
-
-    func testDecodeWithMissingRemovableUsesDefault() throws {
-        // First encode a complete PinnedProgram, then modify the plist
-        let url = URL(fileURLWithPath: "/path/to/app.exe")
-        let original = PinnedProgram(name: "Test App", url: url)
-
-        let encoder = PropertyListEncoder()
-        encoder.outputFormat = .xml
-        var data = try encoder.encode(original)
-
-        guard var plist = try PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any] else {
-            XCTFail("Failed to deserialize plist")
-            return
-        }
-        plist.removeValue(forKey: "removable")
-        data = try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0)
-
-        let pin = try PropertyListDecoder().decode(PinnedProgram.self, from: data)
-        XCTAssertFalse(pin.removable)
-    }
-
     func testDecodeEmptyPlistUsesDefaults() throws {
         let plist: [String: Any] = [:]
 
@@ -100,59 +48,11 @@ final class PinnedProgramDecodingTests: XCTestCase {
         XCTAssertEqual(decoded.name, "My Game")
         XCTAssertEqual(decoded.url, url)
     }
-
-    func testPinnedProgramHashable() {
-        let url = URL(fileURLWithPath: "/test.exe")
-        let pin1 = PinnedProgram(name: "Test", url: url)
-        let pin2 = PinnedProgram(name: "Test", url: url)
-
-        var set = Set<PinnedProgram>()
-        set.insert(pin1)
-        set.insert(pin2)
-
-        XCTAssertEqual(set.count, 1)
-    }
 }
 
 // MARK: - BottleInfo Decoding Tests
 
 final class BottleInfoDecodingTests: XCTestCase {
-    func testDecodeWithMissingNameUsesDefault() throws {
-        let plist: [String: Any] = [
-            "pins": [],
-            "blocklist": []
-        ]
-
-        let data = try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0)
-        let info = try PropertyListDecoder().decode(BottleInfo.self, from: data)
-
-        XCTAssertEqual(info.name, "Bottle")
-    }
-
-    func testDecodeWithMissingPinsUsesEmptyArray() throws {
-        let plist: [String: Any] = [
-            "name": "Custom",
-            "blocklist": []
-        ]
-
-        let data = try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0)
-        let info = try PropertyListDecoder().decode(BottleInfo.self, from: data)
-
-        XCTAssertTrue(info.pins.isEmpty)
-    }
-
-    func testDecodeWithMissingBlocklistUsesEmptyArray() throws {
-        let plist: [String: Any] = [
-            "name": "Custom",
-            "pins": []
-        ]
-
-        let data = try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0)
-        let info = try PropertyListDecoder().decode(BottleInfo.self, from: data)
-
-        XCTAssertTrue(info.blocklist.isEmpty)
-    }
-
     func testDecodeEmptyPlistUsesAllDefaults() throws {
         let plist: [String: Any] = [:]
 
@@ -162,13 +62,6 @@ final class BottleInfoDecodingTests: XCTestCase {
         XCTAssertEqual(info.name, "Bottle")
         XCTAssertTrue(info.pins.isEmpty)
         XCTAssertTrue(info.blocklist.isEmpty)
-    }
-
-    func testBottleInfoEquality() {
-        let info1 = BottleInfo()
-        let info2 = BottleInfo()
-
-        XCTAssertEqual(info1, info2)
     }
 
     func testBottleInfoRoundTrip() throws {

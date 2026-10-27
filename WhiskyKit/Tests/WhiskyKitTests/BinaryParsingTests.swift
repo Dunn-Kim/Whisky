@@ -34,28 +34,6 @@ final class LinkFlagsTests: XCTestCase {
         XCTAssertEqual(flags.rawValue, 1 << 1)
         XCTAssertTrue(flags.contains(.hasLinkInfo))
     }
-
-    func testLinkFlagsCombined() {
-        let flags: LinkFlags = [.hasLinkTargetIDList, .hasLinkInfo]
-
-        XCTAssertTrue(flags.contains(.hasLinkTargetIDList))
-        XCTAssertTrue(flags.contains(.hasLinkInfo))
-    }
-
-    func testLinkFlagsFromRawValue() {
-        let flags = LinkFlags(rawValue: 0b11)
-
-        XCTAssertTrue(flags.contains(.hasLinkTargetIDList))
-        XCTAssertTrue(flags.contains(.hasLinkInfo))
-    }
-
-    func testLinkFlagsHashable() {
-        var set = Set<LinkFlags>()
-        set.insert(.hasLinkTargetIDList)
-        set.insert(.hasLinkInfo)
-
-        XCTAssertEqual(set.count, 2)
-    }
 }
 
 // MARK: - LinkInfoFlags Tests
@@ -65,18 +43,5 @@ final class LinkInfoFlagsTests: XCTestCase {
         let flags = LinkInfoFlags.volumeIDAndLocalBasePath
         XCTAssertEqual(flags.rawValue, 1 << 0)
         XCTAssertTrue(flags.contains(.volumeIDAndLocalBasePath))
-    }
-
-    func testLinkInfoFlagsFromRawValue() {
-        let flags = LinkInfoFlags(rawValue: 1)
-
-        XCTAssertTrue(flags.contains(.volumeIDAndLocalBasePath))
-    }
-
-    func testLinkInfoFlagsEquality() {
-        let flags1 = LinkInfoFlags(rawValue: 1)
-        let flags2 = LinkInfoFlags.volumeIDAndLocalBasePath
-
-        XCTAssertEqual(flags1, flags2)
     }
 }

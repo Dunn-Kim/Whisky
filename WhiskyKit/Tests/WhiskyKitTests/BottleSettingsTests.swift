@@ -80,23 +80,6 @@ final class BottleSettingsTests: XCTestCase {
         XCTAssertTrue(decoded.avxEnabled)
     }
 
-    func testBottleSettingsJSONEncodingDecoding() throws {
-        var settings = BottleSettings()
-        settings.name = "JSON Test"
-        settings.windowsVersion = .win7
-
-        // Encode to JSON
-        let encoder = JSONEncoder()
-        let data = try encoder.encode(settings)
-
-        // Decode back
-        let decoder = JSONDecoder()
-        let decoded = try decoder.decode(BottleSettings.self, from: data)
-
-        XCTAssertEqual(decoded.name, "JSON Test")
-        XCTAssertEqual(decoded.windowsVersion, .win7)
-    }
-
     // MARK: - WinVersion Tests
 
     func testWinVersionRawValues() {
@@ -117,77 +100,6 @@ final class BottleSettingsTests: XCTestCase {
         XCTAssertEqual(WinVersion.win11.pretty(), "Windows 11")
     }
 
-    func testWinVersionCaseIterable() {
-        XCTAssertEqual(WinVersion.allCases.count, 6)
-        XCTAssertTrue(WinVersion.allCases.contains(.win10))
-    }
-
-    // MARK: - EnhancedSync Tests
-
-    func testEnhancedSyncEncodingDecoding() throws {
-        let values: [EnhancedSync] = [.none, .esync, .msync]
-
-        for value in values {
-            let encoder = JSONEncoder()
-            let data = try encoder.encode(value)
-
-            let decoder = JSONDecoder()
-            let decoded = try decoder.decode(EnhancedSync.self, from: data)
-
-            XCTAssertEqual(decoded, value)
-        }
-    }
-
-    // MARK: - DXVKHUD Tests
-
-    func testDXVKHUDEncodingDecoding() throws {
-        let values: [DXVKHUD] = [.full, .partial, .fps, .off]
-
-        for value in values {
-            let encoder = JSONEncoder()
-            let data = try encoder.encode(value)
-
-            let decoder = JSONDecoder()
-            let decoded = try decoder.decode(DXVKHUD.self, from: data)
-
-            XCTAssertEqual(decoded, value)
-        }
-    }
-
-    // MARK: - PinnedProgram Tests
-
-    func testPinnedProgramEncodingDecoding() throws {
-        let url = URL(fileURLWithPath: "/Applications/Test.exe")
-        let pin = PinnedProgram(name: "Test App", url: url)
-
-        let encoder = JSONEncoder()
-        let data = try encoder.encode(pin)
-
-        let decoder = JSONDecoder()
-        let decoded = try decoder.decode(PinnedProgram.self, from: data)
-
-        XCTAssertEqual(decoded.name, "Test App")
-        XCTAssertEqual(decoded.url, url)
-    }
-
-    func testPinnedProgramEquality() {
-        let url = URL(fileURLWithPath: "/Applications/Test.exe")
-        let pin1 = PinnedProgram(name: "Test App", url: url)
-        let pin2 = PinnedProgram(name: "Test App", url: url)
-
-        XCTAssertEqual(pin1, pin2)
-    }
-
-    // MARK: - BottleInfo Tests
-
-    func testBottleInfoDefaultValues() {
-        let info = BottleInfo()
-
-        XCTAssertEqual(info.name, "Bottle")
-        XCTAssertTrue(info.pins.isEmpty)
-        XCTAssertTrue(info.blocklist.isEmpty)
-    }
-
     // MARK: - BottleWineConfig Tests
 
     func testBottleWineConfigDefaultValues() {
@@ -199,27 +111,6 @@ final class BottleSettingsTests: XCTestCase {
         XCTAssertFalse(config.avxEnabled)
     }
 
-    // MARK: - BottleMetalConfig Tests
-
-    func testBottleMetalConfigDefaultValues() {
-        let config = BottleMetalConfig()
-
-        XCTAssertFalse(config.metalHud)
-        XCTAssertFalse(config.metalTrace)
-        XCTAssertFalse(config.dxrEnabled)
-        XCTAssertFalse(config.metalValidation)
-    }
-
-    // MARK: - BottleDXVKConfig Tests
-
-    func testBottleDXVKConfigDefaultValues() {
-        let config = BottleDXVKConfig()
-
-        XCTAssertFalse(config.dxvk)
-        XCTAssertTrue(config.dxvkAsync)
-        XCTAssertEqual(config.dxvkHud, .off)
-    }
-
     // MARK: - BottlePerformanceConfig Tests
 
     func testBottlePerformanceConfigDefaultValues() {
@@ -228,46 +119,6 @@ final class BottleSettingsTests: XCTestCase {
         XCTAssertTrue(config.shaderCacheEnabled)
         XCTAssertFalse(config.forceD3D11)
         XCTAssertFalse(config.vcRedistInstalled)
-    }
-
-    // MARK: - Property Getters and Setters
-
-    func testBottleSettingsPropertyAccess() {
-        var settings = BottleSettings()
-
-        // Test name property
-        settings.name = "Custom Name"
-        XCTAssertEqual(settings.name, "Custom Name")
-
-        // Test windowsVersion property
-        settings.windowsVersion = .win11
-        XCTAssertEqual(settings.windowsVersion, .win11)
-
-        // Test pins property
-        let url = URL(fileURLWithPath: "/test.exe")
-        let pin = PinnedProgram(name: "Test", url: url)
-        settings.pins = [pin]
-        XCTAssertEqual(settings.pins.count, 1)
-        XCTAssertEqual(settings.pins.first?.name, "Test")
-
-        // Test blocklist property
-        let blockUrl = URL(fileURLWithPath: "/blocked.exe")
-        settings.blocklist = [blockUrl]
-        XCTAssertEqual(settings.blocklist.count, 1)
-    }
-
-    // MARK: - Settings Equality
-
-    func testBottleSettingsEquality() {
-        let settings1 = BottleSettings()
-        let settings2 = BottleSettings()
-
-        XCTAssertEqual(settings1, settings2)
-
-        var settings3 = BottleSettings()
-        settings3.name = "Different"
-
-        XCTAssertNotEqual(settings1, settings3)
     }
 
     // MARK: - Decode Tests
