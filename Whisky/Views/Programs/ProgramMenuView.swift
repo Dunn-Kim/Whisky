@@ -58,7 +58,7 @@ struct ProgramMenuView: View {
                     String(localized: "program.clickonce.copyUrl"),
                     systemImage: "link"
                 ) {
-                    if let deploymentURL = ClickOnceManager.shared.deploymentURL(for: program.url) {
+                    if let deploymentURL = ClickOnceManager.deploymentURL(for: program.url) {
                         NSPasteboard.general.clearContents()
                         NSPasteboard.general.setString(
                             deploymentURL.absoluteString, forType: .string

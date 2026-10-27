@@ -189,9 +189,9 @@ extension Bottle {
             }
 
             // Detect ClickOnce applications (small scan, kept on the main actor).
-            let clickOnceApps = ClickOnceManager.shared.detectAppRefFile(in: self, wineUsername: wineUsername)
+            let clickOnceApps = ClickOnceManager.detectAppRefFile(in: self, wineUsername: wineUsername)
             for appRefURL in clickOnceApps {
-                let displayName = ClickOnceManager.shared.displayName(for: appRefURL)
+                let displayName = ClickOnceManager.displayName(for: appRefURL)
                 let program = Program(appRefURL: appRefURL, bottle: self, displayName: displayName)
                 programs.append(program)
             }
