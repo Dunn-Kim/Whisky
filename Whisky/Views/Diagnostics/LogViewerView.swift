@@ -177,17 +177,7 @@ struct LogTextView: NSViewRepresentable {
 
 extension LogTextView {
     private func buildMatchLookup() -> [Int: DiagnosisMatch] {
-        var lookup: [Int: DiagnosisMatch] = [:]
-        for match in matches {
-            if let existing = lookup[match.lineIndex] {
-                if match.pattern.severity > existing.pattern.severity {
-                    lookup[match.lineIndex] = match
-                }
-            } else {
-                lookup[match.lineIndex] = match
-            }
-        }
-        return lookup
+        Dictionary(matches.map { ($0.lineIndex, $0) }) { $1.pattern.severity > $0.pattern.severity ? $1 : $0 }
     }
 }
 

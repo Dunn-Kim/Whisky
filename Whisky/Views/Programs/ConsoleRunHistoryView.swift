@@ -87,42 +87,7 @@ struct ConsoleRunHistoryView: View {
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 8)
 
-            Button {
-                selectedRunId = entry.id
-            } label: {
-                HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(entry.programName)
-                            .font(.headline)
-                        Text(entry.startTime, style: .date)
-                            + Text(" ")
-                            + Text(entry.startTime, style: .time)
-                    }
-
-                    Spacer()
-
-                    if entry.isRunning {
-                        runningBadge
-                    } else if let exitCode = entry.exitCode {
-                        ConsoleLogView.exitCodeBadge(exitCode)
-                    }
-
-                    if let duration = entry.duration {
-                        durationLabel(duration)
-                    }
-
-                    Image(systemName: "chevron.right")
-                        .foregroundStyle(.tertiary)
-                }
-                .padding(8)
-                .background(
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(selectedRunId == entry.id
-                            ? Color.accentColor.opacity(0.15)
-                            : Color.clear)
-                )
-            }
-            .buttonStyle(.plain)
+            runRow(entry, isLast: true)
 
             if !entry.isRunning, let exitCode = entry.exitCode {
                 exitedFooter(exitCode: exitCode)
@@ -143,44 +108,12 @@ struct ConsoleRunHistoryView: View {
                 .padding(.top, 8)
 
             ForEach(previousEntries) { entry in
-                Button {
-                    selectedRunId = entry.id
-                } label: {
-                    HStack {
-                        Text(entry.startTime, style: .date)
-                            + Text(" ")
-                            + Text(entry.startTime, style: .time)
-
-                        Spacer()
-
-                        if entry.isRunning {
-                            runningBadge
-                        } else if let exitCode = entry.exitCode {
-                            ConsoleLogView.exitCodeBadge(exitCode)
+                runRow(entry, isLast: false)
+                    .contextMenu {
+                        Button("console.deleteRun", role: .destructive) {
+                            deleteEntry(entry)
                         }
-
-                        if let duration = entry.duration {
-                            durationLabel(duration)
-                        }
-
-                        Image(systemName: "chevron.right")
-                            .foregroundStyle(.tertiary)
                     }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(
-                        RoundedRectangle(cornerRadius: 4)
-                            .fill(selectedRunId == entry.id
-                                ? Color.accentColor.opacity(0.15)
-                                : Color.clear)
-                    )
-                }
-                .buttonStyle(.plain)
-                .contextMenu {
-                    Button("console.deleteRun", role: .destructive) {
-                        deleteEntry(entry)
-                    }
-                }
             }
         }
     }
@@ -225,19 +158,48 @@ struct ConsoleRunHistoryView: View {
         .padding(.vertical, 8)
     }
 
-    // MARK: - Shared Badge Views
+    // MARK: - Shared Views
 
-    private var runningBadge: some View {
-        HStack(spacing: 4) {
-            Image(systemName: "circle.fill")
-                .resizable()
-                .frame(width: 6, height: 6)
-                .foregroundStyle(.green)
-                .symbolEffect(.pulse)
-            Text("console.running")
-                .font(.caption)
-                .foregroundStyle(.green)
+    /// One selectable run: the last run also names the program and is a little roomier.
+    private func runRow(_ entry: RunLogEntry, isLast: Bool) -> some View {
+        let startTime = Text(entry.startTime, style: .date) + Text(" ") + Text(entry.startTime, style: .time)
+        return Button {
+            selectedRunId = entry.id
+        } label: {
+            HStack {
+                if isLast {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(entry.programName)
+                            .font(.headline)
+                        startTime
+                    }
+                } else {
+                    startTime
+                }
+
+                Spacer()
+
+                if entry.isRunning {
+                    ConsoleLogView.runningBadge("console.running")
+                } else if let exitCode = entry.exitCode {
+                    ConsoleLogView.exitCodeBadge(exitCode)
+                }
+
+                if let duration = entry.duration {
+                    durationLabel(duration)
+                }
+
+                Image(systemName: "chevron.right")
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, isLast ? 8 : 4)
+            .background(
+                RoundedRectangle(cornerRadius: isLast ? 6 : 4)
+                    .fill(selectedRunId == entry.id ? Color.accentColor.opacity(0.15) : Color.clear)
+            )
         }
+        .buttonStyle(.plain)
     }
 
     private func durationLabel(_ duration: TimeInterval) -> some View {

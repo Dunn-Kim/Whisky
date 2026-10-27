@@ -92,7 +92,7 @@ struct ConsoleLogView: View {
             }
             Spacer()
             if isStillRunning {
-                liveIndicator
+                Self.runningBadge("console.log.liveIndicator")
             } else if let exitCode = currentExitCode {
                 Self.exitCodeBadge(exitCode)
             }
@@ -263,14 +263,14 @@ struct ConsoleLogView: View {
 
     // MARK: - Shared Components
 
-    private var liveIndicator: some View {
+    static func runningBadge(_ label: LocalizedStringKey) -> some View {
         HStack(spacing: 4) {
             Image(systemName: "circle.fill")
                 .resizable()
                 .frame(width: 6, height: 6)
                 .foregroundStyle(.green)
                 .symbolEffect(.pulse)
-            Text("console.log.liveIndicator")
+            Text(label)
                 .font(.caption)
                 .foregroundStyle(.green)
         }

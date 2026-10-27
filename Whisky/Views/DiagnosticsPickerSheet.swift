@@ -40,9 +40,7 @@ struct DiagnosticsPickerSheet: View {
     @State private var selectedBottle: Bottle?
     @State private var selectedProgram: Program?
     @State private var isAnalyzing = false
-    @State private var showDiagnosticsResult = false
-    @State private var resultDiagnosis: CrashDiagnosis?
-    @State private var resultLogText: String = ""
+    @State private var presentation: DiagnosisPresentation?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -90,18 +88,16 @@ struct DiagnosticsPickerSheet: View {
         .onChange(of: selectedBottle) { _, _ in
             selectedProgram = nil
         }
-        .sheet(isPresented: $showDiagnosticsResult) {
-            if let diagnosis = resultDiagnosis, let program = selectedProgram {
-                DiagnosticsView(
-                    diagnosis: diagnosis,
-                    logText: resultLogText,
-                    programName: program.name,
-                    bottleName: selectedBottle?.settings.name ?? "",
-                    timestamp: Date(),
-                    applyBottle: selectedBottle
-                )
-                .frame(minWidth: 600, minHeight: 400)
-            }
+        .sheet(item: $presentation) { presentation in
+            DiagnosticsView(
+                diagnosis: presentation.diagnosis,
+                logText: presentation.logText,
+                programName: presentation.program.name,
+                bottleName: selectedBottle?.settings.name ?? "",
+                timestamp: Date(),
+                applyBottle: selectedBottle
+            )
+            .frame(minWidth: 600, minHeight: 400)
         }
     }
 
@@ -112,14 +108,8 @@ struct DiagnosticsPickerSheet: View {
 
         isAnalyzing = true
         Task {
-            guard let diagnosis = await Wine.classifyLastRun(logFileURL: logURL, exitCode: 1) else {
-                isAnalyzing = false
-                return
-            }
-            resultDiagnosis = diagnosis
-            resultLogText = (try? String(contentsOf: logURL, encoding: .utf8)) ?? ""
+            presentation = await DiagnosisPresentation.load(logURL: logURL, program: program)
             isAnalyzing = false
-            showDiagnosticsResult = true
         }
     }
 }

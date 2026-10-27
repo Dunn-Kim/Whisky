@@ -30,7 +30,6 @@ struct GameConfigPreviewSheet: View {
     @State private var installedVerbs: Set<String> = []
     @State private var isApplying: Bool = false
     @State private var applyError: String?
-    @State private var includeWinetricks: Bool = true
     @Binding var toast: ToastData?
 
     private var stalenessMessage: String? {
@@ -198,15 +197,6 @@ extension GameConfigPreviewSheet {
 
                 ForEach(verbs, id: \.self) { verb in
                     verbRow(verb)
-                }
-
-                Toggle("gameConfig.preview.installComponents", isOn: $includeWinetricks)
-                    .font(.caption)
-
-                if !includeWinetricks {
-                    Text("gameConfig.preview.incomplete")
-                        .font(.caption2)
-                        .foregroundStyle(.orange)
                 }
 
                 Text("gameConfig.preview.winetricksNote")

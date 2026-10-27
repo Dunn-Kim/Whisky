@@ -35,8 +35,8 @@ struct ConfigView: View {
     @State private var dpiConfigLoadingState: LoadingState = .loading
     @State private var showStabilityDiagnostics: Bool = false
     @State private var stabilityDiagnosticReport: String = ""
-    @State private var exportPresentation: ExportPresentation?
-    @State private var crashPresentation: BottleDiagnosisPresentation?
+    @State private var exportPresentation: DiagnosisPresentation?
+    @State private var crashPresentation: DiagnosisPresentation?
     @State private var isRepairingPrefix: Bool = false
     @State private var prefixRepairResult: PrefixRepairResult?
     @State private var gameConfigSnapshot: GameConfigSnapshot?
@@ -424,45 +424,39 @@ extension ConfigView {
             .max { ($0.settings.lastDiagnosisDate ?? .distantPast) < ($1.settings.lastDiagnosisDate ?? .distantPast) }
     }
 
-    func loadLatestDiagnosisAndExport() {
+    private func latestDiagnosis() async -> DiagnosisPresentation? {
         guard let program = mostRecentlyDiagnosedProgram,
               let logURL = program.settings.lastLogFileURL
-        else { return }
-        Task {
-            guard let diagnosis = await Wine.classifyLastRun(logFileURL: logURL, exitCode: 1) else { return }
-            exportPresentation = ExportPresentation(diagnosis: diagnosis, program: program)
-        }
+        else { return nil }
+        return await DiagnosisPresentation.load(logURL: logURL, program: program)
+    }
+
+    func loadLatestDiagnosisAndExport() {
+        Task { exportPresentation = await latestDiagnosis() }
     }
 
     func loadLatestDiagnosisAndView() {
-        guard let program = mostRecentlyDiagnosedProgram,
-              let logURL = program.settings.lastLogFileURL
-        else { return }
-        Task {
-            guard let diagnosis = await Wine.classifyLastRun(logFileURL: logURL, exitCode: 1) else { return }
-            crashPresentation = BottleDiagnosisPresentation(
-                diagnosis: diagnosis,
-                program: program,
-                logText: (try? String(contentsOf: logURL, encoding: .utf8)) ?? ""
-            )
-        }
+        Task { crashPresentation = await latestDiagnosis() }
     }
 }
 
-/// What the export sheet is exporting; `Identifiable` so `.sheet(item:)`
-/// never presents without both a diagnosis and its program.
-struct ExportPresentation: Identifiable {
-    let id = UUID()
-    let diagnosis: CrashDiagnosis
-    let program: Program
-}
-
-/// What the bottle-level diagnostics sheet is showing.
-struct BottleDiagnosisPresentation: Identifiable {
+/// A classified log, its text and the program it ran for; `Identifiable` so
+/// `.sheet(item:)` never presents without a diagnosis.
+struct DiagnosisPresentation: Identifiable {
     let id = UUID()
     let diagnosis: CrashDiagnosis
     let program: Program
     let logText: String
+
+    /// Classifies the log at `logURL` and reads its text, or `nil` when nothing in it classifies.
+    static func load(logURL: URL, program: Program) async -> DiagnosisPresentation? {
+        guard let diagnosis = await Wine.classifyLastRun(logFileURL: logURL, exitCode: 1) else { return nil }
+        return DiagnosisPresentation(
+            diagnosis: diagnosis,
+            program: program,
+            logText: (try? String(contentsOf: logURL, encoding: .utf8)) ?? ""
+        )
+    }
 }
 
 // swiftlint:enable file_length

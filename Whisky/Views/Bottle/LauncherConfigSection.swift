@@ -328,25 +328,16 @@ private struct ActiveEnvironmentOverrides: View {
 
     // MARK: - Launcher Fixes
 
-    @ViewBuilder
     private func launcherFixesSection(_ launcher: LauncherType) -> some View {
-        let details = launcher.fixDetails()
-        let grouped = Dictionary(grouping: details, by: \.category)
-        let sortedCategories = grouped.keys.sorted { $0.rawValue < $1.rawValue }
-
         VStack(alignment: .leading, spacing: 8) {
             Label("\(launcher.displayName) Fixes", systemImage: "gamecontroller")
                 .font(.caption)
                 .fontWeight(.semibold)
                 .foregroundColor(.primary)
 
-            ForEach(sortedCategories, id: \.self) { category in
-                if let fixes = grouped[category] {
-                    categoryGroup(category: category, rows: fixes.map {
-                        FixRow(key: $0.key, value: $0.value, reason: $0.reason)
-                    })
-                }
-            }
+            categoryGroups(launcher.fixDetails().map {
+                ($0.category, FixRow(key: $0.key, value: $0.value, reason: $0.reason))
+            })
         }
     }
 
@@ -355,9 +346,6 @@ private struct ActiveEnvironmentOverrides: View {
     @ViewBuilder
     private var platformFixesSection: some View {
         let activeFixes = MacOSCompatibilityFixes.activeFixes()
-        let grouped = Dictionary(grouping: activeFixes, by: \.category)
-        let sortedCategories = grouped.keys.sorted { $0.rawValue < $1.rawValue }
-
         if !activeFixes.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
                 Label("Platform Fixes", systemImage: "desktopcomputer")
@@ -365,17 +353,12 @@ private struct ActiveEnvironmentOverrides: View {
                     .fontWeight(.semibold)
                     .foregroundColor(.primary)
 
-                ForEach(sortedCategories, id: \.self) { category in
-                    if let fixes = grouped[category] {
-                        categoryGroup(category: category, rows: fixes.map { fix in
-                            let since = fix.appliesFrom.description
-                            return FixRow(
-                                key: fix.key, value: fix.value,
-                                reason: "Applied because macOS >= \(since): \(fix.reason)"
-                            )
-                        })
-                    }
-                }
+                categoryGroups(activeFixes.map { fix in
+                    (fix.category, FixRow(
+                        key: fix.key, value: fix.value,
+                        reason: "Applied because macOS >= \(fix.appliesFrom.description): \(fix.reason)"
+                    ))
+                })
             }
         }
     }
@@ -388,30 +371,33 @@ private struct ActiveEnvironmentOverrides: View {
         let reason: String
     }
 
-    private func categoryGroup(category: FixCategory, rows: [FixRow]) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(categoryDisplayName(category))
-                .font(.caption2)
-                .fontWeight(.medium)
-                .foregroundColor(.secondary)
-                .textCase(.uppercase)
+    private func categoryGroups(_ rows: [(category: FixCategory, row: FixRow)]) -> some View {
+        let grouped = Dictionary(grouping: rows, by: \.category)
+        return ForEach(grouped.keys.sorted { $0.rawValue < $1.rawValue }, id: \.self) { category in
+            VStack(alignment: .leading, spacing: 4) {
+                Text(category.rawValue.capitalized)
+                    .font(.caption2)
+                    .fontWeight(.medium)
+                    .foregroundColor(.secondary)
+                    .textCase(.uppercase)
 
-            ForEach(rows, id: \.key) { row in
-                fixRow(key: row.key, value: row.value, reason: row.reason)
+                ForEach(grouped[category] ?? [], id: \.row.key) { entry in
+                    fixRow(entry.row)
+                }
             }
         }
     }
 
     // MARK: - Individual Fix Row
 
-    private func fixRow(key: String, value: String, reason: String) -> some View {
+    private func fixRow(_ row: FixRow) -> some View {
         HStack(alignment: .top, spacing: 6) {
             Image(systemName: "lock.fill")
                 .font(.caption2)
                 .foregroundColor(.secondary)
 
             VStack(alignment: .leading, spacing: 1) {
-                Text(key)
+                Text(row.key)
                     .font(.system(.caption, design: .monospaced))
                     .foregroundColor(.primary)
                     +
@@ -419,29 +405,17 @@ private struct ActiveEnvironmentOverrides: View {
                     .font(.system(.caption, design: .monospaced))
                     .foregroundColor(.secondary)
                     +
-                    Text(value)
+                    Text(row.value)
                     .font(.system(.caption, design: .monospaced))
                     .foregroundColor(.primary)
 
-                Text(reason)
+                Text(row.reason)
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
         .padding(.leading, 8)
-    }
-
-    // MARK: - Helpers
-
-    private func categoryDisplayName(_ category: FixCategory) -> String {
-        switch category {
-        case .locale: "Locale"
-        case .sandbox: "Sandbox"
-        case .graphics: "Graphics"
-        case .threading: "Threading"
-        case .compatibility: "Compatibility"
-        }
     }
 }
 

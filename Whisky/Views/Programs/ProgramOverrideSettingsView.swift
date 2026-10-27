@@ -36,7 +36,6 @@ struct ProgramOverrideSettingsView: View {
     @State private var showAudioWizard = false
     @State private var diagnosisPresentation: DiagnosisPresentation?
     @State private var gameMatch: MatchResult?
-    @State private var showGameConfigDetail: Bool = false
     @State private var recommendedDependencies: [DependencyDefinition] = []
     @State private var dependencyToInstall: DependencyDefinition?
 
@@ -57,12 +56,6 @@ struct ProgramOverrideSettingsView: View {
             .task {
                 await loadGameMatch()
                 await loadRecommendedDependencies()
-            }
-            .sheet(isPresented: $showGameConfigDetail) {
-                if let match = gameMatch {
-                    GameEntryDetailView(entry: match.entry, bottle: bottle)
-                        .frame(minWidth: 600, minHeight: 500)
-                }
             }
             // Item-based so the sheet is built from the value that presents it.
             // With isPresented plus a separate optional, the content closure can
@@ -94,9 +87,6 @@ struct ProgramOverrideSettingsView: View {
                 onViewDetails: { entry in
                     viewDiagnosisDetails(for: entry)
                 },
-                onReanalyze: { entry in
-                    viewDiagnosisDetails(for: entry)
-                },
                 onAnalyzeLastRun: {
                     analyzeLastRun()
                 }
@@ -124,17 +114,7 @@ struct ProgramOverrideSettingsView: View {
 
     /// Classifies the log at `logURL` and presents the diagnosis with its text.
     private func presentDiagnosis(logURL: URL) {
-        Task {
-            guard let diagnosis = await Wine.classifyLastRun(
-                logFileURL: logURL,
-                exitCode: 1
-            )
-            else { return }
-            diagnosisPresentation = DiagnosisPresentation(
-                diagnosis: diagnosis,
-                logText: (try? String(contentsOf: logURL, encoding: .utf8)) ?? ""
-            )
-        }
+        Task { diagnosisPresentation = await DiagnosisPresentation.load(logURL: logURL, program: program) }
     }
 
     // MARK: - Audio Troubleshooting Section
@@ -204,22 +184,6 @@ struct ProgramOverrideSettingsView: View {
                     matchResult: match,
                     bottle: bottle
                 )
-
-                Button {
-                    showGameConfigDetail = true
-                } label: {
-                    HStack {
-                        Text(match.entry.title)
-                            .font(.subheadline)
-                        Spacer()
-                        Text(match.entry.rating.displayName)
-                            .font(.caption)
-                            .foregroundStyle(match.entry.rating.color)
-                        Image(systemName: "chevron.right")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
             }
         }
     }
@@ -753,11 +717,3 @@ struct ProgramOverrideSettingsView: View {
 }
 
 // swiftlint:enable type_body_length
-
-/// What a diagnostics sheet is showing; `Identifiable` so it can drive
-/// `.sheet(item:)` and the sheet is never presented without a diagnosis.
-struct DiagnosisPresentation: Identifiable {
-    let id = UUID()
-    let diagnosis: CrashDiagnosis
-    let logText: String
-}

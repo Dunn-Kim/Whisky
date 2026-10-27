@@ -109,41 +109,28 @@ extension FixPreviewView {
                 .foregroundStyle(.secondary)
 
             VStack(alignment: .leading, spacing: 4) {
-                // Current value (red, being removed)
-                HStack(spacing: 6) {
-                    Text("\u{2212}")
-                        .font(.system(.caption, design: .monospaced))
-                        .foregroundStyle(.red)
-                    Text(preview.currentValue)
-                        .font(.system(.caption, design: .monospaced))
-                        .foregroundStyle(.red)
-                }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color.red.opacity(0.08))
-                .clipShape(RoundedRectangle(cornerRadius: 4))
-
-                // New value (green, being applied)
-                HStack(spacing: 6) {
-                    Text("+")
-                        .font(.system(.caption, design: .monospaced))
-                        .foregroundStyle(.green)
-                    Text(preview.newValue)
-                        .font(.system(.caption, design: .monospaced))
-                        .foregroundStyle(.green)
-                }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color.green.opacity(0.08))
-                .clipShape(RoundedRectangle(cornerRadius: 4))
+                diffRow(sign: "\u{2212}", value: preview.currentValue, color: .red)
+                diffRow(sign: "+", value: preview.newValue, color: .green)
             }
 
             Text(String(format: String(localized: "troubleshooting.fix.scope %@"), preview.scope))
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
         }
+    }
+
+    private func diffRow(sign: String, value: String, color: Color) -> some View {
+        HStack(spacing: 6) {
+            Text(sign)
+            Text(value)
+        }
+        .font(.system(.caption, design: .monospaced))
+        .foregroundStyle(color)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(color.opacity(0.08))
+        .clipShape(RoundedRectangle(cornerRadius: 4))
     }
 }
 
@@ -269,25 +256,7 @@ extension FixPreviewView {
             return
         }
 
-        isApplying = true
-        let attempt = FixApplicator.apply(
-            fixId: fixId,
-            params: params,
-            bottle: bottle,
-            program: program
-        )
-        engine.applyFix(
-            fixId: fixId,
-            beforeValue: attempt.beforeValue,
-            afterValue: attempt.afterValue
-        )
-        if attempt.result == .failed {
-            engine.markFixFailed(fixId: fixId)
-        } else {
-            engine.confirmFixApplied(fixId: fixId)
-        }
-
-        isApplying = false
+        engine.performFix(fixId: fixId, params: params, bottle: bottle, program: program)
     }
 
     /// Runs the winetricks install for real and only confirms the attempt

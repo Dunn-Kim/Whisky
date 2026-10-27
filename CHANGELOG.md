@@ -38,6 +38,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and the audio output device picker (follow system / pinned device), which
   never reached Wine or the audio code. Bottle files written with or without
   the dropped audio keys load either way.
+- Four duplicate or misleading controls: the "Used by program" checkboxes
+  on a program's Winetricks list (they saved a tag nothing read; old files
+  still load), the title and rating row that reopened the same game config
+  view as the banner's Apply button, the per-entry "Re-analyze" button in
+  the crash diagnosis history (it did what "View Details" does), and the
+  game config preview's "Install components" switch, which never installed
+  anything; the list of verbs and the note on installing them stay.
 - `dependency-history.plist` is no longer written to a bottle on each
   dependency install; nothing read it back. Existing files are left alone.
 - Dead code, unread state and duplicated logic across WhiskyKit, the app

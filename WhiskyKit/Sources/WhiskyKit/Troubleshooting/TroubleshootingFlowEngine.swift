@@ -274,6 +274,18 @@ public final class TroubleshootingFlowEngine: ObservableObject {
         }
     }
 
+    /// Applies the fix through ``FixApplicator`` and records it: pending first,
+    /// then applied, or failed when the applicator could not perform it.
+    public func performFix(fixId: String, params: [String: String], bottle: Bottle, program: Program?) {
+        let attempt = FixApplicator.apply(fixId: fixId, params: params, bottle: bottle, program: program)
+        applyFix(fixId: fixId, beforeValue: attempt.beforeValue, afterValue: attempt.afterValue)
+        if attempt.result == .failed {
+            markFixFailed(fixId: fixId)
+        } else {
+            confirmFixApplied(fixId: fixId)
+        }
+    }
+
     // MARK: - Verification
 
     /// Called when the user reports the problem is fixed.

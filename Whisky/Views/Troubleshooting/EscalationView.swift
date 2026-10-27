@@ -149,22 +149,7 @@ extension EscalationView {
     }
 
     private func runEnhancedDiagnostics() {
-        let attempt = FixApplicator.apply(
-            fixId: "run-enhanced-diagnostics",
-            params: [:],
-            bottle: bottle,
-            program: program
-        )
-        engine.applyFix(
-            fixId: attempt.fixId,
-            beforeValue: attempt.beforeValue,
-            afterValue: attempt.afterValue
-        )
-        if attempt.result == .failed {
-            engine.markFixFailed(fixId: attempt.fixId)
-        } else {
-            engine.confirmFixApplied(fixId: attempt.fixId)
-        }
+        engine.performFix(fixId: "run-enhanced-diagnostics", params: [:], bottle: bottle, program: program)
     }
 }
 

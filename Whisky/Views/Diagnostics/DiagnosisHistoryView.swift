@@ -19,14 +19,13 @@
 import SwiftUI
 import WhiskyKit
 
-/// View showing per-program crash diagnosis history with view/re-analyze/clear actions
+/// View showing per-program crash diagnosis history with view/clear actions
 /// and an enhanced logging section with WINEDEBUG preset picker.
 struct DiagnosisHistoryView: View {
     @ObservedObject var bottle: Bottle
     @ObservedObject var program: Program
 
     let onViewDetails: (DiagnosisHistoryEntry) -> Void
-    let onReanalyze: (DiagnosisHistoryEntry) -> Void
     let onAnalyzeLastRun: () -> Void
 
     @State private var history = DiagnosisHistory()
@@ -117,7 +116,7 @@ extension DiagnosisHistoryView {
                     .font(.body)
                     .fontWeight(.medium)
                 Spacer()
-                confidenceBadge(entry.confidenceTier)
+                ConfidenceBadge(tier: entry.confidenceTier)
             }
 
             Text(entry.timestamp, style: .relative)
@@ -132,33 +131,12 @@ extension DiagnosisHistoryView {
                     .truncationMode(.tail)
             }
 
-            HStack(spacing: 8) {
-                Button("View Details") {
-                    onViewDetails(entry)
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-
-                Button("Re-analyze") {
-                    onReanalyze(entry)
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
+            Button("View Details") {
+                onViewDetails(entry)
             }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
         }
-    }
-
-    private func confidenceBadge(_ tier: ConfidenceTier) -> some View {
-        Text(tier.displayName)
-            .font(.caption2)
-            .fontWeight(.medium)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(
-                Capsule()
-                    .fill(tier.color.opacity(0.15))
-            )
-            .foregroundStyle(tier.color)
     }
 
     private var clearButton: some View {
