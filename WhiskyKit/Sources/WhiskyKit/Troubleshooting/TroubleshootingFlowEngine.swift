@@ -90,24 +90,17 @@ public final class TroubleshootingFlowEngine: ObservableObject {
     ///   - fragments: Fragment definitions keyed by fragment name.
     ///   - checkRegistry: Registry mapping check IDs to implementations.
     ///   - sessionStore: Storage backend for session persistence.
-    ///   - session: Initial session state. Defaults to a new session.
     public init(
         flowDefinitions: [String: FlowDefinition],
         fragments: [String: FlowDefinition],
         checkRegistry: CheckRegistry,
-        sessionStore: TroubleshootingSessionStore,
-        session: TroubleshootingSession = TroubleshootingSession()
+        sessionStore: TroubleshootingSessionStore
     ) {
         self.flowDefinitions = flowDefinitions
         self.fragments = fragments
         self.checkRegistry = checkRegistry
         self.sessionStore = sessionStore
-        self.session = session
-
-        // Restore current node if resuming a session
-        if let nodeId = session.currentNodeId {
-            currentNode = resolveNode(nodeId)
-        }
+        self.session = TroubleshootingSession()
     }
 
     // MARK: - Category Selection
@@ -225,14 +218,9 @@ public final class TroubleshootingFlowEngine: ObservableObject {
             let outcome = result.outcome.rawValue
             if let nextNodeId = node.on?[outcome] {
                 logger.debug("Check \(checkId) outcome '\(outcome)' -> navigating to \(nextNodeId)")
-                session.recordBranch(from: node.id, targetNodeId: nextNodeId, reason: "Check outcome: \(outcome)")
                 navigateToNode(nextNodeId)
             } else if let defaultNext = node.on?["default"] {
                 logger.debug("Check \(checkId) outcome '\(outcome)' not mapped, using default -> \(defaultNext)")
-                session.recordBranch(
-                    from: node.id, targetNodeId: defaultNext,
-                    reason: "Default branch (outcome: \(outcome))"
-                )
                 navigateToNode(defaultNext)
             } else {
                 logger.warning("Check \(checkId) outcome '\(outcome)' has no target and no default")
@@ -361,7 +349,6 @@ public final class TroubleshootingFlowEngine: ObservableObject {
             return
         }
         logger.debug("\(reason): step \(node.id) -> \(nextNodeId)")
-        session.recordBranch(from: node.id, targetNodeId: nextNodeId, reason: reason)
         navigateToNode(nextNodeId)
     }
 

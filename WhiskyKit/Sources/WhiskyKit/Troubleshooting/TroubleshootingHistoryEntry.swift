@@ -36,14 +36,8 @@ public struct TroubleshootingHistoryEntry: Codable, Sendable, Identifiable {
     /// Summary descriptions of key findings during the session.
     public let primaryFindings: [String]
 
-    /// Stable identifiers of fixes that were attempted.
-    public let fixesAttempted: [String]
-
     /// Human-readable descriptions of fix results.
     public let fixResults: [String]
-
-    /// When the troubleshooting session was started.
-    public let startedAt: Date
 
     /// When the troubleshooting session completed.
     public let completedAt: Date
@@ -59,9 +53,7 @@ public struct TroubleshootingHistoryEntry: Codable, Sendable, Identifiable {
         symptomCategory: SymptomCategory,
         outcome: TroubleshootingSession.SessionOutcome,
         primaryFindings: [String],
-        fixesAttempted: [String],
         fixResults: [String],
-        startedAt: Date,
         completedAt: Date,
         programName: String?,
         bottleName: String
@@ -70,9 +62,7 @@ public struct TroubleshootingHistoryEntry: Codable, Sendable, Identifiable {
         self.symptomCategory = symptomCategory
         self.outcome = outcome
         self.primaryFindings = primaryFindings
-        self.fixesAttempted = fixesAttempted
         self.fixResults = fixResults
-        self.startedAt = startedAt
         self.completedAt = completedAt
         self.programName = programName
         self.bottleName = bottleName

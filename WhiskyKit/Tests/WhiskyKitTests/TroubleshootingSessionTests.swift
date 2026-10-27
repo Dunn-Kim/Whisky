@@ -64,16 +64,6 @@ final class TroubleshootingSessionTests: XCTestCase {
         XCTAssertNil(session.stepHistory[1].checkResult)
     }
 
-    func testRecordBranchKeepsDecisionOrder() {
-        var session = TroubleshootingSession()
-
-        session.recordBranch(from: "a", targetNodeId: "b", reason: "pass")
-        session.recordBranch(from: "b", targetNodeId: "c")
-
-        XCTAssertEqual(session.branchDecisions.map(\.fromNodeId), ["a", "b"])
-        XCTAssertEqual(session.branchDecisions.first?.reason, "pass")
-    }
-
     func testSessionCodableRoundTrip() throws {
         var session = TroubleshootingSession(bottleURL: tempDir)
         session.pushStep(makeNode(id: "a"))

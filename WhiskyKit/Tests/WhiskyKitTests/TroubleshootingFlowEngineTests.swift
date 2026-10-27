@@ -56,8 +56,7 @@ final class TroubleshootingFlowEngineTests: XCTestCase {
     private func makeEngine(
         nodes: [String: FlowStepNode],
         entry: String = "start",
-        fragments: [String: FlowDefinition] = [:],
-        session: TroubleshootingSession? = nil
+        fragments: [String: FlowDefinition] = [:]
     ) -> (TroubleshootingFlowEngine, URL) {
         let flow = FlowDefinition(version: 1, categoryId: "graphics", nodes: nodes, entryNodeId: entry)
         let registry = CheckRegistry(checks: CheckRegistry.builtIn + [StubCheck(checkId: "stub.outcome")])
@@ -71,9 +70,9 @@ final class TroubleshootingFlowEngineTests: XCTestCase {
             flowDefinitions: ["graphics": flow],
             fragments: fragments,
             checkRegistry: registry,
-            sessionStore: TroubleshootingSessionStore(),
-            session: session ?? defaultSession
+            sessionStore: TroubleshootingSessionStore()
         )
+        engine.session = defaultSession
         return (engine, bottleURL)
     }
 
@@ -103,7 +102,6 @@ final class TroubleshootingFlowEngineTests: XCTestCase {
         await waitUntil("branch to done-pass") { engine.currentNode?.id == "done-pass" }
         XCTAssertEqual(engine.session.phase, .checks)
         XCTAssertEqual(engine.session.checkResults["start"]?.outcome, .pass)
-        XCTAssertEqual(engine.session.branchDecisions.last?.toNodeId, "done-pass")
         XCTAssertEqual(engine.session.stepHistory.map(\.nodeId), ["start", "done-pass"])
         XCTAssertNotNil(TroubleshootingSessionStore().loadActiveSession(for: bottleURL))
     }
@@ -223,19 +221,6 @@ final class TroubleshootingFlowEngineTests: XCTestCase {
         engine.navigateToNode("no-such-node")
 
         XCTAssertEqual(engine.session.phase, .escalation)
-    }
-
-    func testInitRestoresCurrentNodeFromResumedSession() {
-        var session = TroubleshootingSession(bottleURL: URL(filePath: "/tmp/engine-test-bottle"))
-        session.currentFlowCategoryId = "graphics"
-        session.currentNodeId = "second"
-
-        let (engine, _) = makeEngine(
-            nodes: ["start": infoNode("start"), "second": infoNode("second")],
-            session: session
-        )
-
-        XCTAssertEqual(engine.currentNode?.id, "second")
     }
 
     // MARK: - Fix lifecycle

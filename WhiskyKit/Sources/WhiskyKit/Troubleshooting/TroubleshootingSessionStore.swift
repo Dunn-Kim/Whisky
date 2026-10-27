@@ -21,29 +21,6 @@ import os.log
 
 // MARK: - Staleness Change
 
-/// Describes a single change detected between a session's preflight snapshot
-/// and the current system state, used to drive the "Since you left" resume banner.
-public struct StalenessChange: Sendable {
-    /// The name of the field that changed.
-    public let field: String
-
-    /// The previous value from the session snapshot.
-    public let oldValue: String
-
-    /// The current value from fresh preflight data.
-    public let newValue: String
-
-    /// A user-facing message describing the change.
-    public let displayMessage: String
-
-    public init(field: String, oldValue: String, newValue: String, displayMessage: String) {
-        self.field = field
-        self.oldValue = oldValue
-        self.newValue = newValue
-        self.displayMessage = displayMessage
-    }
-}
-
 // MARK: - Session Store
 
 /// Persists active sessions to plist files per bottle and manages bounded history.
@@ -114,11 +91,9 @@ public struct TroubleshootingSessionStore: Sendable {
             symptomCategory: session.symptomCategory ?? .other,
             outcome: session.outcome ?? .abandoned,
             primaryFindings: session.checkResults.values.map(\.summary),
-            fixesAttempted: session.fixAttempts.map(\.fixId),
             fixResults: session.fixAttempts.map { attempt in
                 "\(attempt.fixId): \(attempt.result.rawValue)"
             },
-            startedAt: session.createdAt,
             completedAt: Date(),
             programName: session.preflightSnapshot?.programName,
             bottleName: session.preflightSnapshot?.bottleName ?? "Unknown"
@@ -202,46 +177,32 @@ public struct TroubleshootingSessionStore: Sendable {
     public func checkStaleness(
         session: TroubleshootingSession,
         currentPreflight: PreflightData
-    ) -> [StalenessChange] {
+    ) -> [String] {
         guard let snapshot = session.preflightSnapshot else {
             return []
         }
 
-        var changes: [StalenessChange] = []
+        var changes: [String] = []
 
         // Graphics backend changed
         if snapshot.graphicsBackend != currentPreflight.graphicsBackend {
-            changes.append(StalenessChange(
-                field: "graphicsBackend",
-                oldValue: snapshot.graphicsBackend,
-                newValue: currentPreflight.graphicsBackend,
-                displayMessage: "Graphics backend changed from \(snapshot.graphicsBackend) "
-                    + "to \(currentPreflight.graphicsBackend)"
-            ))
+            changes.append(
+                "Graphics backend changed from \(snapshot.graphicsBackend) to \(currentPreflight.graphicsBackend)"
+            )
         }
 
         // Audio device name changed
         let oldAudio = snapshot.audioDeviceName ?? "none"
         let newAudio = currentPreflight.audioDeviceName ?? "none"
         if oldAudio != newAudio {
-            changes.append(StalenessChange(
-                field: "audioDeviceName",
-                oldValue: oldAudio,
-                newValue: newAudio,
-                displayMessage: "Audio output device changed from \(oldAudio) to \(newAudio)"
-            ))
+            changes.append("Audio output device changed from \(oldAudio) to \(newAudio)")
         }
 
         // Wineserver running state changed
         if snapshot.isWineserverRunning != currentPreflight.isWineserverRunning {
             let oldState = snapshot.isWineserverRunning ? "running" : "stopped"
             let newState = currentPreflight.isWineserverRunning ? "running" : "stopped"
-            changes.append(StalenessChange(
-                field: "isWineserverRunning",
-                oldValue: oldState,
-                newValue: newState,
-                displayMessage: "Wine server is now \(newState) (was \(oldState))"
-            ))
+            changes.append("Wine server is now \(newState) (was \(oldState))")
         }
 
         // Process count significantly different (>50% change or delta > 5)
@@ -250,12 +211,7 @@ public struct TroubleshootingSessionStore: Sendable {
         let delta = abs(oldCount - newCount)
         let threshold = max(oldCount / 2, 5)
         if delta >= threshold, oldCount != newCount {
-            changes.append(StalenessChange(
-                field: "processCount",
-                oldValue: String(oldCount),
-                newValue: String(newCount),
-                displayMessage: "Wine process count changed from \(oldCount) to \(newCount)"
-            ))
+            changes.append("Wine process count changed from \(oldCount) to \(newCount)")
         }
 
         return changes

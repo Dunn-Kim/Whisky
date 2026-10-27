@@ -62,9 +62,6 @@ public struct PreflightData: Codable, Sendable {
     /// Resolved graphics backend (e.g., "dxvk", "gptk").
     public let graphicsBackend: String
 
-    /// When this preflight data was collected.
-    public let collectedAt: Date
-
     public init(
         bottleURL: URL,
         bottleName: String,
@@ -77,8 +74,7 @@ public struct PreflightData: Codable, Sendable {
         lastExitCode: Int32? = nil,
         audioDeviceName: String? = nil,
         audioTransportType: String? = nil,
-        graphicsBackend: String,
-        collectedAt: Date = Date()
+        graphicsBackend: String
     ) {
         self.bottleURL = bottleURL
         self.bottleName = bottleName
@@ -92,6 +88,5 @@ public struct PreflightData: Codable, Sendable {
         self.audioDeviceName = audioDeviceName
         self.audioTransportType = audioTransportType
         self.graphicsBackend = graphicsBackend
-        self.collectedAt = collectedAt
     }
 }

@@ -41,13 +41,14 @@ final class TroubleshootingFlowEngineTransitionTests: XCTestCase {
         let flow = FlowDefinition(version: 1, categoryId: "graphics", nodes: nodes, entryNodeId: "start")
         var session = TroubleshootingSession(bottleURL: makeBottleDirectory())
         session.currentFlowCategoryId = "graphics"
-        return TroubleshootingFlowEngine(
+        let engine = TroubleshootingFlowEngine(
             flowDefinitions: ["graphics": flow],
             fragments: fragments,
             checkRegistry: CheckRegistry(),
-            sessionStore: TroubleshootingSessionStore(),
-            session: session
+            sessionStore: TroubleshootingSessionStore()
         )
+        engine.session = session
+        return engine
     }
 
     func testContinueFollowsTheInfoNodeTransition() {

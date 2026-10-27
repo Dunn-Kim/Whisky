@@ -26,7 +26,7 @@ import WhiskyKit
 /// Provides three explicit actions: Resume, Start Over, and Discard.
 struct SessionResumeView: View {
     let session: TroubleshootingSession
-    let stalenessChanges: [StalenessChange]
+    let stalenessChanges: [String]
     var onResume: (TroubleshootingSession) -> Void
     var onStartOver: () -> Void
     var onDiscard: () -> Void
@@ -123,7 +123,7 @@ extension SessionResumeView {
                     Image(systemName: "arrow.right.circle")
                         .foregroundStyle(.orange)
                         .font(.caption2)
-                    Text(change.displayMessage)
+                    Text(change)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }

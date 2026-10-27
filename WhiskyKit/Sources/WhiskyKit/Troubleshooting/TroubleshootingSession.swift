@@ -21,7 +21,7 @@ import Foundation
 /// Full state of a troubleshooting wizard session.
 ///
 /// Captures every aspect of the wizard's progress: selected symptom, current flow
-/// position, completed steps, check results, fix attempts, branch decisions, and
+/// position, completed steps, check results, fix attempts, and
 /// outcome. Designed for persistence so sessions can be paused and resumed.
 public struct TroubleshootingSession: Codable, Sendable {
     /// Unique identifier for this session.
@@ -54,9 +54,6 @@ public struct TroubleshootingSession: Codable, Sendable {
     /// All fix attempts made during this session.
     public var fixAttempts: [FixAttempt]
 
-    /// Branch decisions recorded during flow traversal.
-    public var branchDecisions: [BranchDecision]
-
     /// The final outcome of this session, if complete.
     public var outcome: SessionOutcome?
 
@@ -80,7 +77,6 @@ public struct TroubleshootingSession: Codable, Sendable {
         currentFlowCategoryId: String? = nil,
         checkResults: [String: CheckResult] = [:],
         fixAttempts: [FixAttempt] = [],
-        branchDecisions: [BranchDecision] = [],
         outcome: SessionOutcome? = nil,
         createdAt: Date = Date(),
         lastUpdatedAt: Date = Date(),
@@ -96,7 +92,6 @@ public struct TroubleshootingSession: Codable, Sendable {
         self.currentFlowCategoryId = currentFlowCategoryId
         self.checkResults = checkResults
         self.fixAttempts = fixAttempts
-        self.branchDecisions = branchDecisions
         self.outcome = outcome
         self.createdAt = createdAt
         self.lastUpdatedAt = lastUpdatedAt
@@ -139,23 +134,6 @@ public struct TroubleshootingSession: Codable, Sendable {
     /// - Parameter attempt: The fix attempt to record.
     public mutating func recordFixAttempt(_ attempt: FixAttempt) {
         fixAttempts.append(attempt)
-        lastUpdatedAt = Date()
-    }
-
-    /// Records a branch decision.
-    ///
-    /// - Parameters:
-    ///   - from: The node ID where the branch originated.
-    ///   - targetNodeId: The node ID that was chosen.
-    ///   - reason: Optional explanation of why this branch was taken.
-    public mutating func recordBranch(from: String, targetNodeId: String, reason: String? = nil) {
-        let decision = BranchDecision(
-            fromNodeId: from,
-            toNodeId: targetNodeId,
-            reason: reason,
-            timestamp: Date()
-        )
-        branchDecisions.append(decision)
         lastUpdatedAt = Date()
     }
 
@@ -211,28 +189,6 @@ public struct TroubleshootingSession: Codable, Sendable {
             self.phase = phase
             self.title = title
             self.checkResult = checkResult
-        }
-    }
-
-    /// A record of a branch decision during flow traversal.
-    public struct BranchDecision: Codable, Sendable {
-        /// The node ID where the branch originated.
-        public let fromNodeId: String
-
-        /// The node ID that was chosen.
-        public let toNodeId: String
-
-        /// Optional explanation of why this branch was taken.
-        public let reason: String?
-
-        /// When this branch decision was made.
-        public let timestamp: Date
-
-        public init(fromNodeId: String, toNodeId: String, reason: String? = nil, timestamp: Date = Date()) {
-            self.fromNodeId = fromNodeId
-            self.toNodeId = toNodeId
-            self.reason = reason
-            self.timestamp = timestamp
         }
     }
 }
