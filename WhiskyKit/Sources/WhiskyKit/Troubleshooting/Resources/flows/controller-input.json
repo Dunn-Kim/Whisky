@@ -9,7 +9,8 @@
       "description": "Checking whether controller compatibility mode is enabled and SDL environment variables are correctly configured.",
       "checkId": "setting.value_check",
       "params": {
-        "setting": "controllerCompatibilityMode"
+        "setting": "controllerCompatibilityMode",
+        "expected": "true"
       },
       "on": {
         "pass": "escalate",

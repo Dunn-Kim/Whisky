@@ -119,6 +119,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   executable.
 - Turning the shader cache off reaches DXMT, through `DXMT_SHADER_CACHE=0`.
   It set only DXVK's variable, so DXMT kept caching.
+- The controller troubleshooting check passes the expected value
+  (`controllerCompatibilityMode` = `true`) to the setting check. It passed
+  none, so the check always errored and the flow skipped its "Enable
+  controller compatibility mode" fix.
 
 ## [fork-2026.10.04] - 2026-10-04 (Fork)
 

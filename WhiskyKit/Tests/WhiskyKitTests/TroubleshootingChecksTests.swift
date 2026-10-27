@@ -128,6 +128,26 @@ final class TroubleshootingChecksTests: XCTestCase {
         XCTAssertEqual(match.confidence, .high)
     }
 
+    func testControllerFlowNodeFailsWhenCompatModeIsOffAndIsConfiguredWhenOn() async throws {
+        let node = try XCTUnwrap(FlowLoader.loadFlow("controller-input")?.nodes["check_controller_setting"])
+        let params = try XCTUnwrap(node.params)
+        let context = makeCheckContext()
+        try FileManager.default.createDirectory(at: context.bottleURL, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: context.bottleURL) }
+
+        for (enabled, outcome, next) in [
+            (false, CheckOutcome.fail, "fix_enable_compat"),
+            (true, CheckOutcome.alreadyConfigured, "escalate")
+        ] {
+            var settings = BottleSettings()
+            settings.controllerCompatibilityMode = enabled
+            try settings.encode(to: context.bottleURL.appending(path: "Metadata.plist"))
+            let result = await SettingValueCheck().run(params: params, context: context)
+            XCTAssertEqual(result.outcome, outcome)
+            XCTAssertEqual(node.on?[outcome.rawValue], next)
+        }
+    }
+
     // MARK: - LauncherTypeCheck
 
     func testLauncherTypeCheckNoLauncherIsUnknown() async {
