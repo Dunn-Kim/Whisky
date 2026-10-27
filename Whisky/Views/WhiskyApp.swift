@@ -414,33 +414,12 @@ extension WhiskyApp {
     }
 
     static func wipeShaderCaches() {
-        let getconf = Process()
-        getconf.executableURL = URL(fileURLWithPath: "/usr/bin/getconf")
-        getconf.arguments = ["DARWIN_USER_CACHE_DIR"]
-        let pipe = Pipe()
-        getconf.standardOutput = pipe
-        do {
-            try getconf.run()
-        } catch {
-            logger.error("Failed to run getconf: \(error.localizedDescription)")
+        var buffer = [CChar](repeating: 0, count: Int(PATH_MAX))
+        guard confstr(_CS_DARWIN_USER_CACHE_DIR, &buffer, buffer.count) > 0 else {
+            logger.error("Failed to read DARWIN_USER_CACHE_DIR")
             return
         }
-        getconf.waitUntilExit()
-
-        let getconfOutput: Data
-        do {
-            getconfOutput = try pipe.fileHandleForReading.readToEnd() ?? Data()
-        } catch {
-            logger.error("Failed to read getconf output: \(error.localizedDescription)")
-            return
-        }
-
-        guard let getconfOutputString = String(data: getconfOutput, encoding: .utf8) else {
-            logger.error("Failed to decode getconf output as UTF-8")
-            return
-        }
-        let d3dmPath = URL(fileURLWithPath: getconfOutputString.trimmingCharacters(in: .whitespacesAndNewlines))
-            .appending(path: "d3dm").path
+        let d3dmPath = URL(fileURLWithPath: String(cString: buffer)).appending(path: "d3dm").path
         do {
             try FileManager.default.removeItem(atPath: d3dmPath)
             logger.info("Successfully cleared shader caches")
