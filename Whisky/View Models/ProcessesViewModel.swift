@@ -27,6 +27,8 @@ class ProcessesViewModel: ObservableObject {
 
     /// Merged, sorted process list from tasklist + registry.
     @Published var processes: [WineProcess] = []
+    /// Whether the first refresh has finished, so an empty list means "none" rather than "not loaded yet".
+    @Published var hasRefreshed = false
     /// Current shutdown state for UI feedback.
     @Published var shutdownState: ShutdownState = .idle
     /// Filter mode for the process list.
@@ -182,6 +184,7 @@ class ProcessesViewModel: ObservableObject {
             logger.error("Failed to refresh process list: \(error.localizedDescription)")
             // Keep previous process list on error
         }
+        hasRefreshed = true
     }
 
     /// Returns a sort order value for process kind grouping.

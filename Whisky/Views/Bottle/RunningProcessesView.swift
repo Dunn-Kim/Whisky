@@ -72,10 +72,15 @@ struct RunningProcessesView: View {
 
     private var emptyStateView: some View {
         VStack(spacing: 12) {
-            ProgressView()
-                .controlSize(.small)
-            Text("process.checking")
-                .foregroundStyle(.secondary)
+            if viewModel.hasRefreshed {
+                Text("process.empty")
+                    .foregroundStyle(.secondary)
+            } else {
+                ProgressView()
+                    .controlSize(.small)
+                Text("process.checking")
+                    .foregroundStyle(.secondary)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
