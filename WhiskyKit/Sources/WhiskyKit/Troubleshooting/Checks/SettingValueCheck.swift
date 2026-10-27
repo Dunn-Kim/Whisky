@@ -22,8 +22,8 @@ import Foundation
 ///
 /// Reads the setting named in `params["setting"]` from the bottle's
 /// ``BottleSettings`` and compares against `params["expected"]`.
-/// Supports common settings like `enhancedSync`, `graphicsBackend`,
-/// `windowsVersion`, `dxvk`, `metalHud`.
+/// Supports `enhancedSync`, `graphicsBackend`, `dxvkAsync`,
+/// `controllerCompatibilityMode` and `audioLatencyPreset`.
 public struct SettingValueCheck: TroubleshootingCheck {
     public let checkId = "setting.value_check"
 
@@ -75,41 +75,17 @@ public struct SettingValueCheck: TroubleshootingCheck {
 
     // MARK: - Private
 
-    // swiftlint:disable:next cyclomatic_complexity
+    /// The settings the bundled flows ask about.
     private func readSetting(_ name: String, from settings: BottleSettings) -> String? {
         switch name {
         case "enhancedSync":
             String(describing: settings.enhancedSync)
         case "graphicsBackend":
             settings.graphicsBackend.rawValue
-        case "windowsVersion":
-            String(describing: settings.windowsVersion)
-        case "dxvk":
-            settings.dxvk ? "true" : "false"
         case "dxvkAsync":
             settings.dxvkAsync ? "true" : "false"
-        case "metalHud":
-            settings.metalHud ? "true" : "false"
-        case "metalTrace":
-            settings.metalTrace ? "true" : "false"
-        case "dxrEnabled":
-            settings.dxrEnabled ? "true" : "false"
-        case "metalValidation":
-            settings.metalValidation ? "true" : "false"
-        case "shaderCacheEnabled":
-            settings.shaderCacheEnabled ? "true" : "false"
-        case "forceD3D11":
-            settings.forceD3D11 ? "true" : "false"
-        case "avxEnabled":
-            settings.avxEnabled ? "true" : "false"
-        case "launcherCompatibilityMode":
-            settings.launcherCompatibilityMode ? "true" : "false"
         case "controllerCompatibilityMode":
             settings.controllerCompatibilityMode ? "true" : "false"
-        case "virtualDesktopEnabled":
-            settings.virtualDesktopEnabled ? "true" : "false"
-        case "audioDriver":
-            settings.audioDriver.rawValue
         case "audioLatencyPreset":
             settings.audioLatencyPreset.rawValue
         default:
