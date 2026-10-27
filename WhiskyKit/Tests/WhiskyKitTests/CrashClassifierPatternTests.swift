@@ -285,7 +285,7 @@ final class CrashClassifierPatternTests: XCTestCase {
     }
 
     func testEveryPatternHasPositiveMatch() {
-        var patterns = PatternLoader.defaultPatterns()
+        let patterns = PatternLoader.defaultPatterns()
         let sampleLines = makeSampleLinesForPatterns()
 
         for index in patterns.indices {

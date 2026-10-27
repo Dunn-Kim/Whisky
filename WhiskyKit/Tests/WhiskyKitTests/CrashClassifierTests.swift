@@ -86,7 +86,7 @@ final class CrashClassifierTests: XCTestCase {
     // MARK: - CrashPattern Match Tests
 
     func testDLLLoadFailureMatch() {
-        var patterns = PatternLoader.defaultPatterns()
+        let patterns = PatternLoader.defaultPatterns()
         let line =
             "0024:err:module:import_dll Library MSVCR100.dll (which is needed by L\"game.exe\") not found"
 
@@ -102,7 +102,7 @@ final class CrashClassifierTests: XCTestCase {
     }
 
     func testPrefilterSkipsRegex() {
-        var pattern = CrashPattern(
+        let pattern = CrashPattern(
             id: "test-prefilter",
             category: .dependenciesLoading,
             severity: .error,
@@ -119,7 +119,7 @@ final class CrashClassifierTests: XCTestCase {
     }
 
     func testAccessViolationMatch() {
-        var patterns = PatternLoader.defaultPatterns()
+        let patterns = PatternLoader.defaultPatterns()
         let line =
             "0080:err:seh:NtRaiseException Unhandled exception code c0000005 flags 0 addr 0x7b012345"
 
@@ -136,7 +136,7 @@ final class CrashClassifierTests: XCTestCase {
     }
 
     func testPageFaultMatch() {
-        var patterns = PatternLoader.defaultPatterns()
+        let patterns = PatternLoader.defaultPatterns()
         let line = "wine: Unhandled page fault on read access to 0x00000000 at address 0x7b012345"
 
         var matched = false
@@ -150,7 +150,7 @@ final class CrashClassifierTests: XCTestCase {
     }
 
     func testGPUDeviceLostMatch() {
-        var patterns = PatternLoader.defaultPatterns()
+        let patterns = PatternLoader.defaultPatterns()
         let line = "err:d3d11:device_lost D3D11 device lost (DXGI_ERROR_DEVICE_REMOVED)"
 
         var matched = false
@@ -164,7 +164,7 @@ final class CrashClassifierTests: XCTestCase {
     }
 
     func testAntiCheatEACMatch() {
-        var patterns = PatternLoader.defaultPatterns()
+        let patterns = PatternLoader.defaultPatterns()
         let line = "EasyAntiCheat.exe: Fatal error - EasyAntiCheat is not installed"
 
         var matched = false
@@ -178,7 +178,7 @@ final class CrashClassifierTests: XCTestCase {
     }
 
     func testAntiCheatBattlEyeMatch() {
-        var patterns = PatternLoader.defaultPatterns()
+        let patterns = PatternLoader.defaultPatterns()
         let line = "BattlEye Service: error initializing - BattlEye not supported on this platform"
 
         var matched = false
@@ -192,7 +192,7 @@ final class CrashClassifierTests: XCTestCase {
     }
 
     func testDotNetCLRMatch() {
-        var patterns = PatternLoader.defaultPatterns()
+        let patterns = PatternLoader.defaultPatterns()
         let line =
             "0024:err:module:import_dll Library mscoree.dll (which is needed by L\"app.exe\") not found"
 
@@ -213,7 +213,7 @@ final class CrashClassifierTests: XCTestCase {
     }
 
     func testPrefixCorruptionMatch() {
-        var patterns = PatternLoader.defaultPatterns()
+        let patterns = PatternLoader.defaultPatterns()
         let line = "wine: could not load user32.dll, status c0000135"
 
         var matched = false
@@ -227,7 +227,7 @@ final class CrashClassifierTests: XCTestCase {
     }
 
     func testNetworkTLSMatch() {
-        var patterns = PatternLoader.defaultPatterns()
+        let patterns = PatternLoader.defaultPatterns()
         let line = "0024:err:winhttp:request_send_request secure connection failed"
 
         var matched = false

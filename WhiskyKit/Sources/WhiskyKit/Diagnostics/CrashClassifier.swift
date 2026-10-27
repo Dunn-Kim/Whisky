@@ -38,9 +38,10 @@ import Foundation
 /// let classifier = CrashClassifier(patterns: PatternLoader.defaultPatterns())
 /// let diagnosis = classifier.classify(log: wineLogOutput, exitCode: exitCode)
 /// ```
-public struct CrashClassifier: Sendable {
-    /// Compiled patterns ready for matching.
-    private var patterns: [CrashPattern]
+// Regex is not Sendable, but the compiled patterns are immutable after init.
+public struct CrashClassifier: @unchecked Sendable {
+    /// Patterns paired with their compiled regex, ready for matching.
+    private let patterns: [(pattern: CrashPattern, regex: Regex<AnyRegexOutput>?)]
 
     /// Creates a classifier with the given patterns, the bundled ones by default.
     ///
@@ -48,11 +49,7 @@ public struct CrashClassifier: Sendable {
     ///
     /// - Parameter patterns: Array of crash patterns to match against.
     public init(patterns: [CrashPattern] = PatternLoader.defaultPatterns()) {
-        var compiled = patterns
-        for index in compiled.indices {
-            compiled[index].compileRegex()
-        }
-        self.patterns = compiled
+        self.patterns = patterns.map { ($0, $0.compiledRegex()) }
     }
 
     /// Classifies Wine log output for crash patterns.
@@ -68,14 +65,13 @@ public struct CrashClassifier: Sendable {
     public func classify(log: String, exitCode: Int32? = nil) -> CrashDiagnosis {
         let lines = log.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
         var allMatches: [DiagnosisMatch] = []
-        var mutablePatterns = patterns
 
         // Step 1-2: Scan each line against all patterns
         for (lineIndex, line) in lines.enumerated() {
-            for patternIndex in mutablePatterns.indices {
-                if let captures = mutablePatterns[patternIndex].match(line: line) {
+            for (pattern, regex) in patterns {
+                if let captures = pattern.match(line: line, using: regex) {
                     let diagMatch = DiagnosisMatch(
-                        pattern: mutablePatterns[patternIndex],
+                        pattern: pattern,
                         lineIndex: lineIndex,
                         lineText: line,
                         captures: captures

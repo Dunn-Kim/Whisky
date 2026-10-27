@@ -67,13 +67,6 @@ public struct CrashPattern: Codable, Sendable, Identifiable {
     /// IDs of remediation actions applicable when this pattern matches.
     public let remediationActionIds: [String]?
 
-    // MARK: - Transient
-
-    /// Lazily compiled regex. Not part of Codable conformance.
-    /// Safe because Regex is only mutated during single-threaded init/compile
-    /// and is thereafter read-only.
-    private nonisolated(unsafe) var _compiledRegex: Regex<AnyRegexOutput>?
-
     enum CodingKeys: String, CodingKey {
         case id, category, severity, confidence, substringPrefilter
         case regex, remediationActionIds
@@ -100,41 +93,36 @@ public struct CrashPattern: Codable, Sendable, Identifiable {
     /// Attempts to match this pattern against a single log line.
     ///
     /// If `substringPrefilter` is set and the line does not contain it,
-    /// the regex is not evaluated (fast path).
+    /// the regex is not evaluated (fast path). This compiles the regex on every
+    /// call that passes the prefilter; ``CrashClassifier`` compiles once and
+    /// uses ``match(line:using:)``.
     ///
     /// - Parameter line: A single line of Wine log output.
     /// - Returns: The regex captures if the pattern matched, or `nil`.
-    public mutating func match(line: String) -> [String]? {
-        // Fast path: substring prefilter
-        if let prefilter = substringPrefilter, !line.contains(prefilter) {
-            return nil
-        }
+    public func match(line: String) -> [String]? {
+        guard passesPrefilter(line) else { return nil }
+        return match(line: line, using: compiledRegex())
+    }
 
-        // Compile regex lazily
-        if _compiledRegex == nil {
-            _compiledRegex = try? Regex(regex)
-        }
+    /// Compiles ``regex``, or `nil` when it is not a valid pattern.
+    func compiledRegex() -> Regex<AnyRegexOutput>? {
+        try? Regex(regex)
+    }
 
-        guard let compiled = _compiledRegex,
+    func passesPrefilter(_ line: String) -> Bool {
+        substringPrefilter.map(line.contains) ?? true
+    }
+
+    /// Matches `line` with an already compiled `compiled` regex (this pattern's own).
+    func match(line: String, using compiled: Regex<AnyRegexOutput>?) -> [String]? {
+        guard passesPrefilter(line),
+              let compiled,
               let result = try? compiled.firstMatch(in: line)
         else {
             return nil
         }
 
         // Extract captures (skip the full match at index 0)
-        var captures: [String] = []
-        for index in 1 ..< result.count {
-            if let substring = result[index].substring {
-                captures.append(String(substring))
-            }
-        }
-
-        return captures
-    }
-
-    /// Compiles the regex pattern eagerly. Call at init time for
-    /// classifier performance.
-    public mutating func compileRegex() {
-        _compiledRegex = try? Regex(regex)
+        return (1 ..< result.count).compactMap { result[$0].substring.map(String.init) }
     }
 }

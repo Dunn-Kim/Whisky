@@ -27,13 +27,10 @@ import Foundation
 /// JSON, which is the reason that relay can be a byte pump rather than a
 /// protocol implementation.
 public enum DiscordIPC {
-    /// Transport opcodes. Rich presence only ever uses the first two.
+    /// Transport opcodes rich presence uses.
     public enum Opcode: UInt32 {
         case handshake = 0
         case frame = 1
-        case close = 2
-        case ping = 3
-        case pong = 4
     }
 
     /// The socket indices Discord's client libraries walk, in order.
