@@ -68,7 +68,6 @@
       "isReversible": false,
       "requiresConfirmation": true,
       "on": {
-        "applied": "verify_fix",
         "skipped": "fix_launcher_env"
       }
     },
@@ -92,19 +91,7 @@
       "isReversible": true,
       "requiresConfirmation": false,
       "on": {
-        "applied": "verify_fix",
         "skipped": "escalate"
-      }
-    },
-    "verify_fix": {
-      "id": "verify_fix",
-      "type": "verify",
-      "phase": "verify",
-      "title": "Did this fix the launcher issue?",
-      "description": "Try launching the program again to check whether the issue is resolved.",
-      "on": {
-        "yes": "resolved",
-        "no": "escalate"
       }
     },
     "escalate": {
@@ -114,13 +101,6 @@
       "title": "Additional diagnostics needed",
       "description": "The automated launcher checks have not resolved the issue. Enhanced diagnostics or a support report may help identify the problem.",
       "fragmentRef": "export-escalation"
-    },
-    "resolved": {
-      "id": "resolved",
-      "type": "info",
-      "phase": "export",
-      "title": "Problem resolved",
-      "description": "The launcher issue has been fixed. You can export a session report for your records."
     }
   }
 }

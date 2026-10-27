@@ -288,32 +288,15 @@ final class TroubleshootingFlowEngineTests: XCTestCase {
         XCTAssertEqual(engine.session.fixAttempts.last?.result, .undone)
     }
 
-    func testThreeFailedFixesEscalate() {
+    func testNotFixedMarksTheAttemptFailedAndEscalates() {
         let (engine, _) = makeEngine(nodes: ["start": infoNode("start")])
-
-        for attempt in 0 ..< 3 {
-            engine.applyFix(fixId: "fix.\(attempt)", beforeValue: nil, afterValue: nil)
-            engine.confirmFixApplied(fixId: "fix.\(attempt)")
-            engine.userReportsNotFixed()
-        }
-
-        XCTAssertEqual(engine.session.failedFixCount, 3)
-        XCTAssertEqual(engine.session.phase, .escalation)
-    }
-
-    func testNotFixedFollowsNoTargetWhenAvailable() {
-        let (engine, _) = makeEngine(nodes: [
-            "verify": infoNode("verify", on: ["no": "second-fix"]),
-            "second-fix": infoNode("second-fix")
-        ])
-        engine.navigateToNode("verify")
         engine.applyFix(fixId: "fix.a", beforeValue: nil, afterValue: nil)
         engine.confirmFixApplied(fixId: "fix.a")
 
         engine.userReportsNotFixed()
 
         XCTAssertEqual(engine.session.fixAttempts.last?.result, .failed)
-        XCTAssertEqual(engine.currentNode?.id, "second-fix")
+        XCTAssertEqual(engine.session.phase, .escalation)
     }
 
     // MARK: - Start over

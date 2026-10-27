@@ -93,8 +93,7 @@ final class BackendFixCoherenceTests: XCTestCase {
                 categoryId: "test",
                 nodes: [
                     "start": FlowStepNode(
-                        id: "start", type: .fix, phase: .fix, params: params,
-                        on: ["applied": "start"], fixId: "switch-backend"
+                        id: "start", type: .fix, phase: .fix, params: params, fixId: "switch-backend"
                     )
                 ],
                 entryNodeId: "start"

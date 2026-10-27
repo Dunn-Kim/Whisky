@@ -75,7 +75,7 @@ public final class TroubleshootingFlowEngine: ObservableObject {
     // MARK: - Cycle Protection
 
     /// Tracks consecutive automated steps without user interaction.
-    /// Reset to 0 when a .fix or .verify node is reached.
+    /// Reset to 0 when a .fix node is reached.
     private var automatedStepCount: Int = 0
 
     /// Maximum automated steps before forced escalation.
@@ -162,8 +162,7 @@ public final class TroubleshootingFlowEngine: ObservableObject {
         }
 
         // Cycle protection
-        let isUserInteraction = node.type == .fix || node.type == .verify
-        if isUserInteraction {
+        if node.type == .fix {
             automatedStepCount = 0
         } else {
             automatedStepCount += 1
@@ -308,25 +307,16 @@ public final class TroubleshootingFlowEngine: ObservableObject {
 
     /// Called when the user reports the fix did not help.
     ///
-    /// If the maximum fix attempts (3) have been exhausted, escalates.
-    /// Otherwise, navigates to the next fix or re-branches from the current check.
+    /// Marks the applied fix as failed and escalates.
     public func userReportsNotFixed() {
         // Mark the most recent applied fix as failed
         if let index = session.fixAttempts.lastIndex(where: { $0.result == .applied }) {
             session.fixAttempts[index].result = .failed
         }
 
-        if session.failedFixCount >= 3 {
-            logger.info("Max fix attempts reached, escalating")
-            escalate()
-        } else {
-            // Navigate to the "no" or "default" target from current node
-            if let node = currentNode, let nextNodeId = node.on?["no"] ?? node.on?["default"] {
-                navigateToNode(nextNodeId)
-            } else {
-                escalate()
-            }
-        }
+        // Fix nodes carry no "no" or "default" transition, so a fix that
+        // did not help always escalates.
+        escalate()
         autoSave()
     }
 

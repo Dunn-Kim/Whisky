@@ -103,13 +103,6 @@ public struct TroubleshootingSession: Codable, Sendable {
         self.preflightSnapshot = preflightSnapshot
     }
 
-    // MARK: - Computed Properties
-
-    /// The number of fix attempts that resulted in failure.
-    public var failedFixCount: Int {
-        fixAttempts.filter { $0.result == .failed }.count
-    }
-
     // MARK: - Mutating Methods
 
     /// Records a completed step from a flow node.

@@ -37,19 +37,7 @@
       "isReversible": true,
       "requiresConfirmation": false,
       "on": {
-        "applied": "verify_fix",
         "skipped": "escalate"
-      }
-    },
-    "verify_fix": {
-      "id": "verify_fix",
-      "type": "verify",
-      "phase": "verify",
-      "title": "Did this improve performance?",
-      "description": "Try launching the program and playing for a few minutes. Check if stuttering or instability is reduced.",
-      "on": {
-        "yes": "resolved",
-        "no": "escalate"
       }
     },
     "escalate": {
@@ -59,13 +47,6 @@
       "title": "Additional diagnostics needed",
       "description": "Try enabling the DXVK HUD in Graphics settings to monitor frame times, and check the Game Config section for recommended performance settings. Export a diagnostic report for further analysis.",
       "fragmentRef": "export-escalation"
-    },
-    "resolved": {
-      "id": "resolved",
-      "type": "info",
-      "phase": "export",
-      "title": "Problem resolved",
-      "description": "The performance issue has been improved. You can export a session report for your records."
     }
   }
 }

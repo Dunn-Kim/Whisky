@@ -87,10 +87,6 @@ extension StepCardView {
             Image(systemName: "wrench.and.screwdriver.fill")
                 .foregroundStyle(.orange)
                 .font(.title3)
-        case .verify:
-            Image(systemName: "checkmark.circle.fill")
-                .foregroundStyle(.green)
-                .font(.title3)
         }
     }
 }

@@ -158,8 +158,7 @@ final class FlowLoaderValidatorTests: XCTestCase {
             categoryId: "test",
             nodes: [
                 "start": FlowStepNode(
-                    id: "start", type: .fix, phase: .fix,
-                    on: ["applied": "start"], fixId: "not-a-real-fix"
+                    id: "start", type: .fix, phase: .fix, fixId: "not-a-real-fix"
                 )
             ],
             entryNodeId: "start"

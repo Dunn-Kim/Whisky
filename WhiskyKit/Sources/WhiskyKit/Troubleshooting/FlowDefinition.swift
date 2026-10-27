@@ -46,8 +46,7 @@ public struct FlowDefinition: Codable, Sendable {
 
 /// A single step in a troubleshooting flow graph.
 ///
-/// Nodes represent checks, fixes, informational steps, verification gates,
-/// or branch points. The ``on`` dictionary maps normalized outcomes to the
+/// Nodes represent checks, fixes, informational steps, or branch points. The ``on`` dictionary maps normalized outcomes to the
 /// next node ID, enabling data-driven branching without hardcoded logic.
 public struct FlowStepNode: Codable, Sendable, Identifiable {
     /// Unique identifier within the flow.
@@ -133,8 +132,6 @@ public enum NodeType: String, Codable, Sendable {
     case fix
     /// Displays informational content to the user.
     case info
-    /// Asks the user whether the problem is resolved.
-    case verify
 }
 
 /// Preview data for a fix step showing what will change.

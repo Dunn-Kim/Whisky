@@ -42,27 +42,8 @@
       "isReversible": true,
       "requiresConfirmation": false,
       "on": {
-        "applied": "verify_fix",
         "skipped": "escalate"
       }
-    },
-    "verify_fix": {
-      "id": "verify_fix",
-      "type": "verify",
-      "phase": "verify",
-      "title": "Did this fix the controller issue?",
-      "description": "Try launching the program and testing the controller. For wireless controllers, also check macOS System Settings > Bluetooth and try re-pairing.",
-      "on": {
-        "yes": "resolved",
-        "no": "escalate"
-      }
-    },
-    "resolved": {
-      "id": "resolved",
-      "type": "info",
-      "phase": "export",
-      "title": "Problem resolved",
-      "description": "The controller issue has been fixed. You can export a session report for your records."
     },
     "escalate": {
       "id": "escalate",

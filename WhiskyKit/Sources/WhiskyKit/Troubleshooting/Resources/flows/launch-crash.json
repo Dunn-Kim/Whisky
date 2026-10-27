@@ -66,7 +66,6 @@
       "isReversible": true,
       "requiresConfirmation": false,
       "on": {
-        "applied": "verify_fix",
         "skipped": "check_winetricks"
       }
     },
@@ -101,27 +100,8 @@
       "isReversible": false,
       "requiresConfirmation": true,
       "on": {
-        "applied": "verify_fix",
         "skipped": "escalate"
       }
-    },
-    "verify_fix": {
-      "id": "verify_fix",
-      "type": "verify",
-      "phase": "verify",
-      "title": "Did this fix the crash?",
-      "description": "Try launching the program again to see if the crash is resolved.",
-      "on": {
-        "yes": "resolved",
-        "no": "check_winetricks"
-      }
-    },
-    "resolved": {
-      "id": "resolved",
-      "type": "info",
-      "phase": "export",
-      "title": "Problem resolved",
-      "description": "The launch issue has been fixed. You can export a session report for your records."
     },
     "escalate": {
       "id": "escalate",

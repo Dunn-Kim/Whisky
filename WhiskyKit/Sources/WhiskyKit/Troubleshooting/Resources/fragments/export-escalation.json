@@ -43,36 +43,8 @@
       "isReversible": true,
       "requiresConfirmation": true,
       "on": {
-        "applied": "reclassify_after_enhanced",
         "skipped": "export_bundle"
       }
-    },
-    "reclassify_after_enhanced": {
-      "id": "reclassify_after_enhanced",
-      "type": "check",
-      "phase": "checks",
-      "title": "Re-analyze with enhanced logs",
-      "description": "Analyzing the enhanced debug output for additional diagnostic patterns.",
-      "checkId": "crash.log_classify",
-      "params": {},
-      "on": {
-        "pass": "resolved",
-        "fail": "export_bundle",
-        "unknown": "export_bundle",
-        "error": "export_bundle"
-      },
-      "evidenceMap": {
-        "primaryCategory": "Issue category",
-        "confidence": "Confidence",
-        "headline": "Finding"
-      }
-    },
-    "resolved": {
-      "id": "resolved",
-      "type": "info",
-      "phase": "export",
-      "title": "Issue identified",
-      "description": "Enhanced diagnostics revealed additional information. Review the findings and consider restarting the troubleshooting flow with this new evidence."
     },
     "export_bundle": {
       "id": "export_bundle",

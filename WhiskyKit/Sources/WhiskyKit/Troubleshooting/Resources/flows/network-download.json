@@ -65,7 +65,6 @@
       "isReversible": false,
       "requiresConfirmation": true,
       "on": {
-        "applied": "verify_fix",
         "skipped": "fix_download_region"
       }
     },
@@ -112,7 +111,6 @@
       "isReversible": true,
       "requiresConfirmation": false,
       "on": {
-        "applied": "verify_fix",
         "skipped": "escalate"
       },
       "params": {
@@ -123,17 +121,6 @@
         "settingName": "Wine DNS override"
       }
     },
-    "verify_fix": {
-      "id": "verify_fix",
-      "type": "verify",
-      "phase": "verify",
-      "title": "Did this fix the network issue?",
-      "description": "Try the download or connection again to check whether the issue is resolved.",
-      "on": {
-        "yes": "resolved",
-        "no": "check_wine_dns"
-      }
-    },
     "escalate": {
       "id": "escalate",
       "type": "info",
@@ -141,13 +128,6 @@
       "title": "Additional diagnostics needed",
       "description": "The automated network checks have not resolved the issue. Enhanced diagnostics or a support report may help identify the problem.",
       "fragmentRef": "export-escalation"
-    },
-    "resolved": {
-      "id": "resolved",
-      "type": "info",
-      "phase": "export",
-      "title": "Problem resolved",
-      "description": "The network issue has been fixed. You can export a session report for your records."
     }
   }
 }

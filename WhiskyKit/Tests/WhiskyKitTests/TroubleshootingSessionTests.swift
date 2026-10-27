@@ -64,17 +64,6 @@ final class TroubleshootingSessionTests: XCTestCase {
         XCTAssertNil(session.stepHistory[1].checkResult)
     }
 
-    func testFailedFixCountCountsOnlyFailures() {
-        var session = TroubleshootingSession()
-        for (index, result) in [FixResult.failed, .applied, .failed, .verified].enumerated() {
-            session.recordFixAttempt(FixAttempt(
-                fixId: "fix.\(index)", timestamp: Date(), beforeValue: nil, afterValue: nil, result: result
-            ))
-        }
-
-        XCTAssertEqual(session.failedFixCount, 2)
-    }
-
     func testRecordBranchKeepsDecisionOrder() {
         var session = TroubleshootingSession()
 
