@@ -1180,23 +1180,15 @@ public extension Wine {
     private static let maxLogNameAttempts = 100
 
     /// Creates a file at `url` and opens it for writing, or returns `nil` when
-    /// something already exists there. `O_EXCL` makes the check and the creation
-    /// one step, so two writers can never end up sharing a path.
+    /// something already exists there. `.withoutOverwriting` makes the check and
+    /// the creation one step (`O_EXCL`), so two writers can never share a path.
     private static func createNewFile(at url: URL) throws -> FileHandle? {
-        let (descriptor, error) = url.withUnsafeFileSystemRepresentation { path -> (Int32, Int32) in
-            guard let path else {
-                return (-1, EINVAL)
-            }
-            let descriptor = open(path, O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0o644)
-            return (descriptor, descriptor < 0 ? errno : 0)
+        do {
+            try Data().write(to: url, options: .withoutOverwriting)
+        } catch let error as CocoaError where error.code == .fileWriteFileExists {
+            return nil
         }
-        if descriptor >= 0 {
-            return FileHandle(fileDescriptor: descriptor, closeOnDealloc: true)
-        }
-        guard error == EEXIST else {
-            throw POSIXError(POSIXErrorCode(rawValue: error) ?? .EIO)
-        }
-        return nil
+        return try FileHandle(forWritingTo: url)
     }
 
     /// Classifies the output from a Wine process run for crash patterns.
