@@ -39,9 +39,7 @@ public struct MacOSVersion: Comparable, Sendable {
     // swiftlint:enable identifier_name
 
     public static func < (lhs: MacOSVersion, rhs: MacOSVersion) -> Bool {
-        if lhs.major != rhs.major { return lhs.major < rhs.major }
-        if lhs.minor != rhs.minor { return lhs.minor < rhs.minor }
-        return lhs.patch < rhs.patch
+        (lhs.major, lhs.minor, lhs.patch) < (rhs.major, rhs.minor, rhs.patch)
     }
 
     public var description: String {
