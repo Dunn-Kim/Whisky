@@ -84,7 +84,8 @@ public enum DiagnosticExporter {
                 let crashEncoder = JSONEncoder()
                 crashEncoder.outputFormatting = [.prettyPrinted, .sortedKeys]
                 crashEncoder.dateEncodingStrategy = .iso8601
-                try crashEncoder.encode(CrashDiagnosisCodableWrapper(diagnosis))
+                // Own try?: an encoding failure must not drop the other files.
+                try? crashEncoder.encode(CrashDiagnosisCodableWrapper(diagnosis))
                     .write(to: contentDir.appendingPathComponent("crash.json"))
                 for (fileName, text) in files {
                     try text.write(to: contentDir.appendingPathComponent(fileName), atomically: true, encoding: .utf8)
