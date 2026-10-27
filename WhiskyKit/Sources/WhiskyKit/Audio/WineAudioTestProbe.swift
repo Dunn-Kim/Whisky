@@ -235,6 +235,5 @@ struct AudioTestResult: Codable {
     let api: String
     let sampleRate: Int?
     let channels: Int?
-    let beep: Bool?
     let code: Int?
 }

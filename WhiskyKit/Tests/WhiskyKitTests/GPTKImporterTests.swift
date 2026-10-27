@@ -165,4 +165,17 @@ struct GPTKImporterTests {
 
         #expect(GPTKImporter.storedRecord(inStore: store) == nil)
     }
+
+    @Test("A record written with the retired importedAt key still decodes")
+    func storedRecordWithLegacyImportedAt() throws {
+        let store = tempDir.appending(path: "store")
+        let lib = tempDir.appending(path: "lib")
+        try makePayload(at: lib)
+        try GPTKImporter.importPayload(GPTKImporter.validatePayload(at: lib), intoStore: store)
+        let legacy: [String: Any] = ["gptkVersion": "4.0b1", "importedAt": Date()]
+        try PropertyListSerialization.data(fromPropertyList: legacy, format: .xml, options: 0)
+            .write(to: store.appending(path: "D3DMetalVersion.plist"))
+
+        #expect(GPTKImporter.storedRecord(inStore: store)?.gptkVersion == "4.0b1")
+    }
 }

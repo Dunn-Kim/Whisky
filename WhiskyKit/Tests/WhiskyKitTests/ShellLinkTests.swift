@@ -115,11 +115,11 @@ final class ShellLinkHeaderTests: XCTestCase {
         var data = Data()
         data.append(contentsOf: withUnsafeBytes(of: UInt32(76).littleEndian) { Array($0) })
         data.append(contentsOf: [UInt8](repeating: 0, count: 16))
-        // hasIconLocation flag (bit 6) = 0x40
-        data.append(contentsOf: withUnsafeBytes(of: UInt32(0x40).littleEndian) { Array($0) })
+        // hasLinkInfo flag (bit 1) = 0x02
+        data.append(contentsOf: withUnsafeBytes(of: UInt32(0x02).littleEndian) { Array($0) })
         data.append(contentsOf: [UInt8](repeating: 0, count: 76 - 24))
 
-        let fileURL = tempDir.appending(path: "iconloc.lnk")
+        let fileURL = tempDir.appending(path: "flagsoffset.lnk")
         try data.write(to: fileURL)
 
         let handle = try FileHandle(forReadingFrom: fileURL)
@@ -128,7 +128,7 @@ final class ShellLinkHeaderTests: XCTestCase {
         // Flags should be at offset 20 (4 + 16)
         let rawFlags = handle.extract(UInt32.self, offset: 20) ?? 0
         let flags = LinkFlags(rawValue: rawFlags)
-        XCTAssertTrue(flags.contains(.hasIconLocation))
+        XCTAssertTrue(flags.contains(.hasLinkInfo))
     }
 }
 
@@ -327,31 +327,5 @@ final class LinkInfoTests: XCTestCase {
         _ = LinkInfo(handle: handle, bottle: bottle, offset: &offset)
 
         XCTAssertEqual(offset, UInt64(linkInfoSize))
-    }
-
-    @MainActor
-    func testLinkInfoWithCommonNetworkFlag() throws {
-        // Test with commonNetworkRelativeLinkAndPathSuffix flag (bit 1)
-        let linkInfoData = createLinkInfoData(
-            linkInfoSize: 28,
-            headerSize: 28,
-            flags: 0x02, // commonNetworkRelativeLinkAndPathSuffix only
-            localBasePathOffset: 0
-        )
-
-        let fileURL = tempDir.appending(path: "network.bin")
-        try linkInfoData.write(to: fileURL)
-
-        let handle = try FileHandle(forReadingFrom: fileURL)
-        defer { try? handle.close() }
-
-        let bottle = Bottle(bottleUrl: bottleURL)
-        var offset: UInt64 = 0
-
-        let linkInfo = LinkInfo(handle: handle, bottle: bottle, offset: &offset)
-
-        XCTAssertFalse(linkInfo.linkInfoFlags.contains(.volumeIDAndLocalBasePath))
-        XCTAssertTrue(linkInfo.linkInfoFlags.contains(.commonNetworkRelativeLinkAndPathSuffix))
-        XCTAssertNil(linkInfo.program) // No local path, so no program
     }
 }

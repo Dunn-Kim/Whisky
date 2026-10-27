@@ -61,8 +61,6 @@ public struct GPTKPayload: Equatable, Sendable {
 public struct GPTKStoreRecord: Codable, Equatable, Sendable {
     /// The imported D3DMetal framework version, e.g. `"4.0b2"`.
     public let gptkVersion: String
-    /// When the payload was imported.
-    public let importedAt: Date
 }
 
 /// One of Apple's NVIDIA bridges: a PE copied from the store into the Wine
@@ -301,7 +299,7 @@ public enum GPTKImporter {
             try linkUnixHalf(unixDir.appending(path: name))
         }
 
-        let record = GPTKStoreRecord(gptkVersion: payload.version, importedAt: Date())
+        let record = GPTKStoreRecord(gptkVersion: payload.version)
         let encoder = PropertyListEncoder()
         encoder.outputFormat = .xml
         try encoder.encode(record).write(to: recordURL(inStore: store))

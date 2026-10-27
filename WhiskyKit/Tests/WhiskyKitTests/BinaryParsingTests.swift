@@ -226,26 +226,18 @@ final class LinkFlagsTests: XCTestCase {
         XCTAssertTrue(flags.contains(.hasLinkInfo))
     }
 
-    func testLinkFlagsHasIconLocation() {
-        let flags = LinkFlags.hasIconLocation
-        XCTAssertEqual(flags.rawValue, 1 << 6)
-        XCTAssertTrue(flags.contains(.hasIconLocation))
-    }
-
     func testLinkFlagsCombined() {
         let flags: LinkFlags = [.hasLinkTargetIDList, .hasLinkInfo]
 
         XCTAssertTrue(flags.contains(.hasLinkTargetIDList))
         XCTAssertTrue(flags.contains(.hasLinkInfo))
-        XCTAssertFalse(flags.contains(.hasIconLocation))
     }
 
     func testLinkFlagsFromRawValue() {
-        let flags = LinkFlags(rawValue: 0b0100_0011)
+        let flags = LinkFlags(rawValue: 0b11)
 
         XCTAssertTrue(flags.contains(.hasLinkTargetIDList))
         XCTAssertTrue(flags.contains(.hasLinkInfo))
-        XCTAssertTrue(flags.contains(.hasIconLocation))
     }
 
     func testLinkFlagsHashable() {
@@ -266,33 +258,10 @@ final class LinkInfoFlagsTests: XCTestCase {
         XCTAssertTrue(flags.contains(.volumeIDAndLocalBasePath))
     }
 
-    func testLinkInfoFlagsCommonNetworkRelativeLink() {
-        let flags = LinkInfoFlags.commonNetworkRelativeLinkAndPathSuffix
-        XCTAssertEqual(flags.rawValue, 1 << 1)
-        XCTAssertTrue(flags.contains(.commonNetworkRelativeLinkAndPathSuffix))
-    }
-
-    func testLinkInfoFlagsCombined() {
-        let flags: LinkInfoFlags = [.volumeIDAndLocalBasePath, .commonNetworkRelativeLinkAndPathSuffix]
-
-        XCTAssertTrue(flags.contains(.volumeIDAndLocalBasePath))
-        XCTAssertTrue(flags.contains(.commonNetworkRelativeLinkAndPathSuffix))
-        XCTAssertEqual(flags.rawValue, 0b11)
-    }
-
     func testLinkInfoFlagsFromRawValue() {
-        let flags = LinkInfoFlags(rawValue: 3)
+        let flags = LinkInfoFlags(rawValue: 1)
 
         XCTAssertTrue(flags.contains(.volumeIDAndLocalBasePath))
-        XCTAssertTrue(flags.contains(.commonNetworkRelativeLinkAndPathSuffix))
-    }
-
-    func testLinkInfoFlagsHashable() {
-        var set = Set<LinkInfoFlags>()
-        set.insert(.volumeIDAndLocalBasePath)
-        set.insert(.commonNetworkRelativeLinkAndPathSuffix)
-
-        XCTAssertEqual(set.count, 2)
     }
 
     func testLinkInfoFlagsEquality() {

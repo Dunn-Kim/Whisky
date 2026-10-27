@@ -185,10 +185,7 @@ public extension Wine {
         )
         else { return nil }
 
-        let noPrefix = output.replacingOccurrences(of: "0x", with: "")
-        let int = Int(noPrefix, radix: 16)
-        guard let int else { return nil }
-        return int
+        return Int(output.replacingOccurrences(of: "0x", with: ""), radix: 16)
     }
 
     @MainActor

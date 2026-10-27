@@ -57,7 +57,6 @@ public struct LinkFlags: OptionSet, Hashable, Sendable {
 
     static let hasLinkTargetIDList = LinkFlags(rawValue: 1 << 0)
     static let hasLinkInfo = LinkFlags(rawValue: 1 << 1)
-    static let hasIconLocation = LinkFlags(rawValue: 1 << 6)
 }
 
 @MainActor
@@ -78,29 +77,16 @@ public struct LinkInfo: Hashable {
         linkInfoFlags = LinkInfoFlags(rawValue: rawLinkInfoFlags)
 
         if linkInfoFlags.contains(.volumeIDAndLocalBasePath) {
-            if linkInfoHeaderSize >= 0x0000_0024 {
-                offset += 20
-                let localBasePathOffsetUnicode = handle.extract(UInt32.self, offset: offset) ?? 0
-                let localPathOffset = startOfSection + UInt64(localBasePathOffsetUnicode)
-
-                program = getProgram(
-                    handle: handle,
-                    offset: localPathOffset,
-                    bottle: bottle,
-                    unicode: true
-                )
-            } else {
-                offset += 8
-                let localBasePathOffset = handle.extract(UInt32.self, offset: offset) ?? 0
-                let localPathOffset = startOfSection + UInt64(localBasePathOffset)
-
-                program = getProgram(
-                    handle: handle,
-                    offset: localPathOffset,
-                    bottle: bottle,
-                    unicode: false
-                )
-            }
+            // Headers of 0x24+ carry a Unicode local base path offset at +20, older ones an ANSI one at +8.
+            let unicode = linkInfoHeaderSize >= 0x0000_0024
+            offset += unicode ? 20 : 8
+            let localBasePathOffset = handle.extract(UInt32.self, offset: offset) ?? 0
+            program = getProgram(
+                handle: handle,
+                offset: startOfSection + UInt64(localBasePathOffset),
+                bottle: bottle,
+                unicode: unicode
+            )
         }
 
         offset = startOfSection + UInt64(linkInfoSize)
@@ -137,5 +123,4 @@ public struct LinkInfoFlags: OptionSet, Hashable, Sendable {
     }
 
     static let volumeIDAndLocalBasePath = LinkInfoFlags(rawValue: 1 << 0)
-    static let commonNetworkRelativeLinkAndPathSuffix = LinkInfoFlags(rawValue: 1 << 1)
 }

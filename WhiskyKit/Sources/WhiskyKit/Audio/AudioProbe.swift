@@ -163,8 +163,8 @@ public final class WineRegistryAudioProbe: AudioProbe, @unchecked Sendable {
         var findings: [AudioFinding] = []
 
         let driverResult = await readAudioDriverSettings(evidence: &evidence, findings: &findings)
-        if case let .error(result) = driverResult {
-            return result
+        if let driverResult {
+            return driverResult
         }
 
         await readBufferSettings(evidence: &evidence, findings: &findings)
@@ -187,18 +187,18 @@ public final class WineRegistryAudioProbe: AudioProbe, @unchecked Sendable {
     private func readAudioDriverSettings(
         evidence: inout [String],
         findings: inout [AudioFinding]
-    ) async -> DriverReadResult {
+    ) async -> AudioProbeResult? {
         let driverValue: String?
         do {
             driverValue = try await Wine.readAudioDriver(bottle: bottle)
         } catch {
-            return .error(AudioProbeResult(
+            return AudioProbeResult(
                 probeId: id,
                 status: .error,
                 summary: "Failed to read Wine audio registry",
                 evidence: ["Error reading audio driver key: \(error.localizedDescription)"],
                 findings: []
-            ))
+            )
         }
 
         if let driver = driverValue {
@@ -216,7 +216,7 @@ public final class WineRegistryAudioProbe: AudioProbe, @unchecked Sendable {
             evidence.append("Audio driver: not set (Wine auto-detect)")
         }
 
-        return .success
+        return nil
     }
 
     @MainActor
@@ -243,10 +243,5 @@ public final class WineRegistryAudioProbe: AudioProbe, @unchecked Sendable {
         } else if bufferSize == nil {
             evidence.append("DirectSound HelBuflen: not set (Wine default)")
         }
-    }
-
-    private enum DriverReadResult {
-        case success
-        case error(AudioProbeResult)
     }
 }
