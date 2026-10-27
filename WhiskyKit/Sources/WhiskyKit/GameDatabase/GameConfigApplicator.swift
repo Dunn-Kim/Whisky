@@ -32,21 +32,7 @@ public struct ConfigChange: Sendable, Equatable {
     /// The new value to be applied as a human-readable string.
     public let newValue: String
     /// Whether this change is high-impact (e.g., graphics backend switch, DLL overrides).
-    public let isHighImpact: Bool
-
-    public init(
-        category: String,
-        settingName: String,
-        currentValue: String,
-        newValue: String,
-        isHighImpact: Bool = false
-    ) {
-        self.category = category
-        self.settingName = settingName
-        self.currentValue = currentValue
-        self.newValue = newValue
-        self.isHighImpact = isHighImpact
-    }
+    public var isHighImpact: Bool = false
 }
 
 /// Applies and reverts game configurations to bottles.

@@ -29,11 +29,6 @@ public struct FlowDefinition: Codable, Sendable {
 
     /// The node ID where execution begins.
     public let entryNodeId: String
-
-    public init(nodes: [String: FlowStepNode], entryNodeId: String) {
-        self.nodes = nodes
-        self.entryNodeId = entryNodeId
-    }
 }
 
 /// A single step in a troubleshooting flow graph.
@@ -51,59 +46,31 @@ public struct FlowStepNode: Codable, Sendable, Identifiable {
     public let phase: TroubleshootingSession.SessionPhase
 
     /// Short title displayed in the step card header.
-    public let title: String?
+    public var title: String?
 
     /// Longer explanation displayed in the step card body.
-    public let description: String?
+    public var description: String?
 
     /// Stable check identifier for ``TroubleshootingCheck`` lookup.
-    public let checkId: String?
+    public var checkId: String?
 
     /// Parameters passed to the check implementation.
-    public let params: [String: String]?
+    public var params: [String: String]?
 
     /// Outcome-to-next-node-ID branching map.
-    public let on: [String: String]? // swiftlint:disable:this identifier_name
+    public var on: [String: String]?
 
     /// Maps evidence keys to user-facing labels for UI display.
-    public let evidenceMap: [String: String]?
+    public var evidenceMap: [String: String]?
 
     /// Stable fix identifier for fix application.
-    public let fixId: String?
+    public var fixId: String?
 
     /// Whether an extra confirmation dialog is shown before applying.
-    public let requiresConfirmation: Bool?
+    public var requiresConfirmation: Bool?
 
     /// Reference to a shared fragment flow for delegation.
-    public let fragmentRef: String?
-
-    public init(
-        id: String,
-        type: NodeType,
-        phase: TroubleshootingSession.SessionPhase,
-        title: String? = nil,
-        description: String? = nil,
-        checkId: String? = nil,
-        params: [String: String]? = nil,
-        on: [String: String]? = nil, // swiftlint:disable:this identifier_name
-        evidenceMap: [String: String]? = nil,
-        fixId: String? = nil,
-        requiresConfirmation: Bool? = nil,
-        fragmentRef: String? = nil
-    ) {
-        self.id = id
-        self.type = type
-        self.phase = phase
-        self.title = title
-        self.description = description
-        self.checkId = checkId
-        self.params = params
-        self.on = on
-        self.evidenceMap = evidenceMap
-        self.fixId = fixId
-        self.requiresConfirmation = requiresConfirmation
-        self.fragmentRef = fragmentRef
-    }
+    public var fragmentRef: String?
 }
 
 /// The kind of action a flow step node represents.

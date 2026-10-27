@@ -27,25 +27,13 @@ public struct CheckContext: Sendable {
     public let bottleURL: URL
 
     /// URL of the program being troubleshot, if any.
-    public let programURL: URL?
+    public var programURL: URL?
 
     /// Display name of the program, if any.
-    public let programName: String?
+    public var programName: String?
 
     /// Preflight data snapshot collected at session start.
     public let preflight: PreflightData
-
-    public init(
-        bottleURL: URL,
-        programURL: URL? = nil,
-        programName: String? = nil,
-        preflight: PreflightData
-    ) {
-        self.bottleURL = bottleURL
-        self.programURL = programURL
-        self.programName = programName
-        self.preflight = preflight
-    }
 
     /// The bottle's settings, or the `.error` result a check returns when
     /// `Metadata.plist` cannot be read.

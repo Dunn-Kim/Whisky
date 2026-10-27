@@ -57,32 +57,10 @@ public struct GameConfigSnapshot: Codable, Sendable, Equatable {
     public var appliedVariantId: String
 
     /// When the snapshot was created.
-    public var timestamp: Date
+    public var timestamp: Date = Date()
 
     /// The filename used for snapshot storage within the bottle directory.
     private static let snapshotFileName = "GameConfigSnapshot.plist"
-
-    /// Creates a new game configuration snapshot.
-    ///
-    /// - Parameters:
-    ///   - bottleSettingsData: Serialized bottle settings from before apply.
-    ///   - installedVerbs: Winetricks verbs installed during this apply.
-    ///   - appliedEntryId: The game database entry ID that was applied.
-    ///   - appliedVariantId: The variant ID that was applied.
-    ///   - timestamp: When the snapshot was created.
-    public init(
-        bottleSettingsData: Data? = nil,
-        installedVerbs: [String]? = nil,
-        appliedEntryId: String,
-        appliedVariantId: String,
-        timestamp: Date = Date()
-    ) {
-        self.bottleSettingsData = bottleSettingsData
-        self.installedVerbs = installedVerbs
-        self.appliedEntryId = appliedEntryId
-        self.appliedVariantId = appliedVariantId
-        self.timestamp = timestamp
-    }
 
     /// Saves a snapshot to the bottle directory.
     ///

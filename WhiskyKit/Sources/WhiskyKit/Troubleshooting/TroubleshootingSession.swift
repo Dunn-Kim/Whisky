@@ -25,7 +25,7 @@ import Foundation
 /// outcome. Designed for persistence so sessions can be paused and resumed.
 public struct TroubleshootingSession: Codable, Sendable {
     /// Unique identifier for this session.
-    public var id: UUID
+    public var id: UUID = UUID()
 
     /// URL of the bottle being troubleshot.
     public var bottleURL: URL?
@@ -37,10 +37,10 @@ public struct TroubleshootingSession: Codable, Sendable {
     public var symptomCategory: SymptomCategory?
 
     /// Current wizard phase.
-    public var phase: SessionPhase
+    public var phase: SessionPhase = .symptom
 
     /// History of completed steps in traversal order.
-    public var stepHistory: [CompletedStep]
+    public var stepHistory: [CompletedStep] = []
 
     /// The current flow step node ID.
     public var currentNodeId: String?
@@ -49,54 +49,22 @@ public struct TroubleshootingSession: Codable, Sendable {
     public var currentFlowCategoryId: String?
 
     /// Check results keyed by node ID.
-    public var checkResults: [String: CheckResult]
+    public var checkResults: [String: CheckResult] = [:]
 
     /// All fix attempts made during this session.
-    public var fixAttempts: [FixAttempt]
+    public var fixAttempts: [FixAttempt] = []
 
     /// The final outcome of this session, if complete.
     public var outcome: SessionOutcome?
 
     /// When this session was created.
-    public var createdAt: Date
+    public var createdAt: Date = Date()
 
     /// When this session was last modified.
-    public var lastUpdatedAt: Date
+    public var lastUpdatedAt: Date = Date()
 
     /// Preflight data snapshot taken at session start.
     public var preflightSnapshot: PreflightData?
-
-    public init(
-        id: UUID = UUID(),
-        bottleURL: URL? = nil,
-        programURL: URL? = nil,
-        symptomCategory: SymptomCategory? = nil,
-        phase: SessionPhase = .symptom,
-        stepHistory: [CompletedStep] = [],
-        currentNodeId: String? = nil,
-        currentFlowCategoryId: String? = nil,
-        checkResults: [String: CheckResult] = [:],
-        fixAttempts: [FixAttempt] = [],
-        outcome: SessionOutcome? = nil,
-        createdAt: Date = Date(),
-        lastUpdatedAt: Date = Date(),
-        preflightSnapshot: PreflightData? = nil
-    ) {
-        self.id = id
-        self.bottleURL = bottleURL
-        self.programURL = programURL
-        self.symptomCategory = symptomCategory
-        self.phase = phase
-        self.stepHistory = stepHistory
-        self.currentNodeId = currentNodeId
-        self.currentFlowCategoryId = currentFlowCategoryId
-        self.checkResults = checkResults
-        self.fixAttempts = fixAttempts
-        self.outcome = outcome
-        self.createdAt = createdAt
-        self.lastUpdatedAt = lastUpdatedAt
-        self.preflightSnapshot = preflightSnapshot
-    }
 
     // MARK: - Mutating Methods
 
@@ -174,21 +142,9 @@ public struct TroubleshootingSession: Codable, Sendable {
         public let phase: SessionPhase
 
         /// The step title, if any.
-        public let title: String?
+        public var title: String?
 
         /// The check result, if this was a check step.
         public var checkResult: CheckResult?
-
-        public init(
-            nodeId: String,
-            phase: SessionPhase,
-            title: String? = nil,
-            checkResult: CheckResult? = nil
-        ) {
-            self.nodeId = nodeId
-            self.phase = phase
-            self.title = title
-            self.checkResult = checkResult
-        }
     }
 }

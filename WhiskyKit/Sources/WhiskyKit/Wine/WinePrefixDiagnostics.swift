@@ -87,8 +87,6 @@ public struct WinePrefixDiagnostics: Codable, Sendable {
 
     // MARK: - Initialization
 
-    public init() {}
-
     // MARK: - Event Recording
 
     /// Records a diagnostic event with timestamp.

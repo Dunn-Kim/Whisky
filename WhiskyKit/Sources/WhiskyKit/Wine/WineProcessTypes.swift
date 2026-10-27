@@ -115,14 +115,6 @@ public struct WineProcess: Identifiable, Hashable, Sendable {
         winePID
     }
 
-    /// Creates a tasklist snapshot; registry fields start untracked and empty.
-    public init(imageName: String, winePID: Int32, memoryUsage: String, kind: ProcessKind) {
-        self.imageName = imageName
-        self.winePID = winePID
-        self.memoryUsage = memoryUsage
-        self.kind = kind
-    }
-
     // MARK: - Hashable
 
     public func hash(into hasher: inout Hasher) {

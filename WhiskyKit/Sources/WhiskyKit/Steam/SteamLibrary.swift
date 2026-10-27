@@ -299,9 +299,4 @@ public enum SteamLibrary {
 public struct ProgramOverrideCandidate: Equatable, Sendable {
     public let url: URL
     public let overrides: ProgramOverrides
-
-    public init(url: URL, overrides: ProgramOverrides) {
-        self.url = url
-        self.overrides = overrides
-    }
 }

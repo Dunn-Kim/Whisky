@@ -41,20 +41,6 @@ public struct FixPreview: Sendable {
 
     /// Whether this fix can be reversed via ``FixApplicator/undo(attempt:bottle:program:)``.
     public let isReversible: Bool
-
-    public init(
-        settingName: String,
-        currentValue: String,
-        newValue: String,
-        scope: String,
-        isReversible: Bool
-    ) {
-        self.settingName = settingName
-        self.currentValue = currentValue
-        self.newValue = newValue
-        self.scope = scope
-        self.isReversible = isReversible
-    }
 }
 
 // MARK: - Fix Applicator

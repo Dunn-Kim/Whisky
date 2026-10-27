@@ -49,24 +49,6 @@ public struct CrashDiagnosis: Sendable {
         matches.isEmpty
     }
 
-    public init(
-        matches: [DiagnosisMatch],
-        categoryCounts: [CrashCategory: Int],
-        primaryCategory: CrashCategory?,
-        primaryConfidence: ConfidenceTier?,
-        headline: String?,
-        exitCode: Int32?,
-        applicableRemediationIds: [String]
-    ) {
-        self.matches = matches
-        self.categoryCounts = categoryCounts
-        self.primaryCategory = primaryCategory
-        self.primaryConfidence = primaryConfidence
-        self.headline = headline
-        self.exitCode = exitCode
-        self.applicableRemediationIds = applicableRemediationIds
-    }
-
     /// Resolves remediation action IDs to full action objects.
     ///
     /// Actions are sorted by the confidence of their associated pattern match

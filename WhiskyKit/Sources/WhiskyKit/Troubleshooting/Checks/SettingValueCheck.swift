@@ -27,8 +27,6 @@ import Foundation
 public struct SettingValueCheck: TroubleshootingCheck {
     public let checkId = "setting.value_check"
 
-    public init() {}
-
     public func run(params: [String: String], context: CheckContext) async -> CheckResult {
         guard let settingName = params["setting"] else {
             return .error("Missing 'setting' parameter")

@@ -72,24 +72,6 @@ public struct CrashPattern: Codable, Sendable, Identifiable {
         case regex, remediationActionIds
     }
 
-    public init(
-        id: String,
-        category: CrashCategory,
-        severity: PatternSeverity,
-        confidence: Double,
-        substringPrefilter: String?,
-        regex: String,
-        remediationActionIds: [String]?
-    ) {
-        self.id = id
-        self.category = category
-        self.severity = severity
-        self.confidence = confidence
-        self.substringPrefilter = substringPrefilter
-        self.regex = regex
-        self.remediationActionIds = remediationActionIds
-    }
-
     /// Attempts to match this pattern against a single log line.
     ///
     /// If `substringPrefilter` is set and the line does not contain it,

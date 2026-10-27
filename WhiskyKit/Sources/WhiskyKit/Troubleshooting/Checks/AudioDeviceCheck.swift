@@ -26,8 +26,6 @@ import Foundation
 public struct AudioDeviceCheck: TroubleshootingCheck {
     public let checkId = "audio.device_check"
 
-    public init() {}
-
     public func run(params: [String: String], context: CheckContext) async -> CheckResult {
         guard let deviceName = context.preflight.audioDeviceName else {
             return CheckResult(

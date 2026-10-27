@@ -27,8 +27,6 @@ import Foundation
 public struct AudioDriverCheck: TroubleshootingCheck {
     public let checkId = "audio.driver_check"
 
-    public init() {}
-
     public func run(params: [String: String], context: CheckContext) async -> CheckResult {
         let expected = params["expected"] ?? "auto"
 

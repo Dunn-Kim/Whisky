@@ -62,21 +62,7 @@ public final class ProcessRegistry: @unchecked Sendable {
         /// Identity of the underlying `Process` object, used to disambiguate
         /// pre-launch entries (where ``pid`` is still 0). Excluded from hashing
         /// and equality so that updating ``pid`` does not change identity.
-        let processIdentity: ObjectIdentifier?
-
-        public init(
-            pid: Int32,
-            launchTime: Date,
-            bottleURL: URL,
-            programName: String,
-            processIdentity: ObjectIdentifier? = nil
-        ) {
-            self.pid = pid
-            self.launchTime = launchTime
-            self.bottleURL = bottleURL
-            self.programName = programName
-            self.processIdentity = processIdentity
-        }
+        var processIdentity: ObjectIdentifier?
 
         public func hash(into hasher: inout Hasher) {
             hasher.combine(pid)

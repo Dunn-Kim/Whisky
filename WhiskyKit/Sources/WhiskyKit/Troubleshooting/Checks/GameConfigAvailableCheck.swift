@@ -27,8 +27,6 @@ import Foundation
 public struct GameConfigAvailableCheck: TroubleshootingCheck {
     public let checkId = "game.config_available"
 
-    public init() {}
-
     public func run(params: [String: String], context: CheckContext) async -> CheckResult {
         guard let programName = context.programName else {
             return CheckResult(

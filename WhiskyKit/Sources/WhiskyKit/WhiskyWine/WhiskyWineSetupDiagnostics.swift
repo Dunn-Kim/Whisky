@@ -114,12 +114,6 @@ public struct WhiskyWineSetupDiagnostics: Codable, Sendable {
         public let startedAt: Date
         public let finishedAt: Date
         public let succeeded: Bool
-
-        public init(startedAt: Date, finishedAt: Date, succeeded: Bool) {
-            self.startedAt = startedAt
-            self.finishedAt = finishedAt
-            self.succeeded = succeeded
-        }
     }
 
     /// Public version plist URL (safe to share)

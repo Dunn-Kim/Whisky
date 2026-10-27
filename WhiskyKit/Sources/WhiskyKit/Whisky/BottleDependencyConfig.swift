@@ -44,20 +44,6 @@ public struct DependencyDefinition: Codable, Identifiable, Sendable {
     public let winetricksVerbs: [String]
     /// Rough time estimate for installation, shown in the UI.
     public let estimatedInstallMinutes: Int
-
-    public init(
-        id: String,
-        displayName: String,
-        description: String,
-        winetricksVerbs: [String],
-        estimatedInstallMinutes: Int
-    ) {
-        self.id = id
-        self.displayName = displayName
-        self.description = description
-        self.winetricksVerbs = winetricksVerbs
-        self.estimatedInstallMinutes = estimatedInstallMinutes
-    }
 }
 
 extension DependencyDefinition {

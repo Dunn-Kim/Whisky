@@ -54,11 +54,6 @@ public struct ResumableDownloadProgress: Sendable, Equatable {
 
     /// Total size of the file when the server advertised one, or `nil`.
     public let expectedBytes: Int64?
-
-    public init(bytesOnDisk: Int64, expectedBytes: Int64?) {
-        self.bytesOnDisk = bytesOnDisk
-        self.expectedBytes = expectedBytes
-    }
 }
 
 /// Errors thrown by ``ResumableDownloader/download(from:to:onEvent:progress:)``.

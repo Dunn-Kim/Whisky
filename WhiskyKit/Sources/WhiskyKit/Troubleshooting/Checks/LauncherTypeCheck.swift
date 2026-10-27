@@ -27,8 +27,6 @@ import Foundation
 public struct LauncherTypeCheck: TroubleshootingCheck {
     public let checkId = "launcher.type_check"
 
-    public init() {}
-
     public func run(params: [String: String], context: CheckContext) async -> CheckResult {
         let detectedLauncher = context.preflight.launcherType
 

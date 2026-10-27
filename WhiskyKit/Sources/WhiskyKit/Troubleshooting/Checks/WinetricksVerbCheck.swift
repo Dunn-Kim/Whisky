@@ -27,8 +27,6 @@ import Foundation
 public struct WinetricksVerbCheck: TroubleshootingCheck {
     public let checkId = "winetricks.verb_check"
 
-    public init() {}
-
     public func run(params: [String: String], context: CheckContext) async -> CheckResult {
         guard let verbsParam = params["verbs"], !verbsParam.isEmpty else {
             return .error("Missing 'verbs' parameter")

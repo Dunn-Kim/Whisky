@@ -29,25 +29,13 @@ public struct CheckResult: Sendable, Codable, Error {
     public let outcome: CheckOutcome
 
     /// Key-value pairs surfaced in the UI via the node's `evidenceMap`.
-    public let evidence: [String: String]
+    public var evidence: [String: String] = [:]
 
     /// Human-readable one-line summary of the result.
     public let summary: String
 
     /// Optional confidence tier reusing the Phase 5 model.
-    public let confidence: ConfidenceTier?
-
-    public init(
-        outcome: CheckOutcome,
-        evidence: [String: String] = [:],
-        summary: String,
-        confidence: ConfidenceTier? = nil
-    ) {
-        self.outcome = outcome
-        self.evidence = evidence
-        self.summary = summary
-        self.confidence = confidence
-    }
+    public var confidence: ConfidenceTier?
 
     /// A check that could not run: bad params, unreadable input, or an unknown check ID.
     public static func error(_ summary: String, evidence: [String: String] = [:]) -> CheckResult {

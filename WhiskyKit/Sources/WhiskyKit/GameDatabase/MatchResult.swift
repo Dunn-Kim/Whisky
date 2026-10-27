@@ -51,19 +51,5 @@ public struct MatchResult: Sendable {
     /// A human-readable explanation of why this match was made.
     public let explanation: String
     /// The recommended variant for the current machine, if auto-selected.
-    public let recommendedVariant: GameConfigVariant?
-
-    public init(
-        entry: GameDBEntry,
-        confidence: Double,
-        tier: MatchTier,
-        explanation: String,
-        recommendedVariant: GameConfigVariant? = nil
-    ) {
-        self.entry = entry
-        self.confidence = confidence
-        self.tier = tier
-        self.explanation = explanation
-        self.recommendedVariant = recommendedVariant
-    }
+    public var recommendedVariant: GameConfigVariant?
 }

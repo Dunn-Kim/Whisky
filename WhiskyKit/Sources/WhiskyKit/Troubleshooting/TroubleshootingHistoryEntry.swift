@@ -25,7 +25,7 @@ import Foundation
 /// bounded per-bottle history.
 public struct TroubleshootingHistoryEntry: Codable, Sendable, Identifiable {
     /// Unique identifier for this history entry.
-    public let id: UUID
+    public var id: UUID = UUID()
 
     /// The symptom category that was investigated.
     public let symptomCategory: SymptomCategory
@@ -47,24 +47,4 @@ public struct TroubleshootingHistoryEntry: Codable, Sendable, Identifiable {
 
     /// The name of the bottle where troubleshooting occurred.
     public let bottleName: String
-
-    public init(
-        id: UUID = UUID(),
-        symptomCategory: SymptomCategory,
-        outcome: TroubleshootingSession.SessionOutcome,
-        primaryFindings: [String],
-        fixResults: [String],
-        completedAt: Date,
-        programName: String?,
-        bottleName: String
-    ) {
-        self.id = id
-        self.symptomCategory = symptomCategory
-        self.outcome = outcome
-        self.primaryFindings = primaryFindings
-        self.fixResults = fixResults
-        self.completedAt = completedAt
-        self.programName = programName
-        self.bottleName = bottleName
-    }
 }

@@ -42,18 +42,4 @@ public struct AudioDeviceInfo: Sendable, Codable, Equatable, Identifiable {
 
     /// Whether this device is the current system default output device.
     public let isDefault: Bool
-
-    public init(
-        name: String,
-        transportType: AudioTransportType,
-        sampleRate: Double,
-        outputChannelCount: Int,
-        isDefault: Bool
-    ) {
-        self.name = name
-        self.transportType = transportType
-        self.sampleRate = sampleRate
-        self.outputChannelCount = outputChannelCount
-        self.isDefault = isDefault
-    }
 }

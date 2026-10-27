@@ -28,8 +28,6 @@ import Foundation
 public struct RegistryValueCheck: TroubleshootingCheck {
     public let checkId = "registry.value_check"
 
-    public init() {}
-
     public func run(params: [String: String], context: CheckContext) async -> CheckResult {
         guard let key = params["key"], let valueName = params["valueName"] else {
             return .error("Missing 'key' or 'valueName' parameter")

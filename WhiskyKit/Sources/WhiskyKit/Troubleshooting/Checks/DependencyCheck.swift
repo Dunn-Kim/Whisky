@@ -27,8 +27,6 @@ import Foundation
 public struct DependencyCheck: TroubleshootingCheck {
     public let checkId = "dependency.check_missing"
 
-    public init() {}
-
     public func run(params: [String: String], context: CheckContext) async -> CheckResult {
         guard let dllsParam = params["dlls"], !dllsParam.isEmpty else {
             return .error("Missing 'dlls' parameter")

@@ -26,21 +26,11 @@ import Foundation
 /// the best variant for the current machine.
 public struct GameConstraints: Codable, Sendable, Equatable {
     /// Supported CPU architectures (e.g., ["arm64", "x86_64"]).
-    public let cpuArchitectures: [String]?
+    public var cpuArchitectures: [String]?
     /// Minimum macOS version required (e.g., "15.0.0").
-    public let minMacOSVersion: String?
+    public var minMacOSVersion: String?
     /// Minimum Wine version required (e.g., "9.0").
-    public let minWineVersion: String?
-
-    public init(
-        cpuArchitectures: [String]? = nil,
-        minMacOSVersion: String? = nil,
-        minWineVersion: String? = nil
-    ) {
-        self.cpuArchitectures = cpuArchitectures
-        self.minMacOSVersion = minMacOSVersion
-        self.minWineVersion = minWineVersion
-    }
+    public var minWineVersion: String?
 }
 
 /// Information about the environment used to test a game configuration.
@@ -54,23 +44,9 @@ public struct TestedWith: Codable, Sendable, Equatable {
     /// The Wine version used during testing.
     public let wineVersion: String
     /// The Whisky version used during testing, if known.
-    public let whiskyVersion: String?
+    public var whiskyVersion: String?
     /// The CPU architecture used during testing (e.g., "arm64").
-    public let cpuArchitecture: String?
-
-    public init(
-        lastTestedAt: Date,
-        macOSVersion: String,
-        wineVersion: String,
-        whiskyVersion: String? = nil,
-        cpuArchitecture: String? = nil
-    ) {
-        self.lastTestedAt = lastTestedAt
-        self.macOSVersion = macOSVersion
-        self.wineVersion = wineVersion
-        self.whiskyVersion = whiskyVersion
-        self.cpuArchitecture = cpuArchitecture
-    }
+    public var cpuArchitecture: String?
 }
 
 /// A known issue with a game, displayed in the detail view.
@@ -78,15 +54,9 @@ public struct KnownIssue: Codable, Sendable, Equatable {
     /// A description of the issue.
     public let description: String
     /// The severity level (e.g., "minor", "major", "critical").
-    public let severity: String?
+    public var severity: String?
     /// A workaround for the issue, if known.
-    public let workaround: String?
-
-    public init(description: String, severity: String? = nil, workaround: String? = nil) {
-        self.description = description
-        self.severity = severity
-        self.workaround = workaround
-    }
+    public var workaround: String?
 }
 
 /// Metadata about who created and last updated a game database entry.
@@ -94,18 +64,11 @@ public struct Provenance: Codable, Sendable, Equatable {
     /// The source of the configuration (e.g., "maintainer-verified", "community").
     public let source: String
     /// The author of the configuration.
-    public let author: String?
+    public var author: String?
     /// When the entry was last updated.
-    public let lastUpdated: Date?
+    public var lastUpdated: Date?
     /// A URL to the source reference (e.g., GitHub issue, wiki page).
-    public let referenceURL: URL?
-
-    public init(source: String, author: String? = nil, lastUpdated: Date? = nil, referenceURL: URL? = nil) {
-        self.source = source
-        self.author = author
-        self.lastUpdated = lastUpdated
-        self.referenceURL = referenceURL
-    }
+    public var referenceURL: URL?
 }
 
 // MARK: - Variant Settings
@@ -212,45 +175,21 @@ public struct GameConfigVariant: Codable, Sendable, Equatable {
     public let label: String
     /// Whether this is the default variant. The first variant with
     /// `isDefault == true` is auto-selected; if none, the first variant is used.
-    public let isDefault: Bool?
+    public var isDefault: Bool?
     /// A description of when this variant should be used.
-    public let whenToUse: String?
+    public var whenToUse: String?
     /// Explanation of why these settings are recommended.
-    public let rationale: [String]?
+    public var rationale: [String]?
     /// The settings to apply for this variant.
     public let settings: GameConfigVariantSettings
     /// Additional environment variables to set (not covered by named settings).
-    public let environmentVariables: [String: String]?
+    public var environmentVariables: [String: String]?
     /// DLL overrides to add when applying this variant.
-    public let dllOverrides: [DLLOverrideEntry]?
+    public var dllOverrides: [DLLOverrideEntry]?
     /// Winetricks verbs required by this variant.
-    public let winetricksVerbs: [String]?
+    public var winetricksVerbs: [String]?
     /// Information about when and how this variant was tested.
-    public let testedWith: TestedWith?
-
-    public init(
-        id: String,
-        label: String,
-        isDefault: Bool? = nil,
-        whenToUse: String? = nil,
-        rationale: [String]? = nil,
-        settings: GameConfigVariantSettings,
-        environmentVariables: [String: String]? = nil,
-        dllOverrides: [DLLOverrideEntry]? = nil,
-        winetricksVerbs: [String]? = nil,
-        testedWith: TestedWith? = nil
-    ) {
-        self.id = id
-        self.label = label
-        self.isDefault = isDefault
-        self.whenToUse = whenToUse
-        self.rationale = rationale
-        self.settings = settings
-        self.environmentVariables = environmentVariables
-        self.dllOverrides = dllOverrides
-        self.winetricksVerbs = winetricksVerbs
-        self.testedWith = testedWith
-    }
+    public var testedWith: TestedWith?
 }
 
 // MARK: - Game Database Entry
@@ -277,31 +216,31 @@ public struct GameDBEntry: Codable, Sendable, Equatable {
     /// The display title of the game.
     public let title: String
     /// Alternative names for search matching.
-    public let aliases: [String]?
+    public var aliases: [String]?
     /// A subtitle (e.g., edition or publisher).
-    public let subtitle: String?
+    public var subtitle: String?
     /// The store this game is associated with (e.g., "steam", "gog").
-    public let store: String?
+    public var store: String?
     /// The Steam App ID, if the game is on Steam.
-    public let steamAppId: Int?
+    public var steamAppId: Int?
     /// The compatibility rating for this game.
     public let rating: CompatibilityRating
     /// Known executable filenames for matching.
-    public let exeNames: [String]?
+    public var exeNames: [String]?
     /// Path patterns for heuristic matching (e.g., "elden ring/game").
-    public let pathPatterns: [String]?
+    public var pathPatterns: [String]?
     /// Anti-cheat system name, if applicable.
-    public let antiCheat: String?
+    public var antiCheat: String?
     /// Hardware and software constraints.
-    public let constraints: GameConstraints?
+    public var constraints: GameConstraints?
     /// Configuration variants (at least one required).
     public let variants: [GameConfigVariant]
     /// General notes displayed in the detail view.
-    public let notes: [String]?
+    public var notes: [String]?
     /// Known issues with workarounds.
-    public let knownIssues: [KnownIssue]?
+    public var knownIssues: [KnownIssue]?
     /// Provenance metadata (source, author, last updated).
-    public let provenance: Provenance?
+    public var provenance: Provenance?
 
     /// The default configuration variant for this entry.
     ///
@@ -310,39 +249,5 @@ public struct GameDBEntry: Codable, Sendable, Equatable {
     /// Returns `nil` only if the variants array is empty.
     public var defaultVariant: GameConfigVariant? {
         variants.first { $0.isDefault == true } ?? variants.first
-    }
-
-    public init(
-        id: String,
-        title: String,
-        aliases: [String]? = nil,
-        subtitle: String? = nil,
-        store: String? = nil,
-        steamAppId: Int? = nil,
-        rating: CompatibilityRating,
-        exeNames: [String]? = nil,
-        pathPatterns: [String]? = nil,
-        antiCheat: String? = nil,
-        constraints: GameConstraints? = nil,
-        variants: [GameConfigVariant],
-        notes: [String]? = nil,
-        knownIssues: [KnownIssue]? = nil,
-        provenance: Provenance? = nil
-    ) {
-        self.id = id
-        self.title = title
-        self.aliases = aliases
-        self.subtitle = subtitle
-        self.store = store
-        self.steamAppId = steamAppId
-        self.rating = rating
-        self.exeNames = exeNames
-        self.pathPatterns = pathPatterns
-        self.antiCheat = antiCheat
-        self.constraints = constraints
-        self.variants = variants
-        self.notes = notes
-        self.knownIssues = knownIssues
-        self.provenance = provenance
     }
 }

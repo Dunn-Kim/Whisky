@@ -38,11 +38,6 @@ public actor IconCache {
     public struct Sampled: Sendable {
         public let image: NSImage
         public let palette: IconPalette
-
-        public init(image: NSImage, palette: IconPalette) {
-            self.image = image
-            self.palette = palette
-        }
     }
 
     /// `NSCache` stores objects, and ``Sampled`` is a value.

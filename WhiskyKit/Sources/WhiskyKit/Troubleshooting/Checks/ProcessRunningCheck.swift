@@ -27,8 +27,6 @@ import Foundation
 public struct ProcessRunningCheck: TroubleshootingCheck {
     public let checkId = "process.running_check"
 
-    public init() {}
-
     public func run(params: [String: String], context: CheckContext) async -> CheckResult {
         let processName = params["process"] ?? "wineserver"
         let count = ProcessRegistry.shared.getProcessCount(for: context.bottleURL)

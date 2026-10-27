@@ -31,11 +31,4 @@ public struct DiagnosisMatch: Sendable {
 
     /// Captured groups from the regex match.
     public let captures: [String]
-
-    public init(pattern: CrashPattern, lineIndex: Int, lineText: String, captures: [String]) {
-        self.pattern = pattern
-        self.lineIndex = lineIndex
-        self.lineText = lineText
-        self.captures = captures
-    }
 }

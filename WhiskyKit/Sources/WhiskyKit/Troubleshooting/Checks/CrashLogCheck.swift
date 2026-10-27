@@ -27,8 +27,6 @@ import Foundation
 public struct CrashLogCheck: TroubleshootingCheck {
     public let checkId = "crash.log_classify"
 
-    public init() {}
-
     public func run(params: [String: String], context: CheckContext) async -> CheckResult {
         guard let logURL = context.preflight.recentLogURL else {
             return CheckResult(

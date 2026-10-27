@@ -28,8 +28,6 @@ import Foundation
 public struct DiagnosticsEnhanceCheck: TroubleshootingCheck {
     public let checkId = "diagnostics.can_enhance"
 
-    public init() {}
-
     public func run(params: [String: String], context: CheckContext) async -> CheckResult {
         if case let .failure(result) = context.loadBottleSettings() {
             return result

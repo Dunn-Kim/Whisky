@@ -36,7 +36,7 @@ public struct LibraryEntry: Identifiable, Hashable, Sendable {
     /// Wide artwork for this entry, when the source has some on disk. Steam
     /// caches its own banners inside the bottle, so a Steam game shows the art
     /// its store page uses without anything being fetched.
-    public let artworkURL: URL?
+    public var artworkURL: URL?
     public let bottleURL: URL
     public let launch: Launch
     /// Whether this entry is a storefront client rather than a game.
@@ -44,27 +44,9 @@ public struct LibraryEntry: Identifiable, Hashable, Sendable {
     /// A launcher is worth keeping in the library, since it is how you reach an
     /// account, a store and an update. It is not what somebody scanning the grid
     /// is looking for, so it is labelled and sorted below the games.
-    public let launcher: LauncherType?
+    public var launcher: LauncherType?
 
     public var isLauncher: Bool { launcher != nil }
-
-    public init(
-        id: String,
-        name: String,
-        iconURL: URL?,
-        artworkURL: URL? = nil,
-        bottleURL: URL,
-        launch: Launch,
-        launcher: LauncherType? = nil
-    ) {
-        self.id = id
-        self.name = name
-        self.iconURL = iconURL
-        self.artworkURL = artworkURL
-        self.bottleURL = bottleURL
-        self.launch = launch
-        self.launcher = launcher
-    }
 }
 
 /// The pinned programs of a bottle.
