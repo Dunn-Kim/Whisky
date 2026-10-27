@@ -20,6 +20,16 @@ import Foundation
 
 public enum DXVKHUD: Codable, Equatable, Sendable {
     case full, partial, fps, off
+
+    /// The `DXVK_HUD` value, or nil when the HUD is off.
+    var envValue: String? {
+        switch self {
+        case .full: "full"
+        case .partial: "devinfo,fps,frametimes"
+        case .fps: "fps"
+        case .off: nil
+        }
+    }
 }
 
 public struct BottleDXVKConfig: Codable, Equatable {

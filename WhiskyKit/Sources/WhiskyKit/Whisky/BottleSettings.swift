@@ -854,15 +854,8 @@ public struct BottleSettings: Codable, Equatable {
             for entry in DLLOverrideResolver.dxvkPreset(builtinD3D12IsD3DMetal: builtinD3D12IsD3DMetal) {
                 managedDLLOverrides.append((entry: entry, source: .dxvk))
             }
-            switch dxvkHud {
-            case .full:
-                builder.set("DXVK_HUD", "full", layer: .bottleManaged)
-            case .partial:
-                builder.set("DXVK_HUD", "devinfo,fps,frametimes", layer: .bottleManaged)
-            case .fps:
-                builder.set("DXVK_HUD", "fps", layer: .bottleManaged)
-            case .off:
-                break
+            if let hud = dxvkHud.envValue {
+                builder.set("DXVK_HUD", hud, layer: .bottleManaged)
             }
             if dxvkAsync {
                 builder.set("DXVK_ASYNC", "1", layer: .bottleManaged)
@@ -900,28 +893,7 @@ public struct BottleSettings: Codable, Equatable {
             }
         }
 
-        // Enhanced sync mode
-        switch enhancedSync {
-        case .none:
-            // On macOS 15.4+, WINEESYNC is required for stability
-            if MacOSVersion.current < .sequoia15_4 {
-                builder.remove("WINEESYNC", layer: .bottleManaged)
-                builder.remove("WINEMSYNC", layer: .bottleManaged)
-            } else {
-                // Ensure a stable default on newer macOS versions:
-                // enable ESYNC and clear any conflicting MSYNC setting.
-                builder.set("WINEESYNC", "1", layer: .bottleManaged)
-                builder.remove("WINEMSYNC", layer: .bottleManaged)
-            }
-        case .esync:
-            builder.set("WINEESYNC", "1", layer: .bottleManaged)
-        case .msync:
-            builder.set("WINEMSYNC", "1", layer: .bottleManaged)
-            // D3DM detects ESYNC and changes behaviour accordingly
-            // so we have to lie to it so that it doesn't break
-            // under MSYNC. Values hardcoded in lid3dshared.dylib
-            builder.set("WINEESYNC", "1", layer: .bottleManaged)
-        }
+        builder.setEnhancedSync(enhancedSync, layer: .bottleManaged)
 
         if metalHud {
             builder.set("MTL_HUD_ENABLED", "1", layer: .bottleManaged)
@@ -965,8 +937,7 @@ public struct BottleSettings: Codable, Equatable {
 
         // Force D3D11 mode - helps with compatibility (whisky-app/whisky#1361)
         if forceD3D11 {
-            builder.set("D3DM_FORCE_D3D11", "1", layer: .bottleManaged)
-            builder.set("D3DM_FEATURE_LEVEL_12_0", "0", layer: .bottleManaged)
+            builder.setForceD3D11(true, layer: .bottleManaged)
         }
 
         return managedDLLOverrides
@@ -1083,26 +1054,14 @@ public struct BottleSettings: Codable, Equatable {
     public func populateInputCompatibilityLayer(builder: inout EnvironmentBuilder) {
         guard controllerCompatibilityMode else { return }
 
-        // Disable HIDAPI - forces SDL to use alternative input backend
-        // May improve detection for controllers that don't work with HIDAPI
-        if disableHIDAPI {
-            builder.set("SDL_JOYSTICK_HIDAPI", "0", layer: .bottleManaged)
-        }
-
-        // Allow joystick events when app is in background
-        // Useful for controller input when Wine window loses focus
-        if allowBackgroundEvents {
-            builder.set("SDL_JOYSTICK_ALLOW_BACKGROUND_EVENTS", "1", layer: .bottleManaged)
-        }
-
-        // Disable SDL to XInput mapping conversion
-        // PlayStation/Switch controllers may show correct button mappings without this
-        // Both disableControllerMapping (legacy) and useButtonLabels (controller panel) control this hint.
-        if disableControllerMapping || useButtonLabels {
-            builder.set("SDL_GAMECONTROLLER_USE_BUTTON_LABELS", "1", layer: .bottleManaged)
-        } else {
-            builder.set("SDL_GAMECONTROLLER_USE_BUTTON_LABELS", "0", layer: .bottleManaged)
-        }
+        // Both disableControllerMapping (legacy) and useButtonLabels (controller panel) control the labels hint.
+        // PlayStation/Switch controllers may show correct button mappings with it.
+        builder.setSDLInputHints(
+            disableHIDAPI: disableHIDAPI,
+            allowBackgroundEvents: allowBackgroundEvents,
+            buttonLabels: disableControllerMapping || useButtonLabels,
+            layer: .bottleManaged
+        )
     }
 }
 

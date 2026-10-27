@@ -294,14 +294,9 @@ extension Wine {
 
         // DXVK HUD override
         if let dxvkHud = overrides.dxvkHud {
-            switch dxvkHud {
-            case .full:
-                builder.set("DXVK_HUD", "full", layer: .programUser)
-            case .partial:
-                builder.set("DXVK_HUD", "devinfo,fps,frametimes", layer: .programUser)
-            case .fps:
-                builder.set("DXVK_HUD", "fps", layer: .programUser)
-            case .off:
+            if let hud = dxvkHud.envValue {
+                builder.set("DXVK_HUD", hud, layer: .programUser)
+            } else {
                 builder.remove("DXVK_HUD", layer: .programUser)
             }
         }
@@ -313,34 +308,12 @@ extension Wine {
 
         // Enhanced sync override
         if let enhancedSync = overrides.enhancedSync {
-            switch enhancedSync {
-            case .none:
-                if MacOSVersion.current < .sequoia15_4 {
-                    builder.remove("WINEESYNC", layer: .programUser)
-                    builder.remove("WINEMSYNC", layer: .programUser)
-                } else {
-                    // On 15.4+ ESYNC is required for stability
-                    builder.set("WINEESYNC", "1", layer: .programUser)
-                    builder.remove("WINEMSYNC", layer: .programUser)
-                }
-            case .esync:
-                builder.set("WINEESYNC", "1", layer: .programUser)
-                builder.remove("WINEMSYNC", layer: .programUser)
-            case .msync:
-                builder.set("WINEMSYNC", "1", layer: .programUser)
-                builder.set("WINEESYNC", "1", layer: .programUser)
-            }
+            builder.setEnhancedSync(enhancedSync, layer: .programUser)
         }
 
         // Force D3D11 override
         if let forceD3D11 = overrides.forceD3D11 {
-            if forceD3D11 {
-                builder.set("D3DM_FORCE_D3D11", "1", layer: .programUser)
-                builder.set("D3DM_FEATURE_LEVEL_12_0", "0", layer: .programUser)
-            } else {
-                builder.remove("D3DM_FORCE_D3D11", layer: .programUser)
-                builder.remove("D3DM_FEATURE_LEVEL_12_0", layer: .programUser)
-            }
+            builder.setForceD3D11(forceD3D11, layer: .programUser)
         }
 
         // Metal 4 override. `D3DMDevice::MTL4OptionEnabled` only takes that path
@@ -370,19 +343,12 @@ extension Wine {
         if let controllerCompat = overrides.controllerCompatibilityMode {
             // When compat mode is overridden, control whether SDL hints are applied
             if controllerCompat {
-                if let disableHIDAPI = overrides.disableHIDAPI, disableHIDAPI {
-                    builder.set("SDL_JOYSTICK_HIDAPI", "0", layer: .programUser)
-                }
-                if let allowBG = overrides.allowBackgroundEvents, allowBG {
-                    builder.set("SDL_JOYSTICK_ALLOW_BACKGROUND_EVENTS", "1", layer: .programUser)
-                }
-                let mapping = overrides.disableControllerMapping ?? false
-                let labels = overrides.useButtonLabels ?? false
-                if mapping || labels {
-                    builder.set("SDL_GAMECONTROLLER_USE_BUTTON_LABELS", "1", layer: .programUser)
-                } else {
-                    builder.set("SDL_GAMECONTROLLER_USE_BUTTON_LABELS", "0", layer: .programUser)
-                }
+                builder.setSDLInputHints(
+                    disableHIDAPI: overrides.disableHIDAPI ?? false,
+                    allowBackgroundEvents: overrides.allowBackgroundEvents ?? false,
+                    buttonLabels: (overrides.disableControllerMapping ?? false) || (overrides.useButtonLabels ?? false),
+                    layer: .programUser
+                )
             } else {
                 // Program overrides compat mode off: remove all SDL hints
                 builder.remove("SDL_JOYSTICK_HIDAPI", layer: .programUser)

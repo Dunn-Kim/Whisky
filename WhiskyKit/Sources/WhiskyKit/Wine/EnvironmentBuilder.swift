@@ -147,3 +147,47 @@ public struct EnvironmentBuilder: Sendable {
         return (environment, Set(winningLayer.values))
     }
 }
+
+// MARK: - Settings written identically by the bottle and program layers
+
+extension EnvironmentBuilder {
+    mutating func setEnhancedSync(_ mode: EnhancedSync, layer: EnvironmentLayer) {
+        switch mode {
+        case .none:
+            // On macOS 15.4+, ESYNC is required for stability
+            if MacOSVersion.current < .sequoia15_4 {
+                remove("WINEESYNC", layer: layer)
+            } else {
+                set("WINEESYNC", "1", layer: layer)
+            }
+            remove("WINEMSYNC", layer: layer)
+        case .esync:
+            set("WINEESYNC", "1", layer: layer)
+            remove("WINEMSYNC", layer: layer)
+        case .msync:
+            // D3DM detects ESYNC and changes behaviour accordingly, so lie to it
+            // under MSYNC. Values hardcoded in lid3dshared.dylib
+            set("WINEMSYNC", "1", layer: layer)
+            set("WINEESYNC", "1", layer: layer)
+        }
+    }
+
+    mutating func setForceD3D11(_ enabled: Bool, layer: EnvironmentLayer) {
+        if enabled {
+            set("D3DM_FORCE_D3D11", "1", layer: layer)
+            set("D3DM_FEATURE_LEVEL_12_0", "0", layer: layer)
+        } else {
+            remove("D3DM_FORCE_D3D11", layer: layer)
+            remove("D3DM_FEATURE_LEVEL_12_0", layer: layer)
+        }
+    }
+
+    /// SDL controller hints. `buttonLabels` picks `1` (labels) or `0` (XInput mapping).
+    mutating func setSDLInputHints(
+        disableHIDAPI: Bool, allowBackgroundEvents: Bool, buttonLabels: Bool, layer: EnvironmentLayer
+    ) {
+        if disableHIDAPI { set("SDL_JOYSTICK_HIDAPI", "0", layer: layer) }
+        if allowBackgroundEvents { set("SDL_JOYSTICK_ALLOW_BACKGROUND_EVENTS", "1", layer: layer) }
+        set("SDL_GAMECONTROLLER_USE_BUTTON_LABELS", buttonLabels ? "1" : "0", layer: layer)
+    }
+}
