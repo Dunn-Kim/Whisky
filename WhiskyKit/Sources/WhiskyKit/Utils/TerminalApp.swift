@@ -87,6 +87,7 @@ public enum TerminalApp: String, CaseIterable, Identifiable {
     /// the caller deletes. Throws when the script can't be written; an
     /// AppleScript failure is shown as the run-error alert naming `subject`.
     @discardableResult
+    @MainActor
     public static func runScript(_ script: String, namePrefix: String, subject: String) async throws -> URL {
         let scriptURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("\(namePrefix)-\(UUID().uuidString).sh")
@@ -98,7 +99,7 @@ public enum TerminalApp: String, CaseIterable, Identifiable {
         if let error {
             Logger.wineKit.error("Failed to run terminal script \(error)")
             if let description = error["NSAppleScriptErrorMessage"] as? String {
-                await showError("\(subject): " + description)
+                showError(" \(subject): " + description)
             }
         }
         return scriptURL
