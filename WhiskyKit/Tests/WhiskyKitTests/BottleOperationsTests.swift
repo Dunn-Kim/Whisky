@@ -68,9 +68,8 @@ class BottleOperationsTestCase: XCTestCase {
     var exeURL: URL!
     var blockedURL: URL!
 
-    override func setUp() {
-        super.setUp()
-        tempDir = FileManager.default.temporaryDirectory.appending(path: "bottle_ops_\(UUID().uuidString)")
+    override func setUpWithError() throws {
+        tempDir = try makeTempDir()
         bottleURL = tempDir.appending(path: "Original")
         let gameDir = bottleURL.appending(path: "drive_c/Program Files/Game")
         try? FileManager.default.createDirectory(at: gameDir, withIntermediateDirectories: true)
@@ -78,11 +77,6 @@ class BottleOperationsTestCase: XCTestCase {
         blockedURL = gameDir.appending(path: "helper.exe")
         try? Data("game".utf8).write(to: exeURL)
         try? Data("helper".utf8).write(to: blockedURL)
-    }
-
-    override func tearDown() {
-        try? FileManager.default.removeItem(at: tempDir)
-        super.tearDown()
     }
 
     /// Creates the live bottle with a pin and a blocklist entry and registers

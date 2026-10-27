@@ -122,15 +122,8 @@ final class ResourceDataEntryTests: XCTestCase {
 final class ResourceDirectoryEntryIDTests: XCTestCase {
     var tempDir: URL!
 
-    override func setUp() {
-        super.setUp()
-        tempDir = FileManager.default.temporaryDirectory.appending(path: "rsrc_entry_\(UUID().uuidString)")
-        try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-    }
-
-    override func tearDown() {
-        try? FileManager.default.removeItem(at: tempDir)
-        super.tearDown()
+    override func setUpWithError() throws {
+        tempDir = try makeTempDir()
     }
 
     func testDirectoryEntryWithIconType() throws {
@@ -197,15 +190,8 @@ final class ResourceDirectoryEntryIDTests: XCTestCase {
 final class ResourceDirectoryTableTests: XCTestCase {
     var tempDir: URL!
 
-    override func setUp() {
-        super.setUp()
-        tempDir = FileManager.default.temporaryDirectory.appending(path: "rsrc_table_\(UUID().uuidString)")
-        try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-    }
-
-    override func tearDown() {
-        try? FileManager.default.removeItem(at: tempDir)
-        super.tearDown()
+    override func setUpWithError() throws {
+        tempDir = try makeTempDir()
     }
 
     func testEmptyResourceDirectoryTable() throws {

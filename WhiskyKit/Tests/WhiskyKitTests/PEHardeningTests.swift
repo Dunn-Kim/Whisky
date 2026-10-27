@@ -30,15 +30,8 @@ import XCTest
 final class MalformedPEHardeningTests: XCTestCase {
     var tempDir: URL!
 
-    override func setUp() {
-        super.setUp()
-        tempDir = FileManager.default.temporaryDirectory.appending(path: "pe_hardening_\(UUID().uuidString)")
-        try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-    }
-
-    override func tearDown() {
-        try? FileManager.default.removeItem(at: tempDir)
-        super.tearDown()
+    override func setUpWithError() throws {
+        tempDir = try makeTempDir()
     }
 
     private func makeSection(
@@ -261,15 +254,8 @@ final class MalformedPEHardeningTests: XCTestCase {
 final class BestIconEndToEndTests: XCTestCase {
     var tempDir: URL!
 
-    override func setUp() {
-        super.setUp()
-        tempDir = FileManager.default.temporaryDirectory.appending(path: "best_icon_\(UUID().uuidString)")
-        try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-    }
-
-    override func tearDown() {
-        try? FileManager.default.removeItem(at: tempDir)
-        super.tearDown()
+    override func setUpWithError() throws {
+        tempDir = try makeTempDir()
     }
 
     // The icon edge of the synthetic bitmap. Stored height is doubled (image +

@@ -104,8 +104,7 @@ final class BottleInputConfigTests: XCTestCase {
         settings.allowBackgroundEvents = true
         settings.disableControllerMapping = true
 
-        var env: [String: String] = [:]
-        settings.environmentVariables(wineEnv: &env)
+        let env = settings.env
 
         // Should include SDL environment variables
         XCTAssertEqual(env["SDL_JOYSTICK_HIDAPI"], "0")
@@ -121,8 +120,7 @@ final class BottleInputConfigTests: XCTestCase {
         settings.disableControllerMapping = false
         settings.useButtonLabels = false
 
-        var env: [String: String] = [:]
-        settings.environmentVariables(wineEnv: &env)
+        let env = settings.env
 
         // Should include HIDAPI disable and button labels explicitly set to 0
         XCTAssertEqual(env["SDL_JOYSTICK_HIDAPI"], "0")
@@ -138,8 +136,7 @@ final class BottleInputConfigTests: XCTestCase {
         settings.allowBackgroundEvents = true
         settings.disableControllerMapping = true
 
-        var env: [String: String] = [:]
-        settings.environmentVariables(wineEnv: &env)
+        let env = settings.env
 
         // Should not include any SDL variables since controller compat is off
         XCTAssertNil(env["SDL_JOYSTICK_HIDAPI"])
@@ -155,8 +152,7 @@ final class BottleInputConfigTests: XCTestCase {
         settings.disableControllerMapping = false
         settings.useButtonLabels = true
 
-        var env: [String: String] = [:]
-        settings.environmentVariables(wineEnv: &env)
+        let env = settings.env
 
         // useButtonLabels=true should set SDL_GAMECONTROLLER_USE_BUTTON_LABELS=1
         XCTAssertEqual(env["SDL_GAMECONTROLLER_USE_BUTTON_LABELS"], "1")

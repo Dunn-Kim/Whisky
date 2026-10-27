@@ -33,6 +33,13 @@ extension BottleSettings {
         ).resolve().0
         if !overrides.isEmpty { wineEnv["WINEDLLOVERRIDES"] = overrides }
     }
+
+    /// `environmentVariables(wineEnv:)` into a fresh dictionary.
+    var env: [String: String] {
+        var env: [String: String] = [:]
+        environmentVariables(wineEnv: &env)
+        return env
+    }
 }
 
 // swiftlint:disable:next type_body_length
@@ -44,8 +51,7 @@ final class EnvironmentVariablesTests: XCTestCase {
         settings.dxvk = true
         settings.dxvkHud = .full
 
-        var env: [String: String] = [:]
-        settings.environmentVariables(wineEnv: &env)
+        let env = settings.env
 
         // DLL overrides are now composed per-DLL via DLLOverrideResolver (sorted alphabetically).
         // The test runner has no runtime, so no GPTK payload: d3d12 is Wine's own
@@ -60,8 +66,7 @@ final class EnvironmentVariablesTests: XCTestCase {
         var settings = BottleSettings()
         settings.graphicsBackend = .dxmt
 
-        var env: [String: String] = [:]
-        settings.environmentVariables(wineEnv: &env)
+        let env = settings.env
 
         // The trio is native-then-builtin; winemetal pinned builtin for unixlib binding.
         // No runtime here, so no payload either, and d3d12 is left alone.
@@ -75,19 +80,13 @@ final class EnvironmentVariablesTests: XCTestCase {
     func testDXMTMetalFXUpscaleIsOptInAndDXMTOnly() {
         var settings = BottleSettings()
         settings.graphicsBackend = .dxmt
-        var env: [String: String] = [:]
-        settings.environmentVariables(wineEnv: &env)
-        XCTAssertNil(env["DXMT_METALFX_SPATIAL_SWAPCHAIN"], "off by default")
+        XCTAssertNil(settings.env["DXMT_METALFX_SPATIAL_SWAPCHAIN"], "off by default")
 
         settings.dxmtMetalFXUpscale = true
-        env = [:]
-        settings.environmentVariables(wineEnv: &env)
-        XCTAssertEqual(env["DXMT_METALFX_SPATIAL_SWAPCHAIN"], "1")
+        XCTAssertEqual(settings.env["DXMT_METALFX_SPATIAL_SWAPCHAIN"], "1")
 
         settings.graphicsBackend = .dxvk
-        env = [:]
-        settings.environmentVariables(wineEnv: &env)
-        XCTAssertNil(env["DXMT_METALFX_SPATIAL_SWAPCHAIN"], "inert under other backends")
+        XCTAssertNil(settings.env["DXMT_METALFX_SPATIAL_SWAPCHAIN"], "inert under other backends")
     }
 
     func testDXVKSettingsDoNotApplyUnderDXMT() {
@@ -98,8 +97,7 @@ final class EnvironmentVariablesTests: XCTestCase {
         settings.dxvkHud = .full
         settings.dxvkAsync = true
 
-        var env: [String: String] = [:]
-        settings.environmentVariables(wineEnv: &env)
+        let env = settings.env
 
         XCTAssertNil(env["DXVK_HUD"])
         XCTAssertNil(env["DXVK_ASYNC"])
@@ -110,8 +108,7 @@ final class EnvironmentVariablesTests: XCTestCase {
         settings.dxvk = true
         settings.dxvkHud = .partial
 
-        var env: [String: String] = [:]
-        settings.environmentVariables(wineEnv: &env)
+        let env = settings.env
 
         XCTAssertEqual(env["DXVK_HUD"], "devinfo,fps,frametimes")
     }
@@ -121,8 +118,7 @@ final class EnvironmentVariablesTests: XCTestCase {
         settings.dxvk = true
         settings.dxvkHud = .fps
 
-        var env: [String: String] = [:]
-        settings.environmentVariables(wineEnv: &env)
+        let env = settings.env
 
         XCTAssertEqual(env["DXVK_HUD"], "fps")
     }
@@ -132,8 +128,7 @@ final class EnvironmentVariablesTests: XCTestCase {
         settings.graphicsBackend = .dxvk
         settings.dxvkAsync = true
 
-        var env: [String: String] = [:]
-        settings.environmentVariables(wineEnv: &env)
+        let env = settings.env
 
         XCTAssertEqual(env["DXVK_ASYNC"], "1")
     }
@@ -142,8 +137,7 @@ final class EnvironmentVariablesTests: XCTestCase {
         var settings = BottleSettings()
         settings.graphicsBackend = .dxvk
 
-        var env: [String: String] = [:]
-        settings.environmentVariables(wineEnv: &env)
+        let env = settings.env
 
         // MoltenVK compiles Metal shaders serially unless told otherwise;
         // Apple Silicon has the cores for it.
@@ -154,8 +148,7 @@ final class EnvironmentVariablesTests: XCTestCase {
         var settings = BottleSettings()
         settings.graphicsBackend = .d3dMetal
 
-        var env: [String: String] = [:]
-        settings.environmentVariables(wineEnv: &env)
+        let env = settings.env
 
         XCTAssertNil(env["MVK_CONFIG_SHOULD_MAXIMIZE_CONCURRENT_COMPILATION"])
     }
@@ -188,8 +181,7 @@ final class EnvironmentVariablesTests: XCTestCase {
         var settings = BottleSettings()
         settings.enhancedSync = .esync
 
-        var env: [String: String] = [:]
-        settings.environmentVariables(wineEnv: &env)
+        let env = settings.env
 
         XCTAssertEqual(env["WINEESYNC"], "1")
         XCTAssertNil(env["WINEMSYNC"])
@@ -199,8 +191,7 @@ final class EnvironmentVariablesTests: XCTestCase {
         var settings = BottleSettings()
         settings.enhancedSync = .msync
 
-        var env: [String: String] = [:]
-        settings.environmentVariables(wineEnv: &env)
+        let env = settings.env
 
         // When MSync is enabled, both WINEMSYNC and WINEESYNC must be set.
         // This is required for D3DM compatibility - values are hardcoded in lid3dshared.dylib
@@ -212,8 +203,7 @@ final class EnvironmentVariablesTests: XCTestCase {
         var settings = BottleSettings()
         settings.enhancedSync = .none
 
-        var env: [String: String] = [:]
-        settings.environmentVariables(wineEnv: &env)
+        let env = settings.env
 
         if MacOSVersion.current >= .sequoia15_4 {
             XCTAssertEqual(env["WINEESYNC"], "1")
@@ -230,8 +220,7 @@ final class EnvironmentVariablesTests: XCTestCase {
         var settings = BottleSettings()
         settings.metalHud = true
 
-        var env: [String: String] = [:]
-        settings.environmentVariables(wineEnv: &env)
+        let env = settings.env
 
         XCTAssertEqual(env["MTL_HUD_ENABLED"], "1")
     }
@@ -240,8 +229,7 @@ final class EnvironmentVariablesTests: XCTestCase {
         var settings = BottleSettings()
         settings.metalTrace = true
 
-        var env: [String: String] = [:]
-        settings.environmentVariables(wineEnv: &env)
+        let env = settings.env
 
         // The documented name, which DXMT also checks, and the older one
         // Metal.framework still reads.
@@ -253,8 +241,7 @@ final class EnvironmentVariablesTests: XCTestCase {
         var settings = BottleSettings()
         settings.metalValidation = true
 
-        var env: [String: String] = [:]
-        settings.environmentVariables(wineEnv: &env)
+        let env = settings.env
 
         XCTAssertEqual(env["MTL_DEBUG_LAYER"], "1")
     }
@@ -265,8 +252,7 @@ final class EnvironmentVariablesTests: XCTestCase {
         var settings = BottleSettings()
         settings.avxEnabled = true
 
-        var env: [String: String] = [:]
-        settings.environmentVariables(wineEnv: &env)
+        let env = settings.env
 
         XCTAssertEqual(env["ROSETTA_ADVERTISE_AVX"], "1")
     }
@@ -275,8 +261,7 @@ final class EnvironmentVariablesTests: XCTestCase {
         var settings = BottleSettings()
         settings.dxrEnabled = true
 
-        var env: [String: String] = [:]
-        settings.environmentVariables(wineEnv: &env)
+        let env = settings.env
 
         XCTAssertEqual(env["D3DM_SUPPORT_DXR"], "1")
     }
@@ -287,8 +272,7 @@ final class EnvironmentVariablesTests: XCTestCase {
         settings.gpuSpoofing = true
         settings.forceD3D11 = true
 
-        var env: [String: String] = [:]
-        settings.environmentVariables(wineEnv: &env)
+        let env = settings.env
 
         // Feature level is one resolved decision: the spoof's launcher layer
         // must not undo the force-D3D11 pin from the bottle layer.
@@ -302,8 +286,7 @@ final class EnvironmentVariablesTests: XCTestCase {
         var settings = BottleSettings()
         settings.metalValidation = false
 
-        var env: [String: String] = [:]
-        settings.environmentVariables(wineEnv: &env)
+        let env = settings.env
 
         // All three values the removed Sequoia toggle used to set are
         // platform-layer fixes on every supported macOS, carried with
@@ -315,9 +298,7 @@ final class EnvironmentVariablesTests: XCTestCase {
 
     @MainActor
     func testPlatformLayerCarriesTheSequoiaFixes() throws {
-        let tempDir = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
-        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: tempDir) }
+        let tempDir = try makeTempDir()
         let bottle = Bottle(bottleUrl: tempDir, inFlight: false, isAvailable: true)
 
         let env = Wine.constructWineEnvironment(for: bottle)
@@ -330,9 +311,7 @@ final class EnvironmentVariablesTests: XCTestCase {
 
     @MainActor
     func testMetalValidationOverridesThePlatformFix() throws {
-        let tempDir = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
-        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: tempDir) }
+        let tempDir = try makeTempDir()
         let bottle = Bottle(bottleUrl: tempDir, inFlight: false, isAvailable: true)
         bottle.settings.metalValidation = true
 
@@ -350,8 +329,7 @@ final class EnvironmentVariablesTests: XCTestCase {
         var settings = BottleSettings()
         settings.forceD3D11 = true
 
-        var env: [String: String] = [:]
-        settings.environmentVariables(wineEnv: &env)
+        let env = settings.env
 
         XCTAssertEqual(env["D3DM_FORCE_D3D11"], "1")
         XCTAssertEqual(env["D3DM_FEATURE_LEVEL_12_0"], "0")
@@ -361,8 +339,7 @@ final class EnvironmentVariablesTests: XCTestCase {
         var settings = BottleSettings()
         settings.shaderCacheEnabled = false
 
-        var env: [String: String] = [:]
-        settings.environmentVariables(wineEnv: &env)
+        let env = settings.env
 
         // The variables DXVK and DXMT read, not the NVIDIA GL one the toggle used to set.
         XCTAssertEqual(env["DXVK_STATE_CACHE"], "0")
@@ -375,8 +352,7 @@ final class EnvironmentVariablesTests: XCTestCase {
         var settings = BottleSettings()
         settings.graphicsBackend = .dxmt
 
-        var env: [String: String] = [:]
-        settings.environmentVariables(wineEnv: &env)
+        let env = settings.env
 
         XCTAssertNil(env["DXVK_STATE_CACHE"])
         XCTAssertNil(env["DXMT_SHADER_CACHE"])
@@ -696,8 +672,7 @@ final class EnvironmentVariablesTests: XCTestCase {
         var settings = BottleSettings()
         settings.graphicsBackend = .d3dMetal
         settings.frameGeneration = true
-        var env: [String: String] = [:]
-        settings.environmentVariables(wineEnv: &env)
+        let env = settings.env
         XCTAssertEqual(env["CX_ACTIVE_GRAPHICS_BACKEND"], "d3dmetal")
     }
 
@@ -708,8 +683,7 @@ final class EnvironmentVariablesTests: XCTestCase {
         var settings = BottleSettings()
         settings.graphicsBackend = .d3dMetal
         XCTAssertFalse(settings.frameGeneration)
-        var env: [String: String] = [:]
-        settings.environmentVariables(wineEnv: &env)
+        let env = settings.env
         XCTAssertNil(env["CX_ACTIVE_GRAPHICS_BACKEND"])
     }
 
@@ -719,8 +693,7 @@ final class EnvironmentVariablesTests: XCTestCase {
         var settings = BottleSettings()
         settings.graphicsBackend = .d3dMetal
         settings.metalFX = true
-        var env: [String: String] = [:]
-        settings.environmentVariables(wineEnv: &env)
+        let env = settings.env
         XCTAssertEqual(env["D3DM_ENABLE_METALFX"], "1")
         XCTAssertNil(env["CX_ACTIVE_GRAPHICS_BACKEND"])
     }
@@ -728,8 +701,7 @@ final class EnvironmentVariablesTests: XCTestCase {
     func testDXVKBottleDoesNotClaimHardwareScheduling() {
         var settings = BottleSettings()
         settings.graphicsBackend = .dxvk
-        var env: [String: String] = [:]
-        settings.environmentVariables(wineEnv: &env)
+        let env = settings.env
         XCTAssertNil(env["CX_ACTIVE_GRAPHICS_BACKEND"])
     }
 

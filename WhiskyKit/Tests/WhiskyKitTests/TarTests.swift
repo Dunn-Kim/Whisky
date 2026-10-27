@@ -61,19 +61,13 @@ final class TarIntegrationTests: XCTestCase {
     var sourceDir: URL!
     var extractDir: URL!
 
-    override func setUp() {
-        super.setUp()
-        tempDir = FileManager.default.temporaryDirectory.appending(path: "tar_test_\(UUID().uuidString)")
+    override func setUpWithError() throws {
+        tempDir = try makeTempDir()
         sourceDir = tempDir.appending(path: "source")
         extractDir = tempDir.appending(path: "extract")
 
         try? FileManager.default.createDirectory(at: sourceDir, withIntermediateDirectories: true)
         try? FileManager.default.createDirectory(at: extractDir, withIntermediateDirectories: true)
-    }
-
-    override func tearDown() {
-        try? FileManager.default.removeItem(at: tempDir)
-        super.tearDown()
     }
 
     func testTarAndUntarRoundTrip() throws {
@@ -303,18 +297,11 @@ final class TarPathTraversalTests: XCTestCase {
     var tempDir: URL!
     var extractDir: URL!
 
-    override func setUp() {
-        super.setUp()
-        tempDir = FileManager.default.temporaryDirectory.appending(path: "tar_security_\(UUID().uuidString)")
+    override func setUpWithError() throws {
+        tempDir = try makeTempDir()
         extractDir = tempDir.appending(path: "extract")
 
-        try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
         try? FileManager.default.createDirectory(at: extractDir, withIntermediateDirectories: true)
-    }
-
-    override func tearDown() {
-        try? FileManager.default.removeItem(at: tempDir)
-        super.tearDown()
     }
 
     func testValidArchiveExtraction() throws {
@@ -339,15 +326,8 @@ final class TarPathTraversalTests: XCTestCase {
 final class TarCommandTests: XCTestCase {
     var tempDir: URL!
 
-    override func setUp() {
-        super.setUp()
-        tempDir = FileManager.default.temporaryDirectory.appending(path: "tar_cmd_\(UUID().uuidString)")
-        try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-    }
-
-    override func tearDown() {
-        try? FileManager.default.removeItem(at: tempDir)
-        super.tearDown()
+    override func setUpWithError() throws {
+        tempDir = try makeTempDir()
     }
 
     func testTarCreatesCompressedArchive() throws {

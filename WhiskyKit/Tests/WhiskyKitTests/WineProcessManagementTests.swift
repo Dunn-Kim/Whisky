@@ -24,10 +24,8 @@ final class WineProcessManagementTests: XCTestCase {
     /// report false — whether wineserver spawns and exits nonzero (runtime
     /// installed) or the spawn itself fails (no runtime, e.g. CI).
     @MainActor
-    func testWineserverProbeReturnsFalseForBottleWithoutServer() async {
-        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: tempDir) }
+    func testWineserverProbeReturnsFalseForBottleWithoutServer() async throws {
+        let tempDir = try makeTempDir()
 
         let bottle = Bottle(bottleUrl: tempDir, inFlight: false, isAvailable: true)
 

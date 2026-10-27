@@ -27,9 +27,8 @@ final class ProgramCoreTests: XCTestCase {
     var bottleURL: URL!
     var programURL: URL!
 
-    override func setUp() {
-        super.setUp()
-        tempDir = FileManager.default.temporaryDirectory.appending(path: "program_core_\(UUID().uuidString)")
+    override func setUpWithError() throws {
+        tempDir = try makeTempDir()
         bottleURL = tempDir.appending(path: "TestBottle")
 
         let driveCURL = bottleURL.appending(path: "drive_c")
@@ -37,11 +36,6 @@ final class ProgramCoreTests: XCTestCase {
 
         programURL = driveCURL.appending(path: "test_game.exe")
         try? Data("fake exe".utf8).write(to: programURL)
-    }
-
-    override func tearDown() {
-        try? FileManager.default.removeItem(at: tempDir)
-        super.tearDown()
     }
 
     // MARK: - Name Property Tests

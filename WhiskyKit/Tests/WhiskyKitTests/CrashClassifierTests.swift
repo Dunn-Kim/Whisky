@@ -308,9 +308,7 @@ final class CrashClassifierTests: XCTestCase {
     /// for hours buries it megabytes above the tail, which is exactly the log
     /// a tail-only window used to read and classify as clean.
     func testClassifyLastRunSeesHeadOfLogEvents() async throws {
-        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: tempDir) }
+        let tempDir = try makeTempDir()
 
         let logURL = tempDir.appendingPathComponent("run.log")
         let crash = "0024:err:module:import_dll Library MSVCR100.dll (which is needed by L\"game.exe\") not found\n"

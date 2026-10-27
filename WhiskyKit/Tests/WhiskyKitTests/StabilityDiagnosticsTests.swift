@@ -22,9 +22,7 @@ import XCTest
 @MainActor
 final class StabilityDiagnosticsTests: XCTestCase {
     func testReportGenerationWithMissingLogsFolder() async throws {
-        let bottleURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        try FileManager.default.createDirectory(at: bottleURL, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: bottleURL) }
+        let bottleURL = try makeTempDir()
 
         let bottle = Bottle(bottleUrl: bottleURL, inFlight: false, isAvailable: true)
 
@@ -36,9 +34,7 @@ final class StabilityDiagnosticsTests: XCTestCase {
     }
 
     func testReportGenerationWithEmptyLogsFolder() async throws {
-        let bottleURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        try FileManager.default.createDirectory(at: bottleURL, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: bottleURL) }
+        let bottleURL = try makeTempDir()
 
         let bottle = Bottle(bottleUrl: bottleURL, inFlight: false, isAvailable: true)
 
@@ -50,9 +46,7 @@ final class StabilityDiagnosticsTests: XCTestCase {
     }
 
     func testTailHandlesInvalidUTF8() throws {
-        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        try FileManager.default.createDirectory(at: tempURL, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: tempURL) }
+        let tempURL = try makeTempDir()
 
         let logURL = tempURL.appendingPathComponent("invalid.log")
 
@@ -65,9 +59,7 @@ final class StabilityDiagnosticsTests: XCTestCase {
     }
 
     func testTailKeepsLastLinesBounded() throws {
-        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        try FileManager.default.createDirectory(at: tempURL, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: tempURL) }
+        let tempURL = try makeTempDir()
 
         let logURL = tempURL.appendingPathComponent("many-lines.log")
 
@@ -83,9 +75,7 @@ final class StabilityDiagnosticsTests: XCTestCase {
     }
 
     func testReportIncludesArchitectureLine() async throws {
-        let bottleURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        try FileManager.default.createDirectory(at: bottleURL, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: bottleURL) }
+        let bottleURL = try makeTempDir()
 
         let bottle = Bottle(bottleUrl: bottleURL, inFlight: false, isAvailable: true)
         let report = await StabilityDiagnostics.generateDiagnosticReport(for: bottle, logsFolder: bottleURL.appendingPathComponent("does-not-exist"))

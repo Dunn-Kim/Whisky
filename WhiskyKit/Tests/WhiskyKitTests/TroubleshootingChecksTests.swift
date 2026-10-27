@@ -199,9 +199,7 @@ final class TroubleshootingChecksTests: XCTestCase {
     private func runDiagnosticsEnhanceCheck(
         programPreset preset: WineDebugPreset?, hasProgram: Bool = true
     ) async throws -> CheckResult {
-        let bottleURL = FileManager.default.temporaryDirectory.appending(path: "check-bottle-\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: bottleURL, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: bottleURL) }
+        let bottleURL = try makeTempDir()
         let programURL = bottleURL.appending(path: "drive_c/Game/Game.exe")
         if let preset {
             var settings = ProgramSettings()

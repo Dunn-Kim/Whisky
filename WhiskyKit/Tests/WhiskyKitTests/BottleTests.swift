@@ -29,18 +29,12 @@ final class BottleCoreTests: XCTestCase {
     var tempDir: URL!
     var bottleURL: URL!
 
-    override func setUp() {
-        super.setUp()
-        tempDir = FileManager.default.temporaryDirectory.appending(path: "bottle_test_\(UUID().uuidString)")
+    override func setUpWithError() throws {
+        tempDir = try makeTempDir()
         bottleURL = tempDir.appending(path: "TestBottle")
 
         let driveCURL = bottleURL.appending(path: "drive_c")
         try? FileManager.default.createDirectory(at: driveCURL, withIntermediateDirectories: true)
-    }
-
-    override func tearDown() {
-        try? FileManager.default.removeItem(at: tempDir)
-        super.tearDown()
     }
 
     // MARK: - Initialization Tests
@@ -332,20 +326,14 @@ final class BottleLoadPersistenceTests: XCTestCase {
     var bottleURL: URL!
     var metadataURL: URL!
 
-    override func setUp() {
-        super.setUp()
-        tempDir = FileManager.default.temporaryDirectory.appending(path: "bottle_load_\(UUID().uuidString)")
+    override func setUpWithError() throws {
+        tempDir = try makeTempDir()
         bottleURL = tempDir.appending(path: "TestBottle")
         metadataURL = bottleURL.appending(path: "Metadata.plist")
         try? FileManager.default.createDirectory(
             at: bottleURL.appending(path: "drive_c"),
             withIntermediateDirectories: true
         )
-    }
-
-    override func tearDown() {
-        try? FileManager.default.removeItem(at: tempDir)
-        super.tearDown()
     }
 
     /// The Metadata.plist's inode and modification date. An atomic save replaces the
@@ -464,18 +452,12 @@ final class ProgramSequenceExtensionTests: XCTestCase {
     var tempDir: URL!
     var bottleURL: URL!
 
-    override func setUp() {
-        super.setUp()
-        tempDir = FileManager.default.temporaryDirectory.appending(path: "progseq_\(UUID().uuidString)")
+    override func setUpWithError() throws {
+        tempDir = try makeTempDir()
         bottleURL = tempDir.appending(path: "TestBottle")
 
         let driveCURL = bottleURL.appending(path: "drive_c")
         try? FileManager.default.createDirectory(at: driveCURL, withIntermediateDirectories: true)
-    }
-
-    override func tearDown() {
-        try? FileManager.default.removeItem(at: tempDir)
-        super.tearDown()
     }
 
     @MainActor

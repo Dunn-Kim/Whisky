@@ -25,15 +25,8 @@ import XCTest
 final class PEFileTests: XCTestCase {
     var tempDir: URL!
 
-    override func setUp() {
-        super.setUp()
-        tempDir = FileManager.default.temporaryDirectory.appending(path: "pe_test_\(UUID().uuidString)")
-        try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-    }
-
-    override func tearDown() {
-        try? FileManager.default.removeItem(at: tempDir)
-        super.tearDown()
+    override func setUpWithError() throws {
+        tempDir = try makeTempDir()
     }
 
     func testValidPE32File() throws {
@@ -121,15 +114,8 @@ final class PEFileTests: XCTestCase {
 final class COFFFileHeaderTests: XCTestCase {
     var tempDir: URL!
 
-    override func setUp() {
-        super.setUp()
-        tempDir = FileManager.default.temporaryDirectory.appending(path: "coff_test_\(UUID().uuidString)")
-        try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-    }
-
-    override func tearDown() {
-        try? FileManager.default.removeItem(at: tempDir)
-        super.tearDown()
+    override func setUpWithError() throws {
+        tempDir = try makeTempDir()
     }
 
     func testCOFFHeaderParsing() throws {
@@ -158,15 +144,8 @@ final class COFFFileHeaderTests: XCTestCase {
 final class OptionalHeaderTests: XCTestCase {
     var tempDir: URL!
 
-    override func setUp() {
-        super.setUp()
-        tempDir = FileManager.default.temporaryDirectory.appending(path: "opt_test_\(UUID().uuidString)")
-        try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-    }
-
-    override func tearDown() {
-        try? FileManager.default.removeItem(at: tempDir)
-        super.tearDown()
+    override func setUpWithError() throws {
+        tempDir = try makeTempDir()
     }
 
     func testPE32MagicNumber() throws {
@@ -195,15 +174,8 @@ final class OptionalHeaderTests: XCTestCase {
 final class SectionTests: XCTestCase {
     var tempDir: URL!
 
-    override func setUp() {
-        super.setUp()
-        tempDir = FileManager.default.temporaryDirectory.appending(path: "section_test_\(UUID().uuidString)")
-        try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-    }
-
-    override func tearDown() {
-        try? FileManager.default.removeItem(at: tempDir)
-        super.tearDown()
+    override func setUpWithError() throws {
+        tempDir = try makeTempDir()
     }
 
     func testSectionName() throws {

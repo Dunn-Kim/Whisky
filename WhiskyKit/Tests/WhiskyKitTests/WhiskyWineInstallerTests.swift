@@ -25,9 +25,7 @@ import XCTest
 // swiftlint:disable:next type_body_length
 final class WhiskyWineInstallerTests: XCTestCase {
     func testCleanupTarballRemovesExistingFile() throws {
-        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: tempDir) }
+        let tempDir = try makeTempDir()
 
         let tarURL = tempDir.appendingPathComponent("whiskywine").appendingPathExtension("tar.gz")
         try Data("test".utf8).write(to: tarURL)
@@ -74,9 +72,7 @@ final class WhiskyWineInstallerTests: XCTestCase {
     }
 
     func testWhiskyWineInfoAtReadsVersionAndDXVK() throws {
-        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: tempDir) }
+        let tempDir = try makeTempDir()
 
         let plistURL = tempDir.appendingPathComponent("WhiskyWineVersion").appendingPathExtension("plist")
         let plist: [String: Any] = [
@@ -101,9 +97,7 @@ final class WhiskyWineInstallerTests: XCTestCase {
     }
 
     func testWhiskyWineInfoAtMalformedFileReturnsNil() throws {
-        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: tempDir) }
+        let tempDir = try makeTempDir()
 
         // A present-but-corrupt plist must be swallowed to nil, not crash.
         let garbageURL = tempDir.appendingPathComponent("WhiskyWineVersion").appendingPathExtension("plist")
@@ -113,9 +107,7 @@ final class WhiskyWineInstallerTests: XCTestCase {
     }
 
     func testWhiskyWineInfoAtPartialPlistReturnsNil() throws {
-        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: tempDir) }
+        let tempDir = try makeTempDir()
 
         // Valid plist but missing a required version field — decode throws, swallowed to nil.
         let partialURL = tempDir.appendingPathComponent("WhiskyWineVersion").appendingPathExtension("plist")
@@ -266,9 +258,7 @@ final class WhiskyWineInstallerTests: XCTestCase {
     }
 
     func testInstallThrowsOnInvalidArchive() throws {
-        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: tempDir) }
+        let tempDir = try makeTempDir()
 
         // A non-tar payload makes the extraction fail; `into:` keeps it off the
         // real application folder.
@@ -280,9 +270,7 @@ final class WhiskyWineInstallerTests: XCTestCase {
     }
 
     func testInstallExtractsValidArchiveIntoDestination() throws {
-        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: tempDir) }
+        let tempDir = try makeTempDir()
 
         // Build a tiny source tree and gzip-tar it the way the runtime archive ships.
         let sourceDir = tempDir.appendingPathComponent("Libraries")
@@ -306,9 +294,7 @@ final class WhiskyWineInstallerTests: XCTestCase {
     }
 
     func testInstallReplacesExistingDestinationContents() throws {
-        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: tempDir) }
+        let tempDir = try makeTempDir()
 
         let sourceDir = tempDir.appendingPathComponent("Libraries")
         try FileManager.default.createDirectory(at: sourceDir, withIntermediateDirectories: true)
@@ -347,9 +333,7 @@ final class WhiskyWineInstallerTests: XCTestCase {
         // runtime install must replace only Libraries/, never its siblings —
         // wiping the whole folder silently destroys that state on every
         // install/update.
-        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: tempDir) }
+        let tempDir = try makeTempDir()
 
         let sourceDir = tempDir.appendingPathComponent("Libraries")
         try FileManager.default.createDirectory(at: sourceDir, withIntermediateDirectories: true)

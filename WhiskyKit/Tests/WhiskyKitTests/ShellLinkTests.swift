@@ -25,15 +25,8 @@ import XCTest
 final class ShellLinkHeaderTests: XCTestCase {
     var tempDir: URL!
 
-    override func setUp() {
-        super.setUp()
-        tempDir = FileManager.default.temporaryDirectory.appending(path: "shelllink_\(UUID().uuidString)")
-        try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-    }
-
-    override func tearDown() {
-        try? FileManager.default.removeItem(at: tempDir)
-        super.tearDown()
+    override func setUpWithError() throws {
+        tempDir = try makeTempDir()
     }
 
     func testInvalidLinkFileStructure() throws {
@@ -138,19 +131,13 @@ final class LinkInfoTests: XCTestCase {
     var tempDir: URL!
     var bottleURL: URL!
 
-    override func setUp() {
-        super.setUp()
-        tempDir = FileManager.default.temporaryDirectory.appending(path: "linkinfo_\(UUID().uuidString)")
+    override func setUpWithError() throws {
+        tempDir = try makeTempDir()
         bottleURL = tempDir.appending(path: "TestBottle")
         try? FileManager.default.createDirectory(at: bottleURL, withIntermediateDirectories: true)
         // Create drive_c directory that LinkInfo expects
         let driveCURL = bottleURL.appending(path: "drive_c")
         try? FileManager.default.createDirectory(at: driveCURL, withIntermediateDirectories: true)
-    }
-
-    override func tearDown() {
-        try? FileManager.default.removeItem(at: tempDir)
-        super.tearDown()
     }
 
     /// Creates LinkInfo section binary data for testing

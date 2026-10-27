@@ -28,7 +28,7 @@ final class WineLogFileTests: XCTestCase {
     /// the program's output went to a file no longer on disk and the log recorded
     /// for the run held only the import's output.
     func testLogsOpenedInTheSameSecondKeepTheirOwnContent() throws {
-        let folder = try makeTempDirectory()
+        let folder = try makeTempDir()
 
         let (launch, launchURL) = try Wine.makeLogFile(in: folder, date: launchTime)
         launch.writeWineLog(line: "launch header\n")
@@ -49,7 +49,7 @@ final class WineLogFileTests: XCTestCase {
     /// The number goes before the extension: retention, Delete Old Logs and the
     /// diagnostics summary pick log files out of the folder by `.log`.
     func testLogsOpenedInTheSameMillisecondGetNumberedNames() throws {
-        let folder = try makeTempDirectory()
+        let folder = try makeTempDir()
 
         let (first, firstURL) = try Wine.makeLogFile(in: folder, date: launchTime)
         let (second, secondURL) = try Wine.makeLogFile(in: folder, date: launchTime)
@@ -68,7 +68,7 @@ final class WineLogFileTests: XCTestCase {
     /// a check for the name followed by a write. Logs opened all at once for the
     /// same instant each get a file of their own.
     func testLogsOpenedConcurrentlyEachGetTheirOwnFile() async throws {
-        let folder = try makeTempDirectory()
+        let folder = try makeTempDir()
         let date = launchTime
         let count = 32
 
@@ -99,16 +99,5 @@ final class WineLogFileTests: XCTestCase {
         for log in logs {
             XCTAssertEqual(try String(contentsOf: log.url, encoding: .utf8), "log \(log.index)\n")
         }
-    }
-
-    // MARK: - Helpers
-
-    private func makeTempDirectory() throws -> URL {
-        let dir = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
-        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        addTeardownBlock {
-            try? FileManager.default.removeItem(at: dir)
-        }
-        return dir
     }
 }

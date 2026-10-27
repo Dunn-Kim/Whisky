@@ -107,8 +107,7 @@ final class BottleLauncherConfigTests: XCTestCase {
         settings.launcherLocale = .english
         settings.gpuSpoofing = true
 
-        var env: [String: String] = [:]
-        settings.environmentVariables(wineEnv: &env)
+        let env = settings.env
 
         // Should include Steam-specific fixes
         XCTAssertEqual(env["STEAM_DISABLE_CEF_SANDBOX"], "1")
@@ -126,8 +125,7 @@ final class BottleLauncherConfigTests: XCTestCase {
         var settings = BottleSettings()
         settings.launcherCompatibilityMode = false
 
-        var env: [String: String] = [:]
-        settings.environmentVariables(wineEnv: &env)
+        let env = settings.env
 
         // Should not include launcher-specific fixes
         XCTAssertNil(env["STEAM_DISABLE_CEF_SANDBOX"])
@@ -139,8 +137,7 @@ final class BottleLauncherConfigTests: XCTestCase {
         settings.launcherCompatibilityMode = true
         settings.networkTimeout = 45_000
 
-        var env: [String: String] = [:]
-        settings.environmentVariables(wineEnv: &env)
+        let env = settings.env
 
         // Should include custom network timeout
         XCTAssertEqual(env["WINHTTP_CONNECT_TIMEOUT"], "45000")
@@ -154,8 +151,7 @@ final class BottleLauncherConfigTests: XCTestCase {
         settings.autoEnableDXVK = true
         settings.dxvk = false // Explicitly disabled
 
-        var env: [String: String] = [:]
-        settings.environmentVariables(wineEnv: &env)
+        let env = settings.env
 
         // Should still enable DXVK overrides because Rockstar requires it
         // DLL overrides are now composed per-DLL via DLLOverrideResolver (sorted alphabetically).
@@ -172,8 +168,7 @@ final class BottleLauncherConfigTests: XCTestCase {
         var settings = BottleSettings()
         settings.launcherCompatibilityMode = true
 
-        var env: [String: String] = [:]
-        settings.environmentVariables(wineEnv: &env)
+        let env = settings.env
 
         // These exist in no Wine or WineCX source, so setting them was
         // decoration; launcher compatibility must not bring them back.

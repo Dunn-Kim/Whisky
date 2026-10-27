@@ -125,10 +125,7 @@ final class BottleSettingsTests: XCTestCase {
 
     func testDecodeCreatesDefaultSettingsWhenFileDoesNotExist() throws {
         // Create a temporary directory for the test
-        let tempDir = FileManager.default.temporaryDirectory
-            .appendingPathComponent(UUID().uuidString)
-        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: tempDir) }
+        let tempDir = try makeTempDir()
 
         let metadataURL = tempDir.appendingPathComponent("Metadata.plist")
 
@@ -148,10 +145,7 @@ final class BottleSettingsTests: XCTestCase {
 
     func testDecodeLoadsExistingSettings() throws {
         // Create a temporary directory for the test
-        let tempDir = FileManager.default.temporaryDirectory
-            .appendingPathComponent(UUID().uuidString)
-        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: tempDir) }
+        let tempDir = try makeTempDir()
 
         let metadataURL = tempDir.appendingPathComponent("Metadata.plist")
 
@@ -382,10 +376,7 @@ final class BottleSettingsTests: XCTestCase {
     // MARK: - Decode Recovery
 
     func testFileVersionMismatchQuarantinesAndResets() throws {
-        let tempDir = FileManager.default.temporaryDirectory
-            .appendingPathComponent(UUID().uuidString)
-        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: tempDir) }
+        let tempDir = try makeTempDir()
 
         let metadataURL = tempDir.appendingPathComponent("Metadata.plist")
 
@@ -412,10 +403,7 @@ final class BottleSettingsTests: XCTestCase {
     }
 
     func testDecodeKeepsTheStoredWineVersion() throws {
-        let tempDir = FileManager.default.temporaryDirectory
-            .appendingPathComponent(UUID().uuidString)
-        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: tempDir) }
+        let tempDir = try makeTempDir()
 
         let metadataURL = tempDir.appendingPathComponent("Metadata.plist")
 

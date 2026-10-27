@@ -101,18 +101,12 @@ final class URLPrettyPathBottleTests: XCTestCase {
     var tempDir: URL!
     var bottleURL: URL!
 
-    override func setUp() {
-        super.setUp()
-        tempDir = FileManager.default.temporaryDirectory.appending(path: "prettypath_\(UUID().uuidString)")
+    override func setUpWithError() throws {
+        tempDir = try makeTempDir()
         bottleURL = tempDir.appending(path: "TestBottle")
 
         let driveCURL = bottleURL.appending(path: "drive_c")
         try? FileManager.default.createDirectory(at: driveCURL, withIntermediateDirectories: true)
-    }
-
-    override func tearDown() {
-        try? FileManager.default.removeItem(at: tempDir)
-        super.tearDown()
     }
 
     @MainActor

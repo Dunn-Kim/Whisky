@@ -39,17 +39,11 @@ final class BottleProgramScanTests: XCTestCase {
     var tempDir: URL!
     var bottleURL: URL!
 
-    override func setUp() {
-        super.setUp()
-        tempDir = FileManager.default.temporaryDirectory.appending(path: "bottle_scan_test_\(UUID().uuidString)")
+    override func setUpWithError() throws {
+        tempDir = try makeTempDir()
         bottleURL = tempDir.appending(path: "TestBottle")
         let driveCURL = bottleURL.appending(path: "drive_c")
         try? FileManager.default.createDirectory(at: driveCURL, withIntermediateDirectories: true)
-    }
-
-    override func tearDown() {
-        try? FileManager.default.removeItem(at: tempDir)
-        super.tearDown()
     }
 
     /// Spins (yielding the main actor) until `predicate` holds, with a bounded

@@ -34,16 +34,10 @@ class LauncherFixesTestCase: XCTestCase {
     var tempDir: URL!
     var bottleURL: URL!
 
-    override func setUp() {
-        super.setUp()
-        tempDir = FileManager.default.temporaryDirectory.appending(path: "launcher_fixes_\(UUID().uuidString)")
+    override func setUpWithError() throws {
+        tempDir = try makeTempDir()
         bottleURL = tempDir.appending(path: "Bottle")
         try? FileManager.default.createDirectory(at: bottleURL, withIntermediateDirectories: true)
-    }
-
-    override func tearDown() {
-        try? FileManager.default.removeItem(at: tempDir)
-        super.tearDown()
     }
 
     /// Creates the bottle; the initializer writes the initial `Metadata.plist`.

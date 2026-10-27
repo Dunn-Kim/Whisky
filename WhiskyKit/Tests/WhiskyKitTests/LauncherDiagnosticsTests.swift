@@ -19,185 +19,97 @@
 @testable import WhiskyKit
 import XCTest
 
-// swiftlint:disable file_length type_body_length
-// Comprehensive test suite for diagnostics requires extensive test methods
-
-/// Tests for diagnostic report generation and validation.
-///
-/// These tests ensure the diagnostics system doesn't crash with unexpected
-/// bottle configurations and produces valid output for troubleshooting.
+/// Launcher-compatibility environment and persistence through the bottle layer.
+/// Config defaults, Codable and the base env-var mapping live in BottleLauncherConfigTests.
 @MainActor
 final class LauncherDiagnosticsTests: XCTestCase {
-    // MARK: - Bottle Configuration Tests
-
-    func testDiagnosticsWithDefaultBottleSettings() throws {
-        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        try FileManager.default.createDirectory(at: tempURL, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: tempURL) }
-
-        let bottle = Bottle(bottleUrl: tempURL, inFlight: false, isAvailable: true)
-
-        // Should not crash with default settings
-        let settings = bottle.settings
-        XCTAssertNotNil(settings, "Bottle should have valid settings")
-
-        // Verify key default values
-        XCTAssertEqual(settings.name, "Bottle")
-        XCTAssertFalse(settings.launcherCompatibilityMode)
-        XCTAssertEqual(settings.launcherMode, .auto)
-        XCTAssertNil(settings.detectedLauncher)
+    private func makeBottle() throws -> Bottle {
+        Bottle(bottleUrl: try makeTempDir(), inFlight: false, isAvailable: true)
     }
 
-    func testDiagnosticsWithLauncherCompatibilityEnabled() throws {
-        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        try FileManager.default.createDirectory(at: tempURL, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: tempURL) }
-
-        let bottle = Bottle(bottleUrl: tempURL, inFlight: false, isAvailable: true)
-        bottle.settings.launcherCompatibilityMode = true
-        bottle.settings.detectedLauncher = .steam
-        bottle.settings.launcherLocale = .english
-        bottle.settings.gpuSpoofing = true
-
-        // Should handle launcher-enabled configuration
-        XCTAssertTrue(bottle.settings.launcherCompatibilityMode)
-        XCTAssertEqual(bottle.settings.detectedLauncher, .steam)
-    }
-
-    func testDiagnosticsWithAllLauncherTypes() throws {
-        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        try FileManager.default.createDirectory(at: tempURL, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: tempURL) }
-
-        let bottle = Bottle(bottleUrl: tempURL, inFlight: false, isAvailable: true)
-
-        // Test that settings accept all launcher types without crashing
+    func testEveryLauncherTypeHasAFixDescription() {
         for launcher in LauncherType.allCases {
-            bottle.settings.detectedLauncher = launcher
-            XCTAssertEqual(bottle.settings.detectedLauncher, launcher)
-
-            // Verify launcher-specific properties
-            XCTAssertNotNil(launcher.environmentOverrides())
-            XCTAssertNotNil(launcher.recommendedLocale)
-            XCTAssertFalse(launcher.fixesDescription.isEmpty)
+            XCTAssertFalse(launcher.fixesDescription.isEmpty, "\(launcher)")
         }
     }
 
-    // MARK: - Environment Variable Tests
+    func testExtremeTimeouts() {
+        var settings = BottleSettings()
+        settings.launcherCompatibilityMode = true
 
-    func testEnvironmentVariablesWithLauncherCompatibility() throws {
-        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        try FileManager.default.createDirectory(at: tempURL, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: tempURL) }
+        settings.networkTimeout = 30_000 // Minimum
+        XCTAssertEqual(settings.env["WINHTTP_CONNECT_TIMEOUT"], "30000")
 
-        let bottle = Bottle(bottleUrl: tempURL, inFlight: false, isAvailable: true)
-        bottle.settings.launcherCompatibilityMode = true
-        bottle.settings.detectedLauncher = .steam
-        bottle.settings.launcherLocale = .english
-        bottle.settings.gpuSpoofing = true
-        bottle.settings.networkTimeout = 90_000
+        settings.networkTimeout = 180_000 // Maximum
+        XCTAssertEqual(settings.env["WINHTTP_CONNECT_TIMEOUT"], "180000")
 
-        var env: [String: String] = [:]
-        bottle.settings.environmentVariables(wineEnv: &env)
-
-        // Verify launcher-specific variables are set
-        XCTAssertNotNil(env["STEAM_DISABLE_CEF_SANDBOX"])
-        XCTAssertNotNil(env["LC_ALL"])
-        XCTAssertNotNil(env["GPU_VENDOR_ID"])
-        XCTAssertNotNil(env["WINHTTP_CONNECT_TIMEOUT"])
+        settings.networkTimeout = 60_000 // Default (should not set)
+        XCTAssertNil(settings.env["WINHTTP_CONNECT_TIMEOUT"], "Default timeout should not set environment variable")
     }
 
-    func testEnvironmentVariablesWithoutLauncherCompatibility() throws {
-        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        try FileManager.default.createDirectory(at: tempURL, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: tempURL) }
+    func testGPUSpoofingPerVendor() {
+        var settings = BottleSettings()
+        settings.launcherCompatibilityMode = true
+        settings.gpuSpoofing = true
 
-        let bottle = Bottle(bottleUrl: tempURL, inFlight: false, isAvailable: true)
-        bottle.settings.launcherCompatibilityMode = false
-
-        var env: [String: String] = [:]
-        bottle.settings.environmentVariables(wineEnv: &env)
-
-        // Launcher-specific variables should not be set
-        XCTAssertNil(env["STEAM_DISABLE_CEF_SANDBOX"])
-        // GPU spoofing should not be applied if launcher compat is off
-    }
-
-    // MARK: - Edge Cases and Error Handling
-
-    func testDiagnosticsWithNilLauncher() throws {
-        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        try FileManager.default.createDirectory(at: tempURL, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: tempURL) }
-
-        let bottle = Bottle(bottleUrl: tempURL, inFlight: false, isAvailable: true)
-        bottle.settings.launcherCompatibilityMode = true
-        bottle.settings.detectedLauncher = nil // No launcher detected
-
-        var env: [String: String] = [:]
-        bottle.settings.environmentVariables(wineEnv: &env)
-
-        // Should handle nil launcher gracefully without crashing
-        XCTAssertTrue(true, "Should not crash with nil launcher")
-    }
-
-    func testDiagnosticsWithExtremeTimeout() throws {
-        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        try FileManager.default.createDirectory(at: tempURL, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: tempURL) }
-
-        let bottle = Bottle(bottleUrl: tempURL, inFlight: false, isAvailable: true)
-        bottle.settings.launcherCompatibilityMode = true
-
-        // Test extreme timeout values
-        bottle.settings.networkTimeout = 30_000 // Minimum
-        var env1: [String: String] = [:]
-        bottle.settings.environmentVariables(wineEnv: &env1)
-        XCTAssertEqual(env1["WINHTTP_CONNECT_TIMEOUT"], "30000")
-
-        bottle.settings.networkTimeout = 180_000 // Maximum
-        var env2: [String: String] = [:]
-        bottle.settings.environmentVariables(wineEnv: &env2)
-        XCTAssertEqual(env2["WINHTTP_CONNECT_TIMEOUT"], "180000")
-
-        bottle.settings.networkTimeout = 60_000 // Default (should not set)
-        var env3: [String: String] = [:]
-        bottle.settings.environmentVariables(wineEnv: &env3)
-        XCTAssertNil(env3["WINHTTP_CONNECT_TIMEOUT"], "Default timeout should not set environment variable")
-    }
-
-    func testDiagnosticsWithAllGPUVendors() throws {
-        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        try FileManager.default.createDirectory(at: tempURL, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: tempURL) }
-
-        let bottle = Bottle(bottleUrl: tempURL, inFlight: false, isAvailable: true)
-        bottle.settings.launcherCompatibilityMode = true
-        bottle.settings.gpuSpoofing = true
-
-        // Test all GPU vendor configurations
         for vendor in GPUVendor.allCases {
-            bottle.settings.gpuVendor = vendor
-
-            var env: [String: String] = [:]
-            bottle.settings.environmentVariables(wineEnv: &env)
-
-            // Verify GPU spoofing is applied for each vendor
+            settings.gpuVendor = vendor
+            let env = settings.env
             XCTAssertEqual(env["GPU_VENDOR_ID"], vendor.vendorID, "Vendor ID should match for \(vendor.rawValue)")
+            XCTAssertNotNil(env["GPU_DEVICE_ID"])
             XCTAssertNotNil(env["D3DM_FEATURE_LEVEL_12_1"])
         }
     }
 
-    // MARK: - Settings Persistence Tests
+    func testGPUSpoofingDisabled() {
+        var settings = BottleSettings()
+        settings.launcherCompatibilityMode = true
+        settings.gpuSpoofing = false
+
+        XCTAssertNil(settings.env["GPU_VENDOR_ID"], "GPU vendor should not be set when spoofing disabled")
+    }
+
+    func testLocaleOverrideConfiguration() {
+        var settings = BottleSettings()
+        settings.launcherCompatibilityMode = true
+        settings.launcherLocale = .japanese
+
+        let env = settings.env
+        XCTAssertEqual(env["LC_ALL"], "ja_JP.UTF-8")
+        XCTAssertEqual(env["LANG"], "ja_JP.UTF-8")
+        XCTAssertEqual(env["LC_TIME"], "C")
+        XCTAssertEqual(env["LC_NUMERIC"], "C")
+    }
+
+    /// `.auto` has an empty rawValue, which must never be written out as LC_ALL/LANG.
+    func testAutoLocaleDoesNotSetEnvironment() {
+        var settings = BottleSettings()
+        settings.launcherCompatibilityMode = true
+        settings.launcherLocale = .auto
+
+        let env = settings.env
+        XCTAssertNil(env["LC_ALL"], "Auto locale should not set LC_ALL")
+        XCTAssertNil(env["LANG"], "Auto locale should not set LANG")
+    }
+
+    func testAutoEnableDXVKNotTriggeredForSteam() {
+        var settings = BottleSettings()
+        settings.launcherCompatibilityMode = true
+        settings.detectedLauncher = .steam // Steam doesn't require DXVK
+        settings.autoEnableDXVK = true
+        settings.dxvk = false
+        // Pin a builtin-backed backend: `.recommended` resolves via ambient
+        // machine state and would add the DXVK preset through the bottle layer
+        // on machines without a runtime. Auto-enable applies through the
+        // launcher layer regardless of backend, so the assertion below still
+        // catches Steam wrongly auto-enabling.
+        settings.graphicsBackend = .d3dMetal
+
+        XCTAssertNil(settings.env["WINEDLLOVERRIDES"])
+    }
 
     func testLauncherSettingsPersistence() throws {
-        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        try FileManager.default.createDirectory(at: tempURL, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: tempURL) }
-
-        let bottle = Bottle(bottleUrl: tempURL, inFlight: false, isAvailable: true)
-
-        // Configure launcher settings
+        let bottle = try makeBottle()
         bottle.settings.launcherCompatibilityMode = true
         bottle.settings.launcherMode = .manual
         bottle.settings.detectedLauncher = .rockstar
@@ -206,14 +118,11 @@ final class LauncherDiagnosticsTests: XCTestCase {
         bottle.settings.gpuVendor = .nvidia
         bottle.settings.networkTimeout = 90_000
         bottle.settings.autoEnableDXVK = true
-
-        // Save settings
         bottle.saveBottleSettings()
 
         // Load settings from disk into new bottle instance
-        let bottle2 = Bottle(bottleUrl: tempURL, inFlight: false, isAvailable: true)
+        let bottle2 = Bottle(bottleUrl: bottle.url, inFlight: false, isAvailable: true)
 
-        // Verify all launcher settings persisted correctly
         XCTAssertTrue(bottle2.settings.launcherCompatibilityMode)
         XCTAssertEqual(bottle2.settings.launcherMode, .manual)
         XCTAssertEqual(bottle2.settings.detectedLauncher, .rockstar)
@@ -224,362 +133,51 @@ final class LauncherDiagnosticsTests: XCTestCase {
         XCTAssertTrue(bottle2.settings.autoEnableDXVK)
     }
 
-    func testLauncherSettingsDefaultsAfterDecode() throws {
-        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        try FileManager.default.createDirectory(at: tempURL, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: tempURL) }
-
-        // Create bottle with default settings
-        let bottle = Bottle(bottleUrl: tempURL, inFlight: false, isAvailable: true)
-
-        // Verify launcher config defaults
-        XCTAssertFalse(bottle.settings.launcherCompatibilityMode, "Should default to disabled")
-        XCTAssertEqual(bottle.settings.launcherMode, .auto, "Should default to auto mode")
-        XCTAssertNil(bottle.settings.detectedLauncher, "Should have no launcher detected")
-        XCTAssertEqual(bottle.settings.launcherLocale, .auto, "Should default to auto locale")
-        XCTAssertTrue(bottle.settings.gpuSpoofing, "Should default to enabled")
-        XCTAssertEqual(bottle.settings.gpuVendor, .nvidia, "Should default to NVIDIA")
-        XCTAssertEqual(bottle.settings.networkTimeout, 60_000, "Should default to 60 seconds")
-        XCTAssertTrue(bottle.settings.autoEnableDXVK, "Should default to enabled")
-    }
-
-    // MARK: - GPU Validation Tests
-
-    func testGPUSpoofingEnvironmentValidation() throws {
-        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        try FileManager.default.createDirectory(at: tempURL, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: tempURL) }
-
-        let bottle = Bottle(bottleUrl: tempURL, inFlight: false, isAvailable: true)
-        bottle.settings.launcherCompatibilityMode = true
-        bottle.settings.gpuSpoofing = true
-
-        var env: [String: String] = [:]
-        bottle.settings.environmentVariables(wineEnv: &env)
-
-        // Verify GPU spoofing environment is valid
-        XCTAssertNotNil(env["GPU_VENDOR_ID"], "GPU spoofing environment should be valid")
-        XCTAssertNotNil(env["GPU_DEVICE_ID"], "GPU spoofing environment should be valid")
-        XCTAssertNotNil(env["D3DM_FEATURE_LEVEL_12_1"], "GPU spoofing environment should be valid")
-    }
-
-    func testGPUSpoofingDisabled() throws {
-        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        try FileManager.default.createDirectory(at: tempURL, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: tempURL) }
-
-        let bottle = Bottle(bottleUrl: tempURL, inFlight: false, isAvailable: true)
-        bottle.settings.launcherCompatibilityMode = true
-        bottle.settings.gpuSpoofing = false
-
-        var env: [String: String] = [:]
-        bottle.settings.environmentVariables(wineEnv: &env)
-
-        // GPU spoofing should not be applied
-        XCTAssertNil(env["GPU_VENDOR_ID"], "GPU vendor should not be set when spoofing disabled")
-    }
-
-    // MARK: - Locale Configuration Tests
-
-    func testLocaleOverrideConfiguration() throws {
-        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        try FileManager.default.createDirectory(at: tempURL, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: tempURL) }
-
-        let bottle = Bottle(bottleUrl: tempURL, inFlight: false, isAvailable: true)
-        bottle.settings.launcherCompatibilityMode = true
-        bottle.settings.launcherLocale = .japanese
-
-        var env: [String: String] = [:]
-        bottle.settings.environmentVariables(wineEnv: &env)
-
-        // Verify locale is properly applied
-        XCTAssertEqual(env["LC_ALL"], "ja_JP.UTF-8")
-        XCTAssertEqual(env["LANG"], "ja_JP.UTF-8")
-        XCTAssertEqual(env["LC_TIME"], "C")
-        XCTAssertEqual(env["LC_NUMERIC"], "C")
-    }
-
-    func testAutoLocaleDoesNotSetEnvironment() throws {
-        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        try FileManager.default.createDirectory(at: tempURL, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: tempURL) }
-
-        let bottle = Bottle(bottleUrl: tempURL, inFlight: false, isAvailable: true)
-        bottle.settings.launcherCompatibilityMode = true
-        bottle.settings.launcherLocale = .auto
-
-        var env: [String: String] = [:]
-        bottle.settings.environmentVariables(wineEnv: &env)
-
-        // Auto locale should not set LC_ALL/LANG
-        XCTAssertNil(env["LC_ALL"], "Auto locale should not set LC_ALL")
-        XCTAssertNil(env["LANG"], "Auto locale should not set LANG")
-    }
-
-    func testAutoLocaleRawValueIsEmpty() {
-        // Verify .auto has empty rawValue (defensive check)
-        XCTAssertEqual(Locales.auto.rawValue, "", "Auto locale should have empty string as rawValue")
-
-        // Verify the defensive check in environmentVariables prevents empty string assignment
-        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        try? FileManager.default.createDirectory(at: tempURL, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: tempURL) }
-
-        let bottle = Bottle(bottleUrl: tempURL, inFlight: false, isAvailable: true)
-        bottle.settings.launcherCompatibilityMode = true
-        bottle.settings.launcherLocale = .auto // Empty rawValue
-
-        var env: [String: String] = [:]
-        bottle.settings.environmentVariables(wineEnv: &env)
-
-        // Should not set LC_ALL/LANG to empty string (defensive check prevents this)
-        XCTAssertNil(env["LC_ALL"], "Should not set LC_ALL to empty string")
-        XCTAssertNil(env["LANG"], "Should not set LANG to empty string")
-    }
-
-    // MARK: - Network Timeout Tests
-
-    func testNetworkTimeoutOnlyAppliedWhenNonDefault() throws {
-        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        try FileManager.default.createDirectory(at: tempURL, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: tempURL) }
-
-        let bottle = Bottle(bottleUrl: tempURL, inFlight: false, isAvailable: true)
-        bottle.settings.launcherCompatibilityMode = true
-        bottle.settings.networkTimeout = 60_000 // Default
-
-        var env: [String: String] = [:]
-        bottle.settings.environmentVariables(wineEnv: &env)
-
-        // Default timeout should not set environment variables
-        XCTAssertNil(env["WINHTTP_CONNECT_TIMEOUT"], "Default timeout should not set environment variable")
-    }
-
-    func testCustomNetworkTimeoutApplied() throws {
-        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        try FileManager.default.createDirectory(at: tempURL, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: tempURL) }
-
-        let bottle = Bottle(bottleUrl: tempURL, inFlight: false, isAvailable: true)
-        bottle.settings.launcherCompatibilityMode = true
-        bottle.settings.networkTimeout = 120_000 // Custom
-
-        var env: [String: String] = [:]
-        bottle.settings.environmentVariables(wineEnv: &env)
-
-        // Custom timeout should be applied
-        XCTAssertEqual(env["WINHTTP_CONNECT_TIMEOUT"], "120000")
-        XCTAssertEqual(env["WINHTTP_RECEIVE_TIMEOUT"], "240000") // 2x connect timeout
-    }
-
-    // MARK: - Auto-Enable DXVK Tests
-
-    func testAutoEnableDXVKForRockstar() throws {
-        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        try FileManager.default.createDirectory(at: tempURL, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: tempURL) }
-
-        let bottle = Bottle(bottleUrl: tempURL, inFlight: false, isAvailable: true)
-        bottle.settings.launcherCompatibilityMode = true
-        bottle.settings.detectedLauncher = .rockstar
-        bottle.settings.autoEnableDXVK = true
-        bottle.settings.dxvk = false // Explicitly disabled
-
-        var env: [String: String] = [:]
-        bottle.settings.environmentVariables(wineEnv: &env)
-
-        // DXVK should be auto-enabled because Rockstar requires it
-        // DLL overrides are now composed per-DLL via DLLOverrideResolver (sorted alphabetically).
-        // No runtime under test means no GPTK payload, so d3d12 is left alone.
-        XCTAssertEqual(env["WINEDLLOVERRIDES"], "d3d10core=n,b;d3d11=n,b;d3d9=n,b;dxgi=n,b")
-    }
-
-    func testAutoEnableDXVKNotTriggeredForSteam() throws {
-        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        try FileManager.default.createDirectory(at: tempURL, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: tempURL) }
-
-        let bottle = Bottle(bottleUrl: tempURL, inFlight: false, isAvailable: true)
-        bottle.settings.launcherCompatibilityMode = true
-        bottle.settings.detectedLauncher = .steam // Steam doesn't require DXVK
-        bottle.settings.autoEnableDXVK = true
-        bottle.settings.dxvk = false
-        // Pin a builtin-backed backend: `.recommended` resolves via ambient
-        // machine state and would add the DXVK preset through the bottle layer
-        // on machines without a runtime. Auto-enable applies through the
-        // launcher layer regardless of backend, so the assertion below still
-        // catches Steam wrongly auto-enabling.
-        bottle.settings.graphicsBackend = .d3dMetal
-
-        var env: [String: String] = [:]
-        bottle.settings.environmentVariables(wineEnv: &env)
-
-        // DXVK should NOT be auto-enabled (Steam doesn't require it)
-        XCTAssertNil(env["WINEDLLOVERRIDES"])
-    }
-
-    // MARK: - Launcher Requirements Tests
-
-    func testRockstarRequiresDXVK() {
-        XCTAssertTrue(LauncherType.rockstar.requiresDXVK)
-        XCTAssertFalse(LauncherType.steam.requiresDXVK)
-        XCTAssertFalse(LauncherType.eaApp.requiresDXVK)
-    }
-
-    func testRecommendedLocales() {
-        XCTAssertEqual(LauncherType.steam.recommendedLocale, .english)
-        XCTAssertEqual(LauncherType.eaApp.recommendedLocale, .english)
-        XCTAssertEqual(LauncherType.epicGames.recommendedLocale, .english)
-        XCTAssertEqual(LauncherType.battleNet.recommendedLocale, .english)
-        XCTAssertEqual(LauncherType.rockstar.recommendedLocale, .auto)
-        XCTAssertEqual(LauncherType.ubisoft.recommendedLocale, .auto)
-    }
-
-    // MARK: - Environment Merge Tests
-
     func testLauncherEnvironmentMergePrecedence() throws {
-        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        try FileManager.default.createDirectory(at: tempURL, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: tempURL) }
-
-        let bottle = Bottle(bottleUrl: tempURL, inFlight: false, isAvailable: true)
+        let bottle = try makeBottle()
         bottle.settings.launcherCompatibilityMode = true
         bottle.settings.detectedLauncher = .steam
 
         // Use constructWineEnvironment to get full environment including macOS compat fixes
         let env = Wine.constructWineEnvironment(for: bottle, environment: [:])
 
-        // Verify Steam-specific environment variables are merged
         XCTAssertEqual(env["STEAM_DISABLE_CEF_SANDBOX"], "1", "Steam-specific CEF disable from preset")
         XCTAssertEqual(env["CEF_DISABLE_SANDBOX"], "1", "Global CEF disable from MacOSCompatibility")
         XCTAssertEqual(env["STEAM_RUNTIME"], "0")
         XCTAssertEqual(env["DXVK_ASYNC"], "1")
     }
 
-    // MARK: - macOS Compatibility Tests
-
     func testMacOSCompatibilityEnvironmentApplied() throws {
-        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        try FileManager.default.createDirectory(at: tempURL, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: tempURL) }
-
-        let bottle = Bottle(bottleUrl: tempURL, inFlight: false, isAvailable: true)
-
-        var env: [String: String] = [:]
-        for (key, value) in Wine.constructWineEnvironment(for: bottle, environment: [:]) {
-            env[key] = value
-        }
+        let bottle = try makeBottle()
+        let env = Wine.constructWineEnvironment(for: bottle, environment: [:])
 
         // CEF sandbox should be disabled on all macOS versions
         XCTAssertEqual(env["STEAM_DISABLE_CEF_SANDBOX"], "1")
         XCTAssertEqual(env["CEF_DISABLE_SANDBOX"], "1")
 
         // Base Wine environment should be set
-        XCTAssertEqual(env["WINEPREFIX"], tempURL.path)
+        XCTAssertEqual(env["WINEPREFIX"], bottle.url.path)
         XCTAssertEqual(env["WINEDEBUG"], "fixme-all")
     }
 
-    // MARK: - Codable Compliance Tests
-
-    func testBottleLauncherConfigCodable() throws {
-        var config = BottleLauncherConfig()
-        config.compatibilityMode = true
-        config.launcherMode = .manual
-        config.detectedLauncher = .steam
-        config.launcherLocale = .english
-        config.gpuSpoofing = true
-        config.gpuVendor = .amd
-        config.networkTimeout = 90_000
-        config.autoEnableDXVK = false
-
-        // Encode
-        let encoder = PropertyListEncoder()
-        let data = try encoder.encode(config)
-
-        // Decode
-        let decoder = PropertyListDecoder()
-        let decoded = try decoder.decode(BottleLauncherConfig.self, from: data)
-
-        // Verify all fields decoded correctly
-        XCTAssertEqual(decoded.compatibilityMode, true)
-        XCTAssertEqual(decoded.launcherMode, .manual)
-        XCTAssertEqual(decoded.detectedLauncher, .steam)
-        XCTAssertEqual(decoded.launcherLocale, .english)
-        XCTAssertEqual(decoded.gpuSpoofing, true)
-        XCTAssertEqual(decoded.gpuVendor, .amd)
-        XCTAssertEqual(decoded.networkTimeout, 90_000)
-        XCTAssertEqual(decoded.autoEnableDXVK, false)
-    }
-
-    // MARK: - Locale Preservation Tests
-
+    /// CRITICAL: Steam's "en_US.UTF-8" must not be overwritten with "en_US"
+    /// (missing .UTF-8 suffix), which would break steamwebhelper.
     func testSteamLocaleNotOverwritten() throws {
-        // CRITICAL: Verify that Steam's "en_US.UTF-8" locale is not overwritten
-        // with "en_US" (missing .UTF-8 suffix) which would break steamwebhelper
-        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        try FileManager.default.createDirectory(at: tempURL, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: tempURL) }
-
-        let bottle = Bottle(bottleUrl: tempURL, inFlight: false, isAvailable: true)
+        let bottle = try makeBottle()
         bottle.settings.launcherCompatibilityMode = true
         bottle.settings.detectedLauncher = .steam
         bottle.settings.launcherLocale = .english // This is set by LauncherDetection
 
-        // Get full Wine environment (includes launcher preset + bottle settings)
+        // Full Wine environment (includes launcher preset + bottle settings)
         let env = Wine.constructWineEnvironment(for: bottle, environment: [:])
 
-        // CRITICAL: LC_ALL must be "en_US.UTF-8" (with .UTF-8 suffix) not just "en_US"
-        // The .UTF-8 suffix is essential for preventing steamwebhelper crashes
         XCTAssertEqual(env["LC_ALL"], "en_US.UTF-8", "Steam's LC_ALL must have .UTF-8 suffix")
         XCTAssertEqual(env["LANG"], "en_US.UTF-8", "Steam's LANG must have .UTF-8 suffix")
     }
 
-    func testEnglishLocaleIncludesUTF8() {
-        // Verify the Locales.english enum has .UTF-8 suffix (consistency check)
-        XCTAssertEqual(
-            Locales.english.rawValue,
-            "en_US.UTF-8",
-            "English locale must have .UTF-8 suffix for consistency"
-        )
-
-        // Verify all non-auto locales have .UTF-8 suffix
+    func testEveryNonAutoLocaleHasUTF8Suffix() {
         for locale in Locales.allCases where locale != .auto {
-            if locale == .english {
-                XCTAssertTrue(
-                    locale.rawValue.hasSuffix(".UTF-8"),
-                    "English locale must have .UTF-8 suffix"
-                )
-            } else {
-                // All other locales should also have .UTF-8
-                XCTAssertTrue(
-                    locale.rawValue.hasSuffix(".UTF-8"),
-                    "\(locale.rawValue) should have .UTF-8 suffix"
-                )
-            }
+            XCTAssertTrue(locale.rawValue.hasSuffix(".UTF-8"), "\(locale.rawValue) should have .UTF-8 suffix")
         }
     }
-
-    // MARK: - Connection Pooling Tests
-
-    func testConnectionPoolingEnvironmentApplied() throws {
-        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        try FileManager.default.createDirectory(at: tempURL, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: tempURL) }
-
-        let bottle = Bottle(bottleUrl: tempURL, inFlight: false, isAvailable: true)
-        bottle.settings.launcherCompatibilityMode = true
-
-        var env: [String: String] = [:]
-        bottle.settings.environmentVariables(wineEnv: &env)
-
-        // These variables exist in no Wine or WineCX source; asserting their
-        // absence keeps them from coming back as reassuring decoration.
-        XCTAssertNil(env["WINE_MAX_CONNECTIONS_PER_SERVER"])
-        XCTAssertNil(env["WINE_FORCE_HTTP11"])
-        XCTAssertNil(env["WINE_ENABLE_SSL"])
-        XCTAssertNil(env["WINE_SSL_VERSION_MIN"])
-    }
 }
-
-// swiftlint:enable file_length type_body_length
