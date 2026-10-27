@@ -69,7 +69,7 @@ final class LogRetentionTests: XCTestCase {
             handle.writeWineLog(line: chunk)
         }
 
-        try handle.closeWineLog()
+        try handle.close()
 
         let data = try Data(contentsOf: fileURL)
         XCTAssertLessThanOrEqual(data.count, Int(Wine.maxLogFileBytes))
@@ -87,7 +87,7 @@ final class LogRetentionTests: XCTestCase {
         let handle = try FileHandle(forWritingTo: fileURL)
 
         handle.writeWineLog(line: "hello world\n")
-        try handle.closeWineLog()
+        try handle.close()
 
         let data = try Data(contentsOf: fileURL)
         let text = String(bytes: data, encoding: .utf8)
@@ -120,7 +120,7 @@ final class LogRetentionTests: XCTestCase {
         }
 
         group.wait()
-        try handle.closeWineLog()
+        try handle.close()
 
         let data = try Data(contentsOf: fileURL)
         XCTAssertLessThanOrEqual(data.count, Int(Wine.maxLogFileBytes))

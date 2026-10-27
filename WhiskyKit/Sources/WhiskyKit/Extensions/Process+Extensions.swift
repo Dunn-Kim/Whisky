@@ -162,7 +162,7 @@ public extension Process {
                     continuation: context.continuation,
                     fileHandle: context.fileHandle
                 )
-                try context.fileHandle?.closeWineLog()
+                try context.fileHandle?.close()
             } catch {
                 Logger.wineKit.error("Error while clearing data: \(error)")
             }

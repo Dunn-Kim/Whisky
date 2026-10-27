@@ -35,10 +35,10 @@ final class WineLogFileTests: XCTestCase {
 
         let (helper, helperURL) = try Wine.makeLogFile(in: folder, date: launchTime.addingTimeInterval(0.5))
         helper.writeWineLog(line: "reg import output\n")
-        try helper.closeWineLog()
+        try helper.close()
 
         launch.writeWineLog(line: "program output\n")
-        try launch.closeWineLog()
+        try launch.close()
 
         XCTAssertNotEqual(launchURL, helperURL)
         XCTAssertEqual(try String(contentsOf: launchURL, encoding: .utf8), "launch header\nprogram output\n")
@@ -55,8 +55,8 @@ final class WineLogFileTests: XCTestCase {
         let (second, secondURL) = try Wine.makeLogFile(in: folder, date: launchTime)
         first.writeWineLog(line: "first\n")
         second.writeWineLog(line: "second\n")
-        try first.closeWineLog()
-        try second.closeWineLog()
+        try first.close()
+        try second.close()
 
         XCTAssertEqual(firstURL.lastPathComponent, "2026-09-21T14:13:20.250Z.log")
         XCTAssertEqual(secondURL.lastPathComponent, "2026-09-21T14:13:20.250Z-2.log")
@@ -78,7 +78,7 @@ final class WineLogFileTests: XCTestCase {
                     do {
                         let (handle, url) = try Wine.makeLogFile(in: folder, date: date)
                         handle.writeWineLog(line: "log \(index)\n")
-                        try handle.closeWineLog()
+                        try handle.close()
                         return (index, url)
                     } catch {
                         return nil
