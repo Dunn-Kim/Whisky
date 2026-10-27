@@ -403,7 +403,7 @@ final class BestIconEndToEndTests: XCTestCase {
             bitmap.append(contentsOf: [UInt8(index * 16), 0x80, 0x40, 0]) // BGR + reserved
         }
         bitmap.append(Data(repeating: 0x11, count: edge * edge / 2)) // every pixel uses palette entry 1
-        bitmap.append(Data(repeating: 0, count: edge / 8 * edge)) // AND mask: all opaque 
+        bitmap.append(Data(repeating: 0, count: edge / 8 * edge)) // AND mask: all opaque
 
         let url = try writePE(makePE(rsrcBody: rsrcBody(bitmap: bitmap)), name: "four_bit_icon")
         let icon = try XCTUnwrap(PEFile(url: url).bestIcon())

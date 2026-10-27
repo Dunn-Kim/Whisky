@@ -32,8 +32,12 @@ extension WhiskyWineVersion {
         plist["sha256"] = sha256
         plist["gptkCapable"] = gptkCapable
         plist["msyncCapable"] = msyncCapable
-        let data = try! PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0)
-        self = try! PropertyListDecoder().decode(Self.self, from: data)
+        do {
+            let data = try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0)
+            self = try PropertyListDecoder().decode(Self.self, from: data)
+        } catch {
+            preconditionFailure("fixture plist did not decode: \(error)")
+        }
     }
 }
 

@@ -62,7 +62,7 @@ struct ConsoleLogView: View {
             currentExitCode = runEntry.exitCode
             // Live-tail once a second until the process exits (loadNewContent clears isStillRunning).
             while isStillRunning {
-                guard (try? await Task.sleep(for: .seconds(1))) != nil else { return }
+                guard await (try? Task.sleep(for: .seconds(1))) != nil else { return }
                 loadNewContent()
             }
         }

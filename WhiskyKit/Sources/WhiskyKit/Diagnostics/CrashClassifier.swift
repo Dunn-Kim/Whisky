@@ -38,9 +38,9 @@ import Foundation
 /// let classifier = CrashClassifier(patterns: PatternLoader.defaultPatterns())
 /// let diagnosis = classifier.classify(log: wineLogOutput, exitCode: exitCode)
 /// ```
-// Regex is not Sendable, but the compiled patterns are immutable after init.
 public struct CrashClassifier: @unchecked Sendable {
-    /// Patterns paired with their compiled regex, ready for matching.
+    /// Patterns paired with their compiled regex, ready for matching. Regex is not
+    /// Sendable, but the compiled patterns are immutable after init.
     private let patterns: [(pattern: CrashPattern, regex: Regex<AnyRegexOutput>?)]
 
     /// Creates a classifier with the given patterns, the bundled ones by default.

@@ -33,8 +33,8 @@ public struct FlowDefinition: Codable, Sendable {
 
 /// A single step in a troubleshooting flow graph.
 ///
-/// Nodes represent checks, fixes, informational steps, or branch points. The ``on`` dictionary maps normalized outcomes to the
-/// next node ID, enabling data-driven branching without hardcoded logic.
+/// Nodes represent checks, fixes, informational steps, or branch points. The ``on`` dictionary maps normalized
+/// outcomes to the next node ID, enabling data-driven branching without hardcoded logic.
 public struct FlowStepNode: Codable, Sendable, Identifiable {
     /// Unique identifier within the flow.
     public let id: String
@@ -58,7 +58,7 @@ public struct FlowStepNode: Codable, Sendable, Identifiable {
     public var params: [String: String]?
 
     /// Outcome-to-next-node-ID branching map.
-    public var on: [String: String]?
+    public var on: [String: String]? // swiftlint:disable:this identifier_name
 
     /// Maps evidence keys to user-facing labels for UI display.
     public var evidenceMap: [String: String]?

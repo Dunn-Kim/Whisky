@@ -73,8 +73,8 @@ extension FixVerifyView {
     private var attemptCounter: some View {
         let label = String(localized: "troubleshooting.history.fixesAttempted")
         return Text(verbatim: "\(label) \(engine.session.fixAttempts.count)")
-        .font(.caption)
-        .foregroundStyle(.tertiary)
+            .font(.caption)
+            .foregroundStyle(.tertiary)
     }
 }
 

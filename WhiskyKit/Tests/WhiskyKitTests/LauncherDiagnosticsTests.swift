@@ -24,7 +24,7 @@ import XCTest
 @MainActor
 final class LauncherDiagnosticsTests: XCTestCase {
     private func makeBottle() throws -> Bottle {
-        Bottle(bottleUrl: try makeTempDir(), inFlight: false, isAvailable: true)
+        try Bottle(bottleUrl: makeTempDir(), inFlight: false, isAvailable: true)
     }
 
     func testEveryLauncherTypeHasAFixDescription() {

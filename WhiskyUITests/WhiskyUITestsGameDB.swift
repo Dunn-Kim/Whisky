@@ -179,7 +179,9 @@ final class WhiskyUITestsGameDB: WhiskyUITestCase {
         // hittable, click, wait generously, and retry the click once — guarded on
         // the button still being hittable so we never click behind an open sheet.
         let hittable = XCTWaiter().wait(
-            for: [XCTNSPredicateExpectation(predicate: NSPredicate(format: "isHittable == true"), object: createButton)],
+            for: [XCTNSPredicateExpectation(
+                predicate: NSPredicate(format: "isHittable == true"), object: createButton
+            )],
             timeout: 10
         )
         XCTAssertEqual(hittable, .completed, "Element never became hittable: + toolbar button")

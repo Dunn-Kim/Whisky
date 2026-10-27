@@ -132,7 +132,6 @@ final class LogRetentionTests: XCTestCase {
 
     // MARK: - Helpers
 
-
     private func countOccurrences(of needle: Data, in haystack: Data) -> Int {
         guard !needle.isEmpty, haystack.count >= needle.count else { return 0 }
         var count = 0

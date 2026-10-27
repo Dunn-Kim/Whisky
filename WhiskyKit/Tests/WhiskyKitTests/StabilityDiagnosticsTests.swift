@@ -78,7 +78,9 @@ final class StabilityDiagnosticsTests: XCTestCase {
         let bottleURL = try makeTempDir()
 
         let bottle = Bottle(bottleUrl: bottleURL, inFlight: false, isAvailable: true)
-        let report = await StabilityDiagnostics.generateDiagnosticReport(for: bottle, logsFolder: bottleURL.appendingPathComponent("does-not-exist"))
+        let report = await StabilityDiagnostics.generateDiagnosticReport(
+            for: bottle, logsFolder: bottleURL.appendingPathComponent("does-not-exist")
+        )
 
         #if arch(arm64)
         XCTAssertTrue(report.contains("Architecture: Apple Silicon (arm64)"))

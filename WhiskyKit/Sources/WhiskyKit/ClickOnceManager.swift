@@ -114,7 +114,9 @@ public enum ClickOnceManager {
             guard trimmed.count >= 4, trimmed.prefix(4).lowercased() == "url=" else { continue }
 
             let value = trimmed.dropFirst(4).trimmingCharacters(in: .whitespacesAndNewlines)
-            if !value.isEmpty { return value }
+            if !value.isEmpty {
+                return value
+            }
         }
         return nil
     }

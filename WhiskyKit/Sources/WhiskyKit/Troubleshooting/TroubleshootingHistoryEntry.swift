@@ -25,7 +25,7 @@ import Foundation
 /// bounded per-bottle history.
 public struct TroubleshootingHistoryEntry: Codable, Sendable, Identifiable {
     /// Unique identifier for this history entry.
-    public var id: UUID = UUID()
+    public var id: UUID = .init()
 
     /// The symptom category that was investigated.
     public let symptomCategory: SymptomCategory

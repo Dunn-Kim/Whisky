@@ -170,7 +170,7 @@ public enum GameConfigApplicator {
         var changes: [ConfigChange] = []
         let settings = variant.settings
 
-        /// Appends a change for an on/off setting the variant sets to a different value.
+        // Appends a change for an on/off setting the variant sets to a different value.
         func toggle(_ category: String, _ name: String, current: Bool, new: Bool?, isHighImpact: Bool = false) {
             guard let new, new != current else { return }
             changes.append(ConfigChange(

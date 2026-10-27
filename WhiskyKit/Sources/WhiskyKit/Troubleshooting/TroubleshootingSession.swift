@@ -25,7 +25,7 @@ import Foundation
 /// outcome. Designed for persistence so sessions can be paused and resumed.
 public struct TroubleshootingSession: Codable, Sendable {
     /// Unique identifier for this session.
-    public var id: UUID = UUID()
+    public var id: UUID = .init()
 
     /// URL of the bottle being troubleshot.
     public var bottleURL: URL?
@@ -58,10 +58,10 @@ public struct TroubleshootingSession: Codable, Sendable {
     public var outcome: SessionOutcome?
 
     /// When this session was created.
-    public var createdAt: Date = Date()
+    public var createdAt: Date = .init()
 
     /// When this session was last modified.
-    public var lastUpdatedAt: Date = Date()
+    public var lastUpdatedAt: Date = .init()
 
     /// Preflight data snapshot taken at session start.
     public var preflightSnapshot: PreflightData?

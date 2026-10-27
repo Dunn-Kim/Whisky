@@ -29,7 +29,9 @@ extension BottleSettings {
         let overrides = DLLOverrideResolver(
             managed: managed, bottleCustom: dllOverrides, programCustom: []
         ).resolve().0
-        if !overrides.isEmpty { wineEnv["WINEDLLOVERRIDES"] = overrides }
+        if !overrides.isEmpty {
+            wineEnv["WINEDLLOVERRIDES"] = overrides
+        }
     }
 
     /// `environmentVariables(wineEnv:)` into a fresh dictionary.

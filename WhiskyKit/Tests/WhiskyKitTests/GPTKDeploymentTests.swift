@@ -184,13 +184,13 @@ struct GPTKDeploymentTests {
     // MARK: - Runtime capability flag
 
     @Test("gptkCapable decodes when present and stays nil when absent")
-    func gptkCapableDecoding() throws {
+    func gptkCapableDecoding() {
         #expect(WhiskyWineVersion(version: .init(4, 0, 0), gptkCapable: true).gptkCapable == true)
         #expect(WhiskyWineVersion(version: .init(3, 1, 1)).gptkCapable == nil)
     }
 
     @Test("msyncCapable decodes when present and stays nil when absent")
-    func msyncCapableDecoding() throws {
+    func msyncCapableDecoding() {
         #expect(WhiskyWineVersion(version: .init(4, 0, 0), msyncCapable: true).msyncCapable == true)
 
         // Every runtime to date, 3.1.1 included, omits the key.

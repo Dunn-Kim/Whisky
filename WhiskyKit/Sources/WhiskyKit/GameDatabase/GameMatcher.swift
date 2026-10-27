@@ -184,24 +184,28 @@ public enum GameMatcher {
     ) -> MatchResult? {
         // Try tiers in order of confidence: hard > strong > fuzzy. The first tier
         // that matches decides; falling below the threshold rejects the entry.
-        let scored: (score: Double, explanation: String, tier: MatchTier)
-        if let (score, explanation) = scoreHardIdentifiers(metadata: metadata, entry: entry) {
-            scored = (score, explanation, .hardIdentifier)
-        } else if let (score, explanation) = scoreStrongHeuristics(metadata: metadata, entry: entry) {
-            guard score >= minimumThreshold else { return nil }
-            scored = (score, explanation, .strongHeuristic)
-        } else if let (score, explanation) = scoreFuzzy(metadata: metadata, entry: entry) {
-            guard score >= minimumThreshold else { return nil }
-            scored = (score, explanation, .fuzzy)
+        let tier: MatchTier
+        let scored: (Double, String)
+        if let hard = scoreHardIdentifiers(metadata: metadata, entry: entry) {
+            tier = .hardIdentifier
+            scored = hard
+        } else if let strong = scoreStrongHeuristics(metadata: metadata, entry: entry) {
+            guard strong.0 >= minimumThreshold else { return nil }
+            tier = .strongHeuristic
+            scored = strong
+        } else if let fuzzy = scoreFuzzy(metadata: metadata, entry: entry) {
+            guard fuzzy.0 >= minimumThreshold else { return nil }
+            tier = .fuzzy
+            scored = fuzzy
         } else {
             return nil
         }
 
         return MatchResult(
             entry: entry,
-            confidence: scored.score,
-            tier: scored.tier,
-            explanation: scored.explanation,
+            confidence: scored.0,
+            tier: tier,
+            explanation: scored.1,
             recommendedVariant: selectVariant(from: entry)
         )
     }

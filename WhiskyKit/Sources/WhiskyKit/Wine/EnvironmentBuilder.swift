@@ -186,8 +186,12 @@ extension EnvironmentBuilder {
     mutating func setSDLInputHints(
         disableHIDAPI: Bool, allowBackgroundEvents: Bool, buttonLabels: Bool, layer: EnvironmentLayer
     ) {
-        if disableHIDAPI { set("SDL_JOYSTICK_HIDAPI", "0", layer: layer) }
-        if allowBackgroundEvents { set("SDL_JOYSTICK_ALLOW_BACKGROUND_EVENTS", "1", layer: layer) }
+        if disableHIDAPI {
+            set("SDL_JOYSTICK_HIDAPI", "0", layer: layer)
+        }
+        if allowBackgroundEvents {
+            set("SDL_JOYSTICK_ALLOW_BACKGROUND_EVENTS", "1", layer: layer)
+        }
         set("SDL_GAMECONTROLLER_USE_BUTTON_LABELS", buttonLabels ? "1" : "0", layer: layer)
     }
 }

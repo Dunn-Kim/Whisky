@@ -383,11 +383,11 @@ public class WhiskyWineInstaller {
     ) -> Bool {
         switch backend {
         case .dxmt:
-            return runtimeInfo?.dxmtVersion != nil && dxmtRuntimeNative
+            runtimeInfo?.dxmtVersion != nil && dxmtRuntimeNative
         case .d3dMetal:
-            return d3dMetalInstalled
+            d3dMetalInstalled
         case .recommended, .dxvk, .wined3d:
-            return true
+            true
         }
     }
 

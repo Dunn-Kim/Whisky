@@ -41,7 +41,7 @@ struct ConsoleRunHistoryView: View {
         .onAppear { loadHistory() }
         .task {
             while true {
-                guard (try? await Task.sleep(for: .seconds(2))) != nil else { return }
+                guard await (try? Task.sleep(for: .seconds(2))) != nil else { return }
                 loadHistory()
             }
         }

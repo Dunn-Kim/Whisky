@@ -52,28 +52,51 @@ final class CrashClassifierPatternTests: XCTestCase {
     }
 
     func testClassifyPrimaryCategoryAndConfidence() {
-        let cases: [(log: String, category: CrashCategory, confidence: ConfidenceTier)] = [
-            (
-                "0080:err:seh:NtRaiseException Unhandled exception code c0000005 flags 0 addr 0x7b012345",
-                .coreCrashFatal, .high
+        struct Case {
+            let log: String
+            let category: CrashCategory
+            let confidence: ConfidenceTier
+        }
+        let cases = [
+            Case(
+                log: "0080:err:seh:NtRaiseException Unhandled exception code c0000005 flags 0 addr 0x7b012345",
+                category: .coreCrashFatal, confidence: .high
             ),
-            ("wine: Unhandled page fault on read access to 0x00000000 at address 0x7b012345", .coreCrashFatal, .high),
-            ("err:d3d11:device_lost D3D11 device lost (DXGI_ERROR_DEVICE_REMOVED)", .graphics, .medium),
-            ("EasyAntiCheat.exe: Fatal error - EasyAntiCheat is not installed", .antiCheatUnsupported, .high),
-            ("BattlEye Service: error initializing - BattlEye not supported", .antiCheatUnsupported, .high),
-            (
-                "0024:err:module:import_dll Library mscoree.dll (which is needed by L\"app.exe\") not found",
-                .dependenciesLoading, .high
+            Case(
+                log: "wine: Unhandled page fault on read access to 0x00000000 at address 0x7b012345",
+                category: .coreCrashFatal, confidence: .high
             ),
-            ("wine: could not load user32.dll, status c0000135", .prefixFilesystem, .medium),
-            ("0024:err:winhttp:request_send_request secure connection failed", .networkingLaunchers, .medium)
+            Case(
+                log: "err:d3d11:device_lost D3D11 device lost (DXGI_ERROR_DEVICE_REMOVED)",
+                category: .graphics, confidence: .medium
+            ),
+            Case(
+                log: "EasyAntiCheat.exe: Fatal error - EasyAntiCheat is not installed",
+                category: .antiCheatUnsupported, confidence: .high
+            ),
+            Case(
+                log: "BattlEye Service: error initializing - BattlEye not supported",
+                category: .antiCheatUnsupported, confidence: .high
+            ),
+            Case(
+                log: "0024:err:module:import_dll Library mscoree.dll (which is needed by L\"app.exe\") not found",
+                category: .dependenciesLoading, confidence: .high
+            ),
+            Case(
+                log: "wine: could not load user32.dll, status c0000135",
+                category: .prefixFilesystem, confidence: .medium
+            ),
+            Case(
+                log: "0024:err:winhttp:request_send_request secure connection failed",
+                category: .networkingLaunchers, confidence: .medium
+            )
         ]
         let classifier = CrashClassifier()
-        for (log, category, confidence) in cases {
-            let diagnosis = classifier.classify(log: log)
-            XCTAssertFalse(diagnosis.isEmpty, log)
-            XCTAssertEqual(diagnosis.primaryCategory, category, log)
-            XCTAssertEqual(diagnosis.primaryConfidence, confidence, log)
+        for testCase in cases {
+            let diagnosis = classifier.classify(log: testCase.log)
+            XCTAssertFalse(diagnosis.isEmpty, testCase.log)
+            XCTAssertEqual(diagnosis.primaryCategory, testCase.category, testCase.log)
+            XCTAssertEqual(diagnosis.primaryConfidence, testCase.confidence, testCase.log)
         }
     }
 

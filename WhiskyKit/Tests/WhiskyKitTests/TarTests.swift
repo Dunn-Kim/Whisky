@@ -16,7 +16,6 @@
 //  If not, see https://www.gnu.org/licenses/.
 //
 
-// swiftlint:disable file_length
 import Foundation
 @testable import WhiskyKit
 import XCTest

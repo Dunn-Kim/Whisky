@@ -416,7 +416,8 @@ extension WhiskyApp {
     static func wipeShaderCaches() {
         var buffer = [CChar](repeating: 0, count: Int(PATH_MAX))
         guard confstr(_CS_DARWIN_USER_CACHE_DIR, &buffer, buffer.count) > 0,
-              let cacheDir = String(utf8String: buffer) else {
+              let cacheDir = String(utf8String: buffer)
+        else {
             logger.error("Failed to read DARWIN_USER_CACHE_DIR")
             return
         }

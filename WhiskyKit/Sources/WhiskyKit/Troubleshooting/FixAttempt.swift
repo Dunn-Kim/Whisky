@@ -26,7 +26,7 @@ public struct FixAttempt: Codable, Sendable {
     public let fixId: String
 
     /// When the fix was applied.
-    public var timestamp: Date = Date()
+    public var timestamp: Date = .init()
 
     /// The setting value before the fix was applied, if applicable.
     public var beforeValue: String?

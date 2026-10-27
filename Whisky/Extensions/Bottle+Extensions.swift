@@ -233,12 +233,12 @@ extension Bottle {
     }
 }
 
+@MainActor
 extension Bottle {
     /// Runs a picked file: a `.bat` through Wine directly, anything else through
     /// its `Program` so the executable's saved settings (locale, arguments,
     /// overrides) apply. `locale`, when given, is saved to that program first.
     /// Launcher fixes are applied before the launch reads the settings.
-    @MainActor
     func run(fileAt url: URL, locale: Locales? = nil) async -> LaunchResult {
         LauncherFixes.detectAndApply(from: url, for: self)
         let name = url.lastPathComponent
@@ -258,11 +258,11 @@ extension Bottle {
     }
 }
 
+@MainActor
 extension Program {
     /// A launch from a click: launches, in Terminal when `useTerminal`. That
     /// defaults to Shift, read at the call, before anything async, so it is the
     /// key state of the click.
-    @MainActor
     func launchFromUI(
         useTerminal: Bool = NSEvent.modifierFlags.contains(.shift),
         completion: @escaping @MainActor (LaunchResult) -> Void

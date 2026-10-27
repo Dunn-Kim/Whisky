@@ -57,7 +57,7 @@ public struct GameConfigSnapshot: Codable, Sendable, Equatable {
     public var appliedVariantId: String
 
     /// When the snapshot was created.
-    public var timestamp: Date = Date()
+    public var timestamp: Date = .init()
 
     /// The filename used for snapshot storage within the bottle directory.
     private static let snapshotFileName = "GameConfigSnapshot.plist"
