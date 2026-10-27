@@ -16,6 +16,7 @@
 //  If not, see https://www.gnu.org/licenses/.
 //
 
+import GameController
 import SwiftUI
 import WhiskyKit
 
@@ -121,12 +122,12 @@ struct InputConfigSection: View {
                 }
             }
         }
-        .onAppear {
-            controllerMonitor.startMonitoring()
-        }
-        .onDisappear {
-            controllerMonitor.stopMonitoring()
-        }
+        .onAppear { controllerMonitor.refresh() }
+        .onReceive(
+            NotificationCenter.default.publisher(for: .GCControllerDidConnect)
+                .merge(with: NotificationCenter.default.publisher(for: .GCControllerDidDisconnect))
+                .receive(on: DispatchQueue.main)
+        ) { _ in controllerMonitor.refresh() }
     }
 
     // MARK: - Info Banner
@@ -236,7 +237,7 @@ struct InputConfigSection: View {
             HStack(spacing: 12) {
                 // Type badge
                 HStack(spacing: 4) {
-                    Image(systemName: controller.typeBadge.sfSymbol)
+                    Image(systemName: "gamecontroller")
                         .font(.caption)
                     Text(controller.typeBadge.displayName)
                         .font(.caption)

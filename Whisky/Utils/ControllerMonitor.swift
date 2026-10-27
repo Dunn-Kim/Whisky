@@ -27,11 +27,6 @@ enum ControllerType {
     case xbox
     case generic
 
-    /// The SF Symbol name for this controller type.
-    var sfSymbol: String {
-        "gamecontroller"
-    }
-
     /// A human-readable display name for the controller type.
     var displayName: String {
         switch self {
@@ -124,9 +119,12 @@ struct ControllerHistoryEntry {
 ///
 /// ```swift
 /// let monitor = ControllerMonitor()
-/// monitor.startMonitoring()
+/// monitor.refresh()
 /// // monitor.controllers now contains connected controllers
 /// ```
+///
+/// The owning view calls `refresh()` on appear and on each
+/// `GCControllerDidConnect` / `GCControllerDidDisconnect` notification.
 @MainActor
 class ControllerMonitor: ObservableObject {
     /// The currently connected controllers.
@@ -140,68 +138,10 @@ class ControllerMonitor: ObservableObject {
 
     private let logger = Logger(subsystem: Bundle.whiskyBundleIdentifier, category: "ControllerMonitor")
 
-    /// Stored observer tokens for cleanup.
-    /// Uses nonisolated(unsafe) to allow access from deinit (Swift 6 Sendable compliance).
-    private nonisolated(unsafe) var connectObserver: NSObjectProtocol?
-    private nonisolated(unsafe) var disconnectObserver: NSObjectProtocol?
-
     /// Maximum number of history entries to retain.
     private static let maxHistoryEntries = 10
 
-    deinit {
-        // Remove observers directly in deinit since we cannot call @MainActor methods.
-        if let observer = connectObserver {
-            NotificationCenter.default.removeObserver(observer)
-        }
-        if let observer = disconnectObserver {
-            NotificationCenter.default.removeObserver(observer)
-        }
-    }
-
     // MARK: - Public API
-
-    /// Starts monitoring for controller connect and disconnect events.
-    ///
-    /// Registers for ``NSNotification.Name.GCControllerDidConnect`` and
-    /// ``NSNotification.Name.GCControllerDidDisconnect`` notifications,
-    /// then performs an initial refresh to capture already-connected controllers.
-    func startMonitoring() {
-        // Register for notifications before querying controllers()
-        // so that late-discovered controllers update the list.
-        connectObserver = NotificationCenter.default.addObserver(
-            forName: .GCControllerDidConnect,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor in
-                self?.refresh()
-            }
-        }
-
-        disconnectObserver = NotificationCenter.default.addObserver(
-            forName: .GCControllerDidDisconnect,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor in
-                self?.refresh()
-            }
-        }
-
-        refresh()
-    }
-
-    /// Stops monitoring for controller events and removes notification observers.
-    func stopMonitoring() {
-        if let observer = connectObserver {
-            NotificationCenter.default.removeObserver(observer)
-            connectObserver = nil
-        }
-        if let observer = disconnectObserver {
-            NotificationCenter.default.removeObserver(observer)
-            disconnectObserver = nil
-        }
-    }
 
     /// Refreshes the list of connected controllers.
     ///
