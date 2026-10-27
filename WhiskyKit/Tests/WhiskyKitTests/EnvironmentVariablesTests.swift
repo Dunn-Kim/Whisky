@@ -24,12 +24,10 @@ extension BottleSettings {
     /// Resolved bottle + launcher env (and composed WINEDLLOVERRIDES) merged into `wineEnv`.
     func environmentVariables(wineEnv: inout [String: String]) {
         var builder = EnvironmentBuilder()
-        let managed = populateBottleManagedLayer(builder: &builder)
-        let launcher = populateLauncherManagedLayer(builder: &builder)
-        populateInputCompatibilityLayer(builder: &builder)
+        let managed = Wine.populateSettingsLayers(of: self, builder: &builder)
         wineEnv.merge(builder.resolve().0) { _, new in new }
         let overrides = DLLOverrideResolver(
-            managed: managed + launcher, bottleCustom: dllOverrides, programCustom: []
+            managed: managed, bottleCustom: dllOverrides, programCustom: []
         ).resolve().0
         if !overrides.isEmpty { wineEnv["WINEDLLOVERRIDES"] = overrides }
     }

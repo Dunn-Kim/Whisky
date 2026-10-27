@@ -81,11 +81,11 @@ extension Wine {
         // Resolved on the main actor here so the nonisolated settings layer does
         // not have to reach for NSScreen itself.
         let displayRefreshRate = FrameRateLimit.mainDisplayRefreshRate()
-        let managedOverrides = bottle.settings.populateBottleManagedLayer(
-            builder: &builder, displayRefreshRate: displayRefreshRate,
-            builtinD3D12IsD3DMetal: builtinD3D12IsD3DMetal
+        let dllOverrides = populateSettingsLayers(
+            of: bottle.settings, builder: &builder,
+            displayRefreshRate: displayRefreshRate, builtinD3D12IsD3DMetal: builtinD3D12IsD3DMetal
         )
-        dllResolver.managed.append(contentsOf: managedOverrides)
+        dllResolver.managed.append(contentsOf: dllOverrides)
 
         // DXVK reads its config from DXVK_CONFIG_FILE or the process working
         // directory, and the working directory of a launch is never the bottle
@@ -96,15 +96,6 @@ extension Wine {
         if FileManager.default.fileExists(atPath: dxvkConf.path(percentEncoded: false)) {
             builder.set("DXVK_CONFIG_FILE", "Z:\(dxvkConf.path(percentEncoded: false))", layer: .bottleManaged)
         }
-
-        // Layer 4: Launcher managed -- launcher compatibility overrides
-        let launcherOverrides = bottle.settings.populateLauncherManagedLayer(
-            builder: &builder, builtinD3D12IsD3DMetal: builtinD3D12IsD3DMetal
-        )
-        dllResolver.managed.append(contentsOf: launcherOverrides)
-
-        // Input compatibility (bottleManaged layer -- input settings are bottle-managed toggles)
-        bottle.settings.populateInputCompatibilityLayer(builder: &builder)
 
         // Layer 5: Game profile -- GameDB variant environment for this launch.
         // Beats bottle/launcher defaults, loses to anything the user set.
@@ -166,6 +157,28 @@ extension Wine {
         logLaunchSummary(bottleName: bottle.settings.name, activeLayers: activeLayers, environment: result)
 
         return result
+    }
+
+    /// Layers 3-4 and input compatibility: everything derived from the bottle's
+    /// settings alone. Returns the managed DLL overrides for the resolver.
+    static func populateSettingsLayers(
+        of settings: BottleSettings,
+        builder: inout EnvironmentBuilder,
+        displayRefreshRate: Int? = nil,
+        builtinD3D12IsD3DMetal: Bool = GPTKImporter.isDeployed()
+    ) -> [(entry: DLLOverrideEntry, source: DLLOverrideSource)] {
+        // Layer 3: Bottle managed -- settings-derived env vars (DXVK, sync, Metal, perf)
+        var overrides = settings.populateBottleManagedLayer(
+            builder: &builder, displayRefreshRate: displayRefreshRate,
+            builtinD3D12IsD3DMetal: builtinD3D12IsD3DMetal
+        )
+        // Layer 4: Launcher managed -- launcher compatibility overrides
+        overrides += settings.populateLauncherManagedLayer(
+            builder: &builder, builtinD3D12IsD3DMetal: builtinD3D12IsD3DMetal
+        )
+        // Input compatibility (bottleManaged layer -- input settings are bottle-managed toggles)
+        settings.populateInputCompatibilityLayer(builder: &builder)
+        return overrides
     }
 
     /// Builtin-mode reset entries for every DLL any translation layer may have
