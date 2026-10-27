@@ -184,6 +184,18 @@ public enum GameConfigApplicator {
         var changes: [ConfigChange] = []
         let settings = variant.settings
 
+        /// Appends a change for an on/off setting the variant sets to a different value.
+        func toggle(_ category: String, _ name: String, current: Bool, new: Bool?, isHighImpact: Bool = false) {
+            guard let new, new != current else { return }
+            changes.append(ConfigChange(
+                category: category,
+                settingName: name,
+                currentValue: current ? "Enabled" : "Disabled",
+                newValue: new ? "Enabled" : "Disabled",
+                isHighImpact: isHighImpact
+            ))
+        }
+
         // Graphics settings
         if let backend = settings.graphicsBackend, backend != bottle.settings.graphicsBackend {
             changes.append(ConfigChange(
@@ -198,24 +210,11 @@ public enum GameConfigApplicator {
         // Preview must match apply: the legacy dxvk flag is ignored when the
         // variant sets an explicit backend, so don't show a change that
         // applyVariantSettings will not make.
-        if let dxvk = settings.dxvk, settings.graphicsBackend == nil, dxvk != bottle.settings.dxvk {
-            changes.append(ConfigChange(
-                category: "Graphics",
-                settingName: "DXVK",
-                currentValue: bottle.settings.dxvk ? "Enabled" : "Disabled",
-                newValue: dxvk ? "Enabled" : "Disabled",
-                isHighImpact: true
-            ))
+        if settings.graphicsBackend == nil {
+            toggle("Graphics", "DXVK", current: bottle.settings.dxvk, new: settings.dxvk, isHighImpact: true)
         }
 
-        if let dxvkAsync = settings.dxvkAsync, dxvkAsync != bottle.settings.dxvkAsync {
-            changes.append(ConfigChange(
-                category: "Graphics",
-                settingName: "DXVK Async",
-                currentValue: bottle.settings.dxvkAsync ? "Enabled" : "Disabled",
-                newValue: dxvkAsync ? "Enabled" : "Disabled"
-            ))
-        }
+        toggle("Graphics", "DXVK Async", current: bottle.settings.dxvkAsync, new: settings.dxvkAsync)
 
         if let frameRateLimit = settings.frameRateLimit, frameRateLimit != bottle.settings.frameRateLimit {
             changes.append(ConfigChange(
@@ -236,32 +235,12 @@ public enum GameConfigApplicator {
             ))
         }
 
-        if let forceD3D11 = settings.forceD3D11, forceD3D11 != bottle.settings.forceD3D11 {
-            changes.append(ConfigChange(
-                category: "Performance",
-                settingName: "Force D3D11",
-                currentValue: bottle.settings.forceD3D11 ? "Enabled" : "Disabled",
-                newValue: forceD3D11 ? "Enabled" : "Disabled"
-            ))
-        }
-
-        if let shaderCache = settings.shaderCacheEnabled, shaderCache != bottle.settings.shaderCacheEnabled {
-            changes.append(ConfigChange(
-                category: "Performance",
-                settingName: "Shader Cache",
-                currentValue: bottle.settings.shaderCacheEnabled ? "Enabled" : "Disabled",
-                newValue: shaderCache ? "Enabled" : "Disabled"
-            ))
-        }
-
-        if let avx = settings.avxEnabled, avx != bottle.settings.avxEnabled {
-            changes.append(ConfigChange(
-                category: "Performance",
-                settingName: "AVX Support",
-                currentValue: bottle.settings.avxEnabled ? "Enabled" : "Disabled",
-                newValue: avx ? "Enabled" : "Disabled"
-            ))
-        }
+        toggle("Performance", "Force D3D11", current: bottle.settings.forceD3D11, new: settings.forceD3D11)
+        toggle(
+            "Performance", "Shader Cache",
+            current: bottle.settings.shaderCacheEnabled, new: settings.shaderCacheEnabled
+        )
+        toggle("Performance", "AVX Support", current: bottle.settings.avxEnabled, new: settings.avxEnabled)
 
         // DLL overrides
         if let overrides = variant.dllOverrides, !overrides.isEmpty {

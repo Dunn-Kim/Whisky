@@ -182,43 +182,28 @@ public enum GameMatcher {
         metadata: ProgramMetadata,
         entry: GameDBEntry
     ) -> MatchResult? {
-        // Try tiers in order of confidence: hard > strong > fuzzy
+        // Try tiers in order of confidence: hard > strong > fuzzy. The first tier
+        // that matches decides; falling below the threshold rejects the entry.
+        let scored: (score: Double, explanation: String, tier: MatchTier)
         if let (score, explanation) = scoreHardIdentifiers(metadata: metadata, entry: entry) {
-            let variant = selectVariant(from: entry)
-            return MatchResult(
-                entry: entry,
-                confidence: score,
-                tier: .hardIdentifier,
-                explanation: explanation,
-                recommendedVariant: variant
-            )
-        }
-
-        if let (score, explanation) = scoreStrongHeuristics(metadata: metadata, entry: entry) {
+            scored = (score, explanation, .hardIdentifier)
+        } else if let (score, explanation) = scoreStrongHeuristics(metadata: metadata, entry: entry) {
             guard score >= minimumThreshold else { return nil }
-            let variant = selectVariant(from: entry)
-            return MatchResult(
-                entry: entry,
-                confidence: score,
-                tier: .strongHeuristic,
-                explanation: explanation,
-                recommendedVariant: variant
-            )
-        }
-
-        if let (score, explanation) = scoreFuzzy(metadata: metadata, entry: entry) {
+            scored = (score, explanation, .strongHeuristic)
+        } else if let (score, explanation) = scoreFuzzy(metadata: metadata, entry: entry) {
             guard score >= minimumThreshold else { return nil }
-            let variant = selectVariant(from: entry)
-            return MatchResult(
-                entry: entry,
-                confidence: score,
-                tier: .fuzzy,
-                explanation: explanation,
-                recommendedVariant: variant
-            )
+            scored = (score, explanation, .fuzzy)
+        } else {
+            return nil
         }
 
-        return nil
+        return MatchResult(
+            entry: entry,
+            confidence: scored.score,
+            tier: scored.tier,
+            explanation: scored.explanation,
+            recommendedVariant: selectVariant(from: entry)
+        )
     }
 
     // MARK: - Hard Identifiers (1.0)
@@ -236,6 +221,13 @@ public enum GameMatcher {
         }
 
         return nil
+    }
+
+    /// Whether the install path contains any of the entry's path patterns (case-insensitive).
+    private static func matchesPathPattern(metadata: ProgramMetadata, entry: GameDBEntry) -> Bool {
+        guard let installPath = metadata.installPath, let pathPatterns = entry.pathPatterns else { return false }
+        let pathLower = installPath.lowercased()
+        return pathPatterns.contains { pathLower.contains($0.lowercased()) }
     }
 
     // MARK: - Strong Heuristics (0.7-0.9)
@@ -258,13 +250,9 @@ public enum GameMatcher {
         var explanation = "Executable name '\(metadata.exeName)' matches database entry"
 
         // Bonus for path pattern match
-        if let installPath = metadata.installPath, let pathPatterns = entry.pathPatterns {
-            let pathLower = installPath.lowercased()
-            let pathMatch = pathPatterns.contains { pathLower.contains($0.lowercased()) }
-            if pathMatch {
-                score = 0.90
-                explanation += " with install path confirmation"
-            }
+        if matchesPathPattern(metadata: metadata, entry: entry) {
+            score = 0.90
+            explanation += " with install path confirmation"
         }
 
         // Apply generic exe penalty
@@ -311,13 +299,9 @@ public enum GameMatcher {
         var explanation = "Name tokens match: \(matchCount)/\(exeTokens.count) tokens"
 
         // Install path bonus
-        if let installPath = metadata.installPath, let pathPatterns = entry.pathPatterns {
-            let pathLower = installPath.lowercased()
-            let pathMatch = pathPatterns.contains { pathLower.contains($0.lowercased()) }
-            if pathMatch {
-                score += 0.1
-                explanation += " + install path bonus"
-            }
+        if matchesPathPattern(metadata: metadata, entry: entry) {
+            score += 0.1
+            explanation += " + install path bonus"
         }
 
         // Cap at 0.69 to stay below strong heuristic tier
@@ -332,7 +316,7 @@ public enum GameMatcher {
     private static func selectVariant(from entry: GameDBEntry) -> GameConfigVariant? {
         guard !entry.variants.isEmpty else { return nil }
 
-        let currentArch = machineArchitecture()
+        let currentArch = HostArchitecture.isAppleSilicon ? "arm64" : "x86_64"
 
         // Filter variants whose constraints match current machine
         // Sort variants: prefer those tested on current architecture
@@ -374,18 +358,5 @@ public enum GameMatcher {
         return cleaned
             .components(separatedBy: separators)
             .filter { !$0.isEmpty }
-    }
-
-    // MARK: - System Info
-
-    /// Returns the current machine's CPU architecture string.
-    private static func machineArchitecture() -> String {
-        var sysinfo = utsname()
-        uname(&sysinfo)
-        return withUnsafePointer(to: &sysinfo.machine) {
-            $0.withMemoryRebound(to: CChar.self, capacity: 1) {
-                String(cString: $0)
-            }
-        }
     }
 }

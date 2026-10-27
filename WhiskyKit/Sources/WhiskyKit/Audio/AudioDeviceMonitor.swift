@@ -55,24 +55,7 @@ public final class AudioDeviceMonitor: @unchecked Sendable {
     ///
     /// - Returns: Device info for the default output device, or `nil` if unavailable.
     public func defaultOutputDevice() -> AudioDeviceInfo? {
-        var deviceID = AudioDeviceID()
-        var size = UInt32(MemoryLayout<AudioDeviceID>.size)
-        var address = AudioObjectPropertyAddress(
-            mSelector: kAudioHardwarePropertyDefaultOutputDevice,
-            mScope: kAudioObjectPropertyScopeGlobal,
-            mElement: kAudioObjectPropertyElementMain
-        )
-
-        let status = AudioObjectGetPropertyData(
-            AudioObjectID(kAudioObjectSystemObject),
-            &address, 0, nil, &size, &deviceID
-        )
-
-        guard status == noErr else {
-            logger.error("Failed to query default output device: \(status)")
-            return nil
-        }
-
+        guard let deviceID = queryDefaultOutputDeviceID() else { return nil }
         return queryDeviceInfo(deviceID, isDefault: true)
     }
 
@@ -188,22 +171,38 @@ public final class AudioDeviceMonitor: @unchecked Sendable {
 
     // MARK: - Internal Helpers
 
-    /// Queries the AudioDeviceID of the system default output device.
-    private func queryDefaultOutputDeviceID() -> AudioDeviceID? {
-        var deviceID = AudioDeviceID()
-        var size = UInt32(MemoryLayout<AudioDeviceID>.size)
+    /// Reads one fixed-size property of `objectID`, logging `what` on failure.
+    private func readProperty<T>(
+        _ objectID: AudioObjectID,
+        _ selector: AudioObjectPropertySelector,
+        initial: T,
+        what: String
+    ) -> T? {
         var address = AudioObjectPropertyAddress(
-            mSelector: kAudioHardwarePropertyDefaultOutputDevice,
+            mSelector: selector,
             mScope: kAudioObjectPropertyScopeGlobal,
             mElement: kAudioObjectPropertyElementMain
         )
+        var value = initial
+        var size = UInt32(MemoryLayout<T>.size)
+        let status = withUnsafeMutablePointer(to: &value) {
+            AudioObjectGetPropertyData(objectID, &address, 0, nil, &size, $0)
+        }
+        guard status == noErr else {
+            logger.error("Failed to query \(what): \(status)")
+            return nil
+        }
+        return value
+    }
 
-        let status = AudioObjectGetPropertyData(
+    /// Queries the AudioDeviceID of the system default output device.
+    private func queryDefaultOutputDeviceID() -> AudioDeviceID? {
+        readProperty(
             AudioObjectID(kAudioObjectSystemObject),
-            &address, 0, nil, &size, &deviceID
+            kAudioHardwarePropertyDefaultOutputDevice,
+            initial: AudioDeviceID(),
+            what: "default output device"
         )
-
-        return status == noErr ? deviceID : nil
     }
 
     /// Queries full device information for a given AudioDeviceID.
@@ -224,62 +223,22 @@ public final class AudioDeviceMonitor: @unchecked Sendable {
 
     /// Queries the display name of an audio device.
     private func queryDeviceName(_ deviceID: AudioDeviceID) -> String? {
-        var address = AudioObjectPropertyAddress(
-            mSelector: kAudioObjectPropertyName,
-            mScope: kAudioObjectPropertyScopeGlobal,
-            mElement: kAudioObjectPropertyElementMain
-        )
-
-        var name: CFString = "" as CFString
-        var size = UInt32(MemoryLayout<CFString>.size)
-        let status = AudioObjectGetPropertyData(deviceID, &address, 0, nil, &size, &name)
-
-        guard status == noErr else {
-            logger.error("Failed to query device name for \(deviceID): \(status)")
-            return nil
-        }
-
-        return name as String
+        readProperty(deviceID, kAudioObjectPropertyName, initial: "" as CFString, what: "device name for \(deviceID)")
+            .map { $0 as String }
     }
 
     /// Queries the transport type of an audio device.
     private func queryTransportType(_ deviceID: AudioDeviceID) -> AudioTransportType {
-        var address = AudioObjectPropertyAddress(
-            mSelector: kAudioDevicePropertyTransportType,
-            mScope: kAudioObjectPropertyScopeGlobal,
-            mElement: kAudioObjectPropertyElementMain
-        )
-
-        var transport: UInt32 = 0
-        var size = UInt32(MemoryLayout<UInt32>.size)
-        let status = AudioObjectGetPropertyData(deviceID, &address, 0, nil, &size, &transport)
-
-        guard status == noErr else {
-            logger.error("Failed to query transport type for \(deviceID): \(status)")
-            return .unknown
-        }
-
-        return AudioTransportType(coreAudioTransportType: transport)
+        readProperty(
+            deviceID, kAudioDevicePropertyTransportType, initial: UInt32(0), what: "transport type for \(deviceID)"
+        ).map(AudioTransportType.init(coreAudioTransportType:)) ?? .unknown
     }
 
     /// Queries the nominal sample rate of an audio device.
     private func querySampleRate(_ deviceID: AudioDeviceID) -> Double? {
-        var address = AudioObjectPropertyAddress(
-            mSelector: kAudioDevicePropertyNominalSampleRate,
-            mScope: kAudioObjectPropertyScopeGlobal,
-            mElement: kAudioObjectPropertyElementMain
+        readProperty(
+            deviceID, kAudioDevicePropertyNominalSampleRate, initial: Float64(0), what: "sample rate for \(deviceID)"
         )
-
-        var rate: Float64 = 0
-        var size = UInt32(MemoryLayout<Float64>.size)
-        let status = AudioObjectGetPropertyData(deviceID, &address, 0, nil, &size, &rate)
-
-        guard status == noErr else {
-            logger.error("Failed to query sample rate for \(deviceID): \(status)")
-            return nil
-        }
-
-        return rate
     }
 
     /// Queries the output channel count of an audio device via stream configuration.
