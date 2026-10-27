@@ -415,11 +415,12 @@ extension WhiskyApp {
 
     static func wipeShaderCaches() {
         var buffer = [CChar](repeating: 0, count: Int(PATH_MAX))
-        guard confstr(_CS_DARWIN_USER_CACHE_DIR, &buffer, buffer.count) > 0 else {
+        guard confstr(_CS_DARWIN_USER_CACHE_DIR, &buffer, buffer.count) > 0,
+              let cacheDir = String(utf8String: buffer) else {
             logger.error("Failed to read DARWIN_USER_CACHE_DIR")
             return
         }
-        let d3dmPath = URL(fileURLWithPath: String(cString: buffer)).appending(path: "d3dm").path
+        let d3dmPath = URL(fileURLWithPath: cacheDir).appending(path: "d3dm").path
         do {
             try FileManager.default.removeItem(atPath: d3dmPath)
             logger.info("Successfully cleared shader caches")
