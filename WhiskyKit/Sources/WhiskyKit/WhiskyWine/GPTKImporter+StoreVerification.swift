@@ -186,3 +186,33 @@ extension GPTKImporter {
         stamp.failure.map { .failed(reason: $0) } ?? .verified
     }
 }
+
+// MARK: - Store record
+
+extension GPTKImporter {
+    /// The stored payload's record, or `nil` when the store is absent or its
+    /// payload is incomplete.
+    public static func storedRecord() -> GPTKStoreRecord? {
+        storedRecord(inStore: storeFolder)
+    }
+
+    /// Testable seam for ``storedRecord()``.
+    static func storedRecord(inStore store: URL) -> GPTKStoreRecord? {
+        guard let data = try? Data(contentsOf: recordURL(inStore: store)),
+              let record = try? PropertyListDecoder().decode(GPTKStoreRecord.self, from: data),
+              isPayloadRoot(store.appending(path: "lib"))
+        else { return nil }
+        return record
+    }
+
+    /// Deletes the store, payload and record together.
+    public static func removeStore() throws {
+        let store = storeFolder
+        guard FileManager.default.fileExists(atPath: store.path(percentEncoded: false)) else { return }
+        try FileManager.default.removeItem(at: store)
+    }
+
+    static func recordURL(inStore store: URL) -> URL {
+        store.appending(path: "D3DMetalVersion.plist")
+    }
+}
