@@ -243,16 +243,6 @@ public class Wine {
         // before anything in the bottle starts, or the app boots into an empty one.
         WineUserProfile.reconcile(bottleURL: bottle.url)
 
-        // Backends only ever add their own files, so a switch used to leave the
-        // previous backend's natives behind: DXVK ships no dxgi, so a bottle
-        // moved from DXMT to DXVK kept DXMT's native dxgi and loaded it under
-        // DXVK's `dxgi=n,b` override — measured as a working D3D11 device that
-        // then failed the first swapchain mode switch. Restore Wine's builtin
-        // for every translation DLL the chosen backend will not install itself.
-        try restoreUnmanagedTranslationDLLs(bottle: bottle, for: effectiveBackend)
-
-        try prepareBackendPrefix(effectiveBackend, bottle: bottle)
-
         // Enable DXVK if needed: effective backend, the legacy program-level
         // flag (honored only without a backend override, mirroring
         // applyProgramOverrides), or launcher auto-enable.
@@ -260,6 +250,16 @@ public class Wine {
         let shouldEnableDXVK = effectiveBackend == .dxvk || legacyProgramDXVK ||
             (bottle.settings.autoEnableDXVK &&
                 bottle.settings.detectedLauncher?.requiresDXVK == true)
+
+        // Backends only ever add their own files, so a switch used to leave the
+        // previous backend's natives behind: DXVK ships no dxgi, so a bottle
+        // moved from DXMT to DXVK kept DXMT's native dxgi and loaded it under
+        // DXVK's `dxgi=n,b` override — measured as a working D3D11 device that
+        // then failed the first swapchain mode switch. Restore Wine's builtin
+        // for every translation DLL the chosen backend will not install itself.
+        try restoreUnmanagedTranslationDLLs(bottle: bottle, for: effectiveBackend, enablingDXVK: shouldEnableDXVK)
+
+        try prepareBackendPrefix(effectiveBackend, bottle: bottle)
 
         if shouldEnableDXVK {
             try enableDXVK(bottle: bottle)
@@ -722,30 +722,54 @@ public class Wine {
     /// Restores Wine's builtin PE for each translation DLL `backend` does not
     /// install itself, clearing whatever a previously selected backend left in
     /// the prefix.
-    static func restoreUnmanagedTranslationDLLs(bottle: Bottle, for backend: GraphicsBackend) throws {
+    ///
+    /// With the GPTK payload deployed, the 64-bit builtin dxgi is Apple's
+    /// forwarder, which DXVK's `d3d11` cannot pair with. A launch that will
+    /// enable DXVK gets Wine's own dxgi from the store's `originals/` instead,
+    /// marker-stripped so `dxgi=n,b` loads it as native. Only system32: GPTK
+    /// forwards the 64-bit builtins only, so syswow64's is still Wine's own.
+    static func restoreUnmanagedTranslationDLLs(
+        bottle: Bottle, for backend: GraphicsBackend, enablingDXVK: Bool
+    ) throws {
         try restoreUnmanagedTranslationDLLs(
             prefixRoot: bottle.url,
             wineLibRoot: WhiskyWineInstaller.libraryFolder.appending(path: "Wine").appending(path: "lib"),
-            keeping: prefixDLLNames(installedBy: backend)
+            keeping: prefixDLLNames(installedBy: backend),
+            nativeDXGI: enablingDXVK && GPTKImporter.isDeployed()
+                ? GPTKImporter.storeFolder.appending(path: "originals").appending(path: "dxgi.dll")
+                : nil
         )
     }
 
     /// Performs the restore against explicit roots, so it can be tested against
     /// temporary directories (mirrors the ``enableDXMT(payloadRoot:prefixRoot:)`` seam).
+    /// `nativeDXGI`, when it exists, is installed marker-stripped as system32's
+    /// dxgi in place of the builtin.
     static func restoreUnmanagedTranslationDLLs(
-        prefixRoot: URL, wineLibRoot: URL, keeping managed: Set<String>
+        prefixRoot: URL, wineLibRoot: URL, keeping managed: Set<String>, nativeDXGI: URL? = nil
     ) throws {
         let fileManager = FileManager.default
         let windows = prefixRoot.appending(path: "drive_c").appending(path: "windows")
+        let system32 = windows.appending(path: "system32")
         let builtins = wineLibRoot.appending(path: "wine")
         let pairs = [
-            (windows.appending(path: "system32"), builtins.appending(path: "x86_64-windows")),
+            (system32, builtins.appending(path: "x86_64-windows")),
             (windows.appending(path: "syswow64"), builtins.appending(path: "i386-windows"))
         ]
 
         for (prefixDir, builtinDir) in pairs {
             guard fileManager.fileExists(atPath: prefixDir.path(percentEncoded: false)) else { continue }
             for name in translationPrefixDLLNames where !managed.contains(name) {
+                if let nativeDXGI, name == "dxgi.dll", prefixDir == system32,
+                   fileManager.fileExists(atPath: nativeDXGI.path(percentEncoded: false)) {
+                    let target = prefixDir.appending(path: name)
+                    // Runs on every DXVK launch; an identical stripped copy stays put.
+                    if !isStrippedCopy(target, of: nativeDXGI) {
+                        try fileManager.installFile(at: target, from: nativeDXGI)
+                        try stripBuiltinMarker(at: target)
+                    }
+                    continue
+                }
                 let builtin = builtinDir.appending(path: name)
                 // A runtime that ships no builtin for this name (winemetal on a
                 // pre-DXMT runtime) leaves the prefix alone rather than deleting
@@ -756,6 +780,35 @@ public class Wine {
                 )
             }
         }
+    }
+
+    /// Overwrites the "Wine builtin DLL" marker at offset 0x40 of a PE file
+    /// with a plain DOS stub, so the loader treats the file as native.
+    private static func stripBuiltinMarker(at fileURL: URL) throws {
+        let handle = try FileHandle(forUpdating: fileURL)
+        defer { try? handle.close() }
+        let dosCode: [UInt8] = [
+            0x0E, 0x1F, 0xBA, 0x0E, 0x00, 0xB4, 0x09, 0xCD,
+            0x21, 0xB8, 0x01, 0x4C, 0xCD, 0x21, 0x90, 0x90
+        ]
+        try handle.seek(toOffset: 0x40)
+        try handle.write(contentsOf: Data(dosCode))
+    }
+
+    /// Whether `deployed` is already the stripped copy of `original`: a native
+    /// PE that matches it byte for byte outside the 16-byte marker window at
+    /// 0x40, the only bytes ``stripBuiltinMarker(at:)`` rewrites.
+    private static func isStrippedCopy(_ deployed: URL, of original: URL) -> Bool {
+        guard FileManager.default.fileExists(atPath: deployed.path(percentEncoded: false)),
+              (try? isNativePE(deployed)) == true,
+              let existing = try? Data(contentsOf: deployed),
+              let source = try? Data(contentsOf: original),
+              existing.count == source.count,
+              existing.count >= 0x50
+        else { return false }
+        let window = 0x40 ..< 0x50
+        return existing[..<window.lowerBound] == source[..<window.lowerBound]
+            && existing[window.upperBound...] == source[window.upperBound...]
     }
 
     /// Errors thrown by ``enableDXMT(bottle:)``.
