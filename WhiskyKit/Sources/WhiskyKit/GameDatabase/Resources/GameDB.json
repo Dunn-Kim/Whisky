@@ -1719,7 +1719,7 @@
           "whenToUse": "Recommended community-tested configuration",
           "rationale": [
             "Creation Engine queries display modes via legacy DDraw which trips up macOS Retina detection",
-            "DXVK + force D3D11 + sequoiaCompatMode gives consistent display detection",
+            "DXVK + sequoiaCompatMode gives consistent display detection",
             "xact installs MS audio runtime expected by Creation Engine"
           ],
           "settings": {
@@ -3713,8 +3713,7 @@
             "sequoiaCompatMode": false
           },
           "environmentVariables": {
-            "DXVK_REQUIRED": "1",
-            "D3DM_FORCE_D3D11": "1"
+            "DXVK_REQUIRED": "1"
           },
           "dllOverrides": [],
           "winetricksVerbs": [

@@ -73,11 +73,6 @@ extension LauncherType {
         case .rockstar:
             [
                 LauncherFixDetail(
-                    key: "D3DM_FORCE_D3D11", value: "1",
-                    reason: "Forces D3D11 mode for launcher compatibility",
-                    category: .graphics
-                ),
-                LauncherFixDetail(
                     key: "LC_ALL", value: "en_US.UTF-8",
                     reason: "Sets locale for launcher UI rendering",
                     category: .locale
@@ -95,11 +90,6 @@ extension LauncherType {
                     key: "LANG", value: "en_US.UTF-8",
                     reason: "Fixes Chromium-based launcher locale issues",
                     category: .locale
-                ),
-                LauncherFixDetail(
-                    key: "D3DM_FEATURE_LEVEL_12_1", value: "1",
-                    reason: "Fixes GPU not supported detection errors",
-                    category: .graphics
                 )
             ]
 
@@ -109,21 +99,11 @@ extension LauncherType {
                     key: "LC_ALL", value: "en_US.UTF-8",
                     reason: "Fixes Chromium-based launcher locale issues",
                     category: .locale
-                ),
-                LauncherFixDetail(
-                    key: "D3DM_FORCE_D3D11", value: "1",
-                    reason: "Improves launcher UI rendering stability",
-                    category: .graphics
                 )
             ]
 
         case .ubisoft:
             [
-                LauncherFixDetail(
-                    key: "D3DM_FORCE_D3D11", value: "1",
-                    reason: "Required D3D11 mode for Ubisoft Connect stability",
-                    category: .graphics
-                ),
                 LauncherFixDetail(
                     key: "DXVK_ASYNC", value: "1",
                     reason: "Improves rendering for Anno 1800 and other Ubisoft games",
@@ -141,13 +121,7 @@ extension LauncherType {
             ]
 
         case .paradox:
-            [
-                LauncherFixDetail(
-                    key: "D3DM_FORCE_D3D11", value: "1",
-                    reason: "Improves launcher initialization",
-                    category: .graphics
-                )
-            ]
+            []
 
         case .zfGame:
             [

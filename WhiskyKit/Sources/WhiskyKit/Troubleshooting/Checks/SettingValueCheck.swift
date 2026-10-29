@@ -98,8 +98,6 @@ public struct SettingValueCheck: TroubleshootingCheck {
             settings.metalValidation ? "true" : "false"
         case "shaderCacheEnabled":
             settings.shaderCacheEnabled ? "true" : "false"
-        case "forceD3D11":
-            settings.forceD3D11 ? "true" : "false"
         case "avxEnabled":
             settings.avxEnabled ? "true" : "false"
         case "launcherCompatibilityMode":

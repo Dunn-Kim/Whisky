@@ -52,7 +52,6 @@ final class GameApplicatorTests: XCTestCase {
         dxvk: Bool? = nil,
         dxvkAsync: Bool? = nil,
         enhancedSync: EnhancedSync? = nil,
-        forceD3D11: Bool? = nil,
         shaderCacheEnabled: Bool? = nil,
         avxEnabled: Bool? = nil,
         dllOverrides: [DLLOverrideEntry]? = nil,
@@ -68,7 +67,6 @@ final class GameApplicatorTests: XCTestCase {
                 dxvk: dxvk,
                 dxvkAsync: dxvkAsync,
                 enhancedSync: enhancedSync,
-                forceD3D11: forceD3D11,
                 shaderCacheEnabled: shaderCacheEnabled,
                 avxEnabled: avxEnabled
             ),
@@ -211,14 +209,14 @@ final class GameApplicatorTests: XCTestCase {
         // Record original state
         let originalBackend = bottle.settings.graphicsBackend
         let originalDxvkAsync = bottle.settings.dxvkAsync
-        let originalForceD3D11 = bottle.settings.forceD3D11
+        let originalShaderCache = bottle.settings.shaderCacheEnabled
 
         // Apply changes that differ from defaults:
-        // graphicsBackend default = .recommended, dxvkAsync default = true, forceD3D11 default = false
+        // graphicsBackend default = .recommended, dxvkAsync default = true, shaderCacheEnabled default = true
         let variant = makeTestVariant(
             graphicsBackend: .dxvk,
             dxvkAsync: false,
-            forceD3D11: true
+            shaderCacheEnabled: false
         )
         let entry = makeTestEntry(variant: variant)
         let snapshot = try GameConfigApplicator.apply(entry: entry, variant: variant, to: bottle)
@@ -226,7 +224,7 @@ final class GameApplicatorTests: XCTestCase {
         // Verify settings changed
         XCTAssertNotEqual(bottle.settings.graphicsBackend, originalBackend)
         XCTAssertNotEqual(bottle.settings.dxvkAsync, originalDxvkAsync)
-        XCTAssertNotEqual(bottle.settings.forceD3D11, originalForceD3D11)
+        XCTAssertNotEqual(bottle.settings.shaderCacheEnabled, originalShaderCache)
 
         // Revert
         _ = try GameConfigApplicator.revert(bottle: bottle, snapshot: snapshot)
@@ -243,9 +241,9 @@ final class GameApplicatorTests: XCTestCase {
             "DXVK async should be restored"
         )
         XCTAssertEqual(
-            bottle.settings.forceD3D11,
-            originalForceD3D11,
-            "Force D3D11 should be restored"
+            bottle.settings.shaderCacheEnabled,
+            originalShaderCache,
+            "Shader cache should be restored"
         )
     }
 
@@ -355,7 +353,6 @@ final class GameApplicatorTests: XCTestCase {
             graphicsBackend: .wined3d,
             dxvkAsync: false,
             enhancedSync: .esync,
-            forceD3D11: true,
             shaderCacheEnabled: false,
             avxEnabled: true
         )
@@ -366,7 +363,6 @@ final class GameApplicatorTests: XCTestCase {
         XCTAssertEqual(bottle.settings.graphicsBackend, .wined3d)
         XCTAssertFalse(bottle.settings.dxvkAsync)
         XCTAssertEqual(bottle.settings.enhancedSync, .esync)
-        XCTAssertTrue(bottle.settings.forceD3D11)
         XCTAssertFalse(bottle.settings.shaderCacheEnabled)
         XCTAssertTrue(bottle.settings.avxEnabled)
     }

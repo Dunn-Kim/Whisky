@@ -41,15 +41,6 @@ final class GPUDetectionTests: XCTestCase {
         XCTAssertNotNil(env["GPU_DEVICE_ID"])
     }
 
-    func testGPUSpoofingIncludesFeatureLevels() {
-        let env = GPUDetection.spoofGPU(vendor: .nvidia)
-
-        // Should report DirectX 12.1 support
-        XCTAssertEqual(env["D3DM_FEATURE_LEVEL_12_1"], "1")
-        XCTAssertEqual(env["D3DM_FEATURE_LEVEL_12_0"], "1")
-        XCTAssertEqual(env["D3DM_FEATURE_LEVEL_11_1"], "1")
-    }
-
     func testGPUSpoofingIncludesOpenGLVersion() {
         let env = GPUDetection.spoofGPU(vendor: .nvidia)
 
@@ -84,7 +75,6 @@ final class GPUDetectionTests: XCTestCase {
         let env = GPUDetection.spoofGPU(vendor: .nvidia)
         XCTAssertNotNil(env["GPU_VENDOR_ID"])
         XCTAssertNotNil(env["GPU_DEVICE_ID"])
-        XCTAssertNotNil(env["D3DM_FEATURE_LEVEL_12_1"])
     }
 
     func testAllVendorsHaveDeviceIDs() {

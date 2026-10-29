@@ -33,14 +33,6 @@ struct PerformanceConfigSection: View {
                         .foregroundColor(.secondary)
                 }
             }
-            Toggle(isOn: $bottle.settings.forceD3D11) {
-                VStack(alignment: .leading) {
-                    Text("config.forceD3D11")
-                    Text("config.forceD3D11.info")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-            }
             // Install VC++ Runtime button (needed for Unity IL2CPP and other C++ games)
             if !bottle.settings.vcRedistInstalled {
                 Button {

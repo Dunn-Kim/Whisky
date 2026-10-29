@@ -184,7 +184,7 @@ final class LauncherDiagnosticsTests: XCTestCase {
 
             // Verify GPU spoofing is applied for each vendor
             XCTAssertEqual(env["GPU_VENDOR_ID"], vendor.vendorID, "Vendor ID should match for \(vendor.rawValue)")
-            XCTAssertNotNil(env["D3DM_FEATURE_LEVEL_12_1"])
+            XCTAssertNotNil(env["GPU_DEVICE_ID"])
         }
     }
 
@@ -260,7 +260,6 @@ final class LauncherDiagnosticsTests: XCTestCase {
         // Verify GPU spoofing environment is valid
         XCTAssertNotNil(env["GPU_VENDOR_ID"], "GPU spoofing environment should be valid")
         XCTAssertNotNil(env["GPU_DEVICE_ID"], "GPU spoofing environment should be valid")
-        XCTAssertNotNil(env["D3DM_FEATURE_LEVEL_12_1"], "GPU spoofing environment should be valid")
     }
 
     func testGPUSpoofingDisabled() throws {

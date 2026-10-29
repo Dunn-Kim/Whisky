@@ -66,9 +66,6 @@ enum LauncherDetection {
             if pinnedAwayFromDXVK {
                 warnings.append("❌ DXVK REQUIRED for Rockstar Launcher (logo won't display without it)")
             }
-            if !bottle.settings.forceD3D11 {
-                warnings.append("⚠️ D3D11 mode recommended for Rockstar games (GTA V, RDR2)")
-            }
 
         case .eaApp:
             if !bottle.settings.gpuSpoofing {
@@ -83,20 +80,13 @@ enum LauncherDetection {
                 warnings.append("⚠️ en_US locale recommended for Epic Games launcher")
             }
 
-        case .ubisoft:
-            if !bottle.settings.forceD3D11 {
-                warnings.append("⚠️ D3D11 mode required for Ubisoft Connect stability")
-            }
-
         case .battleNet:
             if bottle.settings.launcherLocale != .english {
                 warnings.append("⚠️ en_US locale recommended for Battle.net")
             }
 
-        case .paradox:
-            if !bottle.settings.forceD3D11 {
-                warnings.append("⚠️ D3D11 mode recommended for Paradox Launcher")
-            }
+        case .ubisoft, .paradox:
+            break
 
         case .zfGame:
             if pinnedAwayFromDXVK {
