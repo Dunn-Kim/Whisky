@@ -43,7 +43,6 @@
             "dxvk": true,
             "dxvkAsync": true,
             "enhancedSync": "msync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -109,7 +108,6 @@
             "dxvk": false,
             "dxvkAsync": false,
             "enhancedSync": "msync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -162,19 +160,18 @@
       "variants": [
         {
           "id": "dxvk-(avoids-haziness)",
-          "label": "DXVK (avoids haziness)",
+          "label": "Recommended backend",
           "isDefault": true,
-          "whenToUse": "Recommended community-tested configuration",
+          "whenToUse": "Default configuration; Whisky picks the backend for the installed runtime",
           "rationale": [
-            "FNA-based renderer hits a documented haziness bug on D3DMetal",
-            "DXVK eliminates the artifact and runs cleanly"
+            "DirectX 12 only (PCGamingWiki); DXVK has no Direct3D 12 path and its preset turns d3d12 off, so the game uses the recommended backend (D3DMetal with the GPTK payload)",
+            "An earlier note reported haziness on D3DMetal (\"FNA-based renderer hits a documented haziness bug on D3DMetal\"); PCGamingWiki lists no FNA engine and that report is unverified, and DXVK cannot run the game either way"
           ],
           "settings": {
-            "graphicsBackend": "dxvk",
-            "dxvk": true,
-            "dxvkAsync": true,
+            "graphicsBackend": "recommended",
+            "dxvk": false,
+            "dxvkAsync": false,
             "enhancedSync": "msync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -236,7 +233,6 @@
             "dxvk": true,
             "dxvkAsync": true,
             "enhancedSync": "esync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -294,11 +290,11 @@
       "variants": [
         {
           "id": "dxvk-d3d9-+-vcredist",
-          "label": "DXVK D3D9 + vcredist",
+          "label": "DXVK + vcredist",
           "isDefault": true,
           "whenToUse": "Recommended community-tested configuration",
           "rationale": [
-            "DX9 sim racer \u2014 DXVK D3D9 gives best perf",
+            "DirectX 11 sim racer (PCGamingWiki); DXVK gives the best performance",
             "Specific vcredist + d3dx9_43 dependencies",
             "Launch AssettoCorsa.exe (the launcher), not acs.exe directly"
           ],
@@ -307,7 +303,6 @@
             "dxvk": true,
             "dxvkAsync": true,
             "enhancedSync": "msync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -379,7 +374,6 @@
             "dxvk": false,
             "dxvkAsync": false,
             "enhancedSync": "esync",
-            "forceD3D11": true,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -463,7 +457,6 @@
             "dxvk": false,
             "dxvkAsync": false,
             "enhancedSync": "none",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -541,7 +534,6 @@
             "dxvk": true,
             "dxvkAsync": true,
             "enhancedSync": "msync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -608,7 +600,6 @@
             "dxvk": false,
             "dxvkAsync": false,
             "enhancedSync": "msync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -679,7 +670,6 @@
             "dxvk": true,
             "dxvkAsync": true,
             "enhancedSync": "msync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -749,7 +739,6 @@
             "dxvk": true,
             "dxvkAsync": true,
             "enhancedSync": "msync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -809,14 +798,14 @@
           "rationale": [
             "DXVK provides better rendering for the Northlight engine",
             "DX11 executable is more stable than DX12",
-            "Ray tracing must be disabled for performance"
+            "Ray tracing must be disabled for performance",
+            "Control ships DirectX 11 and 12 as separate executables (PCGamingWiki); DXVK is for Control_DX11.exe, and Control_DX12.exe cannot start on DXVK because its preset turns d3d12 off"
           ],
           "settings": {
             "graphicsBackend": "dxvk",
             "dxvk": true,
             "dxvkAsync": true,
             "enhancedSync": "esync",
-            "forceD3D11": true,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -899,7 +888,6 @@
             "dxvk": false,
             "dxvkAsync": false,
             "enhancedSync": "msync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -969,7 +957,6 @@
             "dxvk": false,
             "dxvkAsync": false,
             "enhancedSync": "esync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -990,20 +977,18 @@
         },
         {
           "id": "dxvk-fallback",
-          "label": "DXVK (Fallback)",
+          "label": "Recommended backend (fallback)",
           "isDefault": false,
-          "whenToUse": "Use if D3DMetal causes graphical glitches or crashes",
+          "whenToUse": "Use if the default variant's forced D3DMetal settings cause glitches or crashes",
           "rationale": [
-            "DXVK provides an alternative rendering path via Vulkan/MoltenVK",
-            "Async shader compilation reduces stuttering",
-            "May work better on certain GPU configurations"
+            "Cyberpunk 2077 is DirectX 12 only (PCGamingWiki); DXVK has no Direct3D 12 path and its preset turns d3d12 off, so a DXVK fallback cannot start the game",
+            "Leaves the backend to Whisky's recommendation for the installed runtime and drops the default variant's DXR override"
           ],
           "settings": {
-            "graphicsBackend": "dxvk",
-            "dxvk": true,
-            "dxvkAsync": true,
+            "graphicsBackend": "recommended",
+            "dxvk": false,
+            "dxvkAsync": false,
             "enhancedSync": "esync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -1086,7 +1071,6 @@
             "dxvk": true,
             "dxvkAsync": true,
             "enhancedSync": "msync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -1159,7 +1143,6 @@
             "dxvk": false,
             "dxvkAsync": false,
             "enhancedSync": "esync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -1235,7 +1218,6 @@
             "dxvk": false,
             "dxvkAsync": false,
             "enhancedSync": "esync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -1312,7 +1294,6 @@
             "dxvk": false,
             "dxvkAsync": false,
             "enhancedSync": "none",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -1388,7 +1369,6 @@
             "dxvk": false,
             "dxvkAsync": false,
             "enhancedSync": "msync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -1472,7 +1452,6 @@
             "dxvk": false,
             "dxvkAsync": false,
             "enhancedSync": "msync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -1544,7 +1523,6 @@
             "dxvk": false,
             "dxvkAsync": false,
             "enhancedSync": "msync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -1620,7 +1598,6 @@
             "dxvk": false,
             "dxvkAsync": false,
             "enhancedSync": "esync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -1695,7 +1672,7 @@
           "whenToUse": "Recommended community-tested configuration",
           "rationale": [
             "Creation Engine queries display modes via legacy DDraw which trips up macOS Retina detection",
-            "DXVK + force D3D11 + sequoiaCompatMode gives consistent display detection",
+            "DXVK + sequoiaCompatMode gives consistent display detection",
             "xact installs MS audio runtime expected by Creation Engine"
           ],
           "settings": {
@@ -1703,7 +1680,6 @@
             "dxvk": true,
             "dxvkAsync": true,
             "enhancedSync": "msync",
-            "forceD3D11": true,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -1771,7 +1747,6 @@
             "dxvk": true,
             "dxvkAsync": true,
             "enhancedSync": "msync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -1840,7 +1815,6 @@
             "dxvk": true,
             "dxvkAsync": true,
             "enhancedSync": "msync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -1898,7 +1872,6 @@
             "dxvk": false,
             "dxvkAsync": false,
             "enhancedSync": "none",
-            "forceD3D11": false,
             "shaderCacheEnabled": false,
             "avxEnabled": false
           },
@@ -1970,7 +1943,6 @@
             "dxvk": true,
             "dxvkAsync": true,
             "enhancedSync": "msync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -2039,7 +2011,6 @@
             "dxvk": false,
             "dxvkAsync": false,
             "enhancedSync": "esync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -2118,7 +2089,6 @@
             "dxvk": true,
             "dxvkAsync": true,
             "enhancedSync": "msync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -2187,7 +2157,6 @@
             "dxvk": false,
             "dxvkAsync": false,
             "enhancedSync": "msync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -2264,7 +2233,6 @@
             "dxvk": true,
             "dxvkAsync": true,
             "enhancedSync": "msync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -2331,7 +2299,6 @@
             "dxvk": false,
             "dxvkAsync": false,
             "enhancedSync": "esync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -2406,7 +2373,6 @@
             "dxvk": false,
             "dxvkAsync": false,
             "enhancedSync": "esync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -2485,7 +2451,6 @@
             "dxvk": false,
             "dxvkAsync": false,
             "enhancedSync": "msync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -2542,19 +2507,18 @@
       "variants": [
         {
           "id": "dxvk-(decima-engine)",
-          "label": "DXVK (Decima engine)",
+          "label": "Recommended (Decima engine)",
           "isDefault": true,
-          "whenToUse": "Recommended community-tested configuration",
+          "whenToUse": "Default configuration; Whisky picks the backend for the installed runtime",
           "rationale": [
-            "Same Decima engine config as Horizon Zero Dawn \u2014 DXVK is the known good path",
-            "vcrun2022 + esync match the HZD recipe"
+            "DirectX 12 only (PCGamingWiki); DXVK has no Direct3D 12 path and its preset turns d3d12 off, so the game uses the recommended backend (D3DMetal with the GPTK payload)",
+            "vcrun2022 + esync match the Horizon Zero Dawn recipe"
           ],
           "settings": {
-            "graphicsBackend": "dxvk",
-            "dxvk": true,
-            "dxvkAsync": true,
+            "graphicsBackend": "recommended",
+            "dxvk": false,
+            "dxvkAsync": false,
             "enhancedSync": "msync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -2608,20 +2572,19 @@
       "variants": [
         {
           "id": "recommended-dxvk",
-          "label": "Recommended (DXVK)",
+          "label": "Recommended",
           "isDefault": true,
-          "whenToUse": "DXVK provides better compatibility for this Vulkan-capable title",
+          "whenToUse": "Recommended backend for this DirectX 12 only title",
           "rationale": [
-            "DXVK with async shaders reduces stuttering significantly",
+            "DirectX 12 only (PCGamingWiki); DXVK has no Direct3D 12 path and its preset turns d3d12 off, so the game uses the recommended backend (D3DMetal with the GPTK payload)",
             "Esync is needed for proper thread synchronization",
             "Shader cache prevents repeated compilation"
           ],
           "settings": {
-            "graphicsBackend": "dxvk",
-            "dxvk": true,
-            "dxvkAsync": true,
+            "graphicsBackend": "recommended",
+            "dxvk": false,
+            "dxvkAsync": false,
             "enhancedSync": "esync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -2640,7 +2603,7 @@
         }
       ],
       "notes": [
-        "DXVK is preferred over D3DMetal for this title due to better shader handling",
+        "DirectX 12 only; DXVK cannot run it, so it uses the recommended backend",
         "Lower settings to Medium for M1/M2; High works on M3 Pro and above",
         "Save files are compatible with Steam Cloud"
       ],
@@ -2702,7 +2665,6 @@
             "dxvk": true,
             "dxvkAsync": true,
             "enhancedSync": "msync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -2768,7 +2730,6 @@
             "dxvk": true,
             "dxvkAsync": true,
             "enhancedSync": "msync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -2826,15 +2787,14 @@
           "isDefault": true,
           "whenToUse": "Community-tested configuration",
           "rationale": [
-            "UE4 title with Don't Nod-typical DX11 startup error without vcrun2022",
-            "DXVK + async addresses initial Direct3D init pattern"
+            "UE4 title with the Don't Nod-typical Direct3D startup error without vcrun2022",
+            "DirectX 12 only (PCGamingWiki); DXVK has no Direct3D 12 path and its preset turns d3d12 off, so the game uses the recommended backend (D3DMetal with the GPTK payload)"
           ],
           "settings": {
-            "graphicsBackend": "dxvk",
-            "dxvk": true,
-            "dxvkAsync": true,
+            "graphicsBackend": "recommended",
+            "dxvk": false,
+            "dxvkAsync": false,
             "enhancedSync": "msync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -2902,7 +2862,6 @@
             "dxvk": true,
             "dxvkAsync": true,
             "enhancedSync": "msync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -2963,19 +2922,18 @@
       "variants": [
         {
           "id": "dxvk-(re-engine)",
-          "label": "DXVK (RE Engine)",
+          "label": "Recommended (RE Engine)",
           "isDefault": true,
-          "whenToUse": "Recommended community-tested configuration",
+          "whenToUse": "Default configuration; Whisky picks the backend for the installed runtime",
           "rationale": [
-            "RE Engine title; mirrors the SF6/MH Rise DXVK config",
-            "Beta build exits immediately when launched directly via Steam without DXVK"
+            "RE Engine title; vcrun2022 supplies the runtime",
+            "DirectX 12 only (PCGamingWiki); DXVK has no Direct3D 12 path and its preset turns d3d12 off, so the game uses the recommended backend (D3DMetal with the GPTK payload)"
           ],
           "settings": {
-            "graphicsBackend": "dxvk",
-            "dxvk": true,
-            "dxvkAsync": true,
+            "graphicsBackend": "recommended",
+            "dxvk": false,
+            "dxvkAsync": false,
             "enhancedSync": "msync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -3040,7 +2998,6 @@
             "dxvk": true,
             "dxvkAsync": true,
             "enhancedSync": "msync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -3098,15 +3055,15 @@
           "isDefault": true,
           "whenToUse": "Community-tested configuration",
           "rationale": [
-            "2013-era DX11 fighter, requires legacy vcrun2013 + d3dcompiler",
-            "Splash-then-exit is classic D3D11 device init failure pattern"
+            "2013-era DirectX 9 fighter (PCGamingWiki); Whisky's DXVK covers Direct3D 10 and 11 only, so Direct3D 9 goes to the runtime's own d3d9",
+            "Requires legacy vcrun2013 + d3dcompiler",
+            "Splash-then-exit is the classic device init failure pattern"
           ],
           "settings": {
             "graphicsBackend": "dxvk",
             "dxvk": true,
             "dxvkAsync": true,
             "enhancedSync": "msync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -3176,7 +3133,6 @@
             "dxvk": true,
             "dxvkAsync": true,
             "enhancedSync": "msync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -3247,7 +3203,6 @@
             "dxvk": false,
             "dxvkAsync": false,
             "enhancedSync": "none",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -3313,15 +3268,14 @@
           "isDefault": true,
           "whenToUse": "Community-tested configuration",
           "rationale": [
-            "UE4.27 Atlus port crashes in DXVK init without vcrun + d3dcompiler",
-            "Pattern matches other UE4 JRPG ports we've shipped"
+            "UE4.27 Atlus port that needs vcrun + d3dcompiler at startup",
+            "DirectX 12 only (PCGamingWiki); DXVK has no Direct3D 12 path and its preset turns d3d12 off, so the game uses the recommended backend (D3DMetal with the GPTK payload)"
           ],
           "settings": {
-            "graphicsBackend": "dxvk",
-            "dxvk": true,
-            "dxvkAsync": true,
+            "graphicsBackend": "recommended",
+            "dxvk": false,
+            "dxvkAsync": false,
             "enhancedSync": "msync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -3389,7 +3343,6 @@
             "dxvk": true,
             "dxvkAsync": true,
             "enhancedSync": "msync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -3456,7 +3409,6 @@
             "dxvk": true,
             "dxvkAsync": true,
             "enhancedSync": "msync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -3522,7 +3474,6 @@
             "dxvk": true,
             "dxvkAsync": true,
             "enhancedSync": "msync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -3588,7 +3539,6 @@
             "dxvk": true,
             "dxvkAsync": true,
             "enhancedSync": "msync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -3655,14 +3605,10 @@
             "dxvk": true,
             "dxvkAsync": true,
             "enhancedSync": "esync",
-            "forceD3D11": true,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
-          "environmentVariables": {
-            "DXVK_REQUIRED": "1",
-            "D3DM_FORCE_D3D11": "1"
-          },
+          "environmentVariables": {},
           "dllOverrides": [],
           "winetricksVerbs": [
             "vcrun2022"
@@ -3740,7 +3686,6 @@
             "dxvk": false,
             "dxvkAsync": false,
             "enhancedSync": "esync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -3814,7 +3759,6 @@
             "dxvk": true,
             "dxvkAsync": true,
             "enhancedSync": "msync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -3880,7 +3824,6 @@
             "dxvk": true,
             "dxvkAsync": true,
             "enhancedSync": "msync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -3947,7 +3890,6 @@
             "dxvk": true,
             "dxvkAsync": true,
             "enhancedSync": "msync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -4016,7 +3958,6 @@
             "dxvk": false,
             "dxvkAsync": false,
             "enhancedSync": "msync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -4078,20 +4019,18 @@
       "variants": [
         {
           "id": "experimental-dxvk",
-          "label": "Experimental (DXVK)",
+          "label": "Experimental (recommended backend)",
           "isDefault": true,
-          "whenToUse": "Unverified; DXVK may handle DX12 better for this title",
+          "whenToUse": "Unverified; DirectX 12 only, so it uses the recommended backend",
           "rationale": [
-            "DX12 game that may benefit from DXVK translation path",
-            "Async shader compilation could help with stuttering",
+            "DirectX 12 only (PCGamingWiki); DXVK has no Direct3D 12 path and its preset turns d3d12 off, so the game uses the recommended backend (D3DMetal with the GPTK payload)",
             "Very demanding title; expect poor performance"
           ],
           "settings": {
-            "graphicsBackend": "dxvk",
-            "dxvk": true,
-            "dxvkAsync": true,
+            "graphicsBackend": "recommended",
+            "dxvk": false,
+            "dxvkAsync": false,
             "enhancedSync": "esync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -4155,19 +4094,19 @@
       "variants": [
         {
           "id": "dxvk-(re-engine)",
-          "label": "DXVK (RE Engine)",
+          "label": "Recommended (RE Engine)",
           "isDefault": true,
-          "whenToUse": "Recommended community-tested configuration",
+          "whenToUse": "Default configuration; Whisky picks the backend for the installed runtime",
           "rationale": [
-            "'Fatal d3d error(3)' is a confirmed D3DMetal crash for the RE Engine",
-            "DXVK avoids the fatal path; vcrun2022 supplies the runtime"
+            "'Fatal d3d error(3)' has been reported as a D3DMetal crash for the RE Engine; DXVK cannot avoid it because it cannot run the game at all",
+            "DirectX 12 only (PCGamingWiki); DXVK has no Direct3D 12 path and its preset turns d3d12 off, so the game uses the recommended backend (D3DMetal with the GPTK payload)",
+            "vcrun2022 supplies the runtime"
           ],
           "settings": {
-            "graphicsBackend": "dxvk",
-            "dxvk": true,
-            "dxvkAsync": true,
+            "graphicsBackend": "recommended",
+            "dxvk": false,
+            "dxvkAsync": false,
             "enhancedSync": "msync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -4233,7 +4172,6 @@
             "dxvk": true,
             "dxvkAsync": true,
             "enhancedSync": "msync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -4290,15 +4228,14 @@
           "isDefault": true,
           "whenToUse": "Community-tested configuration",
           "rationale": [
-            "DX11 Bandai Namco JRPG with the silent-exit-on-launch pattern",
-            "vcrun2019 + d3dcompiler_47 unblocks DX11 device creation"
+            "DirectX 9 Bandai Namco JRPG with the silent-exit-on-launch pattern (PCGamingWiki); Whisky's DXVK covers Direct3D 10 and 11 only, so Direct3D 9 goes to the runtime's own d3d9",
+            "vcrun2019 + d3dcompiler_47 unblock its device creation"
           ],
           "settings": {
             "graphicsBackend": "dxvk",
             "dxvk": true,
             "dxvkAsync": true,
             "enhancedSync": "msync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -4366,7 +4303,6 @@
             "dxvk": true,
             "dxvkAsync": true,
             "enhancedSync": "msync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -4436,7 +4372,6 @@
             "dxvk": true,
             "dxvkAsync": true,
             "enhancedSync": "msync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -4503,7 +4438,6 @@
             "dxvk": false,
             "dxvkAsync": false,
             "enhancedSync": "msync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -4571,7 +4505,6 @@
             "dxvk": false,
             "dxvkAsync": false,
             "enhancedSync": "msync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -4639,7 +4572,6 @@
             "dxvk": false,
             "dxvkAsync": false,
             "enhancedSync": "msync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -4668,7 +4600,6 @@
             "dxvk": true,
             "dxvkAsync": true,
             "enhancedSync": "msync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -4732,19 +4663,18 @@
       "variants": [
         {
           "id": "dxvk-(ue5-fallback)",
-          "label": "DXVK (UE5 fallback)",
+          "label": "Recommended (UE5)",
           "isDefault": true,
-          "whenToUse": "Recommended community-tested configuration",
+          "whenToUse": "Default configuration; Whisky picks the backend for the installed runtime",
           "rationale": [
-            "UE5 Nanite/Lumen exposes D3DMetal incompatibility with missing/untextured models",
-            "DXVK shader compilation gives correct rendering at the cost of compile-stutter on first run"
+            "UE5 Nanite/Lumen has been reported to show missing or untextured models on D3DMetal",
+            "DirectX 12 only (PCGamingWiki); DXVK has no Direct3D 12 path and its preset turns d3d12 off, so the game uses the recommended backend (D3DMetal with the GPTK payload)"
           ],
           "settings": {
-            "graphicsBackend": "dxvk",
-            "dxvk": true,
-            "dxvkAsync": true,
+            "graphicsBackend": "recommended",
+            "dxvk": false,
+            "dxvkAsync": false,
             "enhancedSync": "msync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -4811,7 +4741,6 @@
             "dxvk": false,
             "dxvkAsync": false,
             "enhancedSync": "msync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -4841,7 +4770,6 @@
             "dxvk": false,
             "dxvkAsync": false,
             "enhancedSync": "msync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -4919,7 +4847,6 @@
             "dxvk": false,
             "dxvkAsync": false,
             "enhancedSync": "esync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -4988,15 +4915,14 @@
           "isDefault": true,
           "whenToUse": "Recommended community-tested configuration",
           "rationale": [
-            "DX11 RTS title; DXVK reliably handles the rendering",
-            "vcrun2022 + d3dcompiler_47 cover the DX11 shader-init dependencies"
+            "DirectX 9 RTS title (PCGamingWiki); Whisky's DXVK covers Direct3D 10 and 11 only, so Direct3D 9 goes to the runtime's own d3d9",
+            "vcrun2022 + d3dcompiler_47 cover the shader-init dependencies"
           ],
           "settings": {
             "graphicsBackend": "dxvk",
             "dxvk": true,
             "dxvkAsync": true,
             "enhancedSync": "msync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -5064,7 +4990,6 @@
             "dxvk": true,
             "dxvkAsync": true,
             "enhancedSync": "msync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -5134,7 +5059,6 @@
             "dxvk": true,
             "dxvkAsync": true,
             "enhancedSync": "esync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -5217,7 +5141,6 @@
             "dxvk": true,
             "dxvkAsync": true,
             "enhancedSync": "msync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -5291,7 +5214,6 @@
             "dxvk": true,
             "dxvkAsync": true,
             "enhancedSync": "msync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -5355,7 +5277,6 @@
             "dxvk": true,
             "dxvkAsync": true,
             "enhancedSync": "msync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -5392,7 +5313,7 @@
       "aliases": [],
       "subtitle": "Dovetail Games",
       "store": "steam",
-      "steamAppId": 2467730,
+      "steamAppId": 2967990,
       "rating": "unverified",
       "exeNames": [
         "TS5Game.exe",
@@ -5419,14 +5340,13 @@
           "whenToUse": "Community-tested configuration",
           "rationale": [
             "UE4.27 sim \u2014 msync regression in 2.3.2+ causes audio-only freeze; esync stable",
-            "DXVK on for DX12 \u2192 DX11 fallback path stability"
+            "DirectX 11 title (PCGamingWiki); DXVK runs it"
           ],
           "settings": {
             "graphicsBackend": "dxvk",
             "dxvk": true,
             "dxvkAsync": true,
             "enhancedSync": "esync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -5491,7 +5411,6 @@
             "dxvk": true,
             "dxvkAsync": true,
             "enhancedSync": "msync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -5558,7 +5477,6 @@
             "dxvk": false,
             "dxvkAsync": false,
             "enhancedSync": "msync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -5621,7 +5539,6 @@
             "dxvk": false,
             "dxvkAsync": false,
             "enhancedSync": "none",
-            "forceD3D11": false,
             "shaderCacheEnabled": false,
             "avxEnabled": false
           },
@@ -5696,7 +5613,6 @@
             "dxvk": true,
             "dxvkAsync": true,
             "enhancedSync": "msync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -5766,7 +5682,6 @@
             "dxvk": true,
             "dxvkAsync": true,
             "enhancedSync": "msync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -5836,14 +5751,14 @@
           "whenToUse": "Community-tested configuration",
           "rationale": [
             "Falcom DX11 JRPG with the immediate-crash-on-launch pattern",
-            "vcrun2022 + d3dcompiler_47 unblocks DX11 device creation"
+            "vcrun2022 + d3dcompiler_47 unblocks DX11 device creation",
+            "The Western release is DirectX 11 only; DirectX 12 exists only in the Asian 2.0 release (PCGamingWiki), where DXVK's preset would turn d3d12 off"
           ],
           "settings": {
             "graphicsBackend": "dxvk",
             "dxvk": true,
             "dxvkAsync": true,
             "enhancedSync": "msync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -5908,7 +5823,6 @@
             "dxvk": false,
             "dxvkAsync": false,
             "enhancedSync": "msync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -5970,7 +5884,6 @@
             "dxvk": false,
             "dxvkAsync": false,
             "enhancedSync": "msync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false
           },
@@ -6033,7 +5946,6 @@
           "settings": {
             "graphicsBackend": "dxmt",
             "enhancedSync": "msync",
-            "forceD3D11": false,
             "shaderCacheEnabled": true,
             "avxEnabled": false,
             "frameRateLimit": "unlimited"
@@ -6045,6 +5957,7 @@
       ],
       "notes": [
         "Measured on an M5 Pro, macOS 27.0.1, DXMT 0.80, a 75 Hz external display, in-game FPS 60 and no backend cap: about 59 fps in the lobby, dipping to about 48 in battle. One machine and one session, so there is no testedWith block yet and the rating stays unverified.",
+        "Metal HUD over one session on the same machine: GPU time is about 2.5 ms a frame at 1366x768, so rendering is not what heats the machine; the CPU side (x86-64 translation and the client itself) is the likelier cause. At 60 fps on the 75 Hz display, three frames in four stay up one refresh (13.3 ms) and the fourth two (26.7 ms): 60 on average, but uneven. Setting the display to 60 Hz while playing gives even pacing with the same in-game cap.",
         "The launcher, ZFGameBrowser.exe, is Chromium-based and never paints on D3DMetal. It is detected as a launcher now, so on the Recommended backend it resolves to DXVK on its own. Launcher auto-detection with Auto-enable DXVK on switches the whole bottle to DXVK; to keep the game on DXMT alongside the launcher, pin DXVK on ZFGameBrowser.exe with a per-program override instead.",
         "This is a mobile-origin client. Its own graphics menu tops out well below what the Mac can draw, so lowering in-game settings does little for heat. The FPS option is what moves it. Leave ray tracing and DLSS off: ray tracing needs D3D12 and DLSS needs an NVIDIA GPU, so neither can work through DXMT.",
         "A fixed 1366x768 window is set per program, not here: the database cannot carry launch arguments. Give Mecharashi.exe the arguments -screen-fullscreen 0 -screen-width 1366 -screen-height 768; the client area is then 1366x768 with the title bar outside it."

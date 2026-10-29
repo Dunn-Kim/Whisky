@@ -70,17 +70,17 @@ final class LauncherPresetTests: XCTestCase {
 
         let env = launcher.environmentOverrides()
         XCTAssertNil(env["DXVK_REQUIRED"])
-        XCTAssertEqual(env["D3DM_FORCE_D3D11"], "1")
         // Nothing in the runtime reads it, and x64 executables are
         // large-address-aware already.
         XCTAssertNil(env["WINE_LARGE_ADDRESS_AWARE"])
     }
 
-    func testEAAppRequiresGPUDetection() {
+    func testEAAppPreset() {
         let env = LauncherType.eaApp.environmentOverrides()
 
-        // EA App needs D3D feature level reporting
-        XCTAssertEqual(env["D3DM_FEATURE_LEVEL_12_1"], "1")
+        // GPU detection is the spoof's job (LauncherFixes turns it on).
+        XCTAssertEqual(env["LC_ALL"], "en_US.UTF-8")
+        XCTAssertEqual(env["LANG"], "en_US.UTF-8")
 
         // Note: CEF_DISABLE_SANDBOX is set globally in MacOSCompatibility.swift
         XCTAssertNil(env["CEF_DISABLE_SANDBOX"], "Should be set globally, not in preset")
@@ -94,15 +94,12 @@ final class LauncherPresetTests: XCTestCase {
 
         // Epic-specific settings
         XCTAssertEqual(env["LC_ALL"], "en_US.UTF-8")
-        XCTAssertEqual(env["D3DM_FORCE_D3D11"], "1")
         XCTAssertNil(env["WINE_DISABLE_NTDLL_THREAD_REGS"], "Unread by the shipped runtime")
     }
 
     func testUbisoftPreset() {
         let env = LauncherType.ubisoft.environmentOverrides()
 
-        // Ubisoft Connect requires D3D11 mode
-        XCTAssertEqual(env["D3DM_FORCE_D3D11"], "1")
         XCTAssertEqual(env["DXVK_ASYNC"], "1")
     }
 
@@ -125,10 +122,10 @@ final class LauncherPresetTests: XCTestCase {
     }
 
     func testParadoxPreset() {
-        let env = LauncherType.paradox.environmentOverrides()
-
-        XCTAssertEqual(env["D3DM_FORCE_D3D11"], "1")
-        XCTAssertNil(env["WINE_DISABLE_FAST_PATH"], "Unread by the shipped runtime")
+        // Both variables the preset used to set are read by no shipped runtime,
+        // so Paradox has no environment fix.
+        XCTAssertTrue(LauncherType.paradox.environmentOverrides().isEmpty)
+        XCTAssertTrue(LauncherType.paradox.fixDetails().isEmpty)
     }
 
     func testRecommendedLocales() {

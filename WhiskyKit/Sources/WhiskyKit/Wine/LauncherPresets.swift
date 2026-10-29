@@ -137,7 +137,7 @@ public enum LauncherType: String, Codable, CaseIterable, Sendable, Identifiable 
     /// - **Steam**: Fixes steamwebhelper crashes (whisky-app/whisky#946, #1224, #1241) via locale and CEF sandbox
     /// - **Rockstar**: Requires DXVK for logo rendering (whisky-app/whisky#1335, #835)
     /// - **EA App/Epic**: Chromium-based, need sandbox and locale fixes
-    /// - **Ubisoft**: Requires D3D11 mode for stability (whisky-app/whisky#1004)
+    /// - **Ubisoft**: DXVK async for Anno 1800 and other Ubisoft games (whisky-app/whisky#1004)
     ///
     /// - Note: For richer metadata including human-readable reasons and categories,
     ///   use ``fixDetails()`` instead.
@@ -208,7 +208,7 @@ public enum LauncherType: String, Codable, CaseIterable, Sendable, Identifiable 
         case .battleNet:
             "Fixes launcher locale and rendering issues"
         case .paradox:
-            "Forces D3D11 mode for launcher stability"
+            "No launcher-specific fixes needed"
         case .zfGame:
             "Fixes the blank launcher window caused by D3DMetal"
         }

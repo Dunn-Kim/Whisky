@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+- An imported GPTK payload must carry Apple's code signature
+  (`libd3dshared.dylib`, `D3DMetal.framework`), a sealed layout and no
+  links, and the staged copy is checked again before it replaces the store.
+  A store imported before this check is verified once; one that fails is no
+  longer deployed, and Settings says so. Upstream confirmed the signing
+  identifiers for GPTK 2.0 and 4.0b2 only (upstream #265, #299).
+
 ### Added
 - The Enhanced Sync picker, for the bottle and per program, says when the
   installed Wine runtime has neither msync nor esync, and that the setting
@@ -31,6 +39,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   DXMT stays the backend: on an M5 Pro, D3DMetal 4.0b2 (Wine 11.0) gets past
   the `__wine_unix_call` abort GPTK 3 hit, but the client then faults
   creating its D3D11 device.
+- The Mecharashi entry records a Metal HUD session on the same Mac: about
+  2.5 ms of GPU time a frame at 1366x768, and at 60 fps on 75 Hz three
+  frames in four held one refresh and the fourth two. A 60 Hz display
+  setting paces the same cap evenly.
+- Polish, Italian and Japanese translations from upstream's Crowdin sync
+  (upstream #259).
 
 ### Removed
 - Three controls that saved a value nothing read: "Reopen as template" in
@@ -82,6 +96,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sessions no longer record the wineserver state and process count, so the
   resume banner no longer reports them changing. Saved sessions that have
   them still load.
+- The Force DirectX 11 toggle, for the bottle, per program and in the game
+  database, and the launcher fixes that turned it on. Nothing in the shipped
+  runtimes reads `D3DM_FORCE_D3D11` or `D3DM_FEATURE_LEVEL_*`. Guided
+  troubleshooting offers a backend switch for D3D12 errors instead. Stored
+  values are ignored (upstream #292).
+- Seven environment variables no shipped runtime reads: `D3DM_VALIDATION`,
+  `GPU_VENDOR_ID`, `GPU_DEVICE_ID`, `GPU_DESCRIPTION`, `GPU_MEMORY_SIZE`,
+  `D3DM_SHADER_MODEL` and `DXVK_REQUIRED` (upstream #301).
+- ClickOnce support: `.appref-ms` detection in the program scan, its badge
+  and context menu, the .NET recommendation for it, and `.appref-ms` in the
+  Run and pin pickers. Games do not ship as ClickOnce deployments. The
+  program scan still skips ClickOnce cache executables (upstream #254).
 
 ### Fixed
 - Executable icons stored as 1, 2 or 4-bit bitmaps (and 16-bit ones, whose colors
@@ -133,6 +159,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `BottleData.plist`, which nothing creates, so the bottles under the
   app container (`Bottles`, `BottleVM.plist`) were left behind. Bottles at
   custom paths are still kept.
+- `WhiskyCmd run` prepares the bottle in every mode the way a launch from
+  the app does: per-program overrides, backend files, the DLL override
+  registry and audio. `--command` prints a prepared environment, so it
+  writes the prefix first. `steam launch` waits for the launch instead of
+  exiting before Steam started. A bottle made by `WhiskyCmd create` gets its
+  Wine prefix on its first run (upstream #281, #300).
+- With the GPTK payload deployed, a launch that enables DXVK puts Wine's own
+  dxgi, marker-stripped, in system32 instead of Apple's forwarder, which
+  DXVK's d3d11 cannot pair with (upstream #251, #295).
+- The launcher GPU spoof no longer turns `D3DM_SUPPORT_DXR` on over the
+  bottle's ray tracing toggle; RDR2 crashed on GPTK 3.0 with it. The D3D12
+  and DXGI interposers go in only for GPTK 4.0b2, and no interposer or
+  bridge touches a hand-placed payload (upstream #282).
+- Game database: ten DirectX 12 only titles no longer recommend DXVK, which
+  cannot run them. Train Sim World 5's Steam App ID is 2967990. Assetto
+  Corsa is DirectX 11; Tales of Berseria, Mortal Kombat Komplete Edition and
+  They Are Billions are DirectX 9 (upstream #302, #303).
 
 ## [fork-2026.10.04] - 2026-10-04 (Fork)
 

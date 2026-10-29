@@ -327,10 +327,7 @@ struct ProgramOverrideSettingsView: View {
             if hasPerformanceOverride {
                 performanceControls
             } else {
-                inheritedSummary(
-                    "Shader Cache \(bottle.settings.shaderCacheEnabled ? "On" : "Off"), "
-                        + "Force D3D11 \(bottle.settings.forceD3D11 ? "On" : "Off")"
-                )
+                inheritedSummary("Shader Cache \(bottle.settings.shaderCacheEnabled ? "On" : "Off")")
             }
         }
     }
@@ -338,7 +335,6 @@ struct ProgramOverrideSettingsView: View {
     @ViewBuilder
     private var performanceControls: some View {
         Toggle("config.shaderCache", isOn: override(\.shaderCacheEnabled, fallback: bottle.settings.shaderCacheEnabled))
-        Toggle("config.forceD3D11", isOn: override(\.forceD3D11, fallback: bottle.settings.forceD3D11))
     }
 
     // MARK: - Input Group
@@ -510,7 +506,6 @@ struct ProgramOverrideSettingsView: View {
 
     private var hasPerformanceOverride: Bool {
         program.settings.overrides?.shaderCacheEnabled != nil
-            || program.settings.overrides?.forceD3D11 != nil
     }
 
     private var hasInputOverride: Bool {
@@ -604,10 +599,8 @@ struct ProgramOverrideSettingsView: View {
                 ensureOverrides()
                 if isOn {
                     program.settings.overrides?.shaderCacheEnabled = bottle.settings.shaderCacheEnabled
-                    program.settings.overrides?.forceD3D11 = bottle.settings.forceD3D11
                 } else {
                     program.settings.overrides?.shaderCacheEnabled = nil
-                    program.settings.overrides?.forceD3D11 = nil
                 }
             }
         )

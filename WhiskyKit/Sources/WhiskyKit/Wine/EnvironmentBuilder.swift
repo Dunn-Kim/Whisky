@@ -32,7 +32,7 @@ import Foundation
 /// 4. ``launcherManaged`` -- Launcher compatibility mode and detected overrides
 /// 5. ``gameProfile`` -- GameDB variant environment applied for a single launch
 /// 6. ``programUser`` -- Program settings environment variables and locale
-/// 7. ``featureRuntime`` -- Launch-time feature injectors (ClickOnce, one-off modes)
+/// 7. ``featureRuntime`` -- Launch-time feature injectors (one-off diagnostic modes)
 public enum EnvironmentLayer: Int, CaseIterable, Comparable, Sendable, Hashable {
     case base = 0
     case platform
@@ -169,16 +169,6 @@ extension EnvironmentBuilder {
             // under MSYNC. Values hardcoded in lid3dshared.dylib
             set("WINEMSYNC", "1", layer: layer)
             set("WINEESYNC", "1", layer: layer)
-        }
-    }
-
-    mutating func setForceD3D11(_ enabled: Bool, layer: EnvironmentLayer) {
-        if enabled {
-            set("D3DM_FORCE_D3D11", "1", layer: layer)
-            set("D3DM_FEATURE_LEVEL_12_0", "0", layer: layer)
-        } else {
-            remove("D3DM_FORCE_D3D11", layer: layer)
-            remove("D3DM_FEATURE_LEVEL_12_0", layer: layer)
         }
     }
 

@@ -94,7 +94,6 @@ final class GameDatabaseTests: XCTestCase {
                 "dxvk": false,
                 "dxvkAsync": false,
                 "enhancedSync": "esync",
-                "forceD3D11": false,
                 "shaderCacheEnabled": true,
                 "avxEnabled": false
               },
@@ -148,7 +147,6 @@ final class GameDatabaseTests: XCTestCase {
         XCTAssertEqual(variant.settings.graphicsBackend, .d3dMetal)
         XCTAssertEqual(variant.settings.dxvk, false)
         XCTAssertEqual(variant.settings.enhancedSync, .esync)
-        XCTAssertEqual(variant.settings.forceD3D11, false)
         XCTAssertEqual(variant.settings.shaderCacheEnabled, true)
         XCTAssertEqual(variant.environmentVariables?["D3DM_SUPPORT_DXR"], "0")
         XCTAssertEqual(variant.winetricksVerbs, ["vcrun2022"])
@@ -213,10 +211,32 @@ final class GameDatabaseTests: XCTestCase {
         XCTAssertNil(settings.dxvk)
         XCTAssertNil(settings.dxvkAsync)
         XCTAssertNil(settings.enhancedSync)
-        XCTAssertNil(settings.forceD3D11)
         XCTAssertNil(settings.shaderCacheEnabled)
         XCTAssertNil(settings.avxEnabled)
         XCTAssertNil(settings.frameRateLimit)
+    }
+
+    func testLegacyForceD3D11KeyIsIgnoredInVariantSettings() throws {
+        // GameDB files written before the toggle was removed still carry the key.
+        let json = """
+        {
+          "graphicsBackend": "dxvk",
+          "dxvkAsync": true,
+          "forceD3D11": true,
+          "shaderCacheEnabled": false,
+          "avxEnabled": true
+        }
+        """
+
+        let data = try XCTUnwrap(json.data(using: .utf8))
+        let settings = try JSONDecoder().decode(GameConfigVariantSettings.self, from: data)
+
+        XCTAssertEqual(settings, GameConfigVariantSettings(
+            graphicsBackend: .dxvk,
+            dxvkAsync: true,
+            shaderCacheEnabled: false,
+            avxEnabled: true
+        ))
     }
 
     // MARK: - Frame Rate Limit Decoding

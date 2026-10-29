@@ -20,7 +20,6 @@ import Foundation
 
 public struct BottlePerformanceConfig: Codable, Equatable {
     var shaderCacheEnabled: Bool = true
-    var forceD3D11: Bool = false // Force D3D11 instead of D3D12 for compatibility
     var vcRedistInstalled: Bool = false // Track if VC++ runtime is installed
 
     public init() {}
@@ -28,7 +27,6 @@ public struct BottlePerformanceConfig: Codable, Equatable {
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.shaderCacheEnabled = try container.decodeIfPresent(Bool.self, forKey: .shaderCacheEnabled) ?? true
-        self.forceD3D11 = try container.decodeIfPresent(Bool.self, forKey: .forceD3D11) ?? false
         self.vcRedistInstalled = try container.decodeIfPresent(Bool.self, forKey: .vcRedistInstalled) ?? false
     }
 }

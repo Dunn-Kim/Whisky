@@ -18,7 +18,6 @@
 
 import Foundation
 import os.log
-import SemanticVersion
 import WhiskyKit
 
 // MARK: - Bottle Creation Errors
@@ -154,13 +153,9 @@ final class BottleVM: ObservableObject {
             createdBottle.settings.windowsVersion = request.winVersion
             createdBottle.settings.name = request.bottleName
 
-            // Wine operations are async and can run on background threads
-            try await Wine.changeWinVersion(bottle: createdBottle, win: request.winVersion)
-            let wineVer = try await Wine.wineVersion()
-            createdBottle.settings.wineVersion = SemanticVersion(wineVer) ?? SemanticVersion(0, 0, 0)
-
-            // Bootstrap host fonts so Unity titles render fallback glyphs correctly.
-            BottleFontBootstrap.copySystemFonts(toPrefix: createdBottle.url)
+            // The same prefix setup a CLI launch runs for a bottle made by
+            // `WhiskyCmd create`, host fonts included for Unity's fallback glyphs.
+            try await Wine.bootstrapPrefix(bottle: createdBottle)
 
             // Save settings
             createdBottle.saveBottleSettings()

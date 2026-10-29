@@ -18,7 +18,6 @@
 
 import AppKit
 import Foundation
-import os.log
 
 // MARK: - Crash Diagnosis Notification
 
@@ -80,21 +79,19 @@ public extension Program {
     func launchWithUserMode(useTerminal: Bool) async -> LaunchResult {
         // Check for terminal mode (typically shift-click)
         if useTerminal {
-            self.runInTerminal()
-            return .launchedInTerminal(programName: self.name)
+            do {
+                try await openInTerminal()
+                return .launchedInTerminal(programName: self.name)
+            } catch {
+                return .launchFailed(programName: self.name, errorDescription: error.localizedDescription)
+            }
         }
 
         // Normal Wine launch with program-specific settings
-        await Wine.syncAudioRegistry(bottle: bottle)
-
         let arguments = settings.arguments.split { $0.isWhitespace }.map(String.init)
-        let environment = generateEnvironment()
 
         do {
-            let result = try await Wine.runProgram(
-                at: self.url, args: arguments, bottle: self.bottle, environment: environment,
-                programOverrides: settings.overrides, programSettings: settings
-            )
+            let result = try await launch(args: arguments)
 
             // Track the log file URL for diagnostics
             settings.lastLogFileURL = result.logFileURL
@@ -244,25 +241,6 @@ public extension Program {
         return Wine.generateRunCommand(
             at: self.url, bottle: bottle, args: escapedArgs, environment: generateEnvironment(), preEscaped: true
         )
-    }
-
-    func runInTerminal() {
-        // A temp script file avoids AppleScript string length limits and the
-        // escaping issues of very long Wine commands.
-        let scriptContent = "#!/bin/bash\n\(generateTerminalCommand())\n"
-        let subject = url.lastPathComponent
-        Task {
-            let scriptURL: URL
-            do {
-                scriptURL = try await TerminalApp.runScript(scriptContent, namePrefix: "whisky-run", subject: subject)
-            } catch {
-                Logger.wineKit.error("Failed to write terminal script: \(error)")
-                return
-            }
-            // Clean up temp script after a delay to ensure the terminal has read it
-            try? await Task.sleep(for: .seconds(5))
-            try? FileManager.default.removeItem(at: scriptURL)
-        }
     }
 
     /// Shows a blocking alert when the clipboard contains large content that needs user decision.

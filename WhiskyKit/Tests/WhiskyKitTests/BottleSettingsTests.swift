@@ -43,7 +43,6 @@ final class BottleSettingsTests: XCTestCase {
         XCTAssertFalse(settings.dxrEnabled)
         XCTAssertFalse(settings.metalValidation)
         XCTAssertTrue(settings.shaderCacheEnabled)
-        XCTAssertFalse(settings.forceD3D11)
         XCTAssertFalse(settings.vcRedistInstalled)
         XCTAssertTrue(settings.pins.isEmpty)
         XCTAssertTrue(settings.blocklist.isEmpty)
@@ -117,7 +116,6 @@ final class BottleSettingsTests: XCTestCase {
         let config = BottlePerformanceConfig()
 
         XCTAssertTrue(config.shaderCacheEnabled)
-        XCTAssertFalse(config.forceD3D11)
         XCTAssertFalse(config.vcRedistInstalled)
     }
 
@@ -279,7 +277,6 @@ final class BottleSettingsTests: XCTestCase {
         settings.name = "Legacy Perf Settings"
         settings.metalHud = true
         settings.shaderCacheEnabled = false
-        settings.forceD3D11 = true
         settings.vcRedistInstalled = true
 
         // Builds with the preset picker wrote the preset inside the performanceConfig
@@ -294,8 +291,32 @@ final class BottleSettingsTests: XCTestCase {
         XCTAssertEqual(decoded.name, "Legacy Perf Settings")
         XCTAssertTrue(decoded.metalHud)
         XCTAssertFalse(decoded.shaderCacheEnabled)
-        XCTAssertTrue(decoded.forceD3D11)
         XCTAssertTrue(decoded.vcRedistInstalled)
+    }
+
+    func testLegacyForceD3D11DecodesCleanlyInWholeSettings() throws {
+        var settings = BottleSettings()
+        settings.name = "Legacy D3D11 Settings"
+        settings.metalHud = true
+        settings.shaderCacheEnabled = false
+        settings.vcRedistInstalled = true
+
+        // Builds with the Force DirectX 11 toggle wrote it inside the performanceConfig
+        // dict, so that is where BottlePerformanceConfig's decoder has to meet it.
+        let decoded = try decodeSettingsSubstituting(
+            settings,
+            original: "<key>performanceConfig</key>\n\t<dict>",
+            replacement: "<key>performanceConfig</key>\n\t<dict><key>forceD3D11</key><true/>"
+        )
+
+        // The legacy key is dropped without resetting its siblings or the rest of the bottle.
+        XCTAssertEqual(decoded, settings)
+
+        // The next save no longer writes it.
+        let encoder = PropertyListEncoder()
+        encoder.outputFormat = .xml
+        let resaved = try XCTUnwrap(String(data: encoder.encode(decoded), encoding: .utf8))
+        XCTAssertFalse(resaved.contains("forceD3D11"))
     }
 
     func testUnknownResolutionPresetDecodesToDefaultInWholeSettings() throws {

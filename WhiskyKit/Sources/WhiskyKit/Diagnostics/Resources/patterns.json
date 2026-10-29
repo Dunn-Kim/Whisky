@@ -124,7 +124,7 @@
       "confidence": 0.6,
       "substringPrefilter": null,
       "regex": "(?:DX12|dx12|D3D12).*(?:not supported|failed|error|unsupported)",
-      "remediationActionIds": ["force-d3d11"]
+      "remediationActionIds": ["switch-backend"]
     },
     {
       "id": "swapchain-failure",

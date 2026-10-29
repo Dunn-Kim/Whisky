@@ -221,7 +221,6 @@ public enum GameConfigApplicator {
             ))
         }
 
-        toggle("Performance", "Force D3D11", current: bottle.settings.forceD3D11, new: settings.forceD3D11)
         toggle(
             "Performance", "Shader Cache",
             current: bottle.settings.shaderCacheEnabled, new: settings.shaderCacheEnabled
@@ -316,10 +315,6 @@ public enum GameConfigApplicator {
 
         if let enhancedSync = settings.enhancedSync {
             bottle.settings.enhancedSync = enhancedSync
-        }
-
-        if let forceD3D11 = settings.forceD3D11 {
-            bottle.settings.forceD3D11 = forceD3D11
         }
 
         if let shaderCacheEnabled = settings.shaderCacheEnabled {

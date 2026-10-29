@@ -134,7 +134,6 @@ extension UTType {
         UTType(exportedAs: "com.microsoft.bat"),
         UTType(exportedAs: "com.microsoft.msix-package"),
         UTType(exportedAs: "com.microsoft.appx-package"),
-        UTType(exportedAs: "com.microsoft.application-reference"),
         UTType(exportedAs: "com.microsoft.windows-internet-shortcut")
     ]
 }

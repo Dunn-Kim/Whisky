@@ -55,9 +55,7 @@ final class LauncherDiagnosticsTests: XCTestCase {
         for vendor in GPUVendor.allCases {
             settings.gpuVendor = vendor
             let env = settings.env
-            XCTAssertEqual(env["GPU_VENDOR_ID"], vendor.vendorID, "Vendor ID should match for \(vendor.rawValue)")
-            XCTAssertNotNil(env["GPU_DEVICE_ID"])
-            XCTAssertNotNil(env["D3DM_FEATURE_LEVEL_12_1"])
+            XCTAssertEqual(env["MESA_GL_VERSION_OVERRIDE"], "4.6", "Spoof should apply for \(vendor.rawValue)")
         }
     }
 
@@ -66,7 +64,7 @@ final class LauncherDiagnosticsTests: XCTestCase {
         settings.launcherCompatibilityMode = true
         settings.gpuSpoofing = false
 
-        XCTAssertNil(settings.env["GPU_VENDOR_ID"], "GPU vendor should not be set when spoofing disabled")
+        XCTAssertNil(settings.env["MESA_GL_VERSION_OVERRIDE"], "GPU spoof should not be set when spoofing disabled")
     }
 
     func testLocaleOverrideConfiguration() {

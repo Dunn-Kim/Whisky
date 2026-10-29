@@ -65,8 +65,15 @@ extension GPTKImporter {
     ///
     /// Callers gate this on ``isRuntimeGPTKCapable()`` — deploying to an
     /// incapable runtime turns every D3DMetal launch into a crash.
+    ///
+    /// - Throws: ``GPTKImportError/storeNotVerified(_:)`` when the store fails
+    ///   the checks an import applies (see ``verifyStoredPayload()``).
     public static func deployStoredPayload() throws {
-        try deploy(fromStore: storeFolder, intoLibraryFolder: WhiskyWineInstaller.libraryFolder)
+        let store = storeFolder
+        if case let .failed(reason) = storeVerdict(inStore: store, isAppleSigned: isAppleSigned(_:identifier:)) {
+            throw GPTKImportError.storeNotVerified(reason)
+        }
+        try deploy(fromStore: store, intoLibraryFolder: WhiskyWineInstaller.libraryFolder)
     }
 
     /// Deploys the stored payload if there is one and the runtime can execute
@@ -74,11 +81,44 @@ extension GPTKImporter {
     ///
     /// The store survives a runtime install but the deployed copy does not, so
     /// every install has to re-evaluate. Idempotent and safe to call anywhere.
+    ///
+    /// A runtime holding a payload copied in by hand is left as it is. This
+    /// runs without anyone asking, every time Settings opens, and deploying
+    /// would replace that payload, deleting its forwarders or filing them away
+    /// as Wine's own. Importing is what replaces it.
+    ///
+    /// A store that fails the checks an import applies is not deployed either
+    /// (see ``verifyStoredPayload()``).
     @discardableResult
     public static func deployStoredPayloadIfCapable() -> Bool {
-        guard storedRecord() != nil, isRuntimeGPTKCapable() else { return false }
+        guard isRuntimeGPTKCapable() else { return false }
+        return deployStoredPayloadIfPresent(
+            fromStore: storeFolder,
+            intoLibraryFolder: WhiskyWineInstaller.libraryFolder,
+            isAppleSigned: isAppleSigned(_:identifier:)
+        )
+    }
+
+    /// Testable seam for ``deployStoredPayloadIfCapable()``, past the runtime
+    /// capability check.
+    @discardableResult
+    static func deployStoredPayloadIfPresent(
+        fromStore store: URL,
+        intoLibraryFolder folder: URL,
+        isAppleSigned: (_ code: URL, _ identifier: String) -> Bool
+    ) -> Bool {
+        guard storedRecord(inStore: store) != nil else { return false }
+        let verdict = verifyStoredPayload(inStore: store, libraryFolder: folder, isAppleSigned: isAppleSigned)
+        guard verdict == .verified else {
+            logger.info("Left the stored GPTK payload undeployed: it fails the checks an import applies")
+            return false
+        }
+        guard !holdsHandPlacedPayload(inLibraryFolder: folder, usingStore: store) else {
+            logger.info("Left the GPTK payload copied into the runtime by hand in place of the stored one")
+            return false
+        }
         do {
-            try deployStoredPayload()
+            try deploy(fromStore: store, intoLibraryFolder: folder)
             return true
         } catch {
             logger.error("Deploying the stored GPTK payload failed: \(error.localizedDescription)")
@@ -178,7 +218,8 @@ extension GPTKImporter {
         try installMetalFXBridge(intoLibraryFolder: folder, usingStore: store)
         // Apple's DLLs are in place now, which is the only moment the swaps can
         // be made: the runtime ships the interposers but has nothing to forward
-        // into until this point.
+        // into until this point. A payload from a build they were never
+        // validated on is deployed without them; install checks the version.
         for interposer in interposers {
             try install(interposer, intoLibraryFolder: folder)
         }
@@ -189,7 +230,7 @@ extension GPTKImporter {
     /// Whether `dll` is byte-identical to the store's forwarder of the same
     /// name, so deploy never mistakes an already-deployed Apple DLL for a Wine
     /// original worth backing up and remove only deletes what it put there.
-    private static func isGPTKForwarder(_ dll: URL, matching storeLib: URL) -> Bool {
+    static func isGPTKForwarder(_ dll: URL, matching storeLib: URL) -> Bool {
         let storeDLL = storeLib.appending(path: "wine").appending(path: "x86_64-windows")
             .appending(path: dll.lastPathComponent)
         return FileManager.default.contentsEqual(
@@ -231,7 +272,9 @@ extension GPTKImporter {
             // Backups from a replaced engine: drop them and leave the tree,
             // which this store never deployed into, untouched.
             guard originalsAreCurrent else {
-                if hasBackup { try fileManager.removeItem(at: backup) }
+                if hasBackup {
+                    try fileManager.removeItem(at: backup)
+                }
                 continue
             }
 

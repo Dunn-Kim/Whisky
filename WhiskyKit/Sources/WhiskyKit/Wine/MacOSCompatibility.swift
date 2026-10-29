@@ -115,11 +115,6 @@ public enum MacOSCompatibilityFixes {
             reason: "Disables Metal validation that causes rendering issues on macOS 15.3+",
             appliesFrom: .sequoia15_3, category: .graphics
         ),
-        MacOSFix(
-            key: "D3DM_VALIDATION", value: "0",
-            reason: "Improves D3DMetal stability on macOS 15.3+",
-            appliesFrom: .sequoia15_3, category: .graphics
-        ),
         // macOS 15.4+ fixes
         MacOSFix(
             key: "WINEFSYNC", value: "0",
