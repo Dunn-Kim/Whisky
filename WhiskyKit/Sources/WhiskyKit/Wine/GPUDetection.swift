@@ -106,6 +106,11 @@ public enum GPUDetection {
     /// GPU features. Helps launchers pass compatibility checks that would otherwise
     /// fail due to incomplete Metal driver information.
     ///
+    /// The vendor no longer changes the result. The `GPU_VENDOR_ID`,
+    /// `GPU_DEVICE_ID`, `GPU_DESCRIPTION`, `GPU_MEMORY_SIZE` and
+    /// `D3DM_SHADER_MODEL` keys it used to fill are read by no shipped
+    /// runtime (Wine, DXVK, DXMT or D3DMetal), so they were dropped.
+    ///
     /// - Parameter vendor: The GPU vendor to spoof (NVIDIA, AMD, or Intel)
     /// - Returns: Dictionary of environment variables for GPU spoofing
     public static func spoofGPU(vendor: GPUVendor) -> [String: String] {
@@ -114,24 +119,6 @@ public enum GPUDetection {
         // OpenGL version reporting (4.6 is modern and well-supported)
         env["MESA_GL_VERSION_OVERRIDE"] = "4.6"
         env["MESA_GLSL_VERSION_OVERRIDE"] = "460"
-
-        // DirectX feature levels
-        env["D3DM_FEATURE_LEVEL_12_1"] = "1" // DirectX 12.1 support
-        env["D3DM_FEATURE_LEVEL_12_0"] = "1" // DirectX 12.0 support
-        env["D3DM_FEATURE_LEVEL_11_1"] = "1" // DirectX 11.1 support
-
-        // PCI vendor and device IDs
-        env["GPU_VENDOR_ID"] = vendor.vendorID
-        env["GPU_DEVICE_ID"] = vendor.deviceID
-
-        // GPU model name for launcher display
-        env["GPU_DESCRIPTION"] = vendor.modelName
-
-        // VRAM reporting (8GB minimum for modern launchers)
-        env["GPU_MEMORY_SIZE"] = "8192" // 8GB in MB
-
-        // Shader model support
-        env["D3DM_SHADER_MODEL"] = "6.5"
 
         // Ray tracing capability (helps with modern launcher checks)
         env["D3DM_SUPPORT_DXR"] = "1"

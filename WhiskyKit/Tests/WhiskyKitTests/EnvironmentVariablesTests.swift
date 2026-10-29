@@ -145,19 +145,33 @@ final class EnvironmentVariablesTests: XCTestCase {
         XCTAssertNil(env["MVK_CONFIG_SHOULD_MAXIMIZE_CONCURRENT_COMPILATION"])
     }
 
-    func testPlatformFixesCarryNoUnreadWineKnobs() {
+    func testExportedEnvironmentCarriesNoUnreadKnobs() {
         // Sweeping the shipped WhiskyWine 2.5.0 binaries (ntdll.so, wineserver,
         // wine64, the preloader) showed none of these names anywhere. They must
         // not come back: every launch exports the platform layer, and inert
-        // keys turn launch logs and diagnostics into fiction.
+        // keys turn launch logs and diagnostics into fiction. The second group
+        // is read by no Wine, DXVK, DXMT or D3DMetal build either (upstream #301).
         let unread = [
             "WINE_CPU_TOPOLOGY", "WINE_THREAD_PRIORITY_PRESERVE",
             "WINE_ENABLE_POSIX_SIGNALS", "WINE_SIGPIPE_IGNORE",
             "WINE_PRELOADER_DEBUG", "WINE_DISABLE_FAST_PATH",
             "WINE_MACH_PORT_TIMEOUT", "WINE_MACH_PORT_RETRY_COUNT",
-            "WINE_ENABLE_PIPE_SYNC_FOR_APP", "WINE_DISABLE_NTDLL_THREAD_REGS"
+            "WINE_ENABLE_PIPE_SYNC_FOR_APP", "WINE_DISABLE_NTDLL_THREAD_REGS",
+            "D3DM_VALIDATION", "DXVK_REQUIRED", "GPU_VENDOR_ID", "GPU_DEVICE_ID",
+            "GPU_DESCRIPTION", "GPU_MEMORY_SIZE", "D3DM_SHADER_MODEL"
         ]
-        let exported = Set(MacOSCompatibilityFixes.allFixes.map(\.key))
+        var exported = Set(MacOSCompatibilityFixes.allFixes.map(\.key))
+        for vendor in GPUVendor.allCases {
+            exported.formUnion(GPUDetection.spoofGPU(vendor: vendor).keys)
+        }
+        for launcher in LauncherType.allCases {
+            exported.formUnion(launcher.environmentOverrides().keys)
+        }
+        for entry in GameDBLoader.loadDefaults() {
+            for variant in entry.variants {
+                exported.formUnion((variant.environmentVariables ?? [:]).keys)
+            }
+        }
         for key in unread {
             XCTAssertFalse(exported.contains(key), "\(key) is not read by the shipped runtime")
         }
@@ -266,21 +280,6 @@ final class EnvironmentVariablesTests: XCTestCase {
         XCTAssertEqual(env["D3DM_SUPPORT_DXR"], "1")
     }
 
-    func testSpoofDoesNotOutbidForceD3D11() {
-        var settings = BottleSettings()
-        settings.launcherCompatibilityMode = true
-        settings.gpuSpoofing = true
-        settings.forceD3D11 = true
-
-        var env: [String: String] = [:]
-        settings.environmentVariables(wineEnv: &env)
-
-        // Feature level is one resolved decision: the spoof's launcher layer
-        // must not undo the force-D3D11 pin from the bottle layer.
-        XCTAssertEqual(env["D3DM_FEATURE_LEVEL_12_0"], "0")
-        XCTAssertNil(env["D3DM_FEATURE_LEVEL_12_1"])
-    }
-
     func testSpoofDoesNotOutbidTheDXRToggle() {
         var settings = BottleSettings()
         settings.launcherCompatibilityMode = true
@@ -309,9 +308,10 @@ final class EnvironmentVariablesTests: XCTestCase {
         var env: [String: String] = [:]
         settings.environmentVariables(wineEnv: &env)
 
-        // All three values the removed Sequoia toggle used to set are
+        // Of the three values the removed Sequoia toggle used to set, two are
         // platform-layer fixes on every supported macOS, carried with
-        // provenance by constructWineEnvironment.
+        // provenance by constructWineEnvironment, and D3DM_VALIDATION is read
+        // by no runtime.
         XCTAssertNil(env["MTL_DEBUG_LAYER"])
         XCTAssertNil(env["D3DM_VALIDATION"])
         XCTAssertNil(env["WINEFSYNC"])
@@ -326,9 +326,10 @@ final class EnvironmentVariablesTests: XCTestCase {
 
         let env = Wine.constructWineEnvironment(for: bottle)
 
-        // Supported macOS is 15.4+ at minimum, so all three fixes apply.
+        // Supported macOS is 15.4+ at minimum, so both fixes apply.
+        // D3DM_VALIDATION is no longer one: no runtime reads it.
         XCTAssertEqual(env["MTL_DEBUG_LAYER"], "0")
-        XCTAssertEqual(env["D3DM_VALIDATION"], "0")
+        XCTAssertNil(env["D3DM_VALIDATION"])
         XCTAssertEqual(env["WINEFSYNC"], "0")
     }
 
@@ -348,18 +349,7 @@ final class EnvironmentVariablesTests: XCTestCase {
         XCTAssertEqual(env["MTL_DEBUG_LAYER"], "1")
     }
 
-    // MARK: - D3D11 and Shader Cache
-
-    func testEnvironmentVariablesWithForceD3D11() {
-        var settings = BottleSettings()
-        settings.forceD3D11 = true
-
-        var env: [String: String] = [:]
-        settings.environmentVariables(wineEnv: &env)
-
-        XCTAssertEqual(env["D3DM_FORCE_D3D11"], "1")
-        XCTAssertEqual(env["D3DM_FEATURE_LEVEL_12_0"], "0")
-    }
+    // MARK: - Shader Cache
 
     func testEnvironmentVariablesWithDisabledShaderCache() {
         var settings = BottleSettings()
