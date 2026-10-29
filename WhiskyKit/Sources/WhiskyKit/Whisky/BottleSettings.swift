@@ -937,10 +937,11 @@ public struct BottleSettings: Codable, Equatable {
             builder.set("MTL_DEBUG_LAYER", "1", layer: .bottleManaged)
         }
 
-        // The old sequoiaCompatMode block is gone: all three values it set
-        // (MTL_DEBUG_LAYER, D3DM_VALIDATION, WINEFSYNC) are platform-layer
-        // fixes on every supported macOS, so the toggle's off position changed
-        // nothing and its on position only hid the provenance.
+        // The old sequoiaCompatMode block is gone: of the three values it set,
+        // MTL_DEBUG_LAYER and WINEFSYNC are platform-layer fixes on every
+        // supported macOS and D3DM_VALIDATION is read by no runtime, so the
+        // toggle's off position changed nothing and its on position only hid
+        // the provenance.
 
         // Shader cache control. DXVK_STATE_CACHE and DXMT_SHADER_CACHE are the
         // variables DXVK and DXMT actually read; the previous pair (a

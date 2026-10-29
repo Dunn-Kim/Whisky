@@ -3660,9 +3660,7 @@
             "avxEnabled": false,
             "sequoiaCompatMode": false
           },
-          "environmentVariables": {
-            "DXVK_REQUIRED": "1"
-          },
+          "environmentVariables": {},
           "dllOverrides": [],
           "winetricksVerbs": [
             "vcrun2022"

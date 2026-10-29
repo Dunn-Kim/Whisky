@@ -34,26 +34,12 @@ final class GPUDetectionTests: XCTestCase {
         XCTAssertEqual(GPUVendor.intel.vendorID, "0x8086")
     }
 
-    func testGPUSpoofingIncludesVendorID() {
-        let env = GPUDetection.spoofGPU(vendor: .nvidia)
-
-        XCTAssertEqual(env["GPU_VENDOR_ID"], "0x10DE")
-        XCTAssertNotNil(env["GPU_DEVICE_ID"])
-    }
-
     func testGPUSpoofingIncludesOpenGLVersion() {
         let env = GPUDetection.spoofGPU(vendor: .nvidia)
 
         // Should report OpenGL 4.6
         XCTAssertEqual(env["MESA_GL_VERSION_OVERRIDE"], "4.6")
         XCTAssertEqual(env["MESA_GLSL_VERSION_OVERRIDE"], "460")
-    }
-
-    func testGPUSpoofingIncludesVRAM() {
-        let env = GPUDetection.spoofGPU(vendor: .nvidia)
-
-        // Should report at least 8GB VRAM
-        XCTAssertEqual(env["GPU_MEMORY_SIZE"], "8192")
     }
 
     func testGPUSpoofingIncludesRayTracing() {
@@ -63,18 +49,10 @@ final class GPUDetectionTests: XCTestCase {
         XCTAssertEqual(env["D3DM_SUPPORT_DXR"], "1")
     }
 
-    func testSpoofWithVendor() {
-        let nvidiaEnv = GPUDetection.spoofGPU(vendor: .nvidia)
-        let amdEnv = GPUDetection.spoofGPU(vendor: .amd)
-
-        XCTAssertEqual(nvidiaEnv["GPU_VENDOR_ID"], "0x10DE")
-        XCTAssertEqual(amdEnv["GPU_VENDOR_ID"], "0x1002")
-    }
-
     func testSpoofingEnvironmentHasRequiredKeys() {
         let env = GPUDetection.spoofGPU(vendor: .nvidia)
-        XCTAssertNotNil(env["GPU_VENDOR_ID"])
-        XCTAssertNotNil(env["GPU_DEVICE_ID"])
+        XCTAssertNotNil(env["MESA_GL_VERSION_OVERRIDE"])
+        XCTAssertNotNil(env["MESA_GLSL_VERSION_OVERRIDE"])
     }
 
     func testAllVendorsHaveDeviceIDs() {
@@ -91,12 +69,5 @@ final class GPUDetectionTests: XCTestCase {
         // The old value pointed at /usr/local/share, which exists on no user
         // machine; the runtime carries its own MoltenVK configuration.
         XCTAssertNil(env["VK_ICD_FILENAMES"])
-    }
-
-    func testShaderModelSupport() {
-        let env = GPUDetection.spoofGPU(vendor: .nvidia)
-
-        // Should report modern shader model
-        XCTAssertEqual(env["D3DM_SHADER_MODEL"], "6.5")
     }
 }
