@@ -127,11 +127,11 @@ struct ProgramsView: View {
                         }
                     } label: {
                         Label(
-                            String(localized: "program.clickonce.rescan"),
+                            String(localized: "button.refresh"),
                             systemImage: "arrow.clockwise"
                         )
                     }
-                    .help("program.clickonce.rescan")
+                    .help("button.refresh")
                 }
             }
         }
@@ -200,16 +200,6 @@ struct ProgramItemView: View {
                             RoundedRectangle(cornerRadius: 4)
                                 .stroke(.secondary)
                         )
-                } else if program.isClickOnce {
-                    Text("ClickOnce")
-                        .foregroundStyle(.secondary)
-                        .font(.caption)
-                        .padding(.horizontal, 5)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 4)
-                                .stroke(.secondary)
-                        )
-                        .accessibilityLabel(String(localized: "program.clickonce.badge"))
                 }
 
                 if program.settings.overrides?.graphicsBackend != nil {

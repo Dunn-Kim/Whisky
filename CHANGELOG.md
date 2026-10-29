@@ -74,6 +74,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Seven environment variables no shipped runtime reads: `D3DM_VALIDATION`,
   `GPU_VENDOR_ID`, `GPU_DEVICE_ID`, `GPU_DESCRIPTION`, `GPU_MEMORY_SIZE`,
   `D3DM_SHADER_MODEL` and `DXVK_REQUIRED` (upstream #301).
+- ClickOnce support: `.appref-ms` detection in the program scan, its badge
+  and context menu, the .NET recommendation for it, and `.appref-ms` in the
+  Run and pin pickers. Games do not ship as ClickOnce deployments. The
+  program scan still skips ClickOnce cache executables (upstream #254).
 
 ### Fixed
 - A program's own `DXMT_CONFIG` (its environment, a game database profile)

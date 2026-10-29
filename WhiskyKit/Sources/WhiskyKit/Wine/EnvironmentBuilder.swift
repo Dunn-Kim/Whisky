@@ -32,7 +32,7 @@ import Foundation
 /// 4. ``launcherManaged`` -- Launcher compatibility mode and detected overrides
 /// 5. ``gameProfile`` -- GameDB variant environment applied for a single launch
 /// 6. ``programUser`` -- Program settings environment variables and locale
-/// 7. ``featureRuntime`` -- Launch-time feature injectors (ClickOnce, one-off modes)
+/// 7. ``featureRuntime`` -- Launch-time feature injectors (one-off diagnostic modes)
 public enum EnvironmentLayer: Int, CaseIterable, Comparable, Sendable, Hashable {
     case base = 0
     case platform
