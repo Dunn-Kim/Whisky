@@ -97,7 +97,7 @@ public struct BottleInfo: Codable, Equatable {
 /// - **Wine Config**: Windows version, AVX, enhanced sync
 /// - **Metal Config**: Metal HUD, DXR, validation
 /// - **DXVK Config**: DXVK enable, async, HUD
-/// - **Performance Config**: Shader cache, D3D11 mode
+/// - **Performance Config**: Shader cache, VC++ runtime tracking
 ///
 /// ## Example
 ///
@@ -135,7 +135,6 @@ public struct BottleInfo: Codable, Equatable {
 ///
 /// ### Performance
 /// - ``shaderCacheEnabled``
-/// - ``forceD3D11``
 /// - ``vcRedistInstalled``
 public struct BottleSettings: Codable, Equatable {
     /// The current file format version for settings serialization.
@@ -504,15 +503,6 @@ public struct BottleSettings: Codable, Equatable {
     public var shaderCacheEnabled: Bool {
         get { performanceConfig.shaderCacheEnabled }
         set { performanceConfig.shaderCacheEnabled = newValue }
-    }
-
-    /// Whether to force DirectX 11 mode instead of DirectX 12.
-    ///
-    /// Some games have better compatibility with D3D11. Enable
-    /// this if experiencing issues with graphics or crashes.
-    public var forceD3D11: Bool {
-        get { performanceConfig.forceD3D11 }
-        set { performanceConfig.forceD3D11 = newValue }
     }
 
     /// Whether Visual C++ Redistributable is installed in this bottle.
@@ -947,10 +937,11 @@ public struct BottleSettings: Codable, Equatable {
             builder.set("MTL_DEBUG_LAYER", "1", layer: .bottleManaged)
         }
 
-        // The old sequoiaCompatMode block is gone: all three values it set
-        // (MTL_DEBUG_LAYER, D3DM_VALIDATION, WINEFSYNC) are platform-layer
-        // fixes on every supported macOS, so the toggle's off position changed
-        // nothing and its on position only hid the provenance.
+        // The old sequoiaCompatMode block is gone: of the three values it set,
+        // MTL_DEBUG_LAYER and WINEFSYNC are platform-layer fixes on every
+        // supported macOS and D3DM_VALIDATION is read by no runtime, so the
+        // toggle's off position changed nothing and its on position only hid
+        // the provenance.
 
         // Shader cache control. DXVK_STATE_CACHE and DXMT_SHADER_CACHE are the
         // variables DXVK and DXMT actually read; the previous pair (a
@@ -961,12 +952,6 @@ public struct BottleSettings: Codable, Equatable {
         if !shaderCacheEnabled {
             builder.set("DXVK_STATE_CACHE", "0", layer: .bottleManaged)
             builder.set("DXMT_SHADER_CACHE", "0", layer: .bottleManaged)
-        }
-
-        // Force D3D11 mode - helps with compatibility (whisky-app/whisky#1361)
-        if forceD3D11 {
-            builder.set("D3DM_FORCE_D3D11", "1", layer: .bottleManaged)
-            builder.set("D3DM_FEATURE_LEVEL_12_0", "0", layer: .bottleManaged)
         }
 
         return managedDLLOverrides
@@ -1058,19 +1043,19 @@ public struct BottleSettings: Codable, Equatable {
         return launcherDLLOverrides
     }
 
-    /// The GPU spoof environment with feature-level keys resolved against the
+    /// The GPU spoof environment with the ray tracing key resolved against the
     /// bottle's own settings.
     ///
-    /// Feature level is one resolved decision: force-D3D11 already pinned 12_0
-    /// off in the bottle layer, and the spoof's layer wins, so leaving these
-    /// keys in would silently undo the setting that sits beside the spoof in
-    /// the same screen.
+    /// Ray tracing has its own toggle, ``dxrEnabled``, whose bottle layer sets
+    /// `D3DM_SUPPORT_DXR` when it is on. D3DMetal reads it. It only matters to
+    /// games, since launcher UIs render on DXVK, and every game a launcher
+    /// starts inherits the launcher's environment. So the spoof turned DXR on
+    /// for every game in a bottle that Play had configured for Steam, over the
+    /// toggle (off by default, and not offered at all on Macs without hardware
+    /// ray tracing) and over the troubleshooter's "Disable Ray Tracing" fix.
     private func spoofEnvironment() -> [String: String] {
         var gpuEnv = GPUDetection.spoofGPU(vendor: gpuVendor)
-        if forceD3D11 {
-            gpuEnv.removeValue(forKey: "D3DM_FEATURE_LEVEL_12_0")
-            gpuEnv.removeValue(forKey: "D3DM_FEATURE_LEVEL_12_1")
-        }
+        gpuEnv.removeValue(forKey: "D3DM_SUPPORT_DXR")
         return gpuEnv
     }
 

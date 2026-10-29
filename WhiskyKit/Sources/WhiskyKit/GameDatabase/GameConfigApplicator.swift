@@ -236,15 +236,6 @@ public enum GameConfigApplicator {
             ))
         }
 
-        if let forceD3D11 = settings.forceD3D11, forceD3D11 != bottle.settings.forceD3D11 {
-            changes.append(ConfigChange(
-                category: "Performance",
-                settingName: "Force D3D11",
-                currentValue: bottle.settings.forceD3D11 ? "Enabled" : "Disabled",
-                newValue: forceD3D11 ? "Enabled" : "Disabled"
-            ))
-        }
-
         if let shaderCache = settings.shaderCacheEnabled, shaderCache != bottle.settings.shaderCacheEnabled {
             changes.append(ConfigChange(
                 category: "Performance",
@@ -351,10 +342,6 @@ public enum GameConfigApplicator {
 
         if let enhancedSync = settings.enhancedSync {
             bottle.settings.enhancedSync = enhancedSync
-        }
-
-        if let forceD3D11 = settings.forceD3D11 {
-            bottle.settings.forceD3D11 = forceD3D11
         }
 
         if let shaderCacheEnabled = settings.shaderCacheEnabled {

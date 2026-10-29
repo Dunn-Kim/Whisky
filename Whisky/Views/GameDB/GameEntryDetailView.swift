@@ -383,9 +383,6 @@ extension GameEntryDetailView {
         if let enhancedSync = settings.enhancedSync {
             items.append(SettingDisplay(name: "Enhanced Sync", value: enhancedSync.displayName))
         }
-        if let forceD3D11 = settings.forceD3D11 {
-            items.append(SettingDisplay(name: "Force D3D11", value: forceD3D11 ? "Enabled" : "Disabled"))
-        }
         if let shaderCache = settings.shaderCacheEnabled {
             items.append(SettingDisplay(name: "Shader Cache", value: shaderCache ? "Enabled" : "Disabled"))
         }

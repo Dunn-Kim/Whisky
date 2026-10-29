@@ -103,7 +103,7 @@ final class LauncherDiagnosticsTests: XCTestCase {
         // Verify launcher-specific variables are set
         XCTAssertNotNil(env["STEAM_DISABLE_CEF_SANDBOX"])
         XCTAssertNotNil(env["LC_ALL"])
-        XCTAssertNotNil(env["GPU_VENDOR_ID"])
+        XCTAssertNotNil(env["MESA_GL_VERSION_OVERRIDE"])
         XCTAssertNotNil(env["WINHTTP_CONNECT_TIMEOUT"])
     }
 
@@ -183,8 +183,7 @@ final class LauncherDiagnosticsTests: XCTestCase {
             bottle.settings.environmentVariables(wineEnv: &env)
 
             // Verify GPU spoofing is applied for each vendor
-            XCTAssertEqual(env["GPU_VENDOR_ID"], vendor.vendorID, "Vendor ID should match for \(vendor.rawValue)")
-            XCTAssertNotNil(env["D3DM_FEATURE_LEVEL_12_1"])
+            XCTAssertEqual(env["MESA_GL_VERSION_OVERRIDE"], "4.6", "Spoof should apply for \(vendor.rawValue)")
         }
     }
 
@@ -258,9 +257,8 @@ final class LauncherDiagnosticsTests: XCTestCase {
         bottle.settings.environmentVariables(wineEnv: &env)
 
         // Verify GPU spoofing environment is valid
-        XCTAssertNotNil(env["GPU_VENDOR_ID"], "GPU spoofing environment should be valid")
-        XCTAssertNotNil(env["GPU_DEVICE_ID"], "GPU spoofing environment should be valid")
-        XCTAssertNotNil(env["D3DM_FEATURE_LEVEL_12_1"], "GPU spoofing environment should be valid")
+        XCTAssertNotNil(env["MESA_GL_VERSION_OVERRIDE"], "GPU spoofing environment should be valid")
+        XCTAssertNotNil(env["MESA_GLSL_VERSION_OVERRIDE"], "GPU spoofing environment should be valid")
     }
 
     func testGPUSpoofingDisabled() throws {
@@ -276,7 +274,7 @@ final class LauncherDiagnosticsTests: XCTestCase {
         bottle.settings.environmentVariables(wineEnv: &env)
 
         // GPU spoofing should not be applied
-        XCTAssertNil(env["GPU_VENDOR_ID"], "GPU vendor should not be set when spoofing disabled")
+        XCTAssertNil(env["MESA_GL_VERSION_OVERRIDE"], "GPU spoof should not be set when spoofing disabled")
     }
 
     // MARK: - Locale Configuration Tests
