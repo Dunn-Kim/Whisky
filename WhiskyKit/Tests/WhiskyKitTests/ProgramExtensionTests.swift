@@ -248,3 +248,48 @@ final class ProgramGenerateEnvironmentTests: XCTestCase {
         XCTAssertEqual(env["MY_VAR"], "my_value")
     }
 }
+
+// MARK: - Program.launchWithUserMode in-flight guard
+
+final class ProgramLaunchInFlightTests: XCTestCase {
+    @MainActor
+    private func makeProgram() throws -> Program {
+        let bottleURL = try makeTempDir().appending(path: "TestBottle")
+        let driveC = bottleURL.appending(path: "drive_c")
+        try FileManager.default.createDirectory(at: driveC, withIntermediateDirectories: true)
+        let exe = driveC.appending(path: "game.exe")
+        try Data("fake exe".utf8).write(to: exe)
+        return Program(url: exe, bottle: Bottle(bottleUrl: bottleURL))
+    }
+
+    /// With no Wine runtime a real launch fails, so `.launchedSuccessfully`
+    /// can only come from the request being ignored.
+    @MainActor
+    func testRequestIsIgnoredWhileLaunchInFlight() async throws {
+        let program = try makeProgram()
+        Program.launchesInFlight.insert(program.url)
+        defer { Program.launchesInFlight.remove(program.url) }
+
+        let result = await program.launchWithUserMode(useTerminal: false)
+
+        guard case .launchedSuccessfully = result else {
+            return XCTFail("Expected the in-flight request to be ignored, got \(result)")
+        }
+    }
+
+    @MainActor
+    func testProgramCanLaunchAgainOnceLaunchReturns() async throws {
+        try XCTSkipIf(
+            FileManager.default.isExecutableFile(atPath: Wine.wineBinary.path(percentEncoded: false)),
+            "A Wine runtime is installed for the test host"
+        )
+        let program = try makeProgram()
+
+        let first = await program.launchWithUserMode(useTerminal: false)
+
+        XCTAssertTrue(Program.launchesInFlight.isEmpty)
+        guard case .launchFailed = first else { return XCTFail("Expected a failed launch, got \(first)") }
+        let second = await program.launchWithUserMode(useTerminal: false)
+        guard case .launchFailed = second else { return XCTFail("Expected a real launch, got \(second)") }
+    }
+}

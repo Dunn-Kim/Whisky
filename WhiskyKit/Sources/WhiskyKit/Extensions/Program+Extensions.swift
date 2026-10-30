@@ -70,13 +70,25 @@ public extension Program {
         }
     }
 
+    /// Programs whose ``launchWithUserMode(useTerminal:)`` has not returned yet.
+    @MainActor internal static var launchesInFlight = Set<URL>()
+
     /// Launches the program respecting user's modifier key preference and returns the result.
+    ///
+    /// A request for a program whose previous launch is still being prepared or started is
+    /// ignored and reports success, not an error: a double click is one launch the user
+    /// asked for twice. Once the launch returns, the program can be started again.
     /// - Parameter useTerminal: Whether to launch in Terminal mode (e.g., Shift was held).
     ///   **Important:** Capture `NSEvent.modifierFlags.contains(.shift)` synchronously at the call site,
     ///   before entering any async context, to avoid race conditions with key state.
     /// - Returns: LaunchResult indicating success, terminal launch, or failure
     @MainActor
     func launchWithUserMode(useTerminal: Bool) async -> LaunchResult {
+        guard Program.launchesInFlight.insert(url).inserted else {
+            return .launchedSuccessfully(programName: self.name)
+        }
+        defer { Program.launchesInFlight.remove(url) }
+
         // Check for terminal mode (typically shift-click)
         if useTerminal {
             do {

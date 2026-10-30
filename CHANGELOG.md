@@ -110,6 +110,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   program scan still skips ClickOnce cache executables (upstream #254).
 
 ### Fixed
+- Double-clicking a pin (or any other launch entry point: library card, Dock
+  menu, menu bar, QuickLaunch) no longer launches the program twice. Logs
+  showed two launches of one exe in the same second, the second queued
+  behind about 12 s of launch preparation (DLL copy, `reg import`). A request
+  for a program whose launch is still being prepared or started is now
+  ignored without an error toast; starting it again once the launch has
+  returned works as before.
 - The startup sweep no longer kills a game launched in the first seconds after
   Whisky opens. It runs 2 s after launch and treated the wineserver of that
   just-started game as a leftover; it now skips any bottle Whisky has started
