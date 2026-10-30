@@ -92,6 +92,21 @@ public class Wine {
     /// URL to the `wineserver` binary for Wine server management.
     private static let wineserverBinary: URL = WhiskyWineInstaller.binFolder.appending(path: "wineserver")
 
+    private static let bottlesStartedThisSession = OSAllocatedUnfairLock(initialState: Set<URL>())
+
+    /// Whether this process has started any Wine work in the bottle since it launched.
+    ///
+    /// A wineserver in a bottle where this is false predates the app session,
+    /// so it is a leftover; one in a bottle where it is true may belong to a
+    /// program the user just started.
+    public static func hasStartedWork(in bottle: Bottle) -> Bool {
+        bottlesStartedThisSession.withLock { $0.contains(bottle.url.standardizedFileURL) }
+    }
+
+    static func recordStartedWork(in bottle: Bottle) {
+        bottlesStartedThisSession.withLock { _ = $0.insert(bottle.url.standardizedFileURL) }
+    }
+
     /// Run a process on a executable file given by the `executableURL`
     private static func runProcess(
         name: String? = nil, args: [String], environment: [String: String], executableURL: URL,
@@ -128,6 +143,7 @@ public class Wine {
     ) throws -> AsyncStream<ProcessOutput> {
         // No log for polls whose output is parsed rather than read (tasklist.exe):
         // a file per poll buries the launch logs people are asked to attach.
+        recordStartedWork(in: bottle)
         let fileHandle = try createsLogFile ? makeFileHandle() : nil
         fileHandle?.writeApplicationInfo()
         fileHandle?.writeInfo(for: bottle)
@@ -261,6 +277,7 @@ public class Wine {
         // is called, via LauncherFixes.detectAndApply from the app's run paths
         // (FileOpenView/BottleView/ProgramMenuView).
 
+        recordStartedWork(in: bottle)
         let launch = try await prepare()
 
         let (fileHandle, logFileURL) = try makeFileHandleWithURL()

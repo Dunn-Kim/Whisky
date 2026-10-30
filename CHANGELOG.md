@@ -110,6 +110,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   program scan still skips ClickOnce cache executables (upstream #254).
 
 ### Fixed
+- The startup sweep no longer kills a game launched in the first seconds after
+  Whisky opens. It runs 2 s after launch and treated the wineserver of that
+  just-started game as a leftover; it now skips any bottle Whisky has started
+  Wine work in this session, so only wineservers that predate the app are
+  cleaned up.
 - Executable icons stored as 1, 2 or 4-bit bitmaps (and 16-bit ones, whose colors
   were wrong) now show their real icon in thumbnails instead of falling back
   to a generic one; icon decoding is done by the system's image decoder.

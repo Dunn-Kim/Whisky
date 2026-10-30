@@ -150,8 +150,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         var cleanedCount = 0
 
         for bottle in BottleVM.shared.bottles {
+            // The sweep runs 2 s after launch: a wineserver in a bottle this session
+            // already started work in is the user's launch, not a leftover.
+            guard !Wine.hasStartedWork(in: bottle) else { continue }
             let isRunning = await Wine.isWineserverRunning(for: bottle)
-            guard isRunning else { continue }
+            guard isRunning, !Wine.hasStartedWork(in: bottle) else { continue }
 
             let bottleName = bottle.settings.name
             if Self.shouldKill(bottle) {

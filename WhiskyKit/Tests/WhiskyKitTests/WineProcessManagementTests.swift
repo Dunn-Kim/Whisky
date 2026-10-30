@@ -34,6 +34,25 @@ final class WineProcessManagementTests: XCTestCase {
         XCTAssertFalse(running)
     }
 
+    /// The startup sweep kills wineservers that predate the session, so a bottle
+    /// the user launched into within its 2 s delay must read as started.
+    @MainActor
+    func testWineWorkIsRecordedPerBottleFromTheFirstSpawn() throws {
+        let (bottle, logsFolder) = try makeBottleWithoutRuntime()
+        let other = Bottle(
+            bottleUrl: bottle.url.deletingLastPathComponent().appending(path: "other"),
+            inFlight: false, isAvailable: true
+        )
+        XCTAssertFalse(Wine.hasStartedWork(in: bottle))
+
+        Wine.$logsFolderOverride.withValue(logsFolder) {
+            _ = try? Wine.runWineProcess(args: ["--version"], bottle: bottle)
+        }
+
+        XCTAssertTrue(Wine.hasStartedWork(in: bottle))
+        XCTAssertFalse(Wine.hasStartedWork(in: other))
+    }
+
     /// The Processes page lists processes every few seconds, and a log file per
     /// listing buried the launch logs people are asked to attach. No runtime is
     /// installed for the test host, so tasklist.exe never starts, but a helper
