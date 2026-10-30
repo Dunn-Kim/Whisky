@@ -110,6 +110,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   program scan still skips ClickOnce cache executables (upstream #254).
 
 ### Fixed
+- Opening a bottle's configuration no longer writes the DPI and retina mode
+  back to the registry. Loading assigned the value it had just read, which
+  the change handlers took for a user edit, so every visit ran `wine reg add`
+  and, with no `LogPixels` key, wrote `LogPixels=0`. A missing key now shows
+  Wine's default of 96 and is left absent; changes you make still write as
+  before.
 - Double-clicking a pin (or any other launch entry point: library card, Dock
   menu, menu bar, QuickLaunch) no longer launches the program twice. Logs
   showed two launches of one exe in the same second, the second queued

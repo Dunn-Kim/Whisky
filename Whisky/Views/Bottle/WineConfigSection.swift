@@ -88,30 +88,36 @@ struct WineConfigSection: View {
                 onRetry: onRetryRetinaMode
             ) {
                 VStack(alignment: .trailing, spacing: 4) {
-                    Picker("config.retinaMode", selection: $retinaModeState) {
+                    // Written from the setter, not an onChange: loading assigns retinaModeState too,
+                    // and that must not write the value it just read back to the registry.
+                    Picker("config.retinaMode", selection: Binding(
+                        get: { retinaModeState },
+                        set: { newValue in
+                            guard newValue != retinaModeState else { return }
+                            retinaModeState = newValue
+                            guard newValue != .unknown else { return }
+                            let boolValue = newValue == .enabled
+                            Task(priority: .userInitiated) {
+                                retinaModeLoadingState = .modifying
+                                do {
+                                    try await Wine.changeRetinaMode(
+                                        bottle: bottle, retinaMode: boolValue
+                                    )
+                                    retinaModeLoadingState = .success
+                                } catch {
+                                    Self.logger.error(
+                                        "Failed to change retina mode: \(error.localizedDescription)"
+                                    )
+                                    retinaModeLoadingState = .failed
+                                }
+                            }
+                        }
+                    )) {
                         Text("config.retinaMode.on").tag(RetinaModeState.enabled)
                         Text("config.retinaMode.off").tag(RetinaModeState.disabled)
                         Text("config.retinaMode.unknown").tag(RetinaModeState.unknown)
                     }
                     .pickerStyle(.segmented)
-                    .onChange(of: retinaModeState) { oldValue, newValue in
-                        guard newValue != .unknown, newValue != oldValue else { return }
-                        let boolValue = newValue == .enabled
-                        Task(priority: .userInitiated) {
-                            retinaModeLoadingState = .modifying
-                            do {
-                                try await Wine.changeRetinaMode(
-                                    bottle: bottle, retinaMode: boolValue
-                                )
-                                retinaModeLoadingState = .success
-                            } catch {
-                                Self.logger.error(
-                                    "Failed to change retina mode: \(error.localizedDescription)"
-                                )
-                                retinaModeLoadingState = .failed
-                            }
-                        }
-                    }
                     if retinaModeState == .unknown {
                         Text("config.retinaMode.unknownHint")
                             .font(.caption)
