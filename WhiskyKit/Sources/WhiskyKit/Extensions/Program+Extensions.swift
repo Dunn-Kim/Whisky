@@ -69,11 +69,18 @@ public extension Program {
         bottle.performClipboardCheck()
     }
 
+    /// Programs whose ``launchWithUserMode(useTerminal:)`` has not returned yet.
+    @MainActor internal static var launchesInFlight = Set<URL>()
+
     /// Launches the program respecting user's modifier key preference and returns the result.
     ///
     /// Every launch the app starts for a ``Program`` comes through here, so
     /// launcher auto-detection and the bottle's clipboard policy are applied
     /// once per launch, whichever button or menu started it and whichever mode.
+    ///
+    /// A request for a program whose previous launch is still being prepared or
+    /// started is ignored and reports success, not an error: a double click is
+    /// one launch the user asked for twice.
     ///
     /// - Parameters:
     ///   - useTerminal: Whether to launch in Terminal mode (e.g., Shift was held).
@@ -87,6 +94,11 @@ public extension Program {
         useTerminal: Bool,
         onClipboardCleared: (@MainActor (_ contentType: String, _ sizeBytes: Int) -> Void)? = nil
     ) async -> LaunchResult {
+        guard Program.launchesInFlight.insert(url).inserted else {
+            return .launchedSuccessfully(programName: self.name)
+        }
+        defer { Program.launchesInFlight.remove(url) }
+
         // Launcher detection first: in Automatic mode the clipboard policy
         // depends on which launcher this is. Settings it changes are saved
         // before the launch below prepares the bottle.
