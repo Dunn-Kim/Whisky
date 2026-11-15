@@ -369,6 +369,11 @@ public class Wine {
         let session = ProgramSession(onOutput: onOutput)
         var exitCode: Int32 = 0
         let process = makeProcess(args: launch.arguments, environment: launch.environment, executableURL: wineBinary)
+        // Game launches run user-interactive: on Apple Silicon the QoS class
+        // decides whether the scheduler offers performance or efficiency cores
+        // first, and a frame-producing process belongs on the former. Utility
+        // Wine invocations and wineserver stay at .userInitiated.
+        process.qualityOfService = .userInteractive
         for await output in try startTrackedProgram(
             process, name: programName, bottle: bottle, fileHandle: fileHandle,
             outputCompletion: session.pipeCompletion, lateOutput: session.lateOutput
