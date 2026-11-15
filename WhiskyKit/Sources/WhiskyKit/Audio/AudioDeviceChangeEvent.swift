@@ -23,12 +23,15 @@ import Foundation
 /// Events are stored in ``AudioDeviceHistory`` for troubleshooting context.
 /// Per project decisions, only the device display name and transport type are
 /// stored -- no unique hardware identifiers.
-public struct AudioDeviceChangeEvent: Sendable, Equatable, Identifiable {
+public struct AudioDeviceChangeEvent: Sendable, Codable, Equatable, Identifiable {
     /// Unique identifier for this event.
     public let id: UUID
 
     /// When the change was detected.
     public let timestamp: Date
+
+    /// The type of change that occurred.
+    public let eventType: EventType
 
     /// The display name of the affected device.
     public let deviceName: String
@@ -36,13 +39,27 @@ public struct AudioDeviceChangeEvent: Sendable, Equatable, Identifiable {
     /// The transport type of the affected device.
     public let transportType: AudioTransportType
 
+    /// Types of device change events tracked by the audio subsystem.
+    public enum EventType: String, Sendable, Codable, Equatable {
+        /// The system default output device changed.
+        case defaultOutputChanged
+        /// A previously connected device was disconnected.
+        case disconnected
+        /// A previously disconnected device was reconnected.
+        case reconnected
+        /// The nominal sample rate of a device changed.
+        case sampleRateChanged
+    }
+
     public init(
         timestamp: Date,
+        eventType: EventType,
         deviceName: String,
         transportType: AudioTransportType
     ) {
         self.id = UUID()
         self.timestamp = timestamp
+        self.eventType = eventType
         self.deviceName = deviceName
         self.transportType = transportType
     }

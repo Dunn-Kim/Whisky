@@ -44,9 +44,6 @@ public struct ProgramOverrides: Codable, Equatable, Sendable {
     /// The DXVK HUD display mode. `nil` inherits from bottle.
     public var dxvkHud: DXVKHUD?
 
-    /// Per-program frame rate cap. `nil` inherits the bottle's setting.
-    public var frameRateLimit: FrameRateLimit?
-
     // MARK: - Sync
 
     /// The synchronization mode. `nil` inherits from bottle.
@@ -60,6 +57,13 @@ public struct ProgramOverrides: Codable, Equatable, Sendable {
     /// graphics setting a single D3D12 title needs to turn off on its own while
     /// the rest of the bottle keeps it.
     public var metal4Enabled: Bool?
+    /// Whether Apple's Metal performance HUD is drawn. `nil` inherits from bottle.
+    ///
+    /// The bottle setting reaches every process in the prefix, so turning it on
+    /// there also draws the HUD over a launcher's own windows. A program-level
+    /// value keeps the HUD on the title being measured and off the client the
+    /// player is still clicking around in.
+    public var metalHud: Bool?
 
     // MARK: - Performance
 
@@ -81,7 +85,8 @@ public struct ProgramOverrides: Codable, Equatable, Sendable {
 
     // MARK: - Display
 
-    /// Whether Wine's virtual desktop mode is enabled. `nil` inherits from bottle.
+    /// `true` runs the program in its own virtual desktop, `false` runs it outside the
+    /// bottle's virtual desktop, `nil` inherits from the bottle.
     public var virtualDesktopEnabled: Bool?
     /// The display resolution preset. `nil` inherits from bottle.
     public var resolutionPreset: ResolutionPreset?
@@ -95,9 +100,38 @@ public struct ProgramOverrides: Codable, Equatable, Sendable {
     /// Program-specific DLL overrides. `nil` inherits from bottle.
     public var dllOverrides: [DLLOverrideEntry]?
 
+    // MARK: - Winetricks Verb Tagging
+
+    /// Winetricks verbs tagged as "used by this program" for user organization.
+    ///
+    /// This is metadata only -- it does not change which verbs are installed in the prefix.
+    /// Verbs are installed at the bottle level; this field tracks which verbs the user
+    /// considers relevant to this specific program.
+    public var taggedVerbs: [String]?
+
     /// Returns `true` when all override fields are `nil`, meaning no overrides are active.
+    ///
+    /// Note: `taggedVerbs` is excluded from this check since it is organizational metadata,
+    /// not a settings override.
     public var isEmpty: Bool {
-        self == ProgramOverrides()
+        graphicsBackend == nil
+            && dxvk == nil
+            && dxvkAsync == nil
+            && dxvkHud == nil
+            && enhancedSync == nil
+            && metal4Enabled == nil
+            && metalHud == nil
+            && shaderCacheEnabled == nil
+            && controllerCompatibilityMode == nil
+            && disableHIDAPI == nil
+            && allowBackgroundEvents == nil
+            && disableControllerMapping == nil
+            && useButtonLabels == nil
+            && virtualDesktopEnabled == nil
+            && resolutionPreset == nil
+            && customResolutionWidth == nil
+            && customResolutionHeight == nil
+            && dllOverrides == nil
     }
 
     /// Creates a new ProgramOverrides with all fields set to `nil` (inherit everything).
@@ -109,11 +143,9 @@ public struct ProgramOverrides: Codable, Equatable, Sendable {
         self.dxvk = try container.decodeIfPresent(Bool.self, forKey: .dxvk)
         self.dxvkAsync = try container.decodeIfPresent(Bool.self, forKey: .dxvkAsync)
         self.dxvkHud = try container.decodeIfPresent(DXVKHUD.self, forKey: .dxvkHud)
-        // Int-raw enum: an unknown value falls back to inheriting the bottle.
-        let rawLimit = try container.decodeIfPresent(Int.self, forKey: .frameRateLimit)
-        self.frameRateLimit = rawLimit.flatMap(FrameRateLimit.init(rawValue:))
         self.enhancedSync = try container.decodeIfPresent(EnhancedSync.self, forKey: .enhancedSync)
         self.metal4Enabled = try container.decodeIfPresent(Bool.self, forKey: .metal4Enabled)
+        self.metalHud = try container.decodeIfPresent(Bool.self, forKey: .metalHud)
         self.shaderCacheEnabled = try container.decodeIfPresent(Bool.self, forKey: .shaderCacheEnabled)
         self.controllerCompatibilityMode = try container.decodeIfPresent(
             Bool.self, forKey: .controllerCompatibilityMode
@@ -127,5 +159,6 @@ public struct ProgramOverrides: Codable, Equatable, Sendable {
         self.customResolutionWidth = try container.decodeIfPresent(Int.self, forKey: .customResolutionWidth)
         self.customResolutionHeight = try container.decodeIfPresent(Int.self, forKey: .customResolutionHeight)
         self.dllOverrides = try container.decodeIfPresent([DLLOverrideEntry].self, forKey: .dllOverrides)
+        self.taggedVerbs = try container.decodeIfPresent([String].self, forKey: .taggedVerbs)
     }
 }

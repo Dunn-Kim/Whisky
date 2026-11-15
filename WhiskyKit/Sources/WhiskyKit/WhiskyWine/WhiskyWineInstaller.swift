@@ -291,15 +291,16 @@ public class WhiskyWineInstaller {
         }
     }
 
-    /// Removes everything Whisky has stored under Application Support: the
-    /// WhiskyWine runtime and every bottle whose plist registration lives in
-    /// the default bottles list. Caller is responsible for confirming with
-    /// the user — this is destructive and unrecoverable.
+    /// Removes the WhiskyWine runtime, the GPTK store, the default bottles
+    /// directory in the app container (``BottleData/defaultBottleDir``) and the
+    /// bottle registry (``BottleData/bottleEntriesDir``). The caller is
+    /// responsible for confirming with the user, since this is destructive and
+    /// unrecoverable, and for reloading its in-memory bottle list afterwards.
     ///
     /// Bottles stored at custom paths outside the default bottles directory
-    /// are not removed; their tracking entries are dropped from the
-    /// `BottleData` plist but the on-disk bottle directories are preserved
-    /// to avoid surprising users who relocated bottles intentionally.
+    /// are not removed; their registry entries go with the registry file but
+    /// the on-disk bottle directories are preserved to avoid surprising users
+    /// who relocated bottles intentionally.
     public static func uninstallAll() {
         // Drop the runtime first so partial failures still leave a coherent state.
         uninstall()
@@ -331,19 +332,46 @@ public class WhiskyWineInstaller {
     /// This method compares the locally installed version against the
     /// remote version plist to determine if an update is available.
     ///
-    /// - Returns: The remote version if it is newer than the installed one, otherwise `nil`.
-    public static func shouldUpdateWhiskyWine() async -> SemanticVersion? {
-        guard let localVersion = whiskyWineVersion(), let remoteUrl = URL(string: DistributionConfig.versionPlistURL)
-        else { return nil }
+    /// - Returns: A tuple containing:
+    ///   - A boolean indicating whether an update is available.
+    ///   - The remote version if an update is available, or `0.0.0` otherwise.
+    public static func shouldUpdateWhiskyWine() async -> (Bool, SemanticVersion) {
+        let versionPlistURL = DistributionConfig.versionPlistURL
+        let localVersion = whiskyWineVersion()
 
-        do {
-            let (data, _) = try await URLSession(configuration: .ephemeral).data(from: remoteUrl)
-            let remoteVersion = try PropertyListDecoder().decode(WhiskyWineVersion.self, from: data).version
-            return localVersion < remoteVersion ? remoteVersion : nil
-        } catch {
-            logger.warning("Failed to fetch or decode remote version: \(error.localizedDescription)")
-            return nil
+        var remoteVersion: SemanticVersion?
+
+        if let remoteUrl = URL(string: versionPlistURL) {
+            remoteVersion = await withCheckedContinuation { continuation in
+                URLSession(configuration: .ephemeral).dataTask(with: URLRequest(url: remoteUrl)) { data, _, error in
+                    do {
+                        if error == nil, let data {
+                            let decoder = PropertyListDecoder()
+                            let remoteInfo = try decoder.decode(WhiskyWineVersion.self, from: data)
+                            let remoteVersion = remoteInfo.version
+
+                            continuation.resume(returning: remoteVersion)
+                            return
+                        }
+                        if let error {
+                            logger.warning("Failed to fetch remote version: \(error.localizedDescription)")
+                        }
+                    } catch {
+                        logger.warning("Failed to decode remote version: \(error.localizedDescription)")
+                    }
+
+                    continuation.resume(returning: nil)
+                }.resume()
+            }
         }
+
+        if let localVersion, let remoteVersion {
+            if localVersion < remoteVersion {
+                return (true, remoteVersion)
+            }
+        }
+
+        return (false, SemanticVersion(0, 0, 0))
     }
 
     /// Returns the version of the installed WhiskyWine runtime.
@@ -355,12 +383,35 @@ public class WhiskyWineInstaller {
         whiskyWineInfo()?.version
     }
 
+    /// The bundled DXVK (macOS) version recorded in the installed runtime's
+    /// version plist, or `nil` if WhiskyWine is not installed or the plist does
+    /// not record a DXVK version.
+    public static func whiskyWineDXVKVersion() -> String? {
+        whiskyWineInfo()?.dxvkVersion
+    }
+
+    /// The bundled DXMT version recorded in the installed runtime's version
+    /// plist, or `nil` if WhiskyWine is not installed or the runtime predates
+    /// the DXMT payload (< v3.1.0). `nil` means the DXMT graphics backend is
+    /// unavailable.
+    public static func whiskyWineDXMTVersion() -> String? {
+        whiskyWineInfo()?.dxmtVersion
+    }
+
+    /// Whether the installed runtime's Wine applies the Enhanced Sync setting
+    /// (see ``WhiskyWineVersion/implementsEnhancedSync``). `false` when
+    /// WhiskyWine is not installed or its plist does not show it. Reads the
+    /// plist on every call, so a view reads it once and keeps the answer.
+    public static func runtimeImplementsEnhancedSync() -> Bool {
+        whiskyWineInfo()?.implementsEnhancedSync ?? false
+    }
+
     /// Whether `backend` can actually be selected against the currently
-    /// installed runtime. DXMT needs a runtime that bundles its payload
-    /// (Wine Libraries >= 3.1.0, signalled by `dxmtVersion` in the runtime
-    /// plist) *and* the *native* payload variant (an older builtin-variant
-    /// payload would silently redirect to wined3d). D3DMetal needs the GPTK
-    /// payload on disk —
+    /// installed runtime. Extends the pure
+    /// ``GraphicsBackend/isAvailable(runtimeInfo:)`` version gate with the
+    /// payload checks version records can't express: DXMT needs the *native*
+    /// payload variant (an older builtin-variant payload would silently
+    /// redirect to wined3d), and D3DMetal needs the GPTK payload on disk —
     /// without it a d3dMetal bottle silently degrades to wined3d at launch
     /// (issue #146).
     public static func isBackendAvailable(_ backend: GraphicsBackend) -> Bool {
@@ -381,13 +432,14 @@ public class WhiskyWineInstaller {
         d3dMetalInstalled: Bool,
         dxmtRuntimeNative: Bool
     ) -> Bool {
+        let versionAvailable = backend.isAvailable(runtimeInfo: runtimeInfo)
         switch backend {
         case .dxmt:
-            runtimeInfo?.dxmtVersion != nil && dxmtRuntimeNative
+            return versionAvailable && dxmtRuntimeNative
         case .d3dMetal:
-            d3dMetalInstalled
+            return versionAvailable && d3dMetalInstalled
         case .recommended, .dxvk, .wined3d:
-            true
+            return versionAvailable
         }
     }
 

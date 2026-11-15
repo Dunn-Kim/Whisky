@@ -41,54 +41,199 @@ public enum SteamLaunchError: LocalizedError, Equatable {
 public enum SteamLauncher {
     /// Launches a game through the bottle's Steam client.
     ///
-    /// Starts the client too when it isn't running, since `-applaunch` on a
-    /// cold client brings it up first. The returned task is the client
-    /// invocation, which lives as long as the session when it starts the
-    /// client, so the app never awaits it. A command-line caller has to: the
-    /// launch only happens inside the task, and a process that exits first
-    /// takes the task with it before Wine has started anything.
+    /// The game's DLL overrides go into the `AppDefaults` entries of its
+    /// executables, and the `-applaunch` invocation carries none in its
+    /// environment, which every process it starts would inherit and which
+    /// outranks their own entries. So the game gets its plan whether the
+    /// running client or this invocation starts it, and the client and its
+    /// helpers keep DXVK even when `-applaunch` brings them up (#276).
+    ///
+    /// The plan's launch arguments follow the App ID, and the client passes them
+    /// on to the game.
+    ///
+    /// The plan follows the GameDB variant the user applied to the bottle, when
+    /// it is this game's, rather than the recommended one.
+    ///
+    /// Starts the client first when it isn't running, the way Play does: with
+    /// `-silent`, as a launch of its own, and only then hands over `-applaunch`,
+    /// so the client never inherits the game's environment variables. The
+    /// returned task is the `-applaunch` invocation. A command-line
+    /// caller has to await it: the launch only happens inside the task, and a
+    /// process that exits first takes the task with it before Wine has started
+    /// anything. When this launch started the client, the result's
+    /// `outputCompletion` also waits for the client's output to close, so a
+    /// command-line caller that awaits it keeps reading the client's log for
+    /// the whole session.
     ///
     /// - Parameters:
     ///   - appId: The Steam App ID to launch.
     ///   - bottle: The bottle whose Steam client to use.
     ///   - installURL: The game's install folder, to save a library rescan when
     ///     the caller already knows it.
-    ///   - onOutput: Receives the client invocation's output events, starting
-    ///     with ``ProcessOutput/started`` once Wine is running it.
+    ///   - record: Whether to remember this bottle for the App ID.
+    ///   - clientIsRunning: Whether the caller has already made sure the client
+    ///     is up, as Play does, which saves checking again.
+    ///   - onOutput: Receives the `-applaunch` invocation's output events,
+    ///     starting with ``ProcessOutput/started`` once Wine is running it, and
+    ///     going on after ``ProcessOutput/terminated(_:)`` until its output closes.
     /// - Returns: The client invocation, which finishes with its run result.
     /// - Throws: ``SteamLaunchError/steamNotInstalled`` if the bottle has no client.
     @MainActor
     @discardableResult
     public static func launch(
-        appId: Int, bottle: Bottle, installURL: URL? = nil,
+        appId: Int, bottle: Bottle, installURL: URL? = nil, record: Bool = true,
+        clientIsRunning: Bool = false,
         onOutput: (@MainActor (ProcessOutput) -> Void)? = nil
     ) throws -> Task<Wine.ProgramRunResult, any Error> {
         guard let steamRoot = SteamLibrary.detectInstall(bottleURL: bottle.url) else {
             throw SteamLaunchError.steamNotInstalled
         }
 
-        GameRouting().record(appId: appId, bottleURL: bottle.url)
+        if record {
+            GameRouting().record(appId: appId, bottleURL: bottle.url)
+        }
 
         let installURL = installURL ?? SteamLibrary.enumerate(bottleURL: bottle.url)
             .first { $0.appId == appId }?.installURL
         let plan = LaunchResolver.plan(
             steamAppId: appId,
-            userOverrides: installURL.flatMap { userOverrides(forInstallURL: $0, bottle: bottle) }
+            userOverrides: installURL.flatMap { userOverrides(forInstallURL: $0, bottle: bottle) },
+            appliedConfiguration: GameConfigSnapshot.load(from: bottle.url)
         )
         let steamExe = steamRoot.appending(path: "steam.exe")
+        let gameExecutables = gameExecutables(installURL: installURL, plan: plan)
 
         return Task {
             try await Wine.prepareBottlePrefix(bottle: bottle)
-            await Wine.syncAudioRegistry(bottle: bottle)
-            return try await Wine.runProgram(
-                at: steamExe, args: ["-applaunch", String(appId)], bottle: bottle,
+            var clientRun: Task<Wine.ProgramRunResult, any Error>?
+            if !clientIsRunning {
+                let running = await hostSteamPIDs()
+                await startClientIfNeeded(
+                    isRunning: { await isClientRunning(bottle: bottle, hostSteamPIDs: running) },
+                    start: { clientRun = startClient(steamExe: steamExe, bottle: bottle) },
+                    hasStarted: { await !hostSteamPIDs().subtracting(running).isEmpty }
+                )
+            }
+            let result = try await Wine.runProgram(
+                at: steamExe, args: ["-applaunch", String(appId)] + plan.launchArguments, bottle: bottle,
                 programOverrides: plan.overrides,
                 gameProfileEnvironment: plan.gameProfileEnvironment,
-                // the plan is the game's; steam.exe is only the vehicle
+                // The plan is the game's; steam.exe is only the vehicle. It goes
+                // into the game executables' own entries, so it reaches the game
+                // whichever process starts it, and the client keeps DXVK even
+                // when this invocation is what brings it up.
                 overridesApplyToDescendants: true,
+                descendantExecutables: gameExecutables,
+                descendantLaunchers: plan.startsLaunchers,
                 onOutput: onOutput
             )
+            return result.includingOutput(of: clientRun)
         }
+    }
+
+    /// Starts `steam.exe -silent` with the user's own overrides for it, the
+    /// way the Programs tab would, so the client's entry matches the one a
+    /// game launch writes for it.
+    ///
+    /// - Returns: The client run. It finishes once its `wine start` launcher
+    ///   exits; its result's `outputCompletion` waits for the whole session.
+    @MainActor
+    @discardableResult
+    static func startClient(steamExe: URL, bottle: Bottle) -> Task<Wine.ProgramRunResult, any Error> {
+        let overrides = Program.persistedOverrides(for: steamExe, bottleURL: bottle.url)
+        return Task {
+            try await Wine.runProgram(
+                at: steamExe, args: ["-silent"], bottle: bottle, programOverrides: overrides
+            )
+        }
+    }
+
+    /// The executable names a game launch scopes the game's plan to: what the
+    /// install folder holds, then what the GameDB lists, each name once.
+    static func gameExecutables(installURL: URL?, plan: LaunchPlan) -> [String] {
+        let found = installURL.map { SteamLibrary.executableURLs(under: $0).map(\.lastPathComponent) } ?? []
+        var seen = Set<String>()
+        return (found + plan.gameExecutables).filter { seen.insert($0.lowercased()).inserted }
+    }
+
+    /// Starts the client when it isn't running, then waits until it is.
+    ///
+    /// Gives up waiting after `timeout` and lets `-applaunch` go ahead anyway,
+    /// which is what happened before the client was started separately.
+    ///
+    /// - Parameters:
+    ///   - isRunning: Whether `steam.exe` is running in the bottle. Asked once.
+    ///   - start: Starts `steam.exe -silent`. Must return promptly: the client
+    ///     runs for the whole session.
+    ///   - hasStarted: Whether the client this started is up. Polled, so it
+    ///     should not start a Wine process: one every few seconds, on a prefix
+    ///     the start is still booting, is far more work than the `ps` this
+    ///     needs and keeps the boot's services busy while the client comes up.
+    ///   - timeout: How long to wait for the client to appear.
+    ///   - pollInterval: How often to look.
+    /// - Returns: Whether the client is running.
+    @MainActor
+    @discardableResult
+    static func startClientIfNeeded(
+        isRunning: @MainActor () async -> Bool,
+        start: @MainActor () -> Void,
+        hasStarted: @MainActor () async -> Bool,
+        timeout: Duration = .seconds(90),
+        pollInterval: Duration = .seconds(2)
+    ) async -> Bool {
+        if await isRunning() {
+            return true
+        }
+        start()
+        let deadline = ContinuousClock.now.advanced(by: timeout)
+        while ContinuousClock.now < deadline {
+            try? await Task.sleep(for: pollInterval)
+            if await hasStarted() {
+                return true
+            }
+        }
+        return false
+    }
+
+    /// Whether `steam.exe` is running in the bottle.
+    ///
+    /// Without a `steam.exe` anywhere on the host the answer is no, and no Wine
+    /// process is started to find that out.
+    @MainActor
+    static func isClientRunning(bottle: Bottle, hostSteamPIDs: Set<Int32>) async -> Bool {
+        guard !hostSteamPIDs.isEmpty else { return false }
+        return await WineSteamClientDriver(bottle: bottle).processList()
+            .contains { $0.imageName.lowercased() == "steam.exe" }
+    }
+
+    /// The host process IDs of every process whose Windows image is `steam.exe`,
+    /// in any bottle. Wine's processes carry their Windows path in the host
+    /// process list, so this costs one `ps` and no Wine process.
+    static func hostSteamPIDs() async -> Set<Int32> {
+        await Task.detached {
+            let process = Process()
+            process.executableURL = URL(filePath: "/bin/ps")
+            process.arguments = ["-Ao", "pid=,comm="]
+            let pipe = Pipe()
+            process.standardOutput = pipe
+            process.standardError = FileHandle.nullDevice
+            guard (try? process.run()) != nil else { return [] }
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            process.waitUntilExit()
+            return steamPIDs(inProcessListing: String(bytes: data, encoding: .utf8) ?? "")
+        }.value
+    }
+
+    /// The IDs in a `ps -Ao pid=,comm=` listing whose command is a Windows
+    /// `steam.exe`.
+    static func steamPIDs(inProcessListing output: String) -> Set<Int32> {
+        Set(output.split(whereSeparator: \.isNewline).compactMap { line -> Int32? in
+            let fields = line.trimmingCharacters(in: .whitespaces)
+                .split(separator: " ", maxSplits: 1, omittingEmptySubsequences: true)
+            guard fields.count == 2, let pid = Int32(fields[0]) else { return nil }
+            let image = fields[1].split(separator: "\\").last ?? fields[1]
+            return image.lowercased() == "steam.exe" ? pid : nil
+        })
     }
 
     /// The user's persisted overrides for a game's executables, so settings
@@ -110,7 +255,7 @@ public enum SteamLauncher {
             // Falls back to a plist read for executables the bottle scan has
             // not reached, so Play works before the Programs tab is opened.
             let overrides = scanned[url.standardizedFileURL]
-                ?? Program.persistedSettings(for: url, bottleURL: bottle.url)?.overrides
+                ?? Program.persistedOverrides(for: url, bottleURL: bottle.url)
             return ProgramOverrideCandidate(url: url, overrides: overrides ?? ProgramOverrides())
         }
         return SteamLibrary.preferredOverrides(among: candidates)
@@ -169,5 +314,28 @@ public enum SteamLauncher {
             throw SteamLaunchError.gameNotFound(appId: appId)
         }
         return bottle
+    }
+}
+
+extension Wine.ProgramRunResult {
+    /// This result, with an `outputCompletion` that also waits for the output
+    /// of `client` to close: the `steam.exe -silent` run a launch started, whose
+    /// log is read by the same process for the whole session.
+    ///
+    /// A client run that failed to start has no output to wait for.
+    func includingOutput(of client: Task<Wine.ProgramRunResult, any Error>?) -> Wine.ProgramRunResult {
+        guard let client else { return self }
+        let ownCompletion = outputCompletion
+        let completion = ProcessOutputCompletion()
+        Task {
+            await ownCompletion.wait()
+            if let clientResult = try? await client.value {
+                await clientResult.outputCompletion.wait()
+            }
+            completion.complete()
+        }
+        return Wine.ProgramRunResult(
+            exitCode: exitCode, logFileURL: logFileURL, runLogEntryId: runLogEntryId, outputCompletion: completion
+        )
     }
 }

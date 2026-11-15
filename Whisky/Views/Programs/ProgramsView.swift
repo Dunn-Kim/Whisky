@@ -26,6 +26,7 @@ struct ProgramsView: View {
     @State private var selectedBlockitems = Set<URL>()
     @Binding var path: NavigationPath
     @State private var sortedPrograms: [Program] = []
+    @State private var resortPrograms = false
     @State private var searchText = ""
     @State private var toast: ToastData?
 
@@ -51,7 +52,7 @@ struct ProgramsView: View {
             Section("program.title", isExpanded: $areProgramsExpanded) {
                 List(searchResults, id: \.self, selection: $selectedPrograms) { program in
                     ProgramItemView(
-                        program: program, path: $path, toast: $toast
+                        bottle: bottle, program: program, path: $path, toast: $toast
                     )
                     .contextMenu {
                         let selectedPrograms = selectedSearchedPrograms
@@ -60,6 +61,7 @@ struct ProgramsView: View {
                                 let existing = Set(bottle.settings.blocklist)
                                 let additions = selectedPrograms.map(\.url).filter { !existing.contains($0) }
                                 bottle.settings.blocklist.append(contentsOf: additions)
+                                blocklist = bottle.settings.blocklist
                             }
                             .labelStyle(.titleAndIcon)
                         } else {
@@ -70,6 +72,7 @@ struct ProgramsView: View {
                                     if !bottle.settings.blocklist.contains(program.url) {
                                         bottle.settings.blocklist.append(program.url)
                                     }
+                                    blocklist = bottle.settings.blocklist
                                 }
                                 .labelStyle(.titleAndIcon)
                             }
@@ -77,6 +80,7 @@ struct ProgramsView: View {
                     }
                 }
             }
+            .animation(.whiskyDefault, value: sortedPrograms)
 
             Section("program.blocklist", isExpanded: $isBlocklistExpanded) {
                 List(searchedBlocklists, id: \.self, selection: $selectedBlockitems) { blockedUrl in
@@ -87,12 +91,14 @@ struct ProgramsView: View {
                         if selectedBlockitems.contains(blockedUrl) {
                             Button("program.remove.selected.blocklist", systemImage: "hand.raised") {
                                 bottle.settings.blocklist.removeAll(where: { selectedBlockitems.contains($0) })
+                                blocklist = bottle.settings.blocklist
                             }
                             .labelStyle(.titleAndIcon)
                             .symbolVariant(.slash)
                         } else {
                             Button("program.remove.blocklist", systemImage: "hand.raised") {
                                 bottle.settings.blocklist.removeAll(where: { $0 == blockedUrl })
+                                blocklist = bottle.settings.blocklist
                             }
                             .labelStyle(.titleAndIcon)
                             .symbolVariant(.slash)
@@ -134,6 +140,9 @@ struct ProgramsView: View {
         .onAppear {
             loadData()
         }
+        .onChange(of: resortPrograms) {
+            loadPrograms()
+        }
         .onChange(of: bottle.programs) {
             loadData()
         }
@@ -161,6 +170,7 @@ struct ProgramsView: View {
 }
 
 struct ProgramItemView: View {
+    @ObservedObject var bottle: Bottle
     @ObservedObject var program: Program
     @Binding var path: NavigationPath
     @Binding var toast: ToastData?
@@ -229,23 +239,20 @@ struct ProgramItemView: View {
 
     private func launchProgram() {
         isLaunching = true
-        // Read before the clipboard check, whose alert can outlast the click
+        Telemetry.capture(.firstProgramLaunchAttempted)
+        // Capture modifier flags synchronously before entering async context
         let useTerminal = NSEvent.modifierFlags.contains(.shift)
 
-        // Check clipboard before launch (blocking alert for needsUserDecision is handled internally)
-        let clipResult = program.performClipboardCheck()
-        if case let .autoCleared(contentType, sizeBytes) = clipResult {
-            let sizeKB = String(format: "%.1f", Double(sizeBytes) / 1_024.0)
-            toast = ToastData(
-                message: String(localized: "clipboard.cleared.toast")
-                    .replacingOccurrences(of: "{contentType}", with: contentType)
-                    .replacingOccurrences(of: "{sizeKB}", with: sizeKB),
-                style: .info
-            )
-        }
-
-        program.launchFromUI(useTerminal: useTerminal) { result in
-            toast = result.toastData
+        Task {
+            // The clipboard policy is applied inside the launch, once.
+            let result = await program.launchWithUserMode(useTerminal: useTerminal) { contentType, sizeBytes in
+                withAnimation {
+                    toast = .clipboardCleared(contentType: contentType, sizeBytes: sizeBytes)
+                }
+            }
+            withAnimation {
+                toast = result.toastData
+            }
             isLaunching = false
         }
     }

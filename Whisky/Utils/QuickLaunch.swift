@@ -118,7 +118,7 @@ enum QuickLaunch {
     }
 
     /// Targets the user chose to stop being asked about. Written only through
-    /// ``confirmURLLaunch(of:)``.
+    /// ``rememberApproval(of:)``.
     static let approvedURLTargetsKey = "urlLaunchApprovedTargets"
 
     /// Handles a `whisky://` URL. Returns `false` for any other scheme so
@@ -184,14 +184,24 @@ enum QuickLaunch {
             return false
         }
         if alert.suppressionButton?.state == .on {
-            UserDefaults.standard.set(approved + [target.consentKey], forKey: approvedURLTargetsKey)
+            rememberApproval(of: target)
         }
         return true
+    }
+
+    private static func rememberApproval(of target: Target) {
+        var approved = UserDefaults.standard.stringArray(forKey: approvedURLTargetsKey) ?? []
+        guard !approved.contains(target.consentKey) else { return }
+        approved.append(target.consentKey)
+        UserDefaults.standard.set(approved, forKey: approvedURLTargetsKey)
     }
 
     private static func launch(_ target: Target) {
         switch target {
         case let .steam(game, bottle):
+            // A pin applies the clipboard policy inside its launch; a Steam
+            // game goes to the client, so it is applied here.
+            _ = bottle.performClipboardCheck()
             do {
                 _ = try SteamLauncher.launch(
                     appId: game.appId, bottle: bottle, installURL: game.installURL

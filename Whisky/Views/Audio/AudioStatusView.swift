@@ -62,11 +62,11 @@ struct AudioStatusView: View {
     }
 
     private var statusColor: Color {
-        switch audioStatus {
-        case .healthy: .green
-        case .degraded: .orange
-        case .broken: .red
-        case .unknown: .secondary
+        switch audioStatus.tintColor {
+        case "green": .green
+        case "orange": .orange
+        case "red": .red
+        default: .secondary
         }
     }
 
@@ -87,12 +87,12 @@ struct AudioStatusView: View {
                 Text("\(Int(rate)) Hz")
             }
             if let channels = channelCount, channels > 0 {
-                Text("\(channels)ch")
+                Text("audio.devices.channelCount \(channels)")
             }
             if let date = lastTestedDate {
                 Spacer()
                 HStack(spacing: 4) {
-                    Text("Last tested")
+                    Text("audio.test.lastTested")
                     Text(date, style: .relative)
                 }
             }

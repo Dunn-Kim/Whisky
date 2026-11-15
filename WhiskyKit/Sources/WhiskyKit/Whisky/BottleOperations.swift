@@ -21,9 +21,11 @@ import os.log
 
 /// Phases reported during bottle duplication for progress feedback.
 public enum DuplicationPhase: Equatable, Sendable {
-    /// Copying the bottle directory.
-    case copying
-    /// Rewriting metadata (pins, blocklist) for the new bottle.
+    /// Calculating total size of the source bottle directory.
+    case calculatingSize
+    /// Copying files. `bytesCopied` and `totalBytes` track progress.
+    case copying(bytesCopied: Int64, totalBytes: Int64)
+    /// Rewriting metadata (pins, blocklist, unpin records) for the new bottle.
     case updatingMetadata
     /// Registering the new bottle and reloading the bottle list.
     case finalizing
@@ -59,31 +61,31 @@ public enum BottleOperations {
 
     /// Moves the bottle directory at `url` to `destination`.
     ///
-    /// Pin and blocklist URLs are rewritten to `destination` *before* the file
-    /// move so the persisted settings travel with the bottle; a snapshot of
-    /// both is restored if the move throws, so a failed move never leaves
-    /// settings pointing at a path that was never created (issue #154). If no
-    /// live bottle exists for `url` the file move is still attempted.
+    /// Pin, blocklist and unpin-record URLs are rewritten to `destination`
+    /// *before* the file move so the persisted settings travel with the bottle;
+    /// a snapshot of all three is restored if the move throws, so a failed move
+    /// never leaves settings pointing at a path that was never created (issue
+    /// #154). If no live bottle exists for `url` the file move is still
+    /// attempted.
     ///
     /// - Parameters:
     ///   - url: The bottle's current directory.
     ///   - destination: The directory the bottle should move to.
     ///   - registry: The registry that owns the bottle list.
+    /// - Throws: The file move's error, after the settings are restored, so the
+    ///   caller can tell the user and keep the old path selected.
     @MainActor
-    public static func move(bottleAt url: URL, to destination: URL, registry: BottleRegistry) {
+    public static func move(bottleAt url: URL, to destination: URL, registry: BottleRegistry) throws {
         let bottle = registry.bottle(for: url)
         // The URL rewrite must happen before the move so the persisted settings
         // travel with the bottle, so keep a snapshot to restore on failure.
-        let originalPins = bottle?.settings.pins
-        let originalBlocklist = bottle?.settings.blocklist
+        let originalSettings = bottle?.settings
 
         bottle?.inFlight = true
         defer { bottle?.inFlight = false }
 
         do {
-            if let bottle {
-                rebasePinsAndBlocklist(of: bottle, from: url, to: destination)
-            }
+            bottle?.settings.rewriteProgramURLs(from: url, to: destination)
             try FileManager.default.moveItem(at: url, to: destination)
             if let path = registry.bottlePaths.firstIndex(of: url) {
                 registry.bottlePaths[path] = destination
@@ -92,15 +94,11 @@ public enum BottleOperations {
         } catch {
             // A failed move must not leave settings pointing at a path that
             // was never created.
-            if let bottle {
-                if let originalPins {
-                    bottle.settings.pins = originalPins
-                }
-                if let originalBlocklist {
-                    bottle.settings.blocklist = originalBlocklist
-                }
+            if let bottle, let originalSettings {
+                bottle.settings.restoreProgramURLs(from: originalSettings)
             }
             Logger.wineKit.error("Failed to move bottle: \(error.localizedDescription)")
+            throw error
         }
     }
 
@@ -172,7 +170,12 @@ public enum BottleOperations {
         // Capture URLs before entering detached task to satisfy actor isolation
         let sourceURL = url
         try await Task.detached(priority: .userInitiated) {
-            progress?(.copying)
+            // Phase: calculate size
+            progress?(.calculatingSize)
+            let totalBytes = Self.calculateDirectorySize(at: sourceURL)
+
+            // Phase: copying
+            progress?(.copying(bytesCopied: 0, totalBytes: totalBytes))
             do {
                 try FileManager.default.copyItem(at: sourceURL, to: newBottleDir)
             } catch {
@@ -180,6 +183,7 @@ public enum BottleOperations {
                 try? FileManager.default.removeItem(at: newBottleDir)
                 throw error
             }
+            progress?(.copying(bytesCopied: totalBytes, totalBytes: totalBytes))
 
             // Remove transient artifacts from the clone
             Self.removeTransientArtifacts(in: newBottleDir)
@@ -192,8 +196,8 @@ public enum BottleOperations {
         let newBottle = Bottle(bottleUrl: newBottleDir)
         newBottle.settings.name = newName
 
-        // Point pin and blocklist URLs at the new bottle
-        rebasePinsAndBlocklist(of: newBottle, from: sourceURL, to: newBottleDir)
+        // Point pins, blocklist entries and unpin records at the new bottle
+        newBottle.settings.rewriteProgramURLs(from: sourceURL, to: newBottleDir)
 
         // Explicitly save settings to ensure all modifications are persisted
         // (modifying nested struct properties may not always trigger didSet)
@@ -209,38 +213,39 @@ public enum BottleOperations {
         return newBottleDir
     }
 
-    /// Rewrites every pin and blocklist URL inside `old` to sit inside `new`.
-    @MainActor
-    private static func rebasePinsAndBlocklist(of bottle: Bottle, from old: URL, to new: URL) {
-        for index in bottle.settings.pins.indices {
-            if let pinURL = bottle.settings.pins[index].url {
-                bottle.settings.pins[index].url = pinURL.updateParentBottle(old: old, new: new)
-            }
-        }
-        for index in bottle.settings.blocklist.indices {
-            bottle.settings.blocklist[index] = bottle.settings.blocklist[index].updateParentBottle(old: old, new: new)
-        }
-    }
-
     /// Returns a duplicate name following the Finder convention.
     ///
     /// - If no existing bottle is named "\(baseName) Copy", returns "\(baseName) Copy".
     /// - Otherwise tries "\(baseName) Copy 2", "Copy 3", etc.
+    ///
+    /// The "Copy" suffix follows the app's language, as Finder's does. The English
+    /// default is what a lookup without the app's string catalog (such as the
+    /// package tests) returns.
     ///
     /// - Parameters:
     ///   - baseName: The original bottle's name.
     ///   - existingNames: Names of all current bottles.
     /// - Returns: The next available duplicate name.
     public static func nextDuplicateName(baseName: String, existingNames: [String]) -> String {
-        let candidate = "\(baseName) Copy"
+        let candidate = String(
+            localized: "duplicate.bottle.name %@",
+            defaultValue: "\(baseName) Copy"
+        )
         if !existingNames.contains(candidate) {
             return candidate
         }
         var counter = 2
-        while existingNames.contains("\(baseName) Copy \(counter)") {
+        while existingNames.contains(numberedDuplicateName(baseName: baseName, counter: counter)) {
             counter += 1
         }
-        return "\(baseName) Copy \(counter)"
+        return numberedDuplicateName(baseName: baseName, counter: counter)
+    }
+
+    private static func numberedDuplicateName(baseName: String, counter: Int) -> String {
+        String(
+            localized: "duplicate.bottle.nameNumbered %@ %lld",
+            defaultValue: "\(baseName) Copy \(counter)"
+        )
     }
 
     // MARK: - Remove
@@ -263,18 +268,20 @@ public enum BottleOperations {
     ///   - deleteFiles: Whether to delete the bottle directory from disk.
     ///   - registry: The registry that owns the bottle list.
     ///   - routing: The Steam route store to prune. Defaults to the real one.
+    /// - Throws: The deletion's error. The bottle stays registered and its
+    ///   `inFlight` flag is cleared, so it is usable again without a relaunch.
     @MainActor
     public static func remove(
         bottleAt url: URL,
         deleteFiles: Bool,
         registry: BottleRegistry,
         routing: GameRouting = GameRouting()
-    ) {
-        do {
-            if let bottle = registry.bottle(for: url) {
-                bottle.inFlight = true
-            }
+    ) throws {
+        let bottle = registry.bottle(for: url)
+        bottle?.inFlight = true
+        defer { bottle?.inFlight = false }
 
+        do {
             if deleteFiles {
                 try FileManager.default.removeItem(at: url)
                 routing.removeRoutes(toBottle: url)
@@ -286,6 +293,7 @@ public enum BottleOperations {
             registry.loadBottles()
         } catch {
             Logger.wineKit.error("Failed to remove bottle: \(error.localizedDescription)")
+            throw error
         }
     }
 
@@ -297,18 +305,60 @@ public enum BottleOperations {
         NSError(
             domain: "com.franke.Whisky",
             code: 1,
-            userInfo: [NSLocalizedDescriptionKey: "Bottle not found"]
+            userInfo: [NSLocalizedDescriptionKey: String(localized: "bottle.error.notFound")]
         )
     }
 
-    /// Removes the diagnosis history sidecars (`Program Settings/*.diagnosis-history.plist`)
-    /// from a cloned bottle directory so the duplicate starts clean.
+    /// Calculates the total allocated size of a directory tree.
+    private static func calculateDirectorySize(at url: URL) -> Int64 {
+        let fileManager = FileManager.default
+        guard let enumerator = fileManager.enumerator(
+            at: url,
+            includingPropertiesForKeys: [.totalFileAllocatedSizeKey],
+            options: [.skipsHiddenFiles]
+        )
+        else {
+            return 0
+        }
+        var total: Int64 = 0
+        for case let fileURL as URL in enumerator {
+            if let values = try? fileURL.resourceValues(forKeys: [.totalFileAllocatedSizeKey]),
+               let size = values.totalFileAllocatedSize {
+                total += Int64(size)
+            }
+        }
+        return total
+    }
+
+    /// Removes transient artifacts from a cloned bottle directory.
+    ///
+    /// Deletes old log files, diagnosis history sidecars, and temp files so the
+    /// duplicate starts clean.
     private static func removeTransientArtifacts(in bottleDir: URL) {
         let fileManager = FileManager.default
-        let settingsDir = bottleDir.appending(path: "Program Settings")
-        let files = (try? fileManager.contentsOfDirectory(at: settingsDir, includingPropertiesForKeys: nil)) ?? []
-        for fileURL in files where fileURL.lastPathComponent.hasSuffix(".diagnosis-history.plist") {
-            try? fileManager.removeItem(at: fileURL)
+
+        // Remove .log files from the logs directory
+        let logsDir = bottleDir.appending(path: "logs")
+        if let logEnumerator = fileManager.enumerator(
+            at: logsDir,
+            includingPropertiesForKeys: nil,
+            options: [.skipsSubdirectoryDescendants]
+        ) {
+            for case let fileURL as URL in logEnumerator where fileURL.pathExtension == "log" {
+                try? fileManager.removeItem(at: fileURL)
+            }
+        }
+
+        // Remove diagnosis history sidecar files
+        if let enumerator = fileManager.enumerator(
+            at: bottleDir,
+            includingPropertiesForKeys: nil,
+            options: []
+        ) {
+            for case let fileURL as URL in enumerator
+                where fileURL.lastPathComponent.hasSuffix(".diagnosis-history.plist") {
+                try? fileManager.removeItem(at: fileURL)
+            }
         }
     }
 }

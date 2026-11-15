@@ -26,13 +26,18 @@ private let logger = Logger(subsystem: Bundle.whiskyBundleIdentifier, category: 
 struct AudioRegistryState: Codable, Equatable {
     var driver: String
     var helBuflen: Int
+    /// The CoreAudio UID written as Wine's default output, or `nil` when the
+    /// bottle follows the macOS default. Markers written before this field
+    /// existed decode with `nil`.
+    var outputDeviceUID: String?
 
     /// What the bottle's current settings ask the registry to contain.
     @MainActor
     static func desired(for bottle: Bottle) -> AudioRegistryState {
         AudioRegistryState(
             driver: bottle.settings.audioDriver.rawValue,
-            helBuflen: bottle.settings.audioLatencyPreset.helBuflenValue
+            helBuflen: bottle.settings.audioLatencyPreset.helBuflenValue,
+            outputDeviceUID: bottle.settings.outputDeviceMode == .pinned ? bottle.settings.pinnedDeviceUID : nil
         )
     }
 
@@ -57,6 +62,12 @@ struct AudioRegistryState: Codable, Equatable {
         encoder.outputFormat = .xml
         try encoder.encode(self).write(to: Self.markerURL(in: bottleURL))
     }
+}
+
+/// The audio registry sync running for each bottle, keyed by bottle URL.
+@MainActor
+private enum AudioRegistrySyncQueue {
+    static var inFlight: [URL: Task<Void, Never>] = [:]
 }
 
 /// Extension on ``Wine`` providing typed read/write methods for Wine audio registry keys.
@@ -107,7 +118,10 @@ public extension Wine {
         } else {
             // .auto: remove the key to let Wine auto-detect the driver
             do {
-                try await deleteRegistryValue(bottle: bottle, key: AudioRegistryKey.drivers.rawValue, name: "Audio")
+                try await runWine(
+                    ["reg", "delete", AudioRegistryKey.drivers.rawValue, "/v", "Audio", "/f"],
+                    bottle: bottle
+                )
             } catch {
                 // Key might not exist; this is expected
                 logger.info("Audio driver key not present, nothing to remove")
@@ -152,6 +166,23 @@ public extension Wine {
         )
     }
 
+    /// Points Wine's default audio output at a CoreAudio device, or back at
+    /// the macOS default.
+    ///
+    /// Writes `DefaultOutput` under the CoreAudio driver key as the device's
+    /// endpoint ID. The device's endpoint GUID is read from the registry, or
+    /// seeded when Wine has not stored one yet; an existing GUID is never
+    /// replaced, since programs may have saved the endpoint ID it forms.
+    /// Wine ignores the value while the device is disconnected.
+    ///
+    /// - Parameters:
+    ///   - bottle: The bottle whose registry to modify.
+    ///   - uid: The CoreAudio device UID, or `nil` to follow the macOS default.
+    @MainActor
+    static func setDefaultOutputDevice(bottle: Bottle, uid: String?) async throws {
+        try await WineAudioOutputPin.apply(uid: uid, registry: BottleAudioEndpointRegistry(bottle: bottle))
+    }
+
     /// Brings the bottle's Wine registry in line with its audio settings.
     ///
     /// The settings UI and the troubleshooting fixes only mutate
@@ -159,8 +190,26 @@ public extension Wine {
     /// here, from the launch path, and only when the marker file shows they
     /// changed. A missing marker on factory settings is stamped without
     /// booting wineserver, since a fresh prefix already behaves that way.
+    ///
+    /// Syncs of one bottle run one after another, so two launches at once
+    /// cannot interleave their writes; the later one finds the marker current.
     @MainActor
     static func syncAudioRegistry(bottle: Bottle) async {
+        let bottleURL = bottle.url
+        let previous = AudioRegistrySyncQueue.inFlight[bottleURL]
+        let task = Task { @MainActor in
+            await previous?.value
+            await applyAudioRegistry(bottle: bottle)
+        }
+        AudioRegistrySyncQueue.inFlight[bottleURL] = task
+        await task.value
+        if AudioRegistrySyncQueue.inFlight[bottleURL] == task {
+            AudioRegistrySyncQueue.inFlight[bottleURL] = nil
+        }
+    }
+
+    @MainActor
+    private static func applyAudioRegistry(bottle: Bottle) async {
         let desired = AudioRegistryState.desired(for: bottle)
         let applied = AudioRegistryState.load(from: bottle.url)
         guard desired != applied else { return }
@@ -176,6 +225,9 @@ public extension Wine {
             }
             if applied?.helBuflen != desired.helBuflen {
                 try await setDirectSoundBuffer(bottle: bottle, helBuflen: desired.helBuflen)
+            }
+            if applied?.outputDeviceUID != desired.outputDeviceUID {
+                try await setDefaultOutputDevice(bottle: bottle, uid: desired.outputDeviceUID)
             }
             try desired.save(to: bottle.url)
         } catch {

@@ -25,6 +25,7 @@ import WhiskyKit
 struct GameConfigBannerView: View {
     let matchResult: MatchResult
     @ObservedObject var bottle: Bottle
+    let programURL: URL?
     @State private var isDismissed: Bool = false
     @State private var showDetail: Bool = false
     @State private var showExplanation: Bool = false
@@ -33,7 +34,7 @@ struct GameConfigBannerView: View {
         if !isDismissed {
             bannerContent
                 .sheet(isPresented: $showDetail) {
-                    GameEntryDetailView(entry: matchResult.entry, bottle: bottle)
+                    GameEntryDetailView(entry: matchResult.entry, bottle: bottle, programURL: programURL)
                         .frame(minWidth: 600, minHeight: 500)
                 }
         }

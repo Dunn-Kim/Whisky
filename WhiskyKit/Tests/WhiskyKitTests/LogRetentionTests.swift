@@ -21,7 +21,7 @@ import XCTest
 
 final class LogRetentionTests: XCTestCase {
     func testEnforceLogRetentionDeletesOldestLogsByModificationDate() throws {
-        let dir = try makeTempDir()
+        let dir = try makeTempDirectory()
 
         // Create 3 log files with sizes 100, 200, 300 bytes
         let log1 = dir.appendingPathComponent("oldest").appendingPathExtension("log")
@@ -57,7 +57,7 @@ final class LogRetentionTests: XCTestCase {
     }
 
     func testWriteWineLogCapsFileAndWritesTruncationMarkerOnce() throws {
-        let dir = try makeTempDir()
+        let dir = try makeTempDirectory()
         let fileURL = dir.appendingPathComponent("capped").appendingPathExtension("log")
         try "".write(to: fileURL, atomically: true, encoding: .utf8)
 
@@ -69,7 +69,7 @@ final class LogRetentionTests: XCTestCase {
             handle.writeWineLog(line: chunk)
         }
 
-        try handle.close()
+        try handle.closeWineLog()
 
         let data = try Data(contentsOf: fileURL)
         XCTAssertLessThanOrEqual(data.count, Int(Wine.maxLogFileBytes))
@@ -80,14 +80,14 @@ final class LogRetentionTests: XCTestCase {
     }
 
     func testWriteWineLogDoesNotWriteTruncationMarkerWhenUnderCap() throws {
-        let dir = try makeTempDir()
+        let dir = try makeTempDirectory()
         let fileURL = dir.appendingPathComponent("normal").appendingPathExtension("log")
         try "".write(to: fileURL, atomically: true, encoding: .utf8)
 
         let handle = try FileHandle(forWritingTo: fileURL)
 
         handle.writeWineLog(line: "hello world\n")
-        try handle.close()
+        try handle.closeWineLog()
 
         let data = try Data(contentsOf: fileURL)
         let text = String(bytes: data, encoding: .utf8)
@@ -99,7 +99,7 @@ final class LogRetentionTests: XCTestCase {
     }
 
     func testWriteWineLogIsThreadSafeAndMarkerAppearsOnce() throws {
-        let dir = try makeTempDir()
+        let dir = try makeTempDirectory()
         let fileURL = dir.appendingPathComponent("concurrent").appendingPathExtension("log")
         try "".write(to: fileURL, atomically: true, encoding: .utf8)
 
@@ -120,7 +120,7 @@ final class LogRetentionTests: XCTestCase {
         }
 
         group.wait()
-        try handle.close()
+        try handle.closeWineLog()
 
         let data = try Data(contentsOf: fileURL)
         XCTAssertLessThanOrEqual(data.count, Int(Wine.maxLogFileBytes))
@@ -131,6 +131,16 @@ final class LogRetentionTests: XCTestCase {
     }
 
     // MARK: - Helpers
+
+    private func makeTempDirectory() throws -> URL {
+        let base = FileManager.default.temporaryDirectory
+        let dir = base.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        addTeardownBlock {
+            try? FileManager.default.removeItem(at: dir)
+        }
+        return dir
+    }
 
     private func countOccurrences(of needle: Data, in haystack: Data) -> Int {
         guard !needle.isEmpty, haystack.count >= needle.count else { return 0 }

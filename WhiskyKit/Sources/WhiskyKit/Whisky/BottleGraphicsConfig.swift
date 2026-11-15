@@ -53,6 +53,21 @@ public enum GraphicsBackend: String, Codable, CaseIterable, Equatable, Sendable 
         }
     }
 
+    /// Whether this backend can actually be used with the given installed
+    /// runtime record. DXMT requires a runtime that bundles its payload
+    /// (Wine Libraries ≥ 3.1.0, signalled by `dxmtVersion` in the runtime
+    /// plist); every other backend ships with all runtimes. Pure so pickers
+    /// and tests can inject a record; production callers pass
+    /// `WhiskyWineInstaller.whiskyWineInfo()`.
+    public func isAvailable(runtimeInfo: WhiskyWineVersion?) -> Bool {
+        switch self {
+        case .dxmt:
+            runtimeInfo?.dxmtVersion != nil
+        case .recommended, .d3dMetal, .dxvk, .wined3d:
+            true
+        }
+    }
+
     /// A one-line summary suitable for selection cards or tooltips.
     public var summary: String {
         switch self {
@@ -136,14 +151,6 @@ public struct BottleGraphicsConfig: Codable, Equatable {
     /// The selected graphics backend. Defaults to `.recommended`.
     var backend: GraphicsBackend = .recommended
 
-    /// How many frames a game may present per second.
-    ///
-    /// New bottles cap at the display's refresh rate, since frames rendered past
-    /// it are discarded before they are shown and only cost power. Bottles
-    /// written before this setting existed decode to ``FrameRateLimit/unlimited``
-    /// so their behaviour does not change underneath them.
-    var frameRateLimit: FrameRateLimit = .matchDisplay
-
     /// Whether this bottle opts in to D3DMetal's DLSS-to-MetalFX path.
     ///
     /// On by default. This started off opt-in on the theory that a game finding
@@ -171,31 +178,17 @@ public struct BottleGraphicsConfig: Codable, Equatable {
     /// instant, so this is not something a bottle can be trusted to contain.
     var frameGeneration: Bool = false
 
-    /// Whether DXMT runs its swapchain through MetalFX's spatial upscaler.
-    ///
-    /// Not D3DMetal's ``metalFX``: DXMT doubles the output resolution, so a game
-    /// keeps rendering at the size it chose and reaches a Retina panel sharpened
-    /// by MetalFX rather than stretched by the compositor. That is a quality
-    /// trade, not a speedup — the upscale costs GPU time — so it is off unless
-    /// asked for. Inert under every other backend.
-    var dxmtMetalFXUpscale: Bool = false
-
     /// Creates a new graphics config with the default `.recommended` backend.
     public init() {}
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.backend = container.decodeLenientIfPresent(GraphicsBackend.self, forKey: .backend) ?? .recommended
-        // Int-raw enum, so the String-only lenient helper does not apply. An
-        // unknown value decodes to `.unlimited` rather than failing the bottle.
-        let rawLimit = try container.decodeIfPresent(Int.self, forKey: .frameRateLimit)
-        self.frameRateLimit = rawLimit.flatMap(FrameRateLimit.init(rawValue:)) ?? .unlimited
         // Matches the property default, so a bottle written before this key
         // existed adopts the new default instead of decoding as off.
         self.metalFX = (try? container.decodeIfPresent(Bool.self, forKey: .metalFX)) ?? true
         // Off for a bottle written before the key existed, which is the same
         // answer the property default gives a new one.
         self.frameGeneration = (try? container.decodeIfPresent(Bool.self, forKey: .frameGeneration)) ?? false
-        self.dxmtMetalFXUpscale = (try? container.decodeIfPresent(Bool.self, forKey: .dxmtMetalFXUpscale)) ?? false
     }
 }

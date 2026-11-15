@@ -38,11 +38,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         if !hasShownMoveToApplicationsAlert, !AppDelegate.insideAppsFolder {
-            DispatchQueue.main.async {
+            DispatchQueue.main.asyncAfter(deadline: .now()) {
                 NSApp.activate(ignoringOtherApps: true)
                 self.showAlertOnFirstLaunch()
                 self.hasShownMoveToApplicationsAlert = true
             }
+        }
+
+        // Background cleanup of orphaned temp files from previous sessions
+        Task.detached {
+            await TempFileTracker.shared.cleanupOldFiles(olderThan: 24 * 60 * 60)
         }
 
         // Startup orphan process detection
@@ -64,31 +69,35 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         UserDefaults.standard.object(forKey: "killOnTerminate") as? Bool ?? true
     }
 
-    /// Whether `bottle`'s kill-on-quit policy, falling back to
-    /// ``killOnTerminate``, has its Wine processes killed.
-    @MainActor
-    private static func shouldKill(_ bottle: Bottle) -> Bool {
-        switch bottle.settings.killOnQuit {
-        case .inherit:
-            killOnTerminate
-        case .alwaysKill:
-            true
-        case .neverKill:
-            false
-        }
-    }
-
     func applicationWillTerminate(_ notification: Notification) {
+        let globalKill = Self.killOnTerminate
+
         // Per-bottle kill-on-quit with policy overrides
         for bottle in BottleVM.shared.bottles {
             let bottlePolicy = bottle.settings.killOnQuit
-            if Self.shouldKill(bottle) {
+            let shouldKill: Bool = switch bottlePolicy {
+            case .inherit:
+                globalKill
+            case .alwaysKill:
+                true
+            case .neverKill:
+                false
+            }
+
+            if shouldKill {
                 // Synchronous: the app exits when this delegate returns.
                 Wine.killBottleAndWait(bottle: bottle)
+                ProcessRegistry.shared.clearRegistry(for: bottle.url)
                 logger.info(
                     "Killing bottle '\(bottle.settings.name)' on quit (policy: \(String(describing: bottlePolicy)))"
                 )
             }
+        }
+
+        // Synchronous best-effort temp file cleanup (cannot await in applicationWillTerminate)
+        let trackedFiles = TempFileTracker.shared.getAllTrackedFiles()
+        for (fileURL, _) in trackedFiles {
+            try? FileManager.default.removeItem(at: fileURL)
         }
     }
 
@@ -102,9 +111,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Dock Menu
 
     /// The pin behind a Dock menu item.
-    private struct DockPin {
+    private final class DockPin: NSObject {
         let bottleURL: URL
         let pinURL: URL
+
+        init(bottleURL: URL, pinURL: URL) {
+            self.bottleURL = bottleURL
+            self.pinURL = pinURL
+        }
     }
 
     /// Right-clicking Whisky in the Dock lists the pinned games, launchable
@@ -138,11 +152,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         QuickLaunch.launch(pin: pin, in: bottle)
     }
 
+    private static var appUrl: URL? {
+        Bundle.main.resourceURL?.deletingLastPathComponent().deletingLastPathComponent()
+    }
+
     private static let expectedUrl = URL(fileURLWithPath: "/Applications/Whisky.app")
 
     private static var insideAppsFolder: Bool {
-        let path = Bundle.main.bundleURL.path
-        return path.contains("Xcode") || path.contains(expectedUrl.path)
+        if let url = appUrl {
+            return url.path.contains("Xcode") || url.path.contains(expectedUrl.path)
+        }
+        return false
     }
 
     @MainActor
@@ -150,14 +170,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         var cleanedCount = 0
 
         for bottle in BottleVM.shared.bottles {
-            // The sweep runs 2 s after launch: a wineserver in a bottle this session
-            // already started work in is the user's launch, not a leftover.
-            guard !Wine.hasStartedWork(in: bottle) else { continue }
             let isRunning = await Wine.isWineserverRunning(for: bottle)
-            guard isRunning, !Wine.hasStartedWork(in: bottle) else { continue }
+            guard isRunning else { continue }
 
             let bottleName = bottle.settings.name
-            if Self.shouldKill(bottle) {
+            let policy = bottle.settings.killOnQuit
+            let globalKill = Self.killOnTerminate
+            let shouldAutoClean: Bool = switch policy {
+            case .inherit: globalKill
+            case .alwaysKill: true
+            case .neverKill: false
+            }
+
+            if shouldAutoClean {
                 // Auto-clean orphans per kill-on-quit policy
                 Wine.killBottle(bottle: bottle)
                 cleanedCount += 1

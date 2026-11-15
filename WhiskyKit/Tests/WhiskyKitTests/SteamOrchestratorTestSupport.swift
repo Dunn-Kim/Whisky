@@ -28,6 +28,9 @@ final class FakeSteamClientDriver: SteamClientDriver {
     var script: [[String]]
     /// When set, what `ps` reports instead of mirroring the script.
     var hostOverride: Set<String>?
+    /// When set, the host's `steam.exe` PIDs. Otherwise one fixed PID while
+    /// `ps` reports a `steam.exe`, and none while it doesn't.
+    var hostSteamPIDOverride: Set<Int32>?
     /// Simulated `tasklist.exe` latency, for the coalescing test.
     var listDelay: Duration = .zero
     var onStartClient: (() -> Void)?
@@ -40,6 +43,8 @@ final class FakeSteamClientDriver: SteamClientDriver {
     private(set) var fixesCalls = 0
     private(set) var launched: [Int] = []
     private(set) var killed: [Int32] = []
+    private(set) var readyCalls = 0
+    private(set) var shutdownCalls = 0
 
     init(script: [[String]]) {
         self.script = script
@@ -52,6 +57,13 @@ final class FakeSteamClientDriver: SteamClientDriver {
     func hostWineImageNames() async -> Set<String> {
         hostCalls += 1
         return hostOverride ?? Set(current)
+    }
+
+    func hostSteamPIDs() async -> Set<Int32> {
+        if let hostSteamPIDOverride {
+            return hostSteamPIDOverride
+        }
+        return (hostOverride ?? Set(current)).contains("steam.exe") ? [4_242] : []
     }
 
     func processList() async -> [WineProcess] {
@@ -84,6 +96,14 @@ final class FakeSteamClientDriver: SteamClientDriver {
 
     func killProcess(winePID: Int32) async {
         killed.append(winePID)
+    }
+
+    func clientDidBecomeReady() {
+        readyCalls += 1
+    }
+
+    func shutdown() {
+        shutdownCalls += 1
     }
 }
 
@@ -166,6 +186,6 @@ enum SteamOrchestratorFixture {
     }
 
     static func awaitIdle(_ orchestrator: SteamClientOrchestrator) async {
-        await eventually("launch should finish") { orchestrator.launchingAppIds.isEmpty }
+        await eventually("launch should finish") { orchestrator.phases.isEmpty }
     }
 }

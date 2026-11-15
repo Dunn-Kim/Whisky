@@ -1,4 +1,6 @@
 {
+  "version": 1,
+  "categoryId": "audio",
   "entryNodeId": "check_audio_device",
   "nodes": {
     "check_audio_device": {
@@ -8,6 +10,7 @@
       "title": "Check audio output device",
       "description": "Verifying that a valid audio output device is available and configured.",
       "checkId": "audio.device_check",
+      "params": {},
       "on": {
         "pass": "check_audio_driver",
         "fail": "show_device_issue",
@@ -39,7 +42,7 @@
       "description": "Verifying the Wine audio driver configuration in the registry.",
       "checkId": "audio.driver_check",
       "params": {
-        "expected": "pulseaudio"
+        "expected": "auto,coreaudio"
       },
       "on": {
         "pass": "check_audio_buffer",
@@ -60,9 +63,20 @@
       "title": "Configure Wine audio driver",
       "description": "Setting the Wine audio driver to the recommended value for macOS compatibility.",
       "fixId": "set-audio-driver",
+      "fixPreview": {
+        "settingName": "Wine Audio Driver",
+        "currentValueKey": "currentDriver",
+        "newValue": "auto",
+        "scope": "bottle"
+      },
+      "isReversible": true,
       "requiresConfirmation": false,
       "on": {
+        "applied": "verify_fix",
         "skipped": "check_audio_buffer"
+      },
+      "params": {
+        "driver": "auto"
       }
     },
     "check_audio_buffer": {
@@ -95,8 +109,10 @@
       "title": "Switch to the stable audio buffer",
       "description": "Applies the stable audio latency preset, which uses a larger DirectSound buffer. The change takes effect on the next launch of the program.",
       "fixId": "set-buffer-size",
+      "isReversible": true,
       "requiresConfirmation": false,
       "on": {
+        "applied": "verify_fix",
         "skipped": "check_sample_rate"
       },
       "params": {
@@ -110,6 +126,9 @@
       "title": "Check audio sample rate",
       "description": "Verifying that the system audio sample rate is compatible with Wine audio output.",
       "checkId": "audio.device_check",
+      "params": {
+        "check": "sample_rate_compat"
+      },
       "on": {
         "pass": "escalate",
         "already_configured": "escalate",
@@ -132,6 +151,17 @@
         "continue": "escalate"
       }
     },
+    "verify_fix": {
+      "id": "verify_fix",
+      "type": "verify",
+      "phase": "verify",
+      "title": "Did this fix the audio problem?",
+      "description": "Try launching the program again to check whether sound is working correctly.",
+      "on": {
+        "yes": "resolved",
+        "no": "check_audio_buffer"
+      }
+    },
     "escalate": {
       "id": "escalate",
       "type": "info",
@@ -139,6 +169,13 @@
       "title": "Additional diagnostics needed",
       "description": "The automated audio checks have not resolved the issue. Enhanced diagnostics or a support report may help identify the problem.",
       "fragmentRef": "export-escalation"
+    },
+    "resolved": {
+      "id": "resolved",
+      "type": "info",
+      "phase": "export",
+      "title": "Problem resolved",
+      "description": "The audio issue has been fixed. You can export a session report for your records."
     }
   }
 }

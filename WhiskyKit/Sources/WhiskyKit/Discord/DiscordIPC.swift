@@ -27,10 +27,13 @@ import Foundation
 /// JSON, which is the reason that relay can be a byte pump rather than a
 /// protocol implementation.
 public enum DiscordIPC {
-    /// Transport opcodes rich presence uses.
+    /// Transport opcodes. Rich presence only ever uses the first two.
     public enum Opcode: UInt32 {
         case handshake = 0
         case frame = 1
+        case close = 2
+        case ping = 3
+        case pong = 4
     }
 
     /// The socket indices Discord's client libraries walk, in order.
@@ -48,6 +51,16 @@ public enum DiscordIPC {
     /// The socket at `index`, whether or not anything is listening on it.
     public static func socketURL(index: Int, in directory: URL = socketDirectory) -> URL {
         directory.appending(path: "discord-ipc-\(index)")
+    }
+
+    /// The first Discord socket present, or `nil` when Discord is not running.
+    public static func availableSocket(
+        in directory: URL = socketDirectory, fileManager: FileManager = .default
+    ) -> URL? {
+        socketIndices
+            .lazy
+            .map { socketURL(index: $0, in: directory) }
+            .first { fileManager.fileExists(atPath: $0.path(percentEncoded: false)) }
     }
 
     /// The encoder every payload on this transport goes through.

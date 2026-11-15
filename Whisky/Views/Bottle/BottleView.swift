@@ -30,9 +30,12 @@ enum BottleStage {
 struct BottleView: View {
     @ObservedObject var bottle: Bottle
     @State private var path = NavigationPath()
+    @State private var programLoading: Bool = false
     @State private var showWinetricksSheet: Bool = false
     @State private var showDuplicate: Bool = false
     @State private var toast: ToastData?
+    /// Launches the ``ProcessRegistry`` tracks for this bottle, for the Processes badge.
+    @State private var trackedProcessCount: Int = 0
 
     private let gridLayout = [GridItem(.adaptive(minimum: 100, maximum: .infinity))]
 
@@ -62,7 +65,18 @@ struct BottleView: View {
                     }
                     .accessibilityIdentifier("nav.bottleConfiguration")
                     NavigationLink(value: BottleStage.processes) {
-                        Label("tab.processes", systemImage: "hockey.puck.circle")
+                        HStack {
+                            Label("tab.processes", systemImage: "hockey.puck.circle")
+                            if trackedProcessCount > 0 {
+                                Text("\(trackedProcessCount)")
+                                    .font(.caption2)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(.blue.opacity(0.15))
+                                    .clipShape(Capsule())
+                                    .foregroundStyle(.blue)
+                            }
+                        }
                     }
                     .accessibilityIdentifier("nav.runningProcesses")
                     NavigationLink(value: BottleStage.gameConfigs) {
@@ -77,12 +91,20 @@ struct BottleView: View {
                 BottleActionBar(
                     bottle: bottle,
                     showWinetricksSheet: $showWinetricksSheet,
+                    programLoading: $programLoading,
                     toast: $toast,
                     onLaunch: updateStartMenu
                 )
             }
             .task {
                 await updateStartMenu()
+            }
+            .task(id: bottle.url) {
+                trackedProcessCount = ProcessRegistry.shared.getProcessCount(for: bottle)
+            }
+            .onReceive(NotificationCenter.default.publisher(for: ProcessRegistry.didChangeNotification)) { note in
+                guard note.userInfo?[ProcessRegistry.bottleURLKey] as? URL == bottle.url else { return }
+                trackedProcessCount = ProcessRegistry.shared.getProcessCount(for: bottle)
             }
             .disabled(!bottle.isAvailable)
             .navigationTitle(bottle.settings.name)
@@ -106,9 +128,45 @@ struct BottleView: View {
             .sheet(isPresented: $showWinetricksSheet) {
                 WinetricksView(bottle: bottle)
             }
-            .duplicateBottleSheet(
-                isPresented: $showDuplicate, bottle: bottle, baseName: bottle.settings.name, toast: $toast
-            )
+            .sheet(isPresented: $showDuplicate) {
+                RenameView(
+                    "duplicate.bottle.title",
+                    name: BottleOperations.nextDuplicateName(
+                        baseName: bottle.settings.name,
+                        existingNames: BottleVM.shared.bottles.map(\.settings.name)
+                    ),
+                    confirmTitle: "duplicate.bottle.confirm"
+                ) { newName in
+                    Task {
+                        do {
+                            _ = try await bottle.duplicate(newName: newName)
+                            await MainActor.run {
+                                withAnimation {
+                                    toast = ToastData(
+                                        message: String(
+                                            format: String(localized: "status.duplicateSuccess %@"),
+                                            newName
+                                        ),
+                                        style: .success
+                                    )
+                                }
+                            }
+                        } catch {
+                            await MainActor.run {
+                                withAnimation {
+                                    toast = ToastData(
+                                        message: String(
+                                            format: String(localized: "status.duplicateFailed %@"),
+                                            error.localizedDescription
+                                        ),
+                                        style: .error
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
             .onChange(of: bottle.settings) { oldValue, newValue in
                 guard oldValue != newValue else { return }
                 // Trigger a reload
@@ -129,28 +187,24 @@ struct BottleView: View {
                 }
             }
             .navigationDestination(for: Program.self) { program in
-                ProgramView(program: program)
+                ProgramView(program: program) {
+                    // Open the bottle's configuration on top of the program,
+                    // so Back returns to it.
+                    path.append(BottleStage.config)
+                }
             }
         }
     }
 }
 
 extension BottleView {
+    /// Rescans the bottle and pins the programs of shortcuts that installers
+    /// added since the last check (see ``StartMenuShortcutSync``).
     private func updateStartMenu() async {
         await bottle.updateInstalledPrograms()
-
-        let startMenuPrograms = bottle.getStartMenuPrograms()
-        for startMenuProgram in startMenuPrograms {
-            for program in bottle.programs where
-                // For some godforsaken reason "foo/bar" != "foo/Bar" so...
-                program.url.path().caseInsensitiveCompare(startMenuProgram.url.path()) == .orderedSame {
-                // Skip programs that are already pinned, but keep processing the
-                // rest. Using `return` here would stop pinning every remaining
-                // start-menu program after the first already-pinned one.
-                guard !bottle.settings.pins.contains(where: { $0.url == program.url }) else { continue }
-                // Setting `pinned` appends the pin to the bottle's settings.
-                program.pinned = true
-            }
+        if StartMenuShortcutSync.sync(bottle: bottle, wineUsername: bottle.wineUsername) {
+            // Pins outside Program Files only show up once the list is rebuilt.
+            await bottle.updateInstalledPrograms()
         }
     }
 }

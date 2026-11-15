@@ -30,32 +30,12 @@ public enum RegistryType: String {
 /// current state.
 enum WineRegistryFile {
     static func readValue(bottleURL: URL, key: String, valueName: String) -> String? {
-        let regFileName: String
-        if key.hasPrefix("HKCU") || key.hasPrefix("HKEY_CURRENT_USER") {
-            regFileName = "user.reg"
-        } else if key.hasPrefix("HKLM") || key.hasPrefix("HKEY_LOCAL_MACHINE") {
-            regFileName = "system.reg"
-        } else {
+        guard let file = contents(for: key, bottleURL: bottleURL) else {
             return nil
         }
+        let sectionHeader = file.sectionHeader
 
-        let regFileURL = bottleURL.appending(path: regFileName)
-        guard let content = try? String(contentsOf: regFileURL, encoding: .utf8) else {
-            return nil
-        }
-
-        // Normalize the key path for .reg file format
-        // HKCU\Software\Wine\Drivers -> [Software\\Wine\\Drivers]
-        let normalizedKey = key
-            .replacingOccurrences(of: "HKCU\\", with: "")
-            .replacingOccurrences(of: "HKEY_CURRENT_USER\\", with: "")
-            .replacingOccurrences(of: "HKLM\\", with: "")
-            .replacingOccurrences(of: "HKEY_LOCAL_MACHINE\\", with: "")
-            .replacingOccurrences(of: "\\", with: "\\\\")
-
-        let sectionHeader = "[" + normalizedKey + "]"
-
-        let lines = content.components(separatedBy: "\n")
+        let lines = file.text.components(separatedBy: "\n")
         var inSection = false
 
         for line in lines {
@@ -80,6 +60,78 @@ enum WineRegistryFile {
             }
         }
 
+        return nil
+    }
+
+    /// The names of the values set directly under `key`, or `nil` when the
+    /// hive's `.reg` file is missing or unreadable.
+    ///
+    /// A name comes back as the file spells it. Wine writes one verbatim
+    /// unless it holds a quote, a backslash or a non-ASCII character, which
+    /// it escapes, so a plain ASCII name can be looked up as is.
+    static func valueNames(bottleURL: URL, key: String) -> Set<String>? {
+        guard let file = contents(for: key, bottleURL: bottleURL) else {
+            return nil
+        }
+
+        var names: Set<String> = []
+        var inSection = false
+        for line in file.text.components(separatedBy: "\n") {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if trimmed.hasPrefix("[") {
+                inSection = trimmed.lowercased().hasPrefix(file.sectionHeader.lowercased())
+                continue
+            }
+            if inSection, let name = quotedName(in: trimmed) {
+                names.insert(name)
+            }
+        }
+        return names
+    }
+
+    /// The `.reg` file that holds `key`, and the section header `key` has in it.
+    static func contents(for key: String, bottleURL: URL) -> (text: String, sectionHeader: String)? {
+        let regFileName: String
+        if key.hasPrefix("HKCU") || key.hasPrefix("HKEY_CURRENT_USER") {
+            regFileName = "user.reg"
+        } else if key.hasPrefix("HKLM") || key.hasPrefix("HKEY_LOCAL_MACHINE") {
+            regFileName = "system.reg"
+        } else {
+            return nil
+        }
+
+        let regFileURL = bottleURL.appending(path: regFileName)
+        guard let content = try? String(contentsOf: regFileURL, encoding: .utf8) else {
+            return nil
+        }
+
+        // Normalize the key path for .reg file format
+        // HKCU\Software\Wine\Drivers -> [Software\\Wine\\Drivers]
+        let normalizedKey = key
+            .replacingOccurrences(of: "HKCU\\", with: "")
+            .replacingOccurrences(of: "HKEY_CURRENT_USER\\", with: "")
+            .replacingOccurrences(of: "HKLM\\", with: "")
+            .replacingOccurrences(of: "HKEY_LOCAL_MACHINE\\", with: "")
+            .replacingOccurrences(of: "\\", with: "\\\\")
+
+        return (content, "[" + normalizedKey + "]")
+    }
+
+    /// The name a `"name"=...` line sets, spelled as in the file, or `nil`
+    /// for any other line. An escaped quote does not end the name.
+    static func quotedName(in line: String) -> String? {
+        guard line.hasPrefix("\"") else {
+            return nil
+        }
+        var name = ""
+        var escaping = false
+        for character in line.dropFirst() {
+            if !escaping, character == "\"" {
+                return name
+            }
+            escaping = !escaping && character == "\\"
+            name.append(character)
+        }
         return nil
     }
 }
@@ -115,12 +167,30 @@ public extension Wine {
         bottle: Bottle, key: String, name: String, type: RegistryType
     ) async throws -> String? {
         let output = try await runWine(["reg", "query", key, "-v", name], bottle: bottle)
-        let lines = output.split(omittingEmptySubsequences: true, whereSeparator: \.isNewline)
+        return registryValue(fromQueryOutput: output, type: type)
+    }
 
-        guard let line = lines.first(where: { $0.contains(type.rawValue) }) else { return nil }
-        let array = line.split(omittingEmptySubsequences: true, whereSeparator: \.isWhitespace)
-        guard let value = array.last else { return nil }
-        return String(value)
+    /// The data of the first value of `type` in `reg query` output.
+    ///
+    /// A value line reads `    Name    REG_SZ    data`. Everything after the
+    /// type token is the data, so a value with spaces comes back whole and
+    /// an empty value comes back as `""` rather than as the type name.
+    ///
+    /// - Returns: The data, or `nil` when no value of that type is listed.
+    internal static func registryValue(fromQueryOutput output: String, type: RegistryType) -> String? {
+        for line in output.split(whereSeparator: \.isNewline) {
+            var searchStart = line.startIndex
+            while let range = line[searchStart...].range(of: type.rawValue) {
+                let precededBySpace = range.lowerBound > line.startIndex
+                    && line[line.index(before: range.lowerBound)].isWhitespace
+                let followedBySpace = range.upperBound == line.endIndex || line[range.upperBound].isWhitespace
+                if precededBySpace, followedBySpace {
+                    return line[range.upperBound...].trimmingCharacters(in: .whitespacesAndNewlines)
+                }
+                searchStart = range.upperBound
+            }
+        }
+        return nil
     }
 
     @MainActor
@@ -139,6 +209,22 @@ public extension Wine {
             data: "\(version)",
             type: .string
         )
+    }
+
+    @MainActor
+    static func winVersion(bottle: Bottle) async throws -> WinVersion {
+        let output = try await Wine.runWine(["winecfg", "-v"], bottle: bottle)
+        let lines = output.split(whereSeparator: \.isNewline)
+
+        if let lastLine = lines.last {
+            let winString = String(lastLine)
+
+            if let version = WinVersion(rawValue: winString) {
+                return version
+            }
+        }
+
+        throw WineInterfaceError.invalidResponse
     }
 
     @MainActor
@@ -184,8 +270,16 @@ public extension Wine {
             type: .dword
         )
         else { return nil }
+        return dpiResolution(fromRegistryData: output)
+    }
 
-        return Int(output.replacingOccurrences(of: "0x", with: ""), radix: 16)
+    /// Parses a `LogPixels` DWORD such as `0x90`. A stored 0 counts as unset:
+    /// Wine falls back to 96 DPI for it, and older versions of the config view
+    /// wrote 0 into bottles whose key was missing.
+    static func dpiResolution(fromRegistryData data: String) -> Int? {
+        let noPrefix = data.replacingOccurrences(of: "0x", with: "")
+        guard let int = Int(noPrefix, radix: 16), int > 0 else { return nil }
+        return int
     }
 
     @MainActor
@@ -199,19 +293,22 @@ public extension Wine {
     @discardableResult
     @MainActor
     static func control(bottle: Bottle) async throws -> String {
-        try await Wine.runWine(["control"], bottle: bottle)
+        Wine.noteUserLaunch(in: bottle)
+        return try await Wine.runWine(["control"], bottle: bottle)
     }
 
     @discardableResult
     @MainActor
     static func regedit(bottle: Bottle) async throws -> String {
-        try await Wine.runWine(["regedit"], bottle: bottle)
+        Wine.noteUserLaunch(in: bottle)
+        return try await Wine.runWine(["regedit"], bottle: bottle)
     }
 
     @discardableResult
     @MainActor
     static func cfg(bottle: Bottle) async throws -> String {
-        try await Wine.runWine(["winecfg"], bottle: bottle)
+        Wine.noteUserLaunch(in: bottle)
+        return try await Wine.runWine(["winecfg"], bottle: bottle)
     }
 
     @discardableResult
@@ -255,7 +352,10 @@ public extension Wine {
     @MainActor
     static func disableVirtualDesktop(bottle: Bottle) async throws {
         do {
-            try await deleteRegistryValue(bottle: bottle, key: RegistryKey.explorer.rawValue, name: "Desktop")
+            try await runWine(
+                ["reg", "delete", RegistryKey.explorer.rawValue, "-v", "Desktop", "-f"],
+                bottle: bottle
+            )
         } catch {
             // Key might not exist; this is expected on bottles that never had virtual desktop
         }

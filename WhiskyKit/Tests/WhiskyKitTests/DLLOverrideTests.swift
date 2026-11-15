@@ -120,7 +120,7 @@ final class DLLOverrideTests: XCTestCase {
         let result = resolver.resolve()
         XCTAssertEqual(result.warnings.count, 1)
         XCTAssertEqual(result.warnings.first?.dllName, "dxgi")
-        XCTAssertTrue(result.warnings.first?.message.contains("DXVK") == true)
+        XCTAssertEqual(result.warnings.first?.overriddenSource, .dxvk)
     }
 
     func testNoWarningWhenNoConflict() {
@@ -202,6 +202,7 @@ final class DLLOverrideTests: XCTestCase {
         )
         let result = resolver.resolve()
         XCTAssertEqual(result.warnings.count, 1)
+        XCTAssertEqual(result.warnings.first?.overriddenSource, .dxmt)
         XCTAssertTrue(result.warnings.first?.message.contains("DXMT") == true)
     }
 
@@ -277,8 +278,7 @@ final class DLLOverrideTests: XCTestCase {
             let result = resolver.resolve()
             XCTAssertTrue(result.overrides.split(separator: ";").contains("d3d12=b"), "\(source)")
             XCTAssertEqual(result.warnings.map(\.dllName), ["d3d12"])
-            let backend = source == .dxvk ? "DXVK" : "DXMT"
-            XCTAssertEqual(result.warnings.first?.message, "Override for d3d12 overrides \(backend) setting")
+            XCTAssertEqual(result.warnings.first?.overriddenSource, source)
         }
     }
 

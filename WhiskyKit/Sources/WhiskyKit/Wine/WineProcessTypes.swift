@@ -72,6 +72,14 @@ public enum ProcessKind: String, CaseIterable, Codable, Sendable {
     }
 }
 
+/// Indicates how a Wine process was discovered.
+public enum ProcessSource: String, Codable, Sendable {
+    /// The process was launched by Whisky and is tracked in ``ProcessRegistry``.
+    case whisky
+    /// The process was discovered via `tasklist.exe` but is not in the registry.
+    case untracked
+}
+
 /// Tracks the shutdown state of a bottle's Wine processes.
 public enum ShutdownState: String, Sendable {
     /// No shutdown in progress.
@@ -84,7 +92,8 @@ public enum ShutdownState: String, Sendable {
 
 /// A snapshot of a single Wine process as reported by `tasklist.exe`.
 ///
-/// Instances are created by ``Wine/parseTasklistOutput(_:)``.
+/// Instances are created by ``Wine/parseTasklistOutput(_:)`` and enriched with
+/// registry data (source, launch time, macOS PID) by the view model.
 public struct WineProcess: Identifiable, Hashable, Sendable {
     /// The Windows image name from tasklist (e.g. `"game.exe"`).
     public let imageName: String
@@ -94,10 +103,39 @@ public struct WineProcess: Identifiable, Hashable, Sendable {
     public let memoryUsage: String
     /// The classified role of this process.
     public let kind: ProcessKind
+    /// How the process was discovered.
+    public var source: ProcessSource
+    /// When the process was launched (from ``ProcessRegistry`` match, nil for untracked).
+    public var launchTime: Date?
+    /// The macOS PID (from ``ProcessRegistry`` match, nil for untracked).
+    public var macosPID: Int32?
+    /// The full command line, if known (for detail drawer).
+    public var commandLine: String?
 
     /// Identifiable conformance keyed on the Wine PID.
     public var id: Int32 {
         winePID
+    }
+
+    /// Memberwise initializer with sensible defaults for optional fields.
+    public init(
+        imageName: String,
+        winePID: Int32,
+        memoryUsage: String,
+        kind: ProcessKind,
+        source: ProcessSource = .untracked,
+        launchTime: Date? = nil,
+        macosPID: Int32? = nil,
+        commandLine: String? = nil
+    ) {
+        self.imageName = imageName
+        self.winePID = winePID
+        self.memoryUsage = memoryUsage
+        self.kind = kind
+        self.source = source
+        self.launchTime = launchTime
+        self.macosPID = macosPID
+        self.commandLine = commandLine
     }
 
     // MARK: - Hashable

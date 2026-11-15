@@ -33,6 +33,7 @@ struct LogViewerView: View {
     let logText: String
     let matches: [DiagnosisMatch]
     @Binding var filterMode: LogFilterMode
+    @Binding var activeCategoryFilter: CrashCategory?
     @Binding var searchText: String
 
     var body: some View {
@@ -53,9 +54,9 @@ struct LogViewerView: View {
 extension LogViewerView {
     private var filterBar: some View {
         HStack(spacing: 8) {
-            filterButton(title: "Show all", mode: .all)
-            filterButton(title: "Only tagged", mode: .tagged)
-            filterButton(title: "Crash-related", mode: .crashRelated)
+            filterButton(title: "diagnostics.log.filter.all", mode: .all)
+            filterButton(title: "diagnostics.log.filter.tagged", mode: .tagged)
+            filterButton(title: "diagnostics.log.filter.crashRelated", mode: .crashRelated)
             Spacer()
             TextField("Search log\u{2026}", text: $searchText)
                 .textFieldStyle(.roundedBorder)
@@ -67,9 +68,12 @@ extension LogViewerView {
         .background(Color(.windowBackgroundColor))
     }
 
-    private func filterButton(title: String, mode: LogFilterMode) -> some View {
+    private func filterButton(title: LocalizedStringKey, mode: LogFilterMode) -> some View {
         Button {
             filterMode = mode
+            if case .category = mode {} else {
+                activeCategoryFilter = nil
+            }
         } label: {
             Text(title)
                 .font(.caption)
@@ -110,6 +114,7 @@ struct LogTextView: NSViewRepresentable {
         textView.isAutomaticTextReplacementEnabled = false
         textView.backgroundColor = NSColor.textBackgroundColor
         textView.textContainerInset = NSSize(width: 4, height: 4)
+        context.coordinator.textView = textView
         applyContent(to: textView)
         return scrollView
     }
@@ -117,6 +122,28 @@ struct LogTextView: NSViewRepresentable {
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
         guard let textView = scrollView.documentView as? NSTextView else { return }
         applyContent(to: textView)
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
+    final class Coordinator {
+        weak var textView: NSTextView?
+
+        func scrollToLine(_ lineIndex: Int) {
+            guard let textView, let storage = textView.textStorage else { return }
+            let text = storage.string as NSString
+            var currentLine = 0
+            var charIndex = 0
+            while currentLine < lineIndex, charIndex < text.length {
+                let range = text.lineRange(for: NSRange(location: charIndex, length: 0))
+                charIndex = NSMaxRange(range)
+                currentLine += 1
+            }
+            let targetRange = NSRange(location: charIndex, length: 0)
+            textView.scrollRangeToVisible(targetRange)
+        }
     }
 
     // MARK: - Content Application
@@ -177,7 +204,17 @@ struct LogTextView: NSViewRepresentable {
 
 extension LogTextView {
     private func buildMatchLookup() -> [Int: DiagnosisMatch] {
-        Dictionary(matches.map { ($0.lineIndex, $0) }) { $1.pattern.severity > $0.pattern.severity ? $1 : $0 }
+        var lookup: [Int: DiagnosisMatch] = [:]
+        for match in matches {
+            if let existing = lookup[match.lineIndex] {
+                if match.pattern.severity > existing.pattern.severity {
+                    lookup[match.lineIndex] = match
+                }
+            } else {
+                lookup[match.lineIndex] = match
+            }
+        }
+        return lookup
     }
 }
 
@@ -240,8 +277,22 @@ extension LogTextView {
     }
 
     private func gutterMarker(for match: DiagnosisMatch) -> String {
-        // Open circle for uncategorized matches, filled circle otherwise.
-        match.pattern.category == .otherUnknown ? "\u{25CB}" : "\u{25CF}"
+        switch match.pattern.category {
+        case .coreCrashFatal:
+            "\u{25CF}" // filled circle
+        case .graphics:
+            "\u{25CF}"
+        case .dependenciesLoading:
+            "\u{25CF}"
+        case .prefixFilesystem:
+            "\u{25CF}"
+        case .networkingLaunchers:
+            "\u{25CF}"
+        case .antiCheatUnsupported:
+            "\u{25CF}"
+        case .otherUnknown:
+            "\u{25CB}" // open circle
+        }
     }
 
     private func backgroundColor(for match: DiagnosisMatch) -> NSColor {

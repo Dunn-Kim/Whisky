@@ -27,6 +27,66 @@ import WhiskyKit
 /// `LauncherFixes` (both WhiskyKit); this type only inspects a bottle's
 /// settings against a launcher's expectations to surface warnings and
 /// human-readable summaries.
+/// A configuration problem the launcher section points out for a bottle.
+///
+/// The settings UI shows ``localizedMessage``; the diagnostics export keeps
+/// ``diagnosticMessage``, in English, so reports read the same whatever the
+/// reporter's language.
+enum LauncherConfigWarning: Hashable {
+    case steamGPUSpoofing
+    case rockstarDXVK
+    case eaGPUSpoofing
+    case eaLocale
+    case epicLocale
+    case battleNetLocale
+    case compatibilityModeOff
+
+    /// The severity marker shown in front of the message.
+    var symbol: String {
+        switch self {
+        case .rockstarDXVK, .eaGPUSpoofing: "❌"
+        case .compatibilityModeOff: "💡"
+        default: "⚠️"
+        }
+    }
+
+    /// The warning for the settings UI, in the app's language.
+    var localizedMessage: String {
+        let message = switch self {
+        case .steamGPUSpoofing: String(localized: "launcher.warning.steamGPUSpoofing")
+        case .rockstarDXVK: String(localized: "launcher.warning.rockstarDXVK")
+        case .eaGPUSpoofing: String(localized: "launcher.warning.eaGPUSpoofing")
+        case .eaLocale: String(localized: "launcher.warning.eaLocale")
+        case .epicLocale: String(localized: "launcher.warning.epicLocale")
+        case .battleNetLocale: String(localized: "launcher.warning.battleNetLocale")
+        case .compatibilityModeOff: String(localized: "launcher.warning.compatibilityModeOff")
+        }
+        return "\(symbol) \(message)"
+    }
+
+    /// The warning for diagnostics exports, always in English.
+    var diagnosticMessage: String {
+        let message = switch self {
+        case .steamGPUSpoofing: "GPU spoofing helps with game compatibility checks"
+        case .rockstarDXVK: "DXVK REQUIRED for Rockstar Launcher (logo won't display without it)"
+        case .eaGPUSpoofing: "GPU spoofing REQUIRED for EA App (will show 'GPU not supported')"
+        case .eaLocale: "en_US locale recommended for EA App launcher UI"
+        case .epicLocale: "en_US locale recommended for Epic Games launcher"
+        case .battleNetLocale: "en_US locale recommended for Battle.net"
+        case .compatibilityModeOff: "Launcher Compatibility Mode is disabled. Enable it for automatic fixes."
+        }
+        return "\(symbol) \(message)"
+    }
+}
+
+/// Launcher configuration diagnostics for the UI and support snapshots.
+///
+/// ## Overview
+///
+/// Detection lives in `LauncherType.detect(from:)` and fix application in
+/// `LauncherFixes` (both WhiskyKit); this type only inspects a bottle's
+/// settings against a launcher's expectations to surface warnings and
+/// human-readable summaries.
 enum LauncherDetection {
     /// Validates bottle configuration for a specific launcher.
     ///
@@ -36,69 +96,92 @@ enum LauncherDetection {
     /// - Parameters:
     ///   - bottle: The bottle to validate
     ///   - launcher: The launcher type to validate against
-    /// - Returns: Array of warning messages (empty if configuration is optimal)
+    /// - Returns: The warnings that apply (empty if configuration is optimal)
     @MainActor
     // swiftlint:disable:next cyclomatic_complexity
-    static func validateBottleForLauncher(_ bottle: Bottle, launcher: LauncherType) -> [String] {
-        var warnings: [String] = []
-
-        // On .recommended the resolver already steers a detected launcher to
-        // DXVK, and .dxvk needs no warning — only a pinned backend the
-        // launcher cannot use deserves one.
-        let pinnedAwayFromDXVK = switch bottle.settings.graphicsBackend {
-        case .d3dMetal, .wined3d, .dxmt: true
-        case .recommended, .dxvk: false
-        }
+    static func validateBottleForLauncher(_ bottle: Bottle, launcher: LauncherType) -> [LauncherConfigWarning] {
+        var warnings: [LauncherConfigWarning] = []
+        // Auto keeps the EA, Epic, and Battle.net presets' en_US, so only an
+        // explicit other locale can trip those launchers' web views. Steam's
+        // web helper runs under any locale, so it gets no locale warning (#330).
+        let nonEnglishLocale = ![.english, .auto].contains(bottle.settings.launcherLocale)
 
         switch launcher {
         case .steam:
-            if pinnedAwayFromDXVK {
-                warnings.append("⚠️ DXVK should be enabled for best Steam performance")
-            }
-            if bottle.settings.launcherLocale != .english, bottle.settings.launcherLocale != .auto {
-                warnings.append("⚠️ Steam may crash without en_US locale (steamwebhelper issue)")
-            }
+            // No DXVK check: Steam's own processes get DXVK through their own
+            // overrides, so a bottle on D3DMetal is the intended setup (#276).
             if !bottle.settings.gpuSpoofing {
-                warnings.append("⚠️ GPU spoofing helps with game compatibility checks")
+                warnings.append(.steamGPUSpoofing)
             }
 
         case .rockstar:
-            if pinnedAwayFromDXVK {
-                warnings.append("❌ DXVK REQUIRED for Rockstar Launcher (logo won't display without it)")
+            // Whether the launch really gets DXVK, not the bottle's backend
+            // alone: Recommended steers the launcher to DXVK, and the launcher
+            // auto-enable deploys it under any backend.
+            if !bottle.settings.deploysDXVK(whenLaunching: launcher) {
+                warnings.append(.rockstarDXVK)
             }
 
         case .eaApp:
             if !bottle.settings.gpuSpoofing {
-                warnings.append("❌ GPU spoofing REQUIRED for EA App (will show 'GPU not supported')")
+                warnings.append(.eaGPUSpoofing)
             }
-            if bottle.settings.launcherLocale != .english {
-                warnings.append("⚠️ en_US locale recommended for EA App launcher UI")
+            if nonEnglishLocale {
+                warnings.append(.eaLocale)
             }
 
         case .epicGames:
-            if bottle.settings.launcherLocale != .english {
-                warnings.append("⚠️ en_US locale recommended for Epic Games launcher")
+            if nonEnglishLocale {
+                warnings.append(.epicLocale)
             }
 
         case .battleNet:
-            if bottle.settings.launcherLocale != .english {
-                warnings.append("⚠️ en_US locale recommended for Battle.net")
+            if nonEnglishLocale {
+                warnings.append(.battleNetLocale)
             }
 
         case .ubisoft, .paradox:
             break
-
-        case .zfGame:
-            if pinnedAwayFromDXVK {
-                warnings.append("❌ DXVK REQUIRED for ZFGame Browser (window will never paint)")
-            }
         }
 
         // General warnings
         if !bottle.settings.launcherCompatibilityMode {
-            warnings.append("💡 Launcher Compatibility Mode is disabled. Enable it for automatic fixes.")
+            warnings.append(.compatibilityModeOff)
         }
 
         return warnings
+    }
+
+    /// Generates a user-friendly configuration summary for a launcher.
+    ///
+    /// - Parameters:
+    ///   - bottle: The bottle to summarize
+    ///   - launcher: The launcher type
+    /// - Returns: Multi-line string describing the current configuration
+    @MainActor
+    static func generateConfigSummary(for bottle: Bottle, launcher: LauncherType) -> String {
+        var summary = "Configuration for \(launcher.rawValue):\n\n"
+
+        summary += "Compatibility Mode: \(bottle.settings.launcherCompatibilityMode ? "✅ Enabled" : "❌ Disabled")\n"
+        summary += "Locale: \(bottle.settings.launcherLocale.pretty())\n"
+        summary += "DXVK: \(bottle.settings.deploysDXVK(whenLaunching: launcher) ? "✅ Enabled" : "❌ Disabled")\n"
+        let gpuStatus = bottle.settings.gpuSpoofing
+            ? "✅ Enabled (\(bottle.settings.gpuVendor.rawValue))"
+            : "❌ Disabled"
+        summary += "GPU Spoofing: \(gpuStatus)\n\n"
+
+        summary += "Fixes Applied:\n\(launcher.fixesDescription)\n\n"
+
+        let warnings = validateBottleForLauncher(bottle, launcher: launcher)
+        if !warnings.isEmpty {
+            summary += "⚠️ Warnings:\n"
+            for warning in warnings {
+                summary += "  \(warning.diagnosticMessage)\n"
+            }
+        } else {
+            summary += "✅ Configuration is optimal for this launcher\n"
+        }
+
+        return summary
     }
 }

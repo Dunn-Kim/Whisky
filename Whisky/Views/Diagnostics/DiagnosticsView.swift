@@ -28,29 +28,33 @@ struct DiagnosticsView: View {
     let bottleName: String
     let timestamp: Date
 
+    var onAction: ((RemediationAction) -> Void)?
+    var onAnalyze: (() -> Void)?
     /// When set, the remediation cards execute through
-    /// ``RemediationExecutor`` and report inline. Without it, the cards
-    /// have no Apply.
+    /// ``RemediationExecutor`` and report inline. A caller-provided
+    /// `onAction` still wins. Without either, the cards have no Apply.
     var applyBottle: Bottle?
+    /// The program whose diagnosis is shown. Cards applied through
+    /// ``RemediationExecutor`` are added to its remediation history, which
+    /// the diagnostic export can include.
+    var applyProgramURL: URL?
 
     @Environment(\.dismiss) private var dismiss
 
     @State private var applyFeedback: String?
+    @State private var activeCategoryFilter: CrashCategory?
     @State private var searchText: String = ""
     @State private var logFilterMode: LogFilterMode = .all
     @State private var isLogExpanded: Bool = false
     @State private var isOtherSuggestionsExpanded: Bool = false
 
-    /// The category whose pill is selected, read from the log filter.
-    private var activeCategoryFilter: CrashCategory? {
-        guard case let .category(category) = logFilterMode else { return nil }
-        return category
-    }
-
     private var effectiveOnAction: ((RemediationAction) -> Void)? {
+        if let onAction {
+            return onAction
+        }
         guard let applyBottle else { return nil }
         return { action in
-            RemediationExecutor.apply(action, to: applyBottle) { message in
+            RemediationExecutor.apply(action, to: applyBottle, programURL: applyProgramURL) { message in
                 withAnimation { applyFeedback = message }
             }
         }
@@ -58,9 +62,10 @@ struct DiagnosticsView: View {
 
     private var resolvedRemediations: [RemediationAction] {
         guard let diagnosis else { return [] }
+        let (_, remediations) = PatternLoader.loadDefaults()
         // A card whose change is already in place (a reset to Recommended on
         // a Recommended bottle) would apply as a silent no-op.
-        return diagnosis.remediations(from: PatternLoader.defaultRemediations()).filter { action in
+        return diagnosis.remediations(from: remediations).filter { action in
             applyBottle.map { action.wouldChange($0.settings) } ?? true
         }
     }
@@ -127,6 +132,7 @@ struct DiagnosticsView: View {
                 logText: logText,
                 matches: diagnosis?.matches ?? [],
                 filterMode: $logFilterMode,
+                activeCategoryFilter: $activeCategoryFilter,
                 searchText: $searchText
             )
         }
@@ -186,11 +192,11 @@ extension DiagnosticsView {
                 if let category = diagnosis.primaryCategory {
                     Image(systemName: category.sfSymbol)
                         .font(.title2)
-                        .foregroundStyle(category.color)
+                        .foregroundStyle(colorForCategory(category))
                 }
 
                 VStack(alignment: .leading, spacing: 2) {
-                    if let headline = diagnosis.headline {
+                    if let headline = diagnosis.displayHeadline {
                         Text(headline)
                             .font(.title3)
                             .fontWeight(.semibold)
@@ -199,9 +205,9 @@ extension DiagnosticsView {
                     if let confidence = diagnosis.primaryConfidence {
                         HStack(spacing: 4) {
                             Circle()
-                                .fill(confidence.color)
+                                .fill(colorForConfidence(confidence))
                                 .frame(width: 8, height: 8)
-                            Text("\(confidence.displayName) confidence")
+                            Text(confidence.confidenceLabel)
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -232,20 +238,19 @@ extension DiagnosticsView {
         guard let category = diagnosis.primaryCategory,
               let confidence = diagnosis.primaryConfidence
         else {
-            return "No strong patterns detected."
+            return String(localized: "diagnostics.why.noPatterns")
         }
 
+        // The quoted log text is data and stays as it is.
         let matchedLines = diagnosis.matches
             .filter { $0.pattern.category == category }
             .prefix(3)
-            .map { "Line \($0.lineIndex + 1): \($0.lineText.prefix(80))" }
-            .joined(separator: "\n")
+            .map { String(localized: "diagnostics.why.line \($0.lineIndex + 1) \(String($0.lineText.prefix(80)))") }
 
-        return """
-        \(matchCount) pattern(s) matched for \(category.displayName) \
-        with \(confidence.displayName.lowercased()) confidence.
-        \(matchedLines)
-        """
+        let summary = String(
+            localized: "diagnostics.why.summary \(matchCount) \(category.displayName) \(confidence.confidenceLabel)"
+        )
+        return ([summary] + matchedLines).joined(separator: "\n")
     }
 }
 
@@ -261,8 +266,10 @@ extension DiagnosticsView {
                 ForEach(sortedCategories, id: \.key) { category, count in
                     Button {
                         if activeCategoryFilter == category {
+                            activeCategoryFilter = nil
                             logFilterMode = .all
                         } else {
+                            activeCategoryFilter = category
                             logFilterMode = .category(category)
                         }
                     } label: {
@@ -279,7 +286,7 @@ extension DiagnosticsView {
                             Capsule()
                                 .fill(
                                     activeCategoryFilter == category
-                                        ? category.color.opacity(0.2)
+                                        ? colorForCategory(category).opacity(0.2)
                                         : Color(.controlBackgroundColor)
                                 )
                         )
@@ -287,7 +294,7 @@ extension DiagnosticsView {
                             Capsule()
                                 .strokeBorder(
                                     activeCategoryFilter == category
-                                        ? category.color
+                                        ? colorForCategory(category)
                                         : Color.secondary.opacity(0.3),
                                     lineWidth: 1
                                 )
@@ -351,6 +358,7 @@ extension DiagnosticsView {
                 logText: logText,
                 matches: diagnosis?.matches ?? [],
                 filterMode: $logFilterMode,
+                activeCategoryFilter: $activeCategoryFilter,
                 searchText: $searchText
             )
             .frame(minHeight: 300)
@@ -375,6 +383,13 @@ extension DiagnosticsView {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
+
+            if let onAnalyze {
+                Button("Analyze latest log") {
+                    onAnalyze()
+                }
+                .buttonStyle(.borderedProminent)
+            }
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 40)
@@ -396,12 +411,9 @@ extension DiagnosticsView {
         }
         return ConfidenceTier(score: bestConfidence)
     }
-}
 
-extension CrashCategory {
-    /// The color a crash category is tinted with.
-    var color: Color {
-        switch self {
+    func colorForCategory(_ category: CrashCategory) -> Color {
+        switch category {
         case .coreCrashFatal:
             .red
         case .graphics:
@@ -416,6 +428,17 @@ extension CrashCategory {
             .gray
         case .otherUnknown:
             .secondary
+        }
+    }
+
+    func colorForConfidence(_ tier: ConfidenceTier) -> Color {
+        switch tier {
+        case .high:
+            .green
+        case .medium:
+            .yellow
+        case .low:
+            .gray
         }
     }
 }

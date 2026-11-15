@@ -22,6 +22,13 @@ import WhiskyKit
 struct BackendPickerView: View {
     @Binding var selection: GraphicsBackend
     let resolvedBackend: GraphicsBackend
+    /// Whether a backend can be offered on this machine. Defaults to all-true;
+    /// production callers gate payload-dependent backends (DXMT) on the
+    /// installed runtime.
+    var isBackendAvailable: (GraphicsBackend) -> Bool = { _ in true }
+    /// What D3DMetal is waiting on when it is unavailable, so its card can say
+    /// whether the payload or the engine is missing (#358).
+    var d3dMetalReadiness: D3DMetalReadiness = .available
 
     private let columns = [GridItem(.flexible()), GridItem(.flexible())]
 
@@ -32,7 +39,8 @@ struct BackendPickerView: View {
                     BackendCard(
                         backend: backend,
                         isSelected: selection == backend,
-                        isAvailable: WhiskyWineInstaller.isBackendAvailable(backend),
+                        isAvailable: isBackendAvailable(backend),
+                        d3dMetalReadiness: d3dMetalReadiness,
                         resolvedBackend: backend == .recommended ? resolvedBackend : nil
                     ) {
                         selection = backend
@@ -67,6 +75,7 @@ private struct BackendCard: View {
     let backend: GraphicsBackend
     let isSelected: Bool
     let isAvailable: Bool
+    let d3dMetalReadiness: D3DMetalReadiness
     let resolvedBackend: GraphicsBackend?
     let action: () -> Void
 
@@ -99,7 +108,7 @@ private struct BackendCard: View {
                         }
                         .buttonStyle(.plain)
                         .popover(isPresented: $showRationale) {
-                            Text(String(localized: "config.graphics.backend.recommended.rationale"))
+                            Text(GraphicsBackendResolver.rationale())
                                 .font(.caption)
                                 .padding()
                                 .frame(maxWidth: 240)
@@ -152,11 +161,21 @@ private struct BackendCard: View {
     // MARK: - Unavailability
 
     /// Only payload-dependent backends (DXMT, D3DMetal) can be unavailable;
-    /// each explains what the installed engine is missing (issue #146).
+    /// each explains what is missing (issue #146). D3DMetal needs both an
+    /// imported payload and a GPTK-capable engine, so its card names which
+    /// one, and never asks for the payload once it is imported (#358).
     private var unavailableReasonKey: LocalizedStringKey {
-        backend == .d3dMetal
-            ? "config.graphics.backend.d3dMetal.unavailable"
-            : "config.graphics.backend.dxmt.unavailable"
+        guard backend == .d3dMetal else { return "config.graphics.backend.dxmt.unavailable" }
+        switch d3dMetalReadiness {
+        case .engineNotCapable:
+            return "config.graphics.backend.d3dMetal.needsEngine"
+        case .payloadAndEngineMissing:
+            return "config.graphics.backend.d3dMetal.needsPayloadAndEngine"
+        case .payloadNotDeployed:
+            return "config.graphics.backend.d3dMetal.needsSetup"
+        case .payloadMissing, .available:
+            return "config.graphics.backend.d3dMetal.needsPayload"
+        }
     }
 
     // MARK: - Icon

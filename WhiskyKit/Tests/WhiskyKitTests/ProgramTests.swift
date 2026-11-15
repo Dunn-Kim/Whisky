@@ -27,8 +27,9 @@ final class ProgramCoreTests: XCTestCase {
     var bottleURL: URL!
     var programURL: URL!
 
-    override func setUpWithError() throws {
-        tempDir = try makeTempDir()
+    override func setUp() {
+        super.setUp()
+        tempDir = FileManager.default.temporaryDirectory.appending(path: "program_core_\(UUID().uuidString)")
         bottleURL = tempDir.appending(path: "TestBottle")
 
         let driveCURL = bottleURL.appending(path: "drive_c")
@@ -36,6 +37,11 @@ final class ProgramCoreTests: XCTestCase {
 
         programURL = driveCURL.appending(path: "test_game.exe")
         try? Data("fake exe".utf8).write(to: programURL)
+    }
+
+    override func tearDown() {
+        try? FileManager.default.removeItem(at: tempDir)
+        super.tearDown()
     }
 
     // MARK: - Name Property Tests
@@ -59,20 +65,80 @@ final class ProgramCoreTests: XCTestCase {
         XCTAssertEqual(program.name, "Program With Spaces.exe")
     }
 
-    // MARK: - Identity Tests
+    // MARK: - ID Property Tests
 
     @MainActor
-    func testProgramIdentityIsItsURL() {
-        let otherURL = bottleURL.appending(path: "drive_c/other.exe")
-        try? Data("fake exe".utf8).write(to: otherURL)
+    func testProgramIdEqualsURL() {
         let bottle = Bottle(bottleUrl: bottleURL)
         let program = Program(url: programURL, bottle: bottle)
 
         XCTAssertEqual(program.id, programURL)
-        XCTAssertNotEqual(program, Program(url: otherURL, bottle: bottle))
-        // Custom ==/hash compare the URL only
-        let programs = [program, Program(url: programURL, bottle: bottle), Program(url: otherURL, bottle: bottle)]
-        XCTAssertEqual(Set(programs).count, 2)
+    }
+
+    // MARK: - Equatable Tests
+
+    @MainActor
+    func testProgramEquatableWithSameURL() {
+        let bottle = Bottle(bottleUrl: bottleURL)
+        let program1 = Program(url: programURL, bottle: bottle)
+        let program2 = Program(url: programURL, bottle: bottle)
+
+        XCTAssertEqual(program1, program2)
+    }
+
+    @MainActor
+    func testProgramEquatableWithDifferentURL() {
+        let otherURL = bottleURL.appending(path: "drive_c/other.exe")
+        try? Data("fake exe".utf8).write(to: otherURL)
+
+        let bottle = Bottle(bottleUrl: bottleURL)
+        let program1 = Program(url: programURL, bottle: bottle)
+        let program2 = Program(url: otherURL, bottle: bottle)
+
+        XCTAssertNotEqual(program1, program2)
+    }
+
+    // MARK: - Hashable Tests
+
+    @MainActor
+    func testProgramHashableConsistency() {
+        let bottle = Bottle(bottleUrl: bottleURL)
+        let program1 = Program(url: programURL, bottle: bottle)
+        let program2 = Program(url: programURL, bottle: bottle)
+
+        XCTAssertEqual(program1.hashValue, program2.hashValue)
+    }
+
+    @MainActor
+    func testProgramHashableInSet() {
+        let otherURL = bottleURL.appending(path: "drive_c/other.exe")
+        try? Data("fake exe".utf8).write(to: otherURL)
+
+        let bottle = Bottle(bottleUrl: bottleURL)
+        let program1 = Program(url: programURL, bottle: bottle)
+        let program2 = Program(url: otherURL, bottle: bottle)
+
+        var programSet: Set<Program> = []
+        programSet.insert(program1)
+        programSet.insert(program2)
+
+        XCTAssertEqual(programSet.count, 2)
+        XCTAssertTrue(programSet.contains(program1))
+        XCTAssertTrue(programSet.contains(program2))
+    }
+
+    @MainActor
+    func testProgramHashableDeduplication() {
+        let bottle = Bottle(bottleUrl: bottleURL)
+        let program1 = Program(url: programURL, bottle: bottle)
+        let program2 = Program(url: programURL, bottle: bottle)
+
+        var programSet: Set<Program> = []
+        programSet.insert(program1)
+        programSet.insert(program2)
+
+        // Same URL should dedupe to 1 entry
+        XCTAssertEqual(programSet.count, 1)
     }
 
     // MARK: - Settings URL Tests

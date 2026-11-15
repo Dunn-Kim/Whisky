@@ -23,13 +23,13 @@ final class CrashClassifierTests: XCTestCase {
     // MARK: - PatternLoader Tests
 
     func testLoadDefaultPatterns() {
-        let (patterns, remediations) = (PatternLoader.defaultPatterns(), PatternLoader.defaultRemediations())
+        let (patterns, remediations) = PatternLoader.loadDefaults()
         XCTAssertGreaterThanOrEqual(patterns.count, 15, "Should load at least 15 patterns")
         XCTAssertGreaterThanOrEqual(remediations.count, 8, "Should load at least 8 remediation actions")
     }
 
     func testPatternsCoversAllCategories() {
-        let patterns = PatternLoader.defaultPatterns()
+        let (patterns, _) = PatternLoader.loadDefaults()
         let categories = Set(patterns.map(\.category))
 
         for category in CrashCategory.allCases {
@@ -85,14 +85,32 @@ final class CrashClassifierTests: XCTestCase {
 
     // MARK: - CrashPattern Match Tests
 
+    func testDLLLoadFailureMatch() {
+        var (patterns, _) = PatternLoader.loadDefaults()
+        let line =
+            "0024:err:module:import_dll Library MSVCR100.dll (which is needed by L\"game.exe\") not found"
+
+        var matched = false
+        for index in patterns.indices where patterns[index].id == "dll-load-failure" {
+            if let result = patterns[index].match(line: line) {
+                matched = true
+                XCTAssertEqual(result.captures.first, "MSVCR100.dll")
+                XCTAssertEqual(patterns[index].category, .dependenciesLoading)
+            }
+        }
+        XCTAssertTrue(matched, "dll-load-failure pattern should match")
+    }
+
     func testPrefilterSkipsRegex() {
-        let pattern = CrashPattern(
+        var pattern = CrashPattern(
             id: "test-prefilter",
             category: .dependenciesLoading,
             severity: .error,
             confidence: 0.9,
             substringPrefilter: "import_dll",
             regex: "err:module:import_dll Library (\\S+\\.dll).*not found",
+            tags: [],
+            captureGroups: nil,
             remediationActionIds: nil
         )
 
@@ -102,10 +120,132 @@ final class CrashClassifierTests: XCTestCase {
         XCTAssertNil(result, "Prefilter should skip regex for unrelated lines")
     }
 
+    func testAccessViolationMatch() {
+        var (patterns, _) = PatternLoader.loadDefaults()
+        let line =
+            "0080:err:seh:NtRaiseException Unhandled exception code c0000005 flags 0 addr 0x7b012345"
+
+        var matched = false
+        for index in patterns.indices {
+            if patterns[index].id == "access-violation" || patterns[index].id == "nt-raise-exception" {
+                if patterns[index].match(line: line) != nil {
+                    matched = true
+                    XCTAssertEqual(patterns[index].category, .coreCrashFatal)
+                }
+            }
+        }
+        XCTAssertTrue(matched, "Access violation line should match a coreCrashFatal pattern")
+    }
+
+    func testPageFaultMatch() {
+        var (patterns, _) = PatternLoader.loadDefaults()
+        let line = "wine: Unhandled page fault on read access to 0x00000000 at address 0x7b012345"
+
+        var matched = false
+        for index in patterns.indices where patterns[index].id == "page-fault" {
+            if patterns[index].match(line: line) != nil {
+                matched = true
+                XCTAssertEqual(patterns[index].category, .coreCrashFatal)
+            }
+        }
+        XCTAssertTrue(matched, "Page fault line should match")
+    }
+
+    func testGPUDeviceLostMatch() {
+        var (patterns, _) = PatternLoader.loadDefaults()
+        let line = "err:d3d11:device_lost D3D11 device lost (DXGI_ERROR_DEVICE_REMOVED)"
+
+        var matched = false
+        for index in patterns.indices where patterns[index].id == "gpu-device-lost-dxvk" {
+            if patterns[index].match(line: line) != nil {
+                matched = true
+                XCTAssertEqual(patterns[index].category, .graphics)
+            }
+        }
+        XCTAssertTrue(matched, "GPU device lost line should match")
+    }
+
+    func testAntiCheatEACMatch() {
+        var (patterns, _) = PatternLoader.loadDefaults()
+        let line = "EasyAntiCheat.exe: Fatal error - EasyAntiCheat is not installed"
+
+        var matched = false
+        for index in patterns.indices where patterns[index].id == "anticheat-eac" {
+            if patterns[index].match(line: line) != nil {
+                matched = true
+                XCTAssertEqual(patterns[index].category, .antiCheatUnsupported)
+            }
+        }
+        XCTAssertTrue(matched, "EasyAntiCheat line should match")
+    }
+
+    func testAntiCheatBattlEyeMatch() {
+        var (patterns, _) = PatternLoader.loadDefaults()
+        let line = "BattlEye Service: error initializing - BattlEye not supported on this platform"
+
+        var matched = false
+        for index in patterns.indices where patterns[index].id == "anticheat-battleye" {
+            if patterns[index].match(line: line) != nil {
+                matched = true
+                XCTAssertEqual(patterns[index].category, .antiCheatUnsupported)
+            }
+        }
+        XCTAssertTrue(matched, "BattlEye line should match")
+    }
+
+    func testDotNetCLRMatch() {
+        var (patterns, _) = PatternLoader.loadDefaults()
+        let line =
+            "0024:err:module:import_dll Library mscoree.dll (which is needed by L\"app.exe\") not found"
+
+        var matched = false
+        for index in patterns.indices {
+            if patterns[index].id == "dotnet-clr-missing" || patterns[index].id == "dll-load-failure" {
+                if let result = patterns[index].match(line: line) {
+                    matched = true
+                    // Both patterns may match -- at least one should be dependenciesLoading
+                    XCTAssertEqual(patterns[index].category, .dependenciesLoading)
+                    if patterns[index].id == "dll-load-failure" {
+                        XCTAssertEqual(result.captures.first, "mscoree.dll")
+                    }
+                }
+            }
+        }
+        XCTAssertTrue(matched, ".NET CLR line should match")
+    }
+
+    func testPrefixCorruptionMatch() {
+        var (patterns, _) = PatternLoader.loadDefaults()
+        let line = "wine: could not load user32.dll, status c0000135"
+
+        var matched = false
+        for index in patterns.indices where patterns[index].id == "prefix-corruption" {
+            if patterns[index].match(line: line) != nil {
+                matched = true
+                XCTAssertEqual(patterns[index].category, .prefixFilesystem)
+            }
+        }
+        XCTAssertTrue(matched, "Prefix corruption line should match")
+    }
+
+    func testNetworkTLSMatch() {
+        var (patterns, _) = PatternLoader.loadDefaults()
+        let line = "0024:err:winhttp:request_send_request secure connection failed"
+
+        var matched = false
+        for index in patterns.indices where patterns[index].id == "network-winhttp-tls" {
+            if patterns[index].match(line: line) != nil {
+                matched = true
+                XCTAssertEqual(patterns[index].category, .networkingLaunchers)
+            }
+        }
+        XCTAssertTrue(matched, "Network TLS line should match")
+    }
+
     // MARK: - CrashDiagnosis Remediation Tests
 
     func testDiagnosisRemediationResolution() {
-        let remediations = PatternLoader.defaultRemediations()
+        let (_, remediations) = PatternLoader.loadDefaults()
 
         let pattern = CrashPattern(
             id: "test",
@@ -114,6 +254,8 @@ final class CrashClassifierTests: XCTestCase {
             confidence: 0.9,
             substringPrefilter: nil,
             regex: "test",
+            tags: [],
+            captureGroups: nil,
             remediationActionIds: ["install-vcredist", "install-dotnet"]
         )
 
@@ -156,7 +298,7 @@ final class CrashClassifierTests: XCTestCase {
     // MARK: - RemediationAction Tests
 
     func testRemediationActionTypes() {
-        let remediations = PatternLoader.defaultRemediations()
+        let (_, remediations) = PatternLoader.loadDefaults()
 
         // Verify at least one of each action type exists
         let types = Set(remediations.values.map(\.actionType))
@@ -170,7 +312,9 @@ final class CrashClassifierTests: XCTestCase {
     /// for hours buries it megabytes above the tail, which is exactly the log
     /// a tail-only window used to read and classify as clean.
     func testClassifyLastRunSeesHeadOfLogEvents() async throws {
-        let tempDir = try makeTempDir()
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
 
         let logURL = tempDir.appendingPathComponent("run.log")
         let crash = "0024:err:module:import_dll Library MSVCR100.dll (which is needed by L\"game.exe\") not found\n"

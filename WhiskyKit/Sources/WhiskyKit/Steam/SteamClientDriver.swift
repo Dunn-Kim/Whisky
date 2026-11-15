@@ -19,10 +19,10 @@
 import Foundation
 
 /// Everything ``SteamClientOrchestrator`` needs from the outside world: process
-/// lists, starting the client, and launching and killing games. The
-/// orchestrator owns the sequencing (single-flight client startup, per-game
-/// launches, the shared process snapshot); the driver owns the side effects, so
-/// tests can script one without Wine.
+/// lists, starting the client, launching and killing games, and two lifecycle
+/// hooks. The orchestrator owns the sequencing (single-flight client startup,
+/// per-game phases, the shared process snapshot); the driver owns the side
+/// effects, so tests can script one without Wine.
 @MainActor
 public protocol SteamClientDriver: AnyObject {
     /// Lower-cased `.exe` names of Wine processes visible to the host.
@@ -31,6 +31,13 @@ public protocol SteamClientDriver: AnyObject {
     /// the negative case: an empty answer means nothing is running anywhere,
     /// and the bottle's own process list is not consulted.
     func hostWineImageNames() async -> Set<String>
+
+    /// Host process IDs of every `steam.exe`, in any bottle.
+    ///
+    /// The wait for a client the orchestrator started compares this with the
+    /// answer from before the start, and asks the bottle's own list only when
+    /// a new ID appears.
+    func hostSteamPIDs() async -> Set<Int32>
 
     /// The bottle's process list, as `tasklist.exe` reports it.
     func processList() async -> [WineProcess]
@@ -48,11 +55,21 @@ public protocol SteamClientDriver: AnyObject {
 
     /// Asks one of the bottle's processes to close.
     func killProcess(winePID: Int32) async
+
+    /// The client is up (started here or found already running).
+    func clientDidBecomeReady()
+
+    /// The orchestrator is being stopped; release anything started in
+    /// ``clientDidBecomeReady()``.
+    func shutdown()
 }
 
 /// The production driver: Wine, `tasklist.exe`, `ps`, and ``SteamLauncher``.
+///
+/// `open` so the app can layer session-scoped behavior on the two lifecycle
+/// hooks without the kit knowing about it.
 @MainActor
-public final class WineSteamClientDriver: SteamClientDriver {
+open class WineSteamClientDriver: SteamClientDriver {
     public let bottle: Bottle
 
     public init(bottle: Bottle) {
@@ -64,7 +81,7 @@ public final class WineSteamClientDriver: SteamClientDriver {
     /// client spent dozens of them competing with the client it was waiting
     /// for. Wine's processes carry their Windows image name in the host
     /// process list, so this answers "nothing is running yet" for free.
-    public func hostWineImageNames() async -> Set<String> {
+    open func hostWineImageNames() async -> Set<String> {
         await Task.detached {
             let process = Process()
             process.executableURL = URL(filePath: "/bin/ps")
@@ -78,6 +95,11 @@ public final class WineSteamClientDriver: SteamClientDriver {
             guard let output = String(bytes: data, encoding: .utf8) else { return [] }
             return Self.exeImageNames(inProcessListing: output)
         }.value
+    }
+
+    /// One `ps`, like ``hostWineImageNames()``.
+    open func hostSteamPIDs() async -> Set<Int32> {
+        await SteamLauncher.hostSteamPIDs()
     }
 
     /// The lower-cased `.exe` names in a `ps -Ao comm=` listing.
@@ -96,21 +118,18 @@ public final class WineSteamClientDriver: SteamClientDriver {
         )
     }
 
-    public func processList() async -> [WineProcess] {
+    open func processList() async -> [WineProcess] {
         await (try? Wine.listProcesses(for: bottle)) ?? []
     }
 
     /// `steam.exe -silent` runs for the whole session, so the run is never awaited.
-    public func startClient(steamExe: URL) {
-        let bottle = self.bottle
-        Task {
-            _ = try? await Wine.runProgram(at: steamExe, args: ["-silent"], bottle: bottle)
-        }
+    open func startClient(steamExe: URL) {
+        SteamLauncher.startClient(steamExe: steamExe, bottle: bottle)
     }
 
-    /// Through the shared path, which carries the locale, DXVK and
-    /// GPU-spoofing settings steamwebhelper needs and not just the compat flag.
-    public func applyLauncherFixes() {
+    /// Through the shared path, which carries the DXVK and GPU-spoofing
+    /// settings steamwebhelper needs and not just the compat flag.
+    open func applyLauncherFixes() {
         LauncherFixes.apply(to: bottle, launcher: .steam)
     }
 
@@ -118,11 +137,18 @@ public final class WineSteamClientDriver: SteamClientDriver {
     /// overrides, records the bottle for this App ID, and hands `-applaunch`
     /// to the client. The returned task can outlive the game, so it is never
     /// awaited. The install URL is already known, which saves a library rescan.
-    public func launchGame(_ game: SteamGame) throws {
-        _ = try SteamLauncher.launch(appId: game.appId, bottle: bottle, installURL: game.installURL)
+    open func launchGame(_ game: SteamGame) throws {
+        // The orchestrator has started the client or found it running already.
+        _ = try SteamLauncher.launch(
+            appId: game.appId, bottle: bottle, installURL: game.installURL, clientIsRunning: true
+        )
     }
 
-    public func killProcess(winePID: Int32) async {
-        await Wine.killProcess(winePID: winePID, bottle: bottle, force: false)
+    open func killProcess(winePID: Int32) async {
+        await Wine.gracefulKillProcess(winePID: winePID, bottle: bottle)
     }
+
+    open func clientDidBecomeReady() {}
+
+    open func shutdown() {}
 }

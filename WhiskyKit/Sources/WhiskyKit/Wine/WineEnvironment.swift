@@ -27,11 +27,11 @@ private let envLogger = Logger(subsystem: Bundle.whiskyBundleIdentifier, categor
 // swiftlint:disable cyclomatic_complexity
 extension Wine {
     /// Construct an environment merging the bottle values with the given values
-    /// using EnvironmentBuilder with 7-layer resolution.
+    /// using EnvironmentBuilder with 8-layer resolution.
     ///
     /// Each Wine process launch resolves through this method, which populates
     /// an ``EnvironmentBuilder`` with base, platform, bottleManaged, launcherManaged,
-    /// gameProfile, programUser, and featureRuntime layers.
+    /// bottleUser, programUser, featureRuntime, and callsiteOverride layers.
     /// WINEDLLOVERRIDES is composed per-DLL via ``DLLOverrideResolver``.
     ///
     /// Invalid environment variable keys (those not matching `[A-Za-z_][A-Za-z0-9_]*`)
@@ -41,6 +41,9 @@ extension Wine {
     ///   - bottle: The bottle whose settings configure the environment.
     ///   - environment: Caller-provided environment variables (typically from `Program.generateEnvironment()`).
     ///   - programOverrides: Optional per-program setting overrides. `nil` fields inherit from bottle.
+    ///   - recommendedBackend: What `.recommended` resolves to, for the bottle and
+    ///     for a program set to it. Defaults to `nil`, which asks
+    ///     ``GraphicsBackendResolver`` about the installed runtime.
     ///   - builtinD3D12IsD3DMetal: Whether the runtime's builtin `d3d12` is
     ///     D3DMetal's, which decides whether the DXVK and DXMT presets turn it
     ///     off. Defaults to whether the GPTK payload is deployed, read once so
@@ -53,6 +56,7 @@ extension Wine {
         programOverrides: ProgramOverrides? = nil,
         programSettings: ProgramSettings? = nil,
         gameProfileEnvironment: [String: String] = [:],
+        recommendedBackend: GraphicsBackend? = nil,
         builtinD3D12IsD3DMetal: Bool = GPTKImporter.isDeployed()
     ) -> [String: String] {
         var builder = EnvironmentBuilder()
@@ -63,29 +67,36 @@ extension Wine {
         builder.set("WINEDEBUG", "fixme-all", layer: .base)
         builder.set("GST_DEBUG", "1", layer: .base)
 
-        // Layer 2: Platform -- macOS compatibility fixes from the MacOSCompatibilityFixes registry
+        // Layer 2: Platform -- macOS compatibility fixes
+        // Apply fixes from the MacOSCompatibilityFixes registry with reason strings.
+        // applyMacOSCompatibilityFixes() is still called for the conditional WINEESYNC logic.
         for fix in MacOSCompatibilityFixes.activeFixes() {
-            builder.set(fix.key, fix.value, layer: .platform)
+            builder.set(fix.key, fix.value, layer: .platform, reason: fix.reason)
         }
         // Forward host timezone so games that read system time/date behave correctly.
         // macOS does not export TZ by default; without this, Wine sees UTC.
         if ProcessInfo.processInfo.environment["TZ"] == nil {
-            builder.set("TZ", TimeZone.current.identifier, layer: .platform)
+            builder.set(
+                "TZ", TimeZone.current.identifier, layer: .platform,
+                reason: "Host timezone forwarding"
+            )
         }
-        // Fallback sync mode for macOS 15.4+ (the platform layer sets no other sync mode)
-        if MacOSVersion.current >= .sequoia15_4 {
-            builder.set("WINEESYNC", "1", layer: .platform)
+        // Handle conditional WINEESYNC (depends on existing environment state)
+        var platformConditional: [String: String] = [:]
+        applyMacOSCompatibilityFixes(to: &platformConditional)
+        if let esync = platformConditional["WINEESYNC"] {
+            builder.set(
+                "WINEESYNC", esync, layer: .platform,
+                reason: "Fallback sync mode for macOS 15.4+ (esync/msync not otherwise set)"
+            )
         }
 
         // Layer 3: Bottle managed -- settings-derived env vars (DXVK, sync, Metal, perf)
-        // Resolved on the main actor here so the nonisolated settings layer does
-        // not have to reach for NSScreen itself.
-        let displayRefreshRate = FrameRateLimit.mainDisplayRefreshRate()
-        let dllOverrides = populateSettingsLayers(
-            of: bottle.settings, builder: &builder,
-            displayRefreshRate: displayRefreshRate, builtinD3D12IsD3DMetal: builtinD3D12IsD3DMetal
+        let managedOverrides = bottle.settings.populateBottleManagedLayer(
+            builder: &builder, resolvedBackend: recommendedBackend,
+            builtinD3D12IsD3DMetal: builtinD3D12IsD3DMetal
         )
-        dllResolver.managed.append(contentsOf: dllOverrides)
+        dllResolver.managed.append(contentsOf: managedOverrides)
 
         // DXVK reads its config from DXVK_CONFIG_FILE or the process working
         // directory, and the working directory of a launch is never the bottle
@@ -94,14 +105,26 @@ extension Wine {
         // forward slashes.
         let dxvkConf = bottle.url.appending(path: "dxvk.conf")
         if FileManager.default.fileExists(atPath: dxvkConf.path(percentEncoded: false)) {
-            builder.set("DXVK_CONFIG_FILE", "Z:\(dxvkConf.path(percentEncoded: false))", layer: .bottleManaged)
+            builder.set(
+                "DXVK_CONFIG_FILE", "Z:\(dxvkConf.path(percentEncoded: false))",
+                layer: .bottleManaged, reason: "dxvk.conf present in the bottle"
+            )
         }
+
+        // Layer 4: Launcher managed -- launcher compatibility overrides
+        let launcherOverrides = bottle.settings.populateLauncherManagedLayer(
+            builder: &builder, builtinD3D12IsD3DMetal: builtinD3D12IsD3DMetal
+        )
+        dllResolver.managed.append(contentsOf: launcherOverrides)
+
+        // Input compatibility (bottleManaged layer -- input settings are bottle-managed toggles)
+        bottle.settings.populateInputCompatibilityLayer(builder: &builder)
 
         // Layer 5: Game profile -- GameDB variant environment for this launch.
         // Beats bottle/launcher defaults, loses to anything the user set.
         for (key, value) in gameProfileEnvironment {
             if isValidEnvKey(key) {
-                builder.set(key, value, layer: .gameProfile)
+                builder.set(key, value, layer: .gameProfile, reason: "GameDB profile")
             } else {
                 envLogger.debug("Skipping invalid game profile key '\(key)' in constructWineEnvironment")
             }
@@ -126,13 +149,22 @@ extension Wine {
                 overrides,
                 frameGeneration: bottle.settings.frameGeneration,
                 dxvkAsync: bottle.settings.dxvkAsync,
+                programEnvironmentKeys: Set(environment.keys),
+                recommendedBackend: recommendedBackend,
                 builtinD3D12IsD3DMetal: builtinD3D12IsD3DMetal,
                 builder: &builder,
-                dllResolver: &dllResolver,
-                bottleBackend: bottle.settings.graphicsBackend,
-                bottleFrameRateLimit: bottle.settings.frameRateLimit,
-                displayRefreshRate: displayRefreshRate
+                dllResolver: &dllResolver
             )
+        }
+
+        // The program's own WINEDLLOVERRIDES, merged rather than replaced: the
+        // composed value used to be assigned over it, so it did nothing whenever
+        // the bottle had any override at all. Program-custom, after the program's
+        // overrides, so the DLLs it names beat every preset and the rest of the
+        // composition stands. Only the program's own value: a GameDB profile's
+        // must not outrank the user's bottle overrides.
+        if let programValue = environment["WINEDLLOVERRIDES"] {
+            dllResolver.programCustom.append(contentsOf: DLLOverrideResolver.parse(programValue))
         }
 
         // Layer 8: featureRuntime -- diagnostic WINEDEBUG preset override
@@ -140,11 +172,13 @@ extension Wine {
             builder.set("WINEDEBUG", preset.winedebugValue, layer: .featureRuntime)
         }
 
+        // Layer 9: callsiteOverride is left empty (populated by direct callers)
+
         // Collect bottle custom DLL overrides for the resolver
         dllResolver.bottleCustom = bottle.settings.dllOverrides
 
-        // Resolve the builder and capture the active layers for launch logging
-        let (resolved, activeLayers) = builder.resolve()
+        // Resolve the builder and capture provenance for launch logging
+        let (resolved, provenance) = builder.resolve()
         var result = resolved
 
         // Compose WINEDLLOVERRIDES from DLLOverrideResolver (outside the builder)
@@ -154,31 +188,9 @@ extension Wine {
         }
 
         // Launch logging: safe summary of bottle, active layers, and whitelisted keys
-        logLaunchSummary(bottleName: bottle.settings.name, activeLayers: activeLayers, environment: result)
+        logLaunchSummary(bottleName: bottle.settings.name, provenance: provenance, environment: result)
 
         return result
-    }
-
-    /// Layers 3-4 and input compatibility: everything derived from the bottle's
-    /// settings alone. Returns the managed DLL overrides for the resolver.
-    static func populateSettingsLayers(
-        of settings: BottleSettings,
-        builder: inout EnvironmentBuilder,
-        displayRefreshRate: Int? = nil,
-        builtinD3D12IsD3DMetal: Bool = GPTKImporter.isDeployed()
-    ) -> [(entry: DLLOverrideEntry, source: DLLOverrideSource)] {
-        // Layer 3: Bottle managed -- settings-derived env vars (DXVK, sync, Metal, perf)
-        var overrides = settings.populateBottleManagedLayer(
-            builder: &builder, displayRefreshRate: displayRefreshRate,
-            builtinD3D12IsD3DMetal: builtinD3D12IsD3DMetal
-        )
-        // Layer 4: Launcher managed -- launcher compatibility overrides
-        overrides += settings.populateLauncherManagedLayer(
-            builder: &builder, builtinD3D12IsD3DMetal: builtinD3D12IsD3DMetal
-        )
-        // Input compatibility (bottleManaged layer -- input settings are bottle-managed toggles)
-        settings.populateInputCompatibilityLayer(builder: &builder)
-        return overrides
     }
 
     /// Builtin-mode reset entries for every DLL any translation layer may have
@@ -203,41 +215,60 @@ extension Wine {
     /// `builtinD3D12IsD3DMetal` says whether the runtime's builtin `d3d12` is
     /// D3DMetal's, which decides whether the DXVK and DXMT presets turn it off
     /// and whether the reset union puts it back. Defaults to whether the GPTK
-    /// payload is deployed.
+    /// payload is deployed. `recommendedBackend` is what a program set to
+    /// `.recommended` gets; `nil` asks ``GraphicsBackendResolver``.
+    /// `dxvkAsync` is the bottle's async setting, which a program moved onto
+    /// DXVK inherits. `programEnvironmentKeys` are the variables the program's
+    /// own environment sets, which the DXVK compile settings leave alone.
     static func applyProgramOverrides(
         _ overrides: ProgramOverrides,
         frameGeneration: Bool = false,
         dxvkAsync: Bool = true,
+        programEnvironmentKeys: Set<String> = [],
+        recommendedBackend: GraphicsBackend? = nil,
         builtinD3D12IsD3DMetal: Bool = GPTKImporter.isDeployed(),
         builder: inout EnvironmentBuilder,
-        dllResolver: inout DLLOverrideResolver,
-        bottleBackend: GraphicsBackend = .recommended,
-        bottleFrameRateLimit: FrameRateLimit = .unlimited,
-        displayRefreshRate: Int? = nil
+        dllResolver: inout DLLOverrideResolver
     ) {
         let dxvkPreset = DLLOverrideResolver.dxvkPreset(builtinD3D12IsD3DMetal: builtinD3D12IsD3DMetal)
         let dxmtPreset = DLLOverrideResolver.dxmtPreset(builtinD3D12IsD3DMetal: builtinD3D12IsD3DMetal)
         let translationReset = translationDLLResetEntries(builtinD3D12IsD3DMetal: builtinD3D12IsD3DMetal)
 
-        // What the bottle layer sets under DXVK, for a program that turns DXVK on
-        // in a bottle running something else; without it the program compiles
-        // shaders synchronously and serially.
+        // What the bottle layer sets under DXVK, for a program moved onto DXVK
+        // in a bottle running something else: without it the program compiled
+        // its shaders synchronously and one at a time. Both share the program's
+        // layer with its own environment, where the later write wins, so a
+        // value the user gave the program is kept.
+        let concurrentCompile = "MVK_CONFIG_SHOULD_MAXIMIZE_CONCURRENT_COMPILATION"
         func addDXVKEnvironment() {
-            if dxvkAsync {
+            if dxvkAsync, !programEnvironmentKeys.contains("DXVK_ASYNC") {
                 builder.set("DXVK_ASYNC", "1", layer: .programUser)
             }
-            builder.set("MVK_CONFIG_SHOULD_MAXIMIZE_CONCURRENT_COMPILATION", "1", layer: .programUser)
+            if !programEnvironmentKeys.contains(concurrentCompile) {
+                builder.set(concurrentCompile, "1", layer: .programUser)
+            }
+        }
+        func removeConcurrentCompile() {
+            if !programEnvironmentKeys.contains(concurrentCompile) {
+                builder.remove(concurrentCompile, layer: .programUser)
+            }
         }
 
         // Graphics backend override: replaces bottle-level backend entirely
         if let backend = overrides.graphicsBackend {
-            switch backend.resolved {
+            let resolved = if backend == .recommended {
+                recommendedBackend ?? GraphicsBackendResolver.resolve()
+            } else {
+                backend
+            }
+            switch resolved {
             case .d3dMetal, .recommended:
                 // Undo any bottle-level DXVK/DXMT by overriding DLLs to builtin
                 dllResolver.programCustom.append(contentsOf: translationReset)
                 // Remove DXVK and wined3d env vars at program layer
                 builder.remove("DXVK_HUD", layer: .programUser)
                 builder.remove("DXVK_ASYNC", layer: .programUser)
+                removeConcurrentCompile()
                 builder.remove("WINED3DMETAL", layer: .programUser)
                 // One program on D3DMetal inside a bottle running something else
                 // still has to claim scheduling itself; see the bottle layer.
@@ -250,8 +281,8 @@ extension Wine {
             case .dxvk:
                 // Enable DXVK DLLs at program level
                 dllResolver.programCustom.append(contentsOf: dxvkPreset)
-                builder.remove("WINED3DMETAL", layer: .programUser)
                 addDXVKEnvironment()
+                builder.remove("WINED3DMETAL", layer: .programUser)
                 // CX_ACTIVE_GRAPHICS_BACKEND deliberately survives. It selects no
                 // backend: win32u is the only thing in the runtime that reads it,
                 // and all it does is answer KMTQAITYPE_WDDM_2_7_CAPS. Stripping it
@@ -271,6 +302,7 @@ extension Wine {
                 dllResolver.programCustom.append(contentsOf: dxmtPreset)
                 builder.remove("DXVK_HUD", layer: .programUser)
                 builder.remove("DXVK_ASYNC", layer: .programUser)
+                removeConcurrentCompile()
                 builder.remove("WINED3DMETAL", layer: .programUser)
                 // Survives for the reason given under .dxvk: DXMT translates d3d11
                 // only, so d3d12 is still D3DMetal here.
@@ -307,9 +339,14 @@ extension Wine {
 
         // DXVK HUD override
         if let dxvkHud = overrides.dxvkHud {
-            if let hud = dxvkHud.envValue {
-                builder.set("DXVK_HUD", hud, layer: .programUser)
-            } else {
+            switch dxvkHud {
+            case .full:
+                builder.set("DXVK_HUD", "full", layer: .programUser)
+            case .partial:
+                builder.set("DXVK_HUD", "devinfo,fps,frametimes", layer: .programUser)
+            case .fps:
+                builder.set("DXVK_HUD", "fps", layer: .programUser)
+            case .off:
                 builder.remove("DXVK_HUD", layer: .programUser)
             }
         }
@@ -321,7 +358,23 @@ extension Wine {
 
         // Enhanced sync override
         if let enhancedSync = overrides.enhancedSync {
-            builder.setEnhancedSync(enhancedSync, layer: .programUser)
+            switch enhancedSync {
+            case .none:
+                if MacOSVersion.current < .sequoia15_4 {
+                    builder.remove("WINEESYNC", layer: .programUser)
+                    builder.remove("WINEMSYNC", layer: .programUser)
+                } else {
+                    // On 15.4+ ESYNC is required for stability
+                    builder.set("WINEESYNC", "1", layer: .programUser)
+                    builder.remove("WINEMSYNC", layer: .programUser)
+                }
+            case .esync:
+                builder.set("WINEESYNC", "1", layer: .programUser)
+                builder.remove("WINEMSYNC", layer: .programUser)
+            case .msync:
+                builder.set("WINEMSYNC", "1", layer: .programUser)
+                builder.set("WINEESYNC", "1", layer: .programUser)
+            }
         }
 
         // Metal 4 override. `D3DMDevice::MTL4OptionEnabled` only takes that path
@@ -333,6 +386,22 @@ extension Wine {
                 builder.set("D3DM_MTL4", "1", layer: .programUser)
             } else {
                 builder.remove("D3DM_MTL4", layer: .programUser)
+            }
+        }
+
+        // Metal HUD override. The bottle value lands in the bottleManaged layer
+        // and reaches every process in the prefix, launcher windows included, so
+        // a program that wants the HUD to itself sets it here.
+        //
+        // Removal rather than "0": the resolved environment must not carry the
+        // variable at all -- absence is off to the HUD, and a removal also
+        // shadows the bottle's value instead of contradicting it. (Verified on
+        // macOS 27.2: MTL_HUD_ENABLED=1 draws the HUD; =0 and absent do not.)
+        if let metalHud = overrides.metalHud {
+            if metalHud {
+                builder.set("MTL_HUD_ENABLED", "1", layer: .programUser)
+            } else {
+                builder.remove("MTL_HUD_ENABLED", layer: .programUser)
             }
         }
 
@@ -351,43 +420,24 @@ extension Wine {
         if let controllerCompat = overrides.controllerCompatibilityMode {
             // When compat mode is overridden, control whether SDL hints are applied
             if controllerCompat {
-                builder.setSDLInputHints(
-                    disableHIDAPI: overrides.disableHIDAPI ?? false,
-                    allowBackgroundEvents: overrides.allowBackgroundEvents ?? false,
-                    buttonLabels: (overrides.disableControllerMapping ?? false) || (overrides.useButtonLabels ?? false),
-                    layer: .programUser
-                )
+                if let disableHIDAPI = overrides.disableHIDAPI, disableHIDAPI {
+                    builder.set("SDL_JOYSTICK_HIDAPI", "0", layer: .programUser)
+                }
+                if let allowBG = overrides.allowBackgroundEvents, allowBG {
+                    builder.set("SDL_JOYSTICK_ALLOW_BACKGROUND_EVENTS", "1", layer: .programUser)
+                }
+                let mapping = overrides.disableControllerMapping ?? false
+                let labels = overrides.useButtonLabels ?? false
+                if mapping || labels {
+                    builder.set("SDL_GAMECONTROLLER_USE_BUTTON_LABELS", "1", layer: .programUser)
+                } else {
+                    builder.set("SDL_GAMECONTROLLER_USE_BUTTON_LABELS", "0", layer: .programUser)
+                }
             } else {
                 // Program overrides compat mode off: remove all SDL hints
                 builder.remove("SDL_JOYSTICK_HIDAPI", layer: .programUser)
                 builder.remove("SDL_JOYSTICK_ALLOW_BACKGROUND_EVENTS", layer: .programUser)
                 builder.remove("SDL_GAMECONTROLLER_USE_BUTTON_LABELS", layer: .programUser)
-            }
-        }
-
-        // Frame rate cap. Re-resolved here whenever the program overrides either
-        // the cap or the backend, because the two are coupled: each backend uses
-        // a different variable, so switching backend at program level would
-        // otherwise leave the bottle's cap set on the wrong one.
-        if overrides.graphicsBackend != nil || overrides.frameRateLimit != nil {
-            let effectiveBackend = (overrides.graphicsBackend ?? bottleBackend).resolved
-            let limit = overrides.frameRateLimit ?? bottleFrameRateLimit
-            let fps = limit.resolved(displayRefreshRate: displayRefreshRate)
-            // A program-level cap must clear the bottle's DXVK one even when the
-            // program switches to a backend that does not use it.
-            builder.remove("DXVK_FRAME_RATE", layer: .programUser)
-            if effectiveBackend == .dxmt {
-                // The cap is one entry of DXMT_CONFIG, so it is merged, not set: a
-                // DXMT_CONFIG from the program's environment keeps its other
-                // entries. 0 is DXMT's "no cap" and cancels the bottle's.
-                builder.merge("DXMT_CONFIG", "d3d11.preferredMaxFrameRate=\(fps ?? 0)", layer: .programUser)
-            } else {
-                builder.remove("DXMT_CONFIG", layer: .programUser)
-                if let fps {
-                    for (key, value) in effectiveBackend.frameRateLimitEnvironment(fps: fps) {
-                        builder.set(key, value, layer: .programUser)
-                    }
-                }
             }
         }
 
@@ -403,10 +453,22 @@ extension Wine {
     /// Does NOT log full environment dict, WINEPREFIX paths, or user-set custom env vars.
     private static func logLaunchSummary(
         bottleName: String,
-        activeLayers: Set<EnvironmentLayer>,
+        provenance: EnvironmentProvenance,
         environment: [String: String]
     ) {
-        let layerNames = activeLayers.sorted().map { String(describing: $0) }
+        let layerNames = provenance.activeLayers.sorted().map { layer -> String in
+            switch layer {
+            case .base: "base"
+            case .platform: "platform"
+            case .bottleManaged: "bottleManaged"
+            case .launcherManaged: "launcherManaged"
+            case .gameProfile: "gameProfile"
+            case .bottleUser: "bottleUser"
+            case .programUser: "programUser"
+            case .featureRuntime: "featureRuntime"
+            case .callsiteOverride: "callsiteOverride"
+            }
+        }
 
         // Non-sensitive keys allowed in the launch summary
         let allowedKeys = [

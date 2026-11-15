@@ -20,27 +20,56 @@ import Foundation
 
 /// A record of a single fix application during a troubleshooting session.
 ///
-/// Tracks the result of each fix and captures before/after values for undo support.
+/// Extends the pattern from ``TroubleshootingFixAttempt`` (Phase 6) with
+/// explicit result tracking and before/after value capture for undo support.
 public struct FixAttempt: Codable, Sendable {
     /// The stable fix identifier from the flow step node.
     public let fixId: String
 
     /// When the fix was applied.
-    public var timestamp: Date = .init()
+    public let timestamp: Date
 
     /// The setting value before the fix was applied, if applicable.
-    public var beforeValue: String?
+    public let beforeValue: String?
 
     /// The setting value after the fix was applied, if applicable.
-    public var afterValue: String?
+    public let afterValue: String?
 
     /// The current result of this fix attempt.
-    public var result: FixResult = .pending
+    public var result: FixResult
 
     /// The flow node params the fix was applied with. Parameterized fixes
     /// (registry writes) need these back to undo, since the fixId alone
     /// does not identify the target.
     public var params: [String: String]?
+
+    /// The flow node the fix was applied from, whose `applied` transition
+    /// the session follows once the fix lands. `nil` for a fix applied
+    /// outside a flow node.
+    public var nodeId: String?
+
+    /// Whether the fix landed. A `failed` attempt that landed is one the
+    /// user said did not help; one that did not land failed to apply.
+    /// `nil` in attempts recorded before this was tracked.
+    public var wasApplied: Bool?
+
+    public init(
+        fixId: String,
+        timestamp: Date = Date(),
+        beforeValue: String? = nil,
+        afterValue: String? = nil,
+        result: FixResult = .pending,
+        params: [String: String]? = nil,
+        nodeId: String? = nil
+    ) {
+        self.fixId = fixId
+        self.timestamp = timestamp
+        self.beforeValue = beforeValue
+        self.afterValue = afterValue
+        self.result = result
+        self.params = params
+        self.nodeId = nodeId
+    }
 }
 
 /// The lifecycle state of a fix attempt.

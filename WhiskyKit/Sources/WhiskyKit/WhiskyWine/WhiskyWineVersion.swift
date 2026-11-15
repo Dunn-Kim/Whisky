@@ -32,7 +32,7 @@ import SemanticVersion
 ///     <integer>0</integer>
 /// </dict>
 /// ```
-public struct WhiskyWineVersion: Decodable {
+public struct WhiskyWineVersion: Codable {
     public var version: SemanticVersion
 
     /// The bundled DXVK (macOS) version recorded alongside the runtime version,
@@ -54,39 +54,42 @@ public struct WhiskyWineVersion: Decodable {
     public var sha256: String?
 
     /// Whether this runtime's Wine build can execute Apple's GPTK/D3DMetal
-    /// payload.
-    ///
-    /// Apple's forwarder DLLs reach their unix side through
-    /// `ntdll.dll.__wine_unix_call`, which they expect the way CrossOver's Wine
-    /// exports it. Deploying the payload onto a runtime without it was measured
-    /// against Wine Libraries 3.1.1 (upstream Wine 11.0): the forwarders load
-    /// as builtins and `D3DMetal.framework` dlopens, then every call aborts with
-    /// `Call from … to unimplemented function ntdll.dll.__wine_unix_call`, and
-    /// D3D11 device creation fails. C++ unwinding through the forwarders was
-    /// *not* the blocker in that measurement — `RtlUnwindEx` completed normally.
-    ///
-    /// Absent (all runtimes to date) means not capable; a runtime built on a
-    /// Wine that provides the entry point advertises `true` here. To re-test a
-    /// runtime: import the payload, set this key to `true` in the installed
-    /// runtime plist so deployment runs, launch a D3D11 title, and grep the Wine
-    /// output for `__wine_unix_call`. ``GPTKImporter`` backs the replaced Wine
-    /// forwarders up in its store, so the runtime restores cleanly.
+    /// payload. The payload's forwarder DLLs are C++ with exception handling,
+    /// and unwinding them requires personality-routine support for builtin
+    /// modules that upstream Wine lacks — on a build without it, every process
+    /// that runs D3DMetal code dies on its first internal throw. Absent (all
+    /// runtimes to date) means not capable; a future GPTK-ready runtime build
+    /// advertises `true` here.
     public var gptkCapable: Bool?
 
-    /// Whether this runtime's Wine build implements msync or esync.
+    /// Whether this runtime's Wine implements msync and esync.
     ///
-    /// Wine only takes either path when its own `ntdll` and `wineserver` read
-    /// `WINEMSYNC`/`WINEESYNC`. Measured against Wine Libraries 3.1.1
-    /// (upstream Wine 11.0): neither name appears anywhere in `ntdll.so` or
-    /// `wineserver`, so Wine ignores both. The Enhanced Sync setting still sets
-    /// them, because D3DMetal checks `WINEESYNC` (see the enhanced sync block of
+    /// Wine only takes either path when its own `ntdll.so` and `wineserver`
+    /// read `WINEMSYNC` and `WINEESYNC`. In Wine Libraries 3.1.1 (upstream
+    /// Wine 11.0) neither name appears in either binary, so Wine ignores the
+    /// Enhanced Sync setting. Whisky still sets the variables, because
+    /// D3DMetal checks `WINEESYNC` itself (the enhanced sync block of
     /// `BottleSettings.populateBottleManagedLayer`).
     ///
-    /// Absent (all runtimes to date) means not capable; a runtime whose Wine
-    /// carries the msync or esync patches advertises `true` here. To re-test a
-    /// runtime: `strings` its `ntdll.so` and `wineserver` and look for
-    /// `WINEMSYNC` and `WINEESYNC`.
+    /// A runtime whose Wine carries the msync patches advertises `true` here.
+    /// No published plist sets it yet, so ``implementsEnhancedSync`` decides
+    /// an absent key by lineage. To check a build, run `strings` on its
+    /// `ntdll.so` and `wineserver` and look for `WINEMSYNC` and `WINEESYNC`.
     public var msyncCapable: Bool?
+
+    /// Whether the Enhanced Sync setting changes how this runtime's Wine
+    /// synchronizes threads, rather than only how D3DMetal behaves.
+    ///
+    /// An explicit ``msyncCapable`` wins. Without it, the runtime counts as
+    /// capable when it is ``gptkCapable``: only the CrossOver-based v4
+    /// engines set that key, and they implement msync and esync, while the
+    /// stock 3.x runtimes set neither key and implement neither. The v4
+    /// betas installed by hand carry plists written before `msyncCapable`
+    /// existed, so this keeps them from being told their engine ignores the
+    /// setting.
+    public var implementsEnhancedSync: Bool {
+        msyncCapable ?? (gptkCapable == true)
+    }
 
     enum CodingKeys: String, CodingKey {
         case version
@@ -95,6 +98,22 @@ public struct WhiskyWineVersion: Decodable {
         case sha256
         case gptkCapable
         case msyncCapable
+    }
+
+    public init(
+        version: SemanticVersion,
+        dxvkVersion: String? = nil,
+        dxmtVersion: String? = nil,
+        sha256: String? = nil,
+        gptkCapable: Bool? = nil,
+        msyncCapable: Bool? = nil
+    ) {
+        self.version = version
+        self.dxvkVersion = Self.normalized(dxvkVersion)
+        self.dxmtVersion = Self.normalized(dxmtVersion)
+        self.sha256 = Self.normalizedDigest(sha256)
+        self.gptkCapable = gptkCapable
+        self.msyncCapable = msyncCapable
     }
 
     public init(from decoder: Decoder) throws {
@@ -135,6 +154,19 @@ public struct WhiskyWineVersion: Decodable {
         // download as a mismatch instead of collapsing to nil (skip).
         let isHexDigest = trimmed.count == 64 && trimmed.allSatisfy { $0.isHexDigit && $0.isASCII }
         return isHexDigest ? trimmed : nil
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        var versionDict = container.nestedContainer(keyedBy: VersionKeys.self, forKey: .version)
+        try versionDict.encode(version.major, forKey: .major)
+        try versionDict.encode(version.minor, forKey: .minor)
+        try versionDict.encode(version.patch, forKey: .patch)
+        try container.encodeIfPresent(dxvkVersion, forKey: .dxvkVersion)
+        try container.encodeIfPresent(dxmtVersion, forKey: .dxmtVersion)
+        try container.encodeIfPresent(sha256, forKey: .sha256)
+        try container.encodeIfPresent(gptkCapable, forKey: .gptkCapable)
+        try container.encodeIfPresent(msyncCapable, forKey: .msyncCapable)
     }
 
     private enum VersionKeys: String, CodingKey {

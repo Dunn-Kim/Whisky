@@ -23,6 +23,7 @@ import WhiskyKit
 struct DXVKSettingsView: View {
     @ObservedObject var bottle: Bottle
     let resolvedBackend: GraphicsBackend
+    let bottleURL: URL
 
     @State private var confExists: Bool = false
 
@@ -31,7 +32,7 @@ struct DXVKSettingsView: View {
     }
 
     private var confURL: URL {
-        bottle.url.appending(path: "dxvk.conf")
+        bottleURL.appending(path: "dxvk.conf")
     }
 
     var body: some View {

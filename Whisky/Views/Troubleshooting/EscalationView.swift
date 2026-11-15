@@ -74,16 +74,17 @@ extension EscalationView {
                     .fontWeight(.medium)
                     .foregroundStyle(.secondary)
 
-                ForEach(engine.session.fixAttempts, id: \.fixId) { attempt in
+                // A fix tried more than once has a row per attempt.
+                ForEach(Array(engine.session.fixAttempts.enumerated()), id: \.offset) { _, attempt in
                     HStack(spacing: 6) {
-                        Image(systemName: attempt.result.sfSymbol)
-                            .foregroundStyle(attempt.result.color)
+                        Image(systemName: resultIcon(for: attempt.result))
+                            .foregroundStyle(resultColor(for: attempt.result))
                             .font(.caption)
-                        Text(attempt.fixId)
+                        Text(attempt.localizedFixName)
                             .font(.caption)
                             .foregroundStyle(.secondary)
                         Spacer()
-                        Text(attempt.result.rawValue)
+                        Text(attempt.result.localizedName)
                             .font(.caption2)
                             .foregroundStyle(.tertiary)
                     }
@@ -96,12 +97,9 @@ extension EscalationView {
             )
         }
     }
-}
 
-/// The icon and color a fix attempt's result is shown with.
-extension FixResult {
-    var sfSymbol: String {
-        switch self {
+    private func resultIcon(for result: FixResult) -> String {
+        switch result {
         case .verified: "checkmark.circle.fill"
         case .applied: "checkmark.circle"
         case .failed: "xmark.circle"
@@ -110,8 +108,8 @@ extension FixResult {
         }
     }
 
-    var color: Color {
-        switch self {
+    private func resultColor(for result: FixResult) -> Color {
+        switch result {
         case .verified: .green
         case .applied: .blue
         case .failed: .red
@@ -126,30 +124,11 @@ extension FixResult {
 extension EscalationView {
     private var optionsSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            if program != nil {
-                enhancedDiagnosticsOption
-            }
+            enhancedDiagnosticsOptions
             exportDiagnosticsOption
             supportIssueOption
             retryOption
         }
-    }
-}
-
-// MARK: - Enhanced Diagnostics
-
-extension EscalationView {
-    private var enhancedDiagnosticsOption: some View {
-        escalationButton(
-            title: "troubleshooting.escalation.enhancedDiag",
-            description: "troubleshooting.escalation.enhancedDiag.description",
-            sfSymbol: "text.magnifyingglass",
-            action: runEnhancedDiagnostics
-        )
-    }
-
-    private func runEnhancedDiagnostics() {
-        engine.performFix(fixId: "run-enhanced-diagnostics", params: [:], bottle: bottle, program: program)
     }
 }
 
@@ -210,6 +189,8 @@ extension EscalationView {
             if let audio = preflight.audioDeviceName {
                 lines.append("Audio: \(audio)")
             }
+            lines.append("Wineserver: \(preflight.isWineserverRunning ? "running" : "stopped")")
+            lines.append("Processes: \(preflight.processCount)")
         }
 
         NSPasteboard.general.clearContents()
@@ -324,7 +305,7 @@ extension EscalationView {
 // MARK: - Shared Escalation Button
 
 extension EscalationView {
-    private func escalationButton(
+    func escalationButton(
         title: LocalizedStringKey,
         description: LocalizedStringKey,
         sfSymbol: String,

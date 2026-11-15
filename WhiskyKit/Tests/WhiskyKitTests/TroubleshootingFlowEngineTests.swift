@@ -19,14 +19,27 @@
 @testable import WhiskyKit
 import XCTest
 
-extension XCTestCase {
-    /// A fresh bottle directory for the engine's session store to persist
-    /// into, removed when the test ends.
-    func makeBottleDirectory() -> URL {
-        let url = FileManager.default.temporaryDirectory.appending(path: "engine-test-bottle-\(UUID().uuidString)")
-        XCTAssertNoThrow(try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true))
-        addTeardownBlock { try? FileManager.default.removeItem(at: url) }
-        return url
+/// In-memory session store so engine tests observe auto-save and completion
+/// behavior without touching the filesystem.
+final class SpySessionStore: TroubleshootingSessionStoring, @unchecked Sendable {
+    private let lock = NSLock()
+    private var savedSessions: [TroubleshootingSession] = []
+    private var completedSessions: [TroubleshootingSession] = []
+
+    var saveCount: Int {
+        lock.withLock { savedSessions.count }
+    }
+
+    var completed: [TroubleshootingSession] {
+        lock.withLock { completedSessions }
+    }
+
+    func save(_ session: TroubleshootingSession) {
+        lock.withLock { savedSessions.append(session) }
+    }
+
+    func completeSession(_ session: TroubleshootingSession) {
+        lock.withLock { completedSessions.append(session) }
     }
 }
 
@@ -50,30 +63,31 @@ final class TroubleshootingFlowEngineTests: XCTestCase {
         FlowStepNode(id: id, type: .info, phase: .checks, title: "Info \(id)", on: on)
     }
 
-    /// The "graphics" key matches SymptomCategory.graphics.flowResourceName,
-    /// which is how the engine derives flow lookup keys. Also returns the
-    /// default session's bottle directory, where the store persists.
+    /// The "graphics" key matches SymptomCategory.graphics.flowFileName minus
+    /// its .json suffix, which is how the engine derives flow lookup keys.
     private func makeEngine(
         nodes: [String: FlowStepNode],
         entry: String = "start",
-        fragments: [String: FlowDefinition] = [:]
-    ) -> (TroubleshootingFlowEngine, URL) {
-        let flow = FlowDefinition(nodes: nodes, entryNodeId: entry)
-        let registry = CheckRegistry(checks: CheckRegistry.builtIn + [StubCheck(checkId: "stub.outcome")])
-        let bottleURL = makeBottleDirectory()
+        fragments: [String: FlowDefinition] = [:],
+        session: TroubleshootingSession? = nil
+    ) -> (TroubleshootingFlowEngine, SpySessionStore) {
+        let flow = FlowDefinition(version: 1, categoryId: "graphics", nodes: nodes, entryNodeId: entry)
+        let registry = CheckRegistry()
+        registry.register(StubCheck(checkId: "stub.outcome"))
+        let store = SpySessionStore()
         // Node resolution goes through the session's active flow category, so
         // direct navigateToNode calls need it preset the way selectCategory
         // would have set it.
-        var defaultSession = TroubleshootingSession(bottleURL: bottleURL)
+        var defaultSession = TroubleshootingSession(bottleURL: URL(filePath: "/tmp/engine-test-bottle"))
         defaultSession.currentFlowCategoryId = "graphics"
         let engine = TroubleshootingFlowEngine(
             flowDefinitions: ["graphics": flow],
             fragments: fragments,
             checkRegistry: registry,
-            sessionStore: TroubleshootingSessionStore()
+            sessionStore: store,
+            session: session ?? defaultSession
         )
-        engine.session = defaultSession
-        return (engine, bottleURL)
+        return (engine, store)
     }
 
     /// Waits until `condition` holds, yielding to let the engine's check
@@ -91,7 +105,7 @@ final class TroubleshootingFlowEngineTests: XCTestCase {
     // MARK: - Category selection
 
     func testSelectCategoryNavigatesToEntryAndBranchesOnPass() async {
-        let (engine, bottleURL) = makeEngine(nodes: [
+        let (engine, store) = makeEngine(nodes: [
             "start": checkNode("start", outcome: "pass", on: ["pass": "done-pass", "fail": "done-fail"]),
             "done-pass": infoNode("done-pass"),
             "done-fail": infoNode("done-fail")
@@ -102,8 +116,9 @@ final class TroubleshootingFlowEngineTests: XCTestCase {
         await waitUntil("branch to done-pass") { engine.currentNode?.id == "done-pass" }
         XCTAssertEqual(engine.session.phase, .checks)
         XCTAssertEqual(engine.session.checkResults["start"]?.outcome, .pass)
+        XCTAssertEqual(engine.session.branchDecisions.last?.toNodeId, "done-pass")
         XCTAssertEqual(engine.session.stepHistory.map(\.nodeId), ["start", "done-pass"])
-        XCTAssertNotNil(TroubleshootingSessionStore().loadActiveSession(for: bottleURL))
+        XCTAssertGreaterThan(store.saveCount, 0)
     }
 
     func testUnmappedOutcomeFallsBackToDefaultBranch() async {
@@ -134,11 +149,12 @@ final class TroubleshootingFlowEngineTests: XCTestCase {
 
     func testUnknownCategoryEscalates() {
         let registry = CheckRegistry()
+        let store = SpySessionStore()
         let engine = TroubleshootingFlowEngine(
             flowDefinitions: [:],
             fragments: [:],
             checkRegistry: registry,
-            sessionStore: TroubleshootingSessionStore()
+            sessionStore: store
         )
 
         engine.selectCategory(.audio)
@@ -148,6 +164,8 @@ final class TroubleshootingFlowEngineTests: XCTestCase {
 
     func testEscalationNavigatesToFragmentEntryWhenAvailable() {
         let fragment = FlowDefinition(
+            version: 1,
+            categoryId: "export-escalation",
             nodes: ["export-start": infoNode("export-start")],
             entryNodeId: "export-start"
         )
@@ -221,23 +239,37 @@ final class TroubleshootingFlowEngineTests: XCTestCase {
         XCTAssertEqual(engine.session.phase, .escalation)
     }
 
+    func testInitRestoresCurrentNodeFromResumedSession() {
+        var session = TroubleshootingSession(bottleURL: URL(filePath: "/tmp/engine-test-bottle"))
+        session.currentFlowCategoryId = "graphics"
+        session.currentNodeId = "second"
+
+        let (engine, _) = makeEngine(
+            nodes: ["start": infoNode("start"), "second": infoNode("second")],
+            session: session
+        )
+
+        XCTAssertEqual(engine.currentNode?.id, "second")
+    }
+
     // MARK: - Fix lifecycle
 
     func testFixLifecycleThroughUserReportsFixed() {
-        let (engine, bottleURL) = makeEngine(nodes: ["start": infoNode("start")])
+        let (engine, store) = makeEngine(nodes: ["start": infoNode("start")])
 
         engine.applyFix(fixId: "graphics.set_backend_dxvk", beforeValue: "wined3d", afterValue: "dxvk")
-        XCTAssertEqual(engine.session.phase, .verify)
+        XCTAssertNotEqual(engine.session.phase, .verify, "the fix step stays up until the fix lands")
         XCTAssertEqual(engine.session.fixAttempts.last?.result, .pending)
 
         engine.confirmFixApplied(fixId: "graphics.set_backend_dxvk")
         XCTAssertEqual(engine.session.fixAttempts.last?.result, .applied)
+        XCTAssertEqual(engine.session.phase, .verify, "a fix with no node to follow goes to verification")
 
         engine.userReportsFixed()
         XCTAssertEqual(engine.session.outcome, .resolved)
         XCTAssertEqual(engine.session.phase, .export)
         XCTAssertEqual(engine.session.fixAttempts.last?.result, .verified)
-        XCTAssertEqual(TroubleshootingHistory.load(from: bottleURL).entries.count, 1)
+        XCTAssertEqual(store.completed.count, 1)
     }
 
     func testCheckRunPublishesLastCheckResult() async {
@@ -271,21 +303,39 @@ final class TroubleshootingFlowEngineTests: XCTestCase {
         XCTAssertEqual(engine.session.fixAttempts.last?.result, .undone)
     }
 
-    func testNotFixedMarksTheAttemptFailedAndEscalates() {
+    func testThreeFailedFixesEscalate() {
         let (engine, _) = makeEngine(nodes: ["start": infoNode("start")])
+
+        for attempt in 0 ..< 3 {
+            engine.applyFix(fixId: "fix.\(attempt)", beforeValue: nil, afterValue: nil)
+            engine.confirmFixApplied(fixId: "fix.\(attempt)")
+            engine.userReportsNotFixed()
+        }
+
+        XCTAssertEqual(engine.session.failedFixCount, 3)
+        XCTAssertEqual(engine.session.phase, .escalation)
+    }
+
+    func testNotFixedFollowsNoTargetWhenAvailable() {
+        let (engine, _) = makeEngine(nodes: [
+            "verify": infoNode("verify", on: ["no": "second-fix"]),
+            "second-fix": infoNode("second-fix")
+        ])
+        engine.navigateToNode("verify")
         engine.applyFix(fixId: "fix.a", beforeValue: nil, afterValue: nil)
         engine.confirmFixApplied(fixId: "fix.a")
 
         engine.userReportsNotFixed()
 
         XCTAssertEqual(engine.session.fixAttempts.last?.result, .failed)
-        XCTAssertEqual(engine.session.phase, .escalation)
+        XCTAssertEqual(engine.currentNode?.id, "second-fix")
     }
 
     // MARK: - Start over
 
     func testStartOverPreservesIdentityButClearsProgress() {
-        let (engine, bottleURL) = makeEngine(nodes: [
+        let bottleURL = URL(filePath: "/tmp/engine-test-bottle")
+        let (engine, _) = makeEngine(nodes: [
             "start": infoNode("start"),
             "second": infoNode("second")
         ])

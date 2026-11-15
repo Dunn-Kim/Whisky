@@ -18,6 +18,26 @@
 
 import Foundation
 
+/// Where a library entry came from.
+///
+/// A raw-value type rather than an enum so a launcher can be added without
+/// recompiling everything that switches over the existing ones.
+public struct LibrarySourceID: RawRepresentable, Hashable, Sendable, Codable {
+    public let rawValue: String
+
+    public init(rawValue: String) {
+        self.rawValue = rawValue
+    }
+
+    /// Programs the user pinned. The library shows these and not every
+    /// executable found in a prefix: a Windows install is full of uninstallers,
+    /// crash handlers and redistributables, and a library that lists them is a
+    /// file browser rather than a library.
+    public static let pinned = LibrarySourceID(rawValue: "pinned")
+    /// Games installed through the Steam client inside a bottle.
+    public static let steam = LibrarySourceID(rawValue: "steam")
+}
+
 /// One thing a person can launch, whatever put it there.
 public struct LibraryEntry: Identifiable, Hashable, Sendable {
     /// How to start it. Sources that need their own launch path add a case;
@@ -36,24 +56,53 @@ public struct LibraryEntry: Identifiable, Hashable, Sendable {
     /// Wide artwork for this entry, when the source has some on disk. Steam
     /// caches its own banners inside the bottle, so a Steam game shows the art
     /// its store page uses without anything being fetched.
-    public var artworkURL: URL?
+    public let artworkURL: URL?
     public let bottleURL: URL
+    public let source: LibrarySourceID
     public let launch: Launch
     /// Whether this entry is a storefront client rather than a game.
     ///
     /// A launcher is worth keeping in the library, since it is how you reach an
     /// account, a store and an update. It is not what somebody scanning the grid
     /// is looking for, so it is labelled and sorted below the games.
-    public var launcher: LauncherType?
+    public let launcher: LauncherType?
 
     public var isLauncher: Bool { launcher != nil }
+
+    public init(
+        id: String,
+        name: String,
+        iconURL: URL?,
+        artworkURL: URL? = nil,
+        bottleURL: URL,
+        source: LibrarySourceID,
+        launch: Launch,
+        launcher: LauncherType? = nil
+    ) {
+        self.id = id
+        self.name = name
+        self.iconURL = iconURL
+        self.artworkURL = artworkURL
+        self.bottleURL = bottleURL
+        self.source = source
+        self.launch = launch
+        self.launcher = launcher
+    }
+}
+
+/// Somewhere library entries come from.
+///
+/// Deliberately takes a bottle URL and its settings rather than a ``Bottle``,
+/// so a source can run off the main actor and be tested without building one.
+public protocol LibrarySource {
+    static var id: LibrarySourceID { get }
+    static func items(inBottleAt url: URL, settings: BottleSettings) -> [LibraryEntry]
 }
 
 /// The pinned programs of a bottle.
-///
-/// Takes a bottle URL and its settings rather than a ``Bottle``, so it can be
-/// tested without building one.
-public enum PinnedLibrarySource {
+public enum PinnedLibrarySource: LibrarySource {
+    public static let id = LibrarySourceID.pinned
+
     public static func items(inBottleAt url: URL, settings: BottleSettings) -> [LibraryEntry] {
         settings.pins.compactMap { pin in
             guard let programURL = pin.url else { return nil }
@@ -62,6 +111,7 @@ public enum PinnedLibrarySource {
                 name: pin.name,
                 iconURL: programURL,
                 bottleURL: url,
+                source: id,
                 launch: .program(programURL),
                 // The app's existing definition of a launcher, reused rather
                 // than re-guessed: it is a pure string match, so this stays a
@@ -73,10 +123,16 @@ public enum PinnedLibrarySource {
 }
 
 /// The games a bottle's Steam client has installed.
-public enum SteamLibrarySource {
-    /// Takes no settings, so a caller can run this off the main actor:
-    /// enumerating Steam walks libraryfolders.vdf and every manifest in it,
-    /// which is the one part of building the library that touches disk.
+public enum SteamLibrarySource: LibrarySource {
+    public static let id = LibrarySourceID.steam
+
+    public static func items(inBottleAt url: URL, settings _: BottleSettings) -> [LibraryEntry] {
+        entries(inBottleAt: url)
+    }
+
+    /// Without the settings parameter, so a caller can run this off the main
+    /// actor: enumerating Steam walks libraryfolders.vdf and every manifest in
+    /// it, which is the one part of building the library that touches disk.
     public static func entries(inBottleAt url: URL) -> [LibraryEntry] {
         let steamRoot = SteamLibrary.detectInstall(bottleURL: url)
         return SteamLibrary.enumerate(bottleURL: url).map { game in
@@ -90,6 +146,7 @@ public enum SteamLibrarySource {
                 iconURL: steamRoot.flatMap { iconURL(appID: game.appId, steamRoot: $0) },
                 artworkURL: steamRoot.flatMap { artworkURL(appID: game.appId, steamRoot: $0) },
                 bottleURL: url,
+                source: id,
                 launch: .steam(appID: game.appId)
             )
         }
@@ -152,10 +209,24 @@ public enum SteamLibrarySource {
 
 /// Every source, merged.
 public enum LibraryCatalogue {
+    /// Registered sources, in the order their entries are produced. Adding a
+    /// launcher is this line plus the type.
+    public static let sources: [any LibrarySource.Type] = [
+        PinnedLibrarySource.self,
+        SteamLibrarySource.self
+    ]
+
+    /// Everything one bottle contributes to the library.
+    public static func items(inBottleAt url: URL, settings: BottleSettings) -> [LibraryEntry] {
+        merge(sources.map { $0.items(inBottleAt: url, settings: settings) })
+    }
+
     /// Collapses groups of entries, earlier groups winning.
     ///
     /// A Steam game that has also been pinned appears once, as the pin, because
-    /// the pin is the entry the person made themselves.
+    /// the pin is the entry the person made themselves. Exposed separately so a
+    /// caller that gathered its groups from different actors can still merge
+    /// them the same way.
     public static func merge(_ groups: [[LibraryEntry]]) -> [LibraryEntry] {
         var seenNames = Set<String>()
         var items: [LibraryEntry] = []

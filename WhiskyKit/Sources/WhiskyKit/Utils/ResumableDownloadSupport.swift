@@ -54,6 +54,11 @@ public struct ResumableDownloadProgress: Sendable, Equatable {
 
     /// Total size of the file when the server advertised one, or `nil`.
     public let expectedBytes: Int64?
+
+    public init(bytesOnDisk: Int64, expectedBytes: Int64?) {
+        self.bytesOnDisk = bytesOnDisk
+        self.expectedBytes = expectedBytes
+    }
 }
 
 /// Errors thrown by ``ResumableDownloader/download(from:to:onEvent:progress:)``.
@@ -97,6 +102,9 @@ struct ResumeState: Codable, Equatable {
     /// republished asset produces a full 200 response instead of splicing
     /// bytes from two different files.
     var validator: String?
+
+    /// Total size when the server advertised one.
+    var expectedBytes: Int64?
 
     static func load(from url: URL) -> ResumeState? {
         guard let data = try? Data(contentsOf: url) else { return nil }

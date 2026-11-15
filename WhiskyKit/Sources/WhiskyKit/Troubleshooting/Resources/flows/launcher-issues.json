@@ -1,4 +1,6 @@
 {
+  "version": 1,
+  "categoryId": "launcher-issues",
   "entryNodeId": "check_launcher_type",
   "nodes": {
     "check_launcher_type": {
@@ -8,6 +10,7 @@
       "title": "Detect launcher type",
       "description": "Identifying which game launcher is being used to determine the appropriate troubleshooting path.",
       "checkId": "launcher.type_check",
+      "params": {},
       "on": {
         "pass": "branch_by_launcher",
         "fail": "escalate",
@@ -15,22 +18,21 @@
         "error": "escalate"
       },
       "evidenceMap": {
-        "launcherType": "Detected launcher",
-        "launcherName": "Launcher name"
+        "detectedLauncher": "Detected launcher"
       }
     },
     "branch_by_launcher": {
       "id": "branch_by_launcher",
-      "type": "info",
+      "type": "branch",
       "phase": "checks",
       "title": "Launcher identified",
       "description": "Routing to launcher-specific troubleshooting steps based on the detected launcher.",
       "on": {
-        "steam": "check_steam_process",
-        "ea": "fix_launcher_env",
-        "epic": "fix_launcher_env",
-        "rockstar": "fix_launcher_env",
-        "default": "escalate"
+        "Steam": "check_steam_process",
+        "EA App": "fix_launcher_env",
+        "Epic Games Store": "fix_launcher_env",
+        "Rockstar Games Launcher": "fix_launcher_env",
+        "default": "fix_launcher_env"
       }
     },
     "check_steam_process": {
@@ -51,7 +53,8 @@
       },
       "evidenceMap": {
         "processName": "Process",
-        "running": "Running"
+        "running": "Running",
+        "processCount": "Instance count"
       }
     },
     "fix_restart_launcher": {
@@ -61,8 +64,10 @@
       "title": "Restart launcher processes",
       "description": "Launcher processes appear to be stuck or not running. Restarting the Wine server and relaunching may resolve the issue.",
       "fixId": "restart-wineserver",
+      "isReversible": false,
       "requiresConfirmation": true,
       "on": {
+        "applied": "verify_fix",
         "skipped": "fix_launcher_env"
       }
     },
@@ -81,11 +86,24 @@
       "type": "fix",
       "phase": "fix",
       "title": "Reapply launcher compatibility fixes",
-      "description": "Applies Whisky's known fixes for the detected launcher again, even if they were applied before: locale, DXVK, GPU visibility, and network timeout adjustments.",
+      "description": "Applies Whisky's known fixes for the detected launcher again, even if they were applied before: DXVK and GPU visibility.",
       "fixId": "apply-launcher-fixes",
+      "isReversible": true,
       "requiresConfirmation": false,
       "on": {
+        "applied": "verify_fix",
         "skipped": "escalate"
+      }
+    },
+    "verify_fix": {
+      "id": "verify_fix",
+      "type": "verify",
+      "phase": "verify",
+      "title": "Did this fix the launcher issue?",
+      "description": "Try launching the program again to check whether the issue is resolved.",
+      "on": {
+        "yes": "resolved",
+        "no": "escalate"
       }
     },
     "escalate": {
@@ -95,6 +113,13 @@
       "title": "Additional diagnostics needed",
       "description": "The automated launcher checks have not resolved the issue. Enhanced diagnostics or a support report may help identify the problem.",
       "fragmentRef": "export-escalation"
+    },
+    "resolved": {
+      "id": "resolved",
+      "type": "info",
+      "phase": "export",
+      "title": "Problem resolved",
+      "description": "The launcher issue has been fixed. You can export a session report for your records."
     }
   }
 }

@@ -71,6 +71,8 @@ public struct BottleInfo: Codable, Equatable {
     var pins: [PinnedProgram] = []
     /// URLs of programs that should be hidden from the program list.
     var blocklist: [URL] = []
+    /// Programs the user unpinned, which the Start Menu scan must not pin again.
+    var unpinnedPrograms: [URL] = []
 
     /// Creates a new BottleInfo with default values.
     public init() {}
@@ -80,6 +82,7 @@ public struct BottleInfo: Codable, Equatable {
         self.name = try container.decodeIfPresent(String.self, forKey: .name) ?? "Bottle"
         self.pins = try container.decodeIfPresent([PinnedProgram].self, forKey: .pins) ?? []
         self.blocklist = try container.decodeIfPresent([URL].self, forKey: .blocklist) ?? []
+        self.unpinnedPrograms = try container.decodeIfPresent([URL].self, forKey: .unpinnedPrograms) ?? []
     }
 }
 
@@ -97,7 +100,7 @@ public struct BottleInfo: Codable, Equatable {
 /// - **Wine Config**: Windows version, AVX, enhanced sync
 /// - **Metal Config**: Metal HUD, DXR, validation
 /// - **DXVK Config**: DXVK enable, async, HUD
-/// - **Performance Config**: Shader cache, VC++ runtime tracking
+/// - **Performance Config**: Shader cache, App Nap, VC++ runtime tracking
 ///
 /// ## Example
 ///
@@ -126,6 +129,7 @@ public struct BottleInfo: Codable, Equatable {
 /// - ``metalTrace``
 /// - ``metalValidation``
 /// - ``dxrEnabled``
+/// - ``sequoiaCompatMode``
 /// - ``metal4Enabled``
 ///
 /// ### DXVK Settings
@@ -167,6 +171,10 @@ public struct BottleSettings: Codable, Equatable {
     private var discordConfig: BottleDiscordConfig
     /// User-defined DLL overrides at the bottle level.
     private var customDLLOverrides: [DLLOverrideEntry] = []
+    /// Environment variables applied game configurations set for games that
+    /// were not in the bottle yet, scoped to their executables. See
+    /// ``GameConfigEnvironment``.
+    public var gameConfigEnvironments: [GameConfigEnvironment] = []
 
     /// Creates a new BottleSettings instance with default values.
     public init() {
@@ -185,6 +193,7 @@ public struct BottleSettings: Codable, Equatable {
         self.customDLLOverrides = []
     }
 
+    // swiftlint:disable:next function_body_length
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.fileVersion = try container.decodeIfPresent(SemanticVersion.self, forKey: .fileVersion) ?? Self
@@ -237,6 +246,10 @@ public struct BottleSettings: Codable, Equatable {
             [DLLOverrideEntry].self,
             forKey: .customDLLOverrides
         ) ?? []
+        self.gameConfigEnvironments = try container.decodeIfPresent(
+            [GameConfigEnvironment].self,
+            forKey: .gameConfigEnvironments
+        ) ?? []
     }
 
     /// The display name of this bottle.
@@ -285,6 +298,17 @@ public struct BottleSettings: Codable, Equatable {
         set { info.blocklist = newValue }
     }
 
+    /// Programs the user unpinned by hand.
+    ///
+    /// The Start Menu scan runs every time a bottle screen opens and after
+    /// every launch, so without a record of the decision an unpin was undone
+    /// within seconds. Pinning the program again clears its entry. See
+    /// ``startMenuPinsToAdd(candidates:)``.
+    public var unpinnedPrograms: [URL] {
+        get { info.unpinnedPrograms }
+        set { info.unpinnedPrograms = newValue }
+    }
+
     /// The synchronization mode for Wine.
     ///
     /// Enhanced sync modes (ESync/MSync) can improve performance for some applications
@@ -304,12 +328,10 @@ public struct BottleSettings: Codable, Equatable {
 
     /// Whether to enable Metal GPU trace capture.
     ///
-    /// Sets `MTL_CAPTURE_ENABLED`, the variable Apple documents for capturing
-    /// outside Xcode on macOS 14 and later, plus the older
-    /// `METAL_CAPTURE_ENABLED` that Metal.framework still reads. DXMT also
-    /// needs `DXMT_CAPTURE_EXECUTABLE` to name the executable without its
-    /// extension, which `Wine.runProgram` sets per launch; F10 then writes a
-    /// capture next to the executable.
+    /// Useful for debugging graphics issues with Xcode's GPU debugger. Sets
+    /// `MTL_CAPTURE_ENABLED` and the older `METAL_CAPTURE_ENABLED`; under DXMT
+    /// the launch also names the executable in `DXMT_CAPTURE_EXECUTABLE`,
+    /// without which DXMT captures nothing.
     public var metalTrace: Bool {
         get { metalConfig.metalTrace }
         set { metalConfig.metalTrace = newValue }
@@ -332,6 +354,15 @@ public struct BottleSettings: Codable, Equatable {
         set { metalConfig.metalValidation = newValue }
     }
 
+    /// Whether macOS Sequoia (15.x) compatibility mode is enabled.
+    ///
+    /// Applies additional fixes for graphics and launcher issues
+    /// specific to macOS 15.x. Enable if experiencing problems.
+    public var sequoiaCompatMode: Bool {
+        get { metalConfig.sequoiaCompatMode }
+        set { metalConfig.sequoiaCompatMode = newValue }
+    }
+
     /// Whether D3DMetal uses the Metal 4 command encoding backend.
     ///
     /// `D3DMDevice::MTL4OptionEnabled` checks the OS version *before* it reads
@@ -346,18 +377,12 @@ public struct BottleSettings: Codable, Equatable {
     ///
     /// Controls which translation layer is used for Direct3D rendering.
     /// `.recommended` resolves to a concrete backend at launch time based on GPU/OS heuristics.
+    ///
+    /// Changing it clears `launcherSwitchedBackend`: whatever changed it, the
+    /// backend is no longer the one a launcher profile left behind.
     public var graphicsBackend: GraphicsBackend {
         get { graphicsConfig.backend }
-        set { graphicsConfig.backend = newValue }
-    }
-
-    /// The cap on how many frames a game may present per second.
-    ///
-    /// Only backends with a limiter honour this -- see
-    /// ``GraphicsBackend/supportsFrameRateLimit``.
-    public var frameRateLimit: FrameRateLimit {
-        get { graphicsConfig.frameRateLimit }
-        set { graphicsConfig.frameRateLimit = newValue }
+        set { setBackend(newValue) }
     }
 
     /// Whether this bottle opts in to D3DMetal's DLSS-to-MetalFX path.
@@ -401,20 +426,20 @@ public struct BottleSettings: Codable, Equatable {
         set { graphicsConfig.frameGeneration = newValue }
     }
 
-    /// Whether DXMT upscales its swapchain with MetalFX; see
-    /// ``BottleGraphicsConfig/dxmtMetalFXUpscale``.
-    public var dxmtMetalFXUpscale: Bool {
-        get { graphicsConfig.dxmtMetalFXUpscale }
-        set { graphicsConfig.dxmtMetalFXUpscale = newValue }
-    }
-
     /// Whether DXVK is the active graphics backend.
     ///
     /// This property now derives from ``graphicsBackend``. Setting it to `true`
     /// switches the backend to `.dxvk`; setting to `false` switches to `.recommended`.
     public var dxvk: Bool {
         get { graphicsConfig.backend == .dxvk }
-        set { graphicsConfig.backend = newValue ? .dxvk : .recommended }
+        set { setBackend(newValue ? .dxvk : .recommended) }
+    }
+
+    private mutating func setBackend(_ backend: GraphicsBackend) {
+        if backend != graphicsConfig.backend {
+            launcherConfig.backendSwitchedByLauncher = false
+        }
+        graphicsConfig.backend = backend
     }
 
     /// Whether DXVK async shader compilation is enabled.
@@ -454,6 +479,34 @@ public struct BottleSettings: Codable, Equatable {
     public var audioLatencyPreset: AudioLatencyPreset {
         get { audioConfig.latencyPreset }
         set { audioConfig.latencyPreset = newValue }
+    }
+
+    /// The output device routing mode for this bottle.
+    ///
+    /// Controls whether Wine follows the macOS default output device
+    /// or is pinned to the device named by ``pinnedDeviceUID``.
+    public var outputDeviceMode: OutputDeviceMode {
+        get { audioConfig.outputDeviceMode }
+        set { audioConfig.outputDeviceMode = newValue }
+    }
+
+    /// The display name of the pinned audio output device, if any.
+    ///
+    /// Kept only so the settings can still name the device while it is
+    /// disconnected; Wine matches on ``pinnedDeviceUID``.
+    public var pinnedDeviceName: String? {
+        get { audioConfig.pinnedDeviceName }
+        set { audioConfig.pinnedDeviceName = newValue }
+    }
+
+    /// The CoreAudio UID of the pinned audio output device, if any.
+    ///
+    /// Only meaningful when ``outputDeviceMode`` is `.pinned`. This is the
+    /// identifier Wine's CoreAudio driver matches when picking the default
+    /// output; `nil` leaves Wine on the macOS default output.
+    public var pinnedDeviceUID: String? {
+        get { audioConfig.pinnedDeviceUID }
+        set { audioConfig.pinnedDeviceUID = newValue }
     }
 
     // MARK: - Display settings
@@ -513,6 +566,15 @@ public struct BottleSettings: Codable, Equatable {
         set { performanceConfig.vcRedistInstalled = newValue }
     }
 
+    /// Whether App Nap should be disabled for Wine processes.
+    ///
+    /// When enabled, prevents macOS from throttling Wine processes
+    /// when the application is in the background, improving game performance.
+    public var disableAppNap: Bool {
+        get { performanceConfig.disableAppNap }
+        set { performanceConfig.disableAppNap = newValue }
+    }
+
     // MARK: - Launcher compatibility settings
 
     /// Whether launcher compatibility mode is enabled.
@@ -544,8 +606,9 @@ public struct BottleSettings: Codable, Equatable {
 
     /// Locale override for launcher compatibility.
     ///
-    /// Steam and other Chromium-based launchers require `en_US.UTF-8`
-    /// to avoid steamwebhelper crashes (whisky-app/whisky#946, #1224, #1241).
+    /// Auto keeps the launcher preset's locale (US English for EA App, Epic
+    /// Games, Battle.net, and Rockstar) or the Mac's when the preset sets none,
+    /// as Steam's does (#330). Any other choice wins over the preset.
     public var launcherLocale: Locales {
         get { launcherConfig.launcherLocale }
         set { launcherConfig.launcherLocale = newValue }
@@ -568,14 +631,6 @@ public struct BottleSettings: Codable, Equatable {
         set { launcherConfig.gpuVendor = newValue }
     }
 
-    /// Network timeout in milliseconds for launcher downloads.
-    ///
-    /// Addresses Steam download stalls and connection timeouts.
-    public var networkTimeout: Int {
-        get { launcherConfig.networkTimeout }
-        set { launcherConfig.networkTimeout = newValue }
-    }
-
     /// Whether to force DXVK in a bottle whose launcher requires it.
     ///
     /// Only Rockstar Games Launcher does (``LauncherType/requiresDXVK``): it
@@ -587,6 +642,33 @@ public struct BottleSettings: Codable, Equatable {
     public var autoEnableDXVK: Bool {
         get { launcherConfig.autoEnableDXVK }
         set { launcherConfig.autoEnableDXVK = newValue }
+    }
+
+    /// The last ``LauncherBackendMigration`` this bottle has been through.
+    var launcherBackendMigration: Int {
+        get { launcherConfig.backendMigration }
+        set { launcherConfig.backendMigration = newValue }
+    }
+
+    /// Whether the graphics settings say that ``LauncherBackendMigration`` put
+    /// this bottle back on Recommended. Cleared once the user has seen it.
+    public var launcherBackendResetNotice: Bool {
+        get { launcherConfig.backendResetNotice }
+        set { launcherConfig.backendResetNotice = newValue }
+    }
+
+    /// The last ``LauncherLocaleMigration`` this bottle has been through.
+    var launcherLocaleMigration: Int {
+        get { launcherConfig.localeMigration }
+        set { launcherConfig.localeMigration = newValue }
+    }
+
+    /// Whether a launcher profile, not the user, switched this bottle from
+    /// Recommended to DXVK. Set after the switch, since changing the backend
+    /// clears it.
+    var launcherSwitchedBackend: Bool {
+        get { launcherConfig.backendSwitchedByLauncher }
+        set { launcherConfig.backendSwitchedByLauncher = newValue }
     }
 
     // MARK: - Controller and input settings
@@ -667,6 +749,15 @@ public struct BottleSettings: Codable, Equatable {
         set { cleanupConfig.clipboardPolicy = newValue }
     }
 
+    /// The size threshold in bytes for considering clipboard content "large".
+    ///
+    /// Content above this threshold triggers the configured clipboard policy.
+    /// Defaults to ``ClipboardManager/largeContentThreshold`` (10 KB).
+    public var clipboardThreshold: Int {
+        get { cleanupConfig.clipboardThreshold }
+        set { cleanupConfig.clipboardThreshold = newValue }
+    }
+
     /// The kill-on-quit policy for Wine processes in this bottle.
     ///
     /// Overrides the global `killOnTerminate` setting on a per-bottle basis.
@@ -678,9 +769,10 @@ public struct BottleSettings: Codable, Equatable {
 
     /// The policy for handling running processes when navigating away from this bottle.
     ///
-    /// Controls whether a confirmation dialog is shown when the user switches
-    /// to a different bottle while Wine processes are still running.
-    /// See ``CloseWithProcessesPolicy`` for available options.
+    /// Controls whether processes Whisky launched keep running, are stopped, or
+    /// prompt a confirmation dialog when the user selects a different bottle or
+    /// returns to the library while they are still running. Defaults to keeping
+    /// them running. See ``CloseWithProcessesPolicy`` for available options.
     public var closeWithProcessesPolicy: CloseWithProcessesPolicy {
         get { cleanupConfig.closeWithProcessesPolicy }
         set { cleanupConfig.closeWithProcessesPolicy = newValue }
@@ -716,6 +808,24 @@ public struct BottleSettings: Codable, Equatable {
             quarantineCorruptedFile(at: metadataURL)
             settings = BottleSettings()
             try settings.encode(to: metadataURL)
+            return settings
+        }
+
+        if settings.wineConfig.wineVersion != BottleWineConfig().wineVersion {
+            Logger.wineKit.warning(
+                "Bottle has a different wine version `\(settings.wineConfig.wineVersion, privacy: .public)`"
+            )
+            settings.wineConfig.wineVersion = BottleWineConfig().wineVersion
+            do {
+                try settings.encode(to: metadataURL)
+            } catch {
+                // The file decoded fine; only the version-stamp rewrite failed. Propagating
+                // would make the caller quarantine a healthy file and reset it to defaults,
+                // so keep the valid settings and let the stamp retry on the next load.
+                Logger.wineKit.error(
+                    "Failed to update wine version stamp: \(String(describing: error), privacy: .public)"
+                )
+            }
             return settings
         }
 
@@ -784,6 +894,7 @@ public struct BottleSettings: Codable, Equatable {
 
     /// Populates the ``EnvironmentLayer/bottleManaged`` layer with settings-derived env vars.
     ///
+    /// This method replaces the direct dict mutation in the deprecated ``environmentVariables(wineEnv:)``.
     /// DLL override entries are returned separately for composition by ``DLLOverrideResolver``.
     ///
     /// - Parameters:
@@ -800,7 +911,6 @@ public struct BottleSettings: Codable, Equatable {
     public func populateBottleManagedLayer(
         builder: inout EnvironmentBuilder,
         resolvedBackend: GraphicsBackend? = nil,
-        displayRefreshRate: Int? = nil,
         builtinD3D12IsD3DMetal: Bool = GPTKImporter.isDeployed()
     ) -> [(entry: DLLOverrideEntry, source: DLLOverrideSource)] {
         var managedDLLOverrides: [(entry: DLLOverrideEntry, source: DLLOverrideSource)] = []
@@ -843,29 +953,33 @@ public struct BottleSettings: Codable, Equatable {
             for entry in DLLOverrideResolver.dxvkPreset(builtinD3D12IsD3DMetal: builtinD3D12IsD3DMetal) {
                 managedDLLOverrides.append((entry: entry, source: .dxvk))
             }
-            if let hud = dxvkHud.envValue {
-                builder.set("DXVK_HUD", hud, layer: .bottleManaged)
+            switch dxvkHud {
+            case .full:
+                builder.set("DXVK_HUD", "full", layer: .bottleManaged)
+            case .partial:
+                builder.set("DXVK_HUD", "devinfo,fps,frametimes", layer: .bottleManaged)
+            case .fps:
+                builder.set("DXVK_HUD", "fps", layer: .bottleManaged)
+            case .off:
+                break
             }
             if dxvkAsync {
                 builder.set("DXVK_ASYNC", "1", layer: .bottleManaged)
             }
-            // DXVK renders through MoltenVK, whose Metal shader compilation is
-            // serial unless told otherwise. Apple Silicon has cores to spare
-            // for it, and spreading the compile across them is the difference
-            // between a stutter and a hitch on first sight of a new shader.
-            builder.set("MVK_CONFIG_SHOULD_MAXIMIZE_CONCURRENT_COMPILATION", "1", layer: .bottleManaged)
+            // DXVK renders through MoltenVK, which compiles Metal shaders one at
+            // a time unless told otherwise; Apple Silicon has the cores to spread
+            // the compile across.
+            builder.set(
+                "MVK_CONFIG_SHOULD_MAXIMIZE_CONCURRENT_COMPILATION", "1",
+                layer: .bottleManaged, reason: "Parallel Metal shader compilation for DXVK"
+            )
 
         case .dxmt:
             // DXMT: native overrides for the D3D11 trio plus the builtin
-            // winemetal bridge. The file placement happens in
-            // `Wine.enableDXMT` at launch.
+            // winemetal bridge. No env vars in v1; the file placement happens
+            // in `Wine.enableDXMT` at launch.
             for entry in DLLOverrideResolver.dxmtPreset(builtinD3D12IsD3DMetal: builtinD3D12IsD3DMetal) {
                 managedDLLOverrides.append((entry: entry, source: .dxmt))
-            }
-            // Its own variable rather than a DXMT_CONFIG key, so it cannot clobber
-            // the frame rate cap that DXMT_CONFIG carries.
-            if dxmtMetalFXUpscale {
-                builder.set("DXMT_METALFX_SPATIAL_SWAPCHAIN", "1", layer: .bottleManaged)
             }
 
         case .wined3d:
@@ -873,23 +987,37 @@ public struct BottleSettings: Codable, Equatable {
             builder.set("WINED3DMETAL", "0", layer: .bottleManaged)
         }
 
-        // Frame rate cap. Rendering past the display's refresh rate produces
-        // frames that are discarded before they are shown, so the work only
-        // burns power -- an uncapped game pins the GPU at its maximum clock.
-        if let fps = frameRateLimit.resolved(displayRefreshRate: displayRefreshRate) {
-            for (key, value) in resolvedBackend.frameRateLimitEnvironment(fps: fps) {
-                builder.set(key, value, layer: .bottleManaged)
+        // Enhanced sync mode
+        switch enhancedSync {
+        case .none:
+            // On macOS 15.4+, WINEESYNC is required for stability
+            if MacOSVersion.current < .sequoia15_4 {
+                builder.remove("WINEESYNC", layer: .bottleManaged)
+                builder.remove("WINEMSYNC", layer: .bottleManaged)
+            } else {
+                // Ensure a stable default on newer macOS versions:
+                // enable ESYNC and clear any conflicting MSYNC setting.
+                builder.set("WINEESYNC", "1", layer: .bottleManaged)
+                builder.remove("WINEMSYNC", layer: .bottleManaged)
             }
+        case .esync:
+            builder.set("WINEESYNC", "1", layer: .bottleManaged)
+        case .msync:
+            builder.set("WINEMSYNC", "1", layer: .bottleManaged)
+            // D3DM detects ESYNC and changes behaviour accordingly
+            // so we have to lie to it so that it doesn't break
+            // under MSYNC. Values hardcoded in lid3dshared.dylib
+            builder.set("WINEESYNC", "1", layer: .bottleManaged)
         }
-
-        builder.setEnhancedSync(enhancedSync, layer: .bottleManaged)
 
         if metalHud {
             builder.set("MTL_HUD_ENABLED", "1", layer: .bottleManaged)
         }
 
-        // MTL_CAPTURE_ENABLED is the documented name and the one DXMT checks;
-        // Metal.framework still reads METAL_CAPTURE_ENABLED as well.
+        // MTL_CAPTURE_ENABLED is the name Apple documents for capturing outside
+        // Xcode and the one DXMT checks; Metal.framework still reads the older
+        // METAL_CAPTURE_ENABLED as well. DXMT also needs the executable named,
+        // which only the launch knows (`Wine.dxmtCaptureExecutable`).
         if metalTrace {
             builder.set("MTL_CAPTURE_ENABLED", "1", layer: .bottleManaged)
             builder.set("METAL_CAPTURE_ENABLED", "1", layer: .bottleManaged)
@@ -915,11 +1043,11 @@ public struct BottleSettings: Codable, Equatable {
         // the provenance.
 
         // Shader cache control. DXVK_STATE_CACHE and DXMT_SHADER_CACHE are the
-        // variables DXVK and DXMT actually read; the previous pair (a
-        // compile-thread throttle and an NVIDIA GL driver variable) changed
-        // nothing on this platform. Each backend ignores the other's variable,
-        // so both are set whatever the backend and a program-level backend
-        // switch still finds the right one.
+        // variables DXVK and DXMT actually read (DXMT skips its cache only for
+        // "0"); the previous pair (a compile-thread throttle and an NVIDIA GL
+        // driver variable) changed nothing on this platform. Each backend
+        // ignores the other's variable, so both go out whatever the backend,
+        // and a program moved onto the other one still finds its own.
         if !shaderCacheEnabled {
             builder.set("DXVK_STATE_CACHE", "0", layer: .bottleManaged)
             builder.set("DXMT_SHADER_CACHE", "0", layer: .bottleManaged)
@@ -934,9 +1062,8 @@ public struct BottleSettings: Codable, Equatable {
     ///
     /// This method implements the dual-mode launcher compatibility system from frankea/Whisky#41:
     /// - Merges launcher-specific environment overrides
-    /// - Applies locale fixes for steamwebhelper crashes
+    /// - Applies the bottle's explicit Locale Override over any preset locale
     /// - Configures GPU spoofing for launcher checks
-    /// - Sets network timeouts for download reliability
     ///
     /// - Parameters:
     ///   - builder: The environment builder to populate.
@@ -952,16 +1079,11 @@ public struct BottleSettings: Codable, Equatable {
 
         guard launcherCompatibilityMode else { return launcherDLLOverrides }
 
-        // Track whether the launcher preset provides a locale
-        var launcherProvidesLocale = false
-
         // Apply launcher-specific environment overrides if launcher detected
         if let launcher = detectedLauncher {
-            let fixDetails = launcher.fixDetails()
-            for detail in fixDetails {
-                builder.set(detail.key, detail.value, layer: .launcherManaged)
+            for detail in launcher.fixDetails() {
+                builder.set(detail.key, detail.value, layer: .launcherManaged, reason: detail.reason)
             }
-            launcherProvidesLocale = fixDetails.contains { $0.key == "LC_ALL" }
 
             // Auto-enable DXVK DLL overrides if launcher requires it
             if autoEnableDXVK, launcher.requiresDXVK {
@@ -971,18 +1093,22 @@ public struct BottleSettings: Codable, Equatable {
             }
         }
 
-        // Apply locale override if specified (not using launcher default)
-        // Defensive: Also check rawValue is not empty to prevent setting LC_ALL/LANG to ""
-        // Only apply if launcher preset didn't already set LC_ALL (preserves launcher optimization)
-        if launcherLocale != .auto, !launcherLocale.rawValue.isEmpty, !launcherProvidesLocale {
-            builder.set("LC_ALL", launcherLocale.rawValue, layer: .launcherManaged)
-            builder.set("LANG", launcherLocale.rawValue, layer: .launcherManaged)
+        // An explicit Locale Override replaces the preset's locale. Some presets
+        // set LC_ALL to en_US for the launchers' web views, but every game a
+        // launcher starts inherits it, and a game that takes its region or
+        // language from the Windows locale needs the user's choice (#330).
+        // Auto keeps the preset's value, or the Mac's when there is none.
+        // The rawValue check keeps LC_ALL/LANG from ever being set to "".
+        if launcherLocale != .auto, !launcherLocale.rawValue.isEmpty {
+            // The reason replaces the preset's, which would otherwise stay
+            // attached to the overridden value in provenance.
+            let reason = "Set by the bottle's Locale Override"
+            builder.set("LC_ALL", launcherLocale.rawValue, layer: .launcherManaged, reason: reason)
+            builder.set("LANG", launcherLocale.rawValue, layer: .launcherManaged, reason: reason)
             // Force C locale for date/time parsing to avoid ICU issues
             builder.set("LC_TIME", "C", layer: .launcherManaged)
             builder.set("LC_NUMERIC", "C", layer: .launcherManaged)
         }
-        // Note: If launcher preset already set LC_ALL (e.g., Steam sets "en_US.UTF-8"),
-        // we don't overwrite it. This preserves launcher-optimized locale strings.
 
         // Apply GPU spoofing if enabled
         if gpuSpoofing {
@@ -998,15 +1124,6 @@ public struct BottleSettings: Codable, Equatable {
             }
         }
 
-        // Network timeout configuration
-        // Applied if user customized timeout (including launcher-set values)
-        // Launcher-specific timeouts are set via bottle.settings.networkTimeout by
-        // LauncherFixes.apply(), giving users control via UI slider
-        if networkTimeout != 60_000 { // If not default (60s)
-            builder.set("WINHTTP_CONNECT_TIMEOUT", String(networkTimeout), layer: .launcherManaged)
-            builder.set("WINHTTP_RECEIVE_TIMEOUT", String(networkTimeout * 2), layer: .launcherManaged)
-        }
-
         // The connection-pooling and SSL variables that used to be set here
         // (WINE_MAX_CONNECTIONS_PER_SERVER and friends) exist in no Wine or
         // WineCX source; nothing ever read them.
@@ -1014,18 +1131,19 @@ public struct BottleSettings: Codable, Equatable {
         return launcherDLLOverrides
     }
 
-    /// The GPU spoof environment with the ray tracing key resolved against the
-    /// bottle's own settings.
+    /// The GPU spoof environment with the ray tracing key resolved against
+    /// the bottle's own settings.
     ///
-    /// Ray tracing has its own toggle, ``dxrEnabled``, whose bottle layer sets
-    /// `D3DM_SUPPORT_DXR` when it is on. D3DMetal reads it. It only matters to
-    /// games, since launcher UIs render on DXVK, and every game a launcher
-    /// starts inherits the launcher's environment. So the spoof turned DXR on
-    /// for every game in a bottle that Play had configured for Steam, over the
-    /// toggle (off by default, and not offered at all on Macs without hardware
-    /// ray tracing) and over the troubleshooter's "Disable Ray Tracing" fix.
+    /// Ray tracing has its own toggle, ``dxrEnabled``, whose bottle layer sets `D3DM_SUPPORT_DXR` when it is on.
+    /// Unlike the rest of the spoof, that one is read by D3DMetal. It
+    /// only matters to games, since launcher UIs render on DXVK, and every game
+    /// a launcher starts inherits the launcher's environment. So the spoof
+    /// turned DXR on for every game in a bottle that Play had configured for
+    /// Steam, over the toggle (off by default, and not offered at all on Macs
+    /// without hardware ray tracing) and over the troubleshooter's "Disable Ray
+    /// Tracing" fix.
     private func spoofEnvironment() -> [String: String] {
-        var gpuEnv = GPUDetection.spoofGPU(vendor: gpuVendor)
+        var gpuEnv = GPUDetection.spoofWithVendor(gpuVendor)
         gpuEnv.removeValue(forKey: "D3DM_SUPPORT_DXR")
         return gpuEnv
     }
@@ -1039,14 +1157,85 @@ public struct BottleSettings: Codable, Equatable {
     public func populateInputCompatibilityLayer(builder: inout EnvironmentBuilder) {
         guard controllerCompatibilityMode else { return }
 
-        // Both disableControllerMapping (legacy) and useButtonLabels (controller panel) control the labels hint.
-        // PlayStation/Switch controllers may show correct button mappings with it.
-        builder.setSDLInputHints(
-            disableHIDAPI: disableHIDAPI,
-            allowBackgroundEvents: allowBackgroundEvents,
-            buttonLabels: disableControllerMapping || useButtonLabels,
-            layer: .bottleManaged
+        // Disable HIDAPI - forces SDL to use alternative input backend
+        // May improve detection for controllers that don't work with HIDAPI
+        if disableHIDAPI {
+            builder.set("SDL_JOYSTICK_HIDAPI", "0", layer: .bottleManaged)
+        }
+
+        // Allow joystick events when app is in background
+        // Useful for controller input when Wine window loses focus
+        if allowBackgroundEvents {
+            builder.set("SDL_JOYSTICK_ALLOW_BACKGROUND_EVENTS", "1", layer: .bottleManaged)
+        }
+
+        // Disable SDL to XInput mapping conversion
+        // PlayStation/Switch controllers may show correct button mappings without this
+        // Both disableControllerMapping (legacy) and useButtonLabels (controller panel) control this hint.
+        if disableControllerMapping || useButtonLabels {
+            builder.set("SDL_GAMECONTROLLER_USE_BUTTON_LABELS", "1", layer: .bottleManaged)
+        } else {
+            builder.set("SDL_GAMECONTROLLER_USE_BUTTON_LABELS", "0", layer: .bottleManaged)
+        }
+    }
+
+    /// Populates the audio layer of the environment builder.
+    ///
+    /// Audio configuration in Wine is **registry-backed**, not environment-variable-backed.
+    /// The audio driver (`HKCU\Software\Wine\Drivers\Audio`) and DirectSound buffer size
+    /// (`HKCU\Software\Wine\DirectSound\HelBuflen`) are applied via ``WineAudioRegistry``
+    /// methods, not through this layer populator.
+    ///
+    /// This method exists as the EnvironmentBuilder integration point for audio settings,
+    /// following the pattern of ``populateInputCompatibilityLayer(builder:)``. It is reserved
+    /// for future audio-related environment variables (e.g., `WINEDEBUG` channels for audio
+    /// debugging).
+    ///
+    /// - Parameter builder: The environment builder to populate.
+    public func populateAudioLayer(builder: inout EnvironmentBuilder) {
+        // Audio settings are applied via Wine registry (WineAudioRegistry), not env vars.
+        // This placeholder ensures the EnvironmentBuilder cascade has an audio integration
+        // point for future audio-related environment variables.
+    }
+
+    // MARK: - Deprecated Environment Variable API
+
+    /// Populates a Wine environment dictionary based on these settings.
+    ///
+    /// - Parameter wineEnv: The environment dictionary to populate.
+    ///   Existing values may be modified or removed based on settings.
+    @available(*, deprecated, message: "Use EnvironmentBuilder layer populators instead")
+    public func environmentVariables(wineEnv: inout [String: String]) {
+        var builder = EnvironmentBuilder()
+
+        // Call layer populators
+        let managedOverrides = populateBottleManagedLayer(builder: &builder)
+        let launcherOverrides = populateLauncherManagedLayer(builder: &builder)
+        populateInputCompatibilityLayer(builder: &builder)
+
+        // Resolve and merge
+        let (resolved, _) = builder.resolve()
+
+        // Handle explicit key removals that the builder encoded as nil entries.
+        // Since resolve() omits removed keys, we must also remove them from the caller's dict.
+        if enhancedSync == .none, MacOSVersion.current < .sequoia15_4 {
+            wineEnv.removeValue(forKey: "WINEESYNC")
+            wineEnv.removeValue(forKey: "WINEMSYNC")
+        }
+
+        // Merge resolved values into caller's dict (new values overwrite existing)
+        wineEnv.merge(resolved) { _, new in new }
+
+        // Compose WINEDLLOVERRIDES via DLLOverrideResolver
+        let resolver = DLLOverrideResolver(
+            managed: managedOverrides + launcherOverrides,
+            bottleCustom: dllOverrides,
+            programCustom: []
         )
+        let (overrideString, _) = resolver.resolve()
+        if !overrideString.isEmpty {
+            wineEnv["WINEDLLOVERRIDES"] = overrideString
+        }
     }
 }
 

@@ -36,8 +36,8 @@ struct StubCheck: TroubleshootingCheck {
 /// Builds a hermetic check context: all inputs injected, nothing read from
 /// the machine running the tests.
 func makeCheckContext(
+    graphicsBackend: String = "dxmt",
     launcherType: String? = nil,
-    programURL: URL? = nil,
     programName: String? = nil
 ) -> CheckContext {
     let bottleURL = URL(filePath: "/tmp/test-bottle-\(UUID().uuidString)")
@@ -46,13 +46,16 @@ func makeCheckContext(
         bottleName: "Test Bottle",
         programName: programName,
         launcherType: launcherType,
-        graphicsBackend: "dxmt"
+        isWineserverRunning: false,
+        processCount: 0,
+        graphicsBackend: graphicsBackend
     )
     return CheckContext(
         bottleURL: bottleURL,
-        programURL: programURL,
+        bottleName: "Test Bottle",
         programName: programName,
-        preflight: preflight
+        preflight: preflight,
+        session: TroubleshootingSession(bottleURL: bottleURL)
     )
 }
 
@@ -69,7 +72,8 @@ final class TroubleshootingChecksTests: XCTestCase {
     }
 
     func testRegisteredCheckRuns() async {
-        let registry = CheckRegistry(checks: [StubCheck(checkId: "stub.custom")])
+        let registry = CheckRegistry()
+        registry.register(StubCheck(checkId: "stub.custom"))
 
         let result = await registry.run(
             checkId: "stub.custom",
@@ -81,7 +85,7 @@ final class TroubleshootingChecksTests: XCTestCase {
         XCTAssertEqual(result.evidence["stub"], "true")
     }
 
-    func testLaterCheckWithSameIdWins() async {
+    func testReRegisteringSameIdReplacesSilently() async {
         struct FixedCheck: TroubleshootingCheck {
             let checkId = "stub.replace"
             let outcome: CheckOutcome
@@ -89,61 +93,43 @@ final class TroubleshootingChecksTests: XCTestCase {
                 CheckResult(outcome: outcome, summary: "fixed")
             }
         }
-        let registry = CheckRegistry(checks: [FixedCheck(outcome: .pass), FixedCheck(outcome: .unknown)])
+        let registry = CheckRegistry()
+        registry.register(FixedCheck(outcome: .pass))
+        registry.register(FixedCheck(outcome: .unknown))
 
         let result = await registry.run(checkId: "stub.replace", params: [:], context: makeCheckContext())
 
         XCTAssertEqual(result.outcome, .unknown)
     }
 
-    // MARK: - SettingValueCheck
+    // MARK: - GraphicsBackendCheck
 
-    func testSettingValueCheckMissingParamIsError() async {
-        let result = await SettingValueCheck().run(params: ["expected": "dxvk"], context: makeCheckContext())
+    func testGraphicsBackendCheckMissingParamIsError() async {
+        let result = await GraphicsBackendCheck().run(params: [:], context: makeCheckContext())
 
         XCTAssertEqual(result.outcome, .error)
     }
 
-    func testSettingValueCheckComparesTheSavedBackend() async throws {
-        let context = makeCheckContext()
-        try FileManager.default.createDirectory(at: context.bottleURL, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: context.bottleURL) }
-        var settings = BottleSettings()
-        settings.graphicsBackend = .wined3d
-        try settings.encode(to: context.bottleURL.appending(path: "Metadata.plist"))
-
-        let mismatch = await SettingValueCheck().run(
-            params: ["setting": "graphicsBackend", "expected": "dxvk"], context: context
+    func testGraphicsBackendCheckMatchIsAlreadyConfigured() async {
+        let result = await GraphicsBackendCheck().run(
+            params: ["expected": "dxmt"],
+            context: makeCheckContext(graphicsBackend: "dxmt")
         )
-        XCTAssertEqual(mismatch.outcome, .fail)
-        XCTAssertEqual(mismatch.evidence["current"], "wined3d")
-        XCTAssertEqual(mismatch.evidence["expected"], "dxvk")
 
-        let match = await SettingValueCheck().run(
-            params: ["setting": "graphicsBackend", "expected": "wined3d"], context: context
-        )
-        XCTAssertEqual(match.outcome, .alreadyConfigured)
-        XCTAssertEqual(match.confidence, .high)
+        XCTAssertEqual(result.outcome, .alreadyConfigured)
+        XCTAssertEqual(result.evidence["current"], "dxmt")
+        XCTAssertEqual(result.confidence, .high)
     }
 
-    func testControllerFlowNodeFailsWhenCompatModeIsOffAndIsConfiguredWhenOn() async throws {
-        let node = try XCTUnwrap(FlowLoader.loadFlow("controller-input")?.nodes["check_controller_setting"])
-        let params = try XCTUnwrap(node.params)
-        let context = makeCheckContext()
-        try FileManager.default.createDirectory(at: context.bottleURL, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: context.bottleURL) }
+    func testGraphicsBackendCheckMismatchIsFail() async {
+        let result = await GraphicsBackendCheck().run(
+            params: ["expected": "dxvk"],
+            context: makeCheckContext(graphicsBackend: "wined3d")
+        )
 
-        for (enabled, outcome, next) in [
-            (false, CheckOutcome.fail, "fix_enable_compat"),
-            (true, CheckOutcome.alreadyConfigured, "escalate")
-        ] {
-            var settings = BottleSettings()
-            settings.controllerCompatibilityMode = enabled
-            try settings.encode(to: context.bottleURL.appending(path: "Metadata.plist"))
-            let result = await SettingValueCheck().run(params: params, context: context)
-            XCTAssertEqual(result.outcome, outcome)
-            XCTAssertEqual(node.on?[outcome.rawValue], next)
-        }
+        XCTAssertEqual(result.outcome, .fail)
+        XCTAssertEqual(result.evidence["current"], "wined3d")
+        XCTAssertEqual(result.evidence["expected"], "dxvk")
     }
 
     // MARK: - LauncherTypeCheck
@@ -184,11 +170,12 @@ final class TroubleshootingChecksTests: XCTestCase {
     // MARK: - ProcessRunningCheck
 
     func testProcessRunningCheckNoProcessesIsFail() async {
-        // The context's bottle URL is unique per test, so no wineserver runs for it.
+        // The context's bottle URL is unique per test, so the shared process
+        // registry has no entries for it.
         let result = await ProcessRunningCheck().run(params: [:], context: makeCheckContext())
 
         XCTAssertEqual(result.outcome, .fail)
-        XCTAssertEqual(result.evidence["running"], "false")
+        XCTAssertEqual(result.evidence["count"], "0")
     }
 
     // MARK: - GameConfigAvailableCheck
@@ -207,53 +194,5 @@ final class TroubleshootingChecksTests: XCTestCase {
 
         XCTAssertEqual(result.outcome, .fail)
         XCTAssertEqual(result.evidence["programName"], "definitely-not-a-real-game-zzz.exe")
-    }
-
-    // MARK: - DiagnosticsEnhanceCheck
-
-    /// Runs the check against a fresh bottle holding a program whose persisted
-    /// settings carry `preset`, or no settings at all when it is `nil`.
-    private func runDiagnosticsEnhanceCheck(
-        programPreset preset: WineDebugPreset?, hasProgram: Bool = true
-    ) async throws -> CheckResult {
-        let bottleURL = try makeTempDir()
-        let programURL = bottleURL.appending(path: "drive_c/Game/Game.exe")
-        if let preset {
-            var settings = ProgramSettings()
-            settings.activeWineDebugPreset = preset
-            let settingsURL = Program.settingsLocations(
-                for: programURL, bottleURL: bottleURL, legacyName: programURL.lastPathComponent
-            ).identity
-            try FileManager.default.createDirectory(
-                at: settingsURL.deletingLastPathComponent(), withIntermediateDirectories: true
-            )
-            try settings.encode(to: settingsURL)
-        }
-        let context = CheckContext(
-            bottleURL: bottleURL,
-            programURL: hasProgram ? programURL : nil,
-            preflight: makeCheckContext().preflight
-        )
-        return await DiagnosticsEnhanceCheck().run(params: [:], context: context)
-    }
-
-    func testDiagnosticsEnhanceCheckWithoutProgramIsPass() async throws {
-        let result = try await runDiagnosticsEnhanceCheck(programPreset: .crash, hasProgram: false)
-
-        XCTAssertEqual(result.outcome, .pass)
-    }
-
-    func testDiagnosticsEnhanceCheckActivePresetIsAlreadyConfigured() async throws {
-        let result = try await runDiagnosticsEnhanceCheck(programPreset: .crash)
-
-        XCTAssertEqual(result.outcome, .alreadyConfigured)
-        XCTAssertEqual(result.evidence["currentPreset"], WineDebugPreset.crash.displayName)
-        XCTAssertEqual(result.evidence["winedebug"], WineDebugPreset.crash.winedebugValue)
-    }
-
-    func testDiagnosticsEnhanceCheckProgramWithoutPresetIsPass() async throws {
-        let result = try await runDiagnosticsEnhanceCheck(programPreset: nil)
-
-        XCTAssertEqual(result.outcome, .pass)
     }
 }

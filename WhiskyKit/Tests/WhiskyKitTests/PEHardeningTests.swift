@@ -30,8 +30,15 @@ import XCTest
 final class MalformedPEHardeningTests: XCTestCase {
     var tempDir: URL!
 
-    override func setUpWithError() throws {
-        tempDir = try makeTempDir()
+    override func setUp() {
+        super.setUp()
+        tempDir = FileManager.default.temporaryDirectory.appending(path: "pe_hardening_\(UUID().uuidString)")
+        try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+    }
+
+    override func tearDown() {
+        try? FileManager.default.removeItem(at: tempDir)
+        super.tearDown()
     }
 
     private func makeSection(
@@ -213,37 +220,65 @@ final class MalformedPEHardeningTests: XCTestCase {
         XCTAssertLessThan(elapsed, 2.0, "Truncated huge-count table must parse in bounded time")
     }
 
-    func testFanOutAmplificationCompletesQuickly() throws {
-        // A root table whose many entries ALL point at the same oversized subtable.
-        // Each sibling re-parses that subtable (a legal DAG), so without a global
-        // budget this fans out into a huge number of processed entries. The shared
-        // traversal budget must stop the walk and return promptly.
-        let siblingCount: UInt16 = 8_000
+    func testClaimedEntryCountIsClampedToFileLength() throws {
+        // The parse above yields no entries with or without the clamp (reads past
+        // EOF decode as rejected data entries), so pin the clamp itself: a table
+        // claiming 65,535 entries with room for exactly one must iterate one.
+        var data = Data()
+        data.append(tableHeader(idEntries: UInt16.max))
+        data.append(idEntry(id: 3, offset: 0, isDirectory: false))
+
+        let fileURL = tempDir.appending(path: "clamp_\(UUID().uuidString).bin")
+        try data.write(to: fileURL)
+        let handle = try FileHandle(forReadingFrom: fileURL)
+        defer { try? handle.close() }
+
+        let count = ResourceDirectoryTable.clampedEntryCount(
+            claimed: UInt16.max, firstEntryOffset: 16, handle: handle, fileName: "clamp"
+        )
+        XCTAssertEqual(count, 1)
+    }
+
+    func testFanOutAmplificationIsBoundedByGlobalBudget() throws {
+        // A root table whose entries ALL point at the same oversized subtable. Each
+        // sibling re-parses that subtable (a legal DAG), so without a global budget
+        // every sibling re-walks all 65,535 leaves (a real attack uses thousands of
+        // siblings). Every leaf points at one valid data entry, so each leaf the walk
+        // processes surfaces in `allEntries`: the count IS the work done, which keeps
+        // this deterministic instead of a wall-clock race. Four siblings is enough to
+        // show the budget cutting the root loop, and few enough that a broken budget
+        // fails the count in seconds (262,140 leaves) instead of hanging the suite.
+        let siblingCount: UInt16 = 4
         let subtableOffset = UInt32(16 + Int(siblingCount) * 8) // right after the root's entries
+        let leafCount = Int(UInt16.max)
+        // The shared data entry sits right after the subtable's header and entries.
+        let dataEntryOffset = subtableOffset + 16 + UInt32(leafCount * 8)
 
         var data = Data()
         data.append(tableHeader(idEntries: siblingCount))
         for _ in 0 ..< siblingCount {
             data.append(idEntry(id: 3, offset: subtableOffset, isDirectory: true))
         }
-        // The shared subtable: itself claims the maximum entry count.
+        // The shared subtable claims the maximum entry count, and the file holds all
+        // of them, so the budget (not the per-table clamp) is what stops the fan-out.
         data.append(tableHeader(idEntries: UInt16.max))
-        // Pad so the subtable's claimed entries have file bytes to read, forcing the
-        // budget (not just the clamp) to be the thing that stops the fan-out.
-        data.append(Data(count: Int(UInt16.max) * 8))
+        let leaf = idEntry(id: 1, offset: dataEntryOffset, isDirectory: false)
+        for _ in 0 ..< leafCount {
+            data.append(leaf)
+        }
+        data.append(dataEntryBytes(dataRVA: 0x4000, size: 0x10))
 
-        let start = Date()
         let table = try parseTable(data, name: "fan_out")
-        let elapsed = Date().timeIntervalSince(start)
+        let entries = table.allEntries
 
-        // The walk completes (does not hang) and the budget bounds total work:
-        // an un-budgeted fan-out would process ~524M entries (8,000 × 65,535).
-        XCTAssertLessThanOrEqual(
-            table.allEntries.count,
-            100_000,
-            "Global budget must bound the total processed entries"
-        )
-        XCTAssertLessThan(elapsed, 5.0, "Fan-out amplification must complete under the global budget")
+        // The budget counts every processed directory entry. The first sibling
+        // spends 1 + 65,535; the second spends 1 and then the remainder on leaves;
+        // the third finds the budget empty and stops the root loop. So exactly two
+        // root entries and (budget - 2) leaves are processed. A per-table budget or
+        // a missing one would surface far more leaves; a budget that stopped early
+        // (or a shared subtable dropped as a false cycle) would surface fewer.
+        XCTAssertEqual(entries.count, ResourceDirectoryTable.maxTotalEntries - 2)
+        XCTAssertTrue(entries.allSatisfy { $0.dataRVA == 0x4000 })
     }
 }
 
@@ -254,13 +289,20 @@ final class MalformedPEHardeningTests: XCTestCase {
 final class BestIconEndToEndTests: XCTestCase {
     var tempDir: URL!
 
-    override func setUpWithError() throws {
-        tempDir = try makeTempDir()
+    override func setUp() {
+        super.setUp()
+        tempDir = FileManager.default.temporaryDirectory.appending(path: "best_icon_\(UUID().uuidString)")
+        try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+    }
+
+    override func tearDown() {
+        try? FileManager.default.removeItem(at: tempDir)
+        super.tearDown()
     }
 
     // The icon edge of the synthetic bitmap. Stored height is doubled (image +
     // AND mask) by convention, and `renderBitmap` emits height/2 rows.
-    private let iconEdge: Int32 = 16
+    private let iconEdge: Int32 = 4
     private let rsrcRawPointer: UInt32 = 0x400
     private let rsrcVirtualAddress: UInt32 = 0x2000
 
@@ -297,7 +339,7 @@ final class BestIconEndToEndTests: XCTestCase {
     }
 
     /// A valid 40-byte BITMAPINFOHEADER plus 32bpp BGRA pixel data for the
-    /// rendered (image) half of the icon, then the AND mask.
+    /// rendered (image) half of the icon.
     private func iconBitmap(width: Int32, storedHeight: Int32) -> Data {
         var data = Data()
         data.append(contentsOf: littleEndianBytes(UInt32(40))) // biSize
@@ -316,8 +358,6 @@ final class BestIconEndToEndTests: XCTestCase {
         for _ in 0 ..< (renderedRows * Int(width)) {
             data.append(contentsOf: [0x10, 0x20, 0x30, 0xFF]) // BGRA opaque pixel
         }
-        // 1-bit AND mask, rows padded to 4 bytes, as every real icon resource carries.
-        data.append(Data(repeating: 0, count: (Int(width) + 31) / 32 * 4 * renderedRows))
         return data
     }
 
@@ -381,34 +421,6 @@ final class BestIconEndToEndTests: XCTestCase {
         XCTAssertTrue(icon.isValid)
         XCTAssertEqual(Int(icon.size.width), Int(iconEdge))
         XCTAssertEqual(Int(icon.size.height), Int(iconEdge))
-    }
-
-    func testFourBitIconRendersNonEmptyImage() throws {
-        // 4-bit palette DIB (16 BGRA palette entries) + pixel rows + 1-bit AND mask:
-        // the old hand-rolled decoder rendered nothing for bit depths below 8.
-        let edge = 16
-        var bitmap = Data()
-        bitmap.append(contentsOf: littleEndianBytes(UInt32(40)))
-        bitmap.append(contentsOf: littleEndianBytes(Int32(edge)))
-        bitmap.append(contentsOf: littleEndianBytes(Int32(edge * 2)))
-        bitmap.append(contentsOf: littleEndianBytes(UInt16(1)))
-        bitmap.append(contentsOf: littleEndianBytes(UInt16(4)))
-        bitmap.append(contentsOf: littleEndianBytes(UInt32(0)))
-        bitmap.append(contentsOf: littleEndianBytes(UInt32(0)))
-        bitmap.append(contentsOf: littleEndianBytes(Int32(0)))
-        bitmap.append(contentsOf: littleEndianBytes(Int32(0)))
-        bitmap.append(contentsOf: littleEndianBytes(UInt32(16)))
-        bitmap.append(contentsOf: littleEndianBytes(UInt32(0)))
-        for index in 0 ..< 16 {
-            bitmap.append(contentsOf: [UInt8(index * 16), 0x80, 0x40, 0]) // BGR + reserved
-        }
-        bitmap.append(Data(repeating: 0x11, count: edge * edge / 2)) // every pixel uses palette entry 1
-        bitmap.append(Data(repeating: 0, count: edge / 8 * edge)) // AND mask: all opaque
-
-        let url = try writePE(makePE(rsrcBody: rsrcBody(bitmap: bitmap)), name: "four_bit_icon")
-        let icon = try XCTUnwrap(PEFile(url: url).bestIcon())
-        XCTAssertTrue(icon.isValid)
-        XCTAssertEqual(Int(icon.size.width), edge)
     }
 
     func testUnparseableIconYieldsNilForFallback() throws {

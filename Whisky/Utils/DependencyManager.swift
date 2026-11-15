@@ -127,7 +127,11 @@ enum DependencyManager {
 
         // 1. Check crash diagnosis history for DLL-not-found patterns
         let bottleURL = await MainActor.run { bottle.url }
-        let history = DiagnosisHistory.load(from: DiagnosisHistory.url(for: programName, in: bottleURL))
+        let historyURL = bottleURL
+            .appending(path: "Program Settings")
+            .appending(path: programName)
+            .appendingPathExtension("diagnosis-history.plist")
+        let history = DiagnosisHistory.load(from: historyURL)
 
         let hasDependencyIssues = history.entries.contains { entry in
             entry.primaryCategory == .dependenciesLoading
@@ -160,6 +164,7 @@ enum DependencyManager {
     ) {
         let metadata = ProgramMetadata(
             exeName: programURL.lastPathComponent,
+            exeURL: programURL,
             installPath: programURL.deletingLastPathComponent().path(percentEncoded: false)
         )
         let gameDBEntries = GameDBLoader.loadDefaults()

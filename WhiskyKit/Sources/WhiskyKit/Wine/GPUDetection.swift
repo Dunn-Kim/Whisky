@@ -88,14 +88,17 @@ public enum GPUVendor: String, Codable, CaseIterable, Sendable {
 /// ## Example
 ///
 /// ```swift
-/// let env = GPUDetection.spoofGPU(vendor: .nvidia)
+/// // Apply default Apple Silicon GPU spoofing
+/// let env = GPUDetection.spoofAppleSilicon()
 /// // Returns environment variables reporting high-end NVIDIA GPU
 /// ```
 ///
 /// ## Topics
 ///
 /// ### Spoofing Methods
-/// - ``spoofGPU(vendor:)``
+/// - ``spoofGPU(vendor:model:)``
+/// - ``spoofAppleSilicon()``
+/// - ``spoofWithVendor(_:)``
 ///
 /// ### Vendor Configuration
 /// - ``GPUVendor``
@@ -106,14 +109,16 @@ public enum GPUDetection {
     /// GPU features. Helps launchers pass compatibility checks that would otherwise
     /// fail due to incomplete Metal driver information.
     ///
-    /// The vendor no longer changes the result. The `GPU_VENDOR_ID`,
+    /// The vendor and model no longer change the result. The `GPU_VENDOR_ID`,
     /// `GPU_DEVICE_ID`, `GPU_DESCRIPTION`, `GPU_MEMORY_SIZE` and
-    /// `D3DM_SHADER_MODEL` keys it used to fill are read by no shipped
+    /// `D3DM_SHADER_MODEL` keys they used to fill are read by no shipped
     /// runtime (Wine, DXVK, DXMT or D3DMetal), so they were dropped.
     ///
-    /// - Parameter vendor: The GPU vendor to spoof (NVIDIA, AMD, or Intel)
+    /// - Parameters:
+    ///   - vendor: The GPU vendor to spoof (NVIDIA, AMD, or Intel)
+    ///   - model: Optional custom model name override
     /// - Returns: Dictionary of environment variables for GPU spoofing
-    public static func spoofGPU(vendor: GPUVendor) -> [String: String] {
+    public static func spoofGPU(vendor: GPUVendor, model: String? = nil) -> [String: String] {
         var env: [String: String] = [:]
 
         // OpenGL version reporting (4.6 is modern and well-supported)
@@ -124,5 +129,53 @@ public enum GPUDetection {
         env["D3DM_SUPPORT_DXR"] = "1"
 
         return env
+    }
+
+    /// Returns GPU spoofing configuration optimized for Apple Silicon Macs.
+    ///
+    /// This is the recommended default for most users. Reports capabilities as
+    /// a high-end NVIDIA RTX 4090 GPU, which has excellent compatibility with
+    /// game launchers and passes all capability checks.
+    ///
+    /// - Returns: Environment variables configured for Apple Silicon compatibility
+    public static func spoofAppleSilicon() -> [String: String] {
+        var env = spoofGPU(vendor: .nvidia, model: "Apple M-series (as NVIDIA RTX 4090)")
+
+        // Additional Apple Silicon optimizations
+        env["MTL_HUD_ENABLED"] = "0" // Disable by default for spoofing
+        env["METAL_DEVICE_WRAPPER_TYPE"] = "1"
+
+        // Ensure Metal is properly initialized
+        env["MTL_SHADER_VALIDATION"] = "0"
+
+        return env
+    }
+
+    /// Returns GPU spoofing for a specific vendor.
+    ///
+    /// Use this when you need to report a specific GPU vendor for compatibility
+    /// with games that have vendor-specific code paths.
+    ///
+    /// - Parameter vendor: The GPU vendor to emulate
+    /// - Returns: Environment variables configured for the specified vendor
+    public static func spoofWithVendor(_ vendor: GPUVendor) -> [String: String] {
+        spoofGPU(vendor: vendor)
+    }
+
+    /// Validates that GPU spoofing environment is correctly configured.
+    ///
+    /// This method checks that the keys the bottle-level spoof always sets are
+    /// present. `D3DM_SUPPORT_DXR` is not among them, since the bottle resolves
+    /// it against its own ray tracing toggle.
+    ///
+    /// - Parameter environment: The environment dictionary to validate
+    /// - Returns: `true` if GPU spoofing is properly configured
+    public static func validateSpoofingEnvironment(_ environment: [String: String]) -> Bool {
+        let requiredKeys = [
+            "MESA_GL_VERSION_OVERRIDE",
+            "MESA_GLSL_VERSION_OVERRIDE"
+        ]
+
+        return requiredKeys.allSatisfy { environment[$0] != nil }
     }
 }

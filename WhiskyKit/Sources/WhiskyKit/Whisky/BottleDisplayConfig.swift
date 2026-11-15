@@ -38,7 +38,10 @@ public enum ResolutionPreset: String, Codable, CaseIterable, Equatable, Sendable
     /// User-specified custom resolution
     case custom
 
-    /// A human-readable label for this preset.
+    /// A localized, human-readable label for this preset.
+    ///
+    /// The fixed sizes are plain numbers; the default size, Match Display and
+    /// Custom come from the app's string catalog.
     public var label: String {
         switch self {
         case .r1280x720:
@@ -46,15 +49,15 @@ public enum ResolutionPreset: String, Codable, CaseIterable, Equatable, Sendable
         case .r1600x900:
             "1600 x 900"
         case .r1920x1080:
-            "1920 x 1080 (Default)"
+            String(localized: "config.virtualDesktop.preset.default \("1920 x 1080")")
         case .r2560x1440:
             "2560 x 1440"
         case .r3840x2160:
             "3840 x 2160"
         case .matchDisplay:
-            "Match Mac Display"
+            String(localized: "config.virtualDesktop.matchDisplay.label")
         case .custom:
-            "Custom"
+            String(localized: "config.virtualDesktop.custom")
         }
     }
 
@@ -115,5 +118,22 @@ public struct BottleDisplayConfig: Codable, Equatable {
         self.customHeight = try container.decodeIfPresent(
             Int.self, forKey: .customHeight
         ) ?? 1_080
+    }
+
+    /// The resolved pixel dimensions based on the current preset and custom values.
+    ///
+    /// For named presets, returns the preset's fixed dimensions.
+    /// For `.matchDisplay`, returns (1920, 1080) as a fallback; the actual
+    /// screen resolution query happens in the app layer.
+    /// For `.custom`, returns the user-provided width and height.
+    public var effectiveResolution: (width: Int, height: Int) {
+        switch resolutionPreset {
+        case .matchDisplay:
+            (width: 1_920, height: 1_080)
+        case .custom:
+            (width: customWidth, height: customHeight)
+        default:
+            resolutionPreset.dimensions ?? (width: 1_920, height: 1_080)
+        }
     }
 }

@@ -94,8 +94,10 @@ final class GameDatabaseTests: XCTestCase {
                 "dxvk": false,
                 "dxvkAsync": false,
                 "enhancedSync": "esync",
+                "forceD3D11": false,
                 "shaderCacheEnabled": true,
-                "avxEnabled": false
+                "avxEnabled": false,
+                "sequoiaCompatMode": false
               },
               "environmentVariables": {
                 "D3DM_SUPPORT_DXR": "0"
@@ -133,6 +135,8 @@ final class GameDatabaseTests: XCTestCase {
         XCTAssertEqual(entry.steamAppId, 1_245_620)
         XCTAssertEqual(entry.rating, .playable)
         XCTAssertEqual(entry.exeNames, ["eldenring.exe"])
+        XCTAssertEqual(entry.exeFingerprints?.count, 1)
+        XCTAssertEqual(entry.exeFingerprints?.first?.fileSize, 78_643_200)
         XCTAssertEqual(entry.pathPatterns, ["elden ring/game"])
         XCTAssertNil(entry.antiCheat)
         XCTAssertEqual(entry.constraints?.cpuArchitectures, ["arm64"])
@@ -188,6 +192,7 @@ final class GameDatabaseTests: XCTestCase {
         XCTAssertNil(entry.store)
         XCTAssertNil(entry.steamAppId)
         XCTAssertNil(entry.exeNames)
+        XCTAssertNil(entry.exeFingerprints)
         XCTAssertNil(entry.pathPatterns)
         XCTAssertNil(entry.antiCheat)
         XCTAssertNil(entry.constraints)
@@ -213,7 +218,7 @@ final class GameDatabaseTests: XCTestCase {
         XCTAssertNil(settings.enhancedSync)
         XCTAssertNil(settings.shaderCacheEnabled)
         XCTAssertNil(settings.avxEnabled)
-        XCTAssertNil(settings.frameRateLimit)
+        XCTAssertNil(settings.sequoiaCompatMode)
     }
 
     func testLegacyForceD3D11KeyIsIgnoredInVariantSettings() throws {
@@ -224,56 +229,29 @@ final class GameDatabaseTests: XCTestCase {
           "dxvkAsync": true,
           "forceD3D11": true,
           "shaderCacheEnabled": false,
-          "avxEnabled": true
+          "sequoiaCompatMode": true
         }
         """
 
         let data = try XCTUnwrap(json.data(using: .utf8))
         let settings = try JSONDecoder().decode(GameConfigVariantSettings.self, from: data)
 
-        XCTAssertEqual(settings, GameConfigVariantSettings(
-            graphicsBackend: .dxvk,
-            dxvkAsync: true,
-            shaderCacheEnabled: false,
-            avxEnabled: true
-        ))
+        XCTAssertEqual(settings.graphicsBackend, .dxvk)
+        XCTAssertEqual(settings.dxvkAsync, true)
+        XCTAssertEqual(settings.shaderCacheEnabled, false)
+        XCTAssertEqual(settings.sequoiaCompatMode, true)
     }
 
-    // MARK: - Frame Rate Limit Decoding
+    /// "none" turns sync off. Decoded as nil it would mean "leave the setting
+    /// alone", and the bottle would keep whatever sync it already had.
+    func testEnhancedSyncNoneDecodesAsSyncOff() throws {
+        let decode = { (json: String) throws -> EnhancedSync? in
+            try JSONDecoder().decode(GameConfigVariantSettings.self, from: Data(json.utf8)).enhancedSync
+        }
 
-    private func decodeSettings(_ json: String) throws -> GameConfigVariantSettings {
-        let data = try XCTUnwrap(json.data(using: .utf8))
-        return try JSONDecoder().decode(GameConfigVariantSettings.self, from: data)
-    }
-
-    func testFrameRateLimitDecodesFromInteger() throws {
-        let settings = try decodeSettings(#"{"frameRateLimit": 60}"#)
-        XCTAssertEqual(settings.frameRateLimit, .fps60)
-    }
-
-    func testFrameRateLimitDecodesFromNumericString() throws {
-        let settings = try decodeSettings(#"{"frameRateLimit": "120"}"#)
-        XCTAssertEqual(settings.frameRateLimit, .fps120)
-    }
-
-    func testFrameRateLimitDecodesNamedCases() throws {
-        XCTAssertEqual(try decodeSettings(#"{"frameRateLimit": "unlimited"}"#).frameRateLimit, .unlimited)
-        XCTAssertEqual(try decodeSettings(#"{"frameRateLimit": "matchDisplay"}"#).frameRateLimit, .matchDisplay)
-        XCTAssertEqual(try decodeSettings(#"{"frameRateLimit": "match-display"}"#).frameRateLimit, .matchDisplay)
-    }
-
-    /// An unusable value means "leave the setting alone", not "reject the entry":
-    /// one typo must not drop a whole game from the database.
-    func testUnrecognisedFrameRateLimitDecodesToNil() throws {
-        XCTAssertNil(try decodeSettings(#"{"frameRateLimit": 47}"#).frameRateLimit)
-        XCTAssertNil(try decodeSettings(#"{"frameRateLimit": "vsync"}"#).frameRateLimit)
-    }
-
-    /// "none" turns sync off. Decoding it as nil would mean "leave the setting
-    /// alone" and keep whatever sync the bottle already had.
-    func testEnhancedSyncNoneDecodesAsSyncOffNotNil() throws {
-        XCTAssertEqual(try decodeSettings(#"{"enhancedSync": "none"}"#).enhancedSync, EnhancedSync.none)
-        XCTAssertEqual(try decodeSettings(#"{"enhancedSync": "msync"}"#).enhancedSync, .msync)
+        XCTAssertEqual(try decode(#"{"enhancedSync": "none"}"#), EnhancedSync.none)
+        XCTAssertEqual(try decode(#"{"enhancedSync": "msync"}"#), .msync)
+        XCTAssertNil(try decode(#"{"enhancedSync": "fsync"}"#))
     }
 
     // MARK: - Test 6: Default Variant Returns First isDefault
@@ -343,7 +321,7 @@ final class GameDatabaseTests: XCTestCase {
 
     // MARK: - Test 9: SteamAppManifest Parses ACF
 
-    func testSteamAppManifestParsesTabSeparatedACF() throws {
+    func testSteamAppManifestParsesACF() {
         let acfContent = """
         "AppState"
         {
@@ -354,22 +332,69 @@ final class GameDatabaseTests: XCTestCase {
         \t"installdir"\t\t"ELDEN RING"
         }
         """
-        let url = FileManager.default.temporaryDirectory.appending(path: "appmanifest-\(UUID().uuidString).acf")
-        try acfContent.write(to: url, atomically: true, encoding: .utf8)
-        defer { try? FileManager.default.removeItem(at: url) }
 
-        let manifest = try XCTUnwrap(SteamAppManifest(contentsOf: url))
-        XCTAssertEqual(manifest.appId, 1_245_620)
-        XCTAssertEqual(manifest.installDir, "ELDEN RING")
+        let appId = SteamAppManifest.parseAppId(from: acfContent)
+        XCTAssertEqual(appId, 1_245_620)
+    }
+
+    // MARK: - Test 10: SteamAppManifest Parses AppId Txt
+
+    func testSteamAppManifestParsesAppIdTxt() throws {
+        let tempDir = FileManager.default.temporaryDirectory
+            .appending(path: "GameDatabaseTests-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+
+        defer {
+            try? FileManager.default.removeItem(at: tempDir)
+        }
+
+        // Create a steam_appid.txt file
+        let appIdFile = tempDir.appending(path: "steam_appid.txt")
+        try "1245620\n".write(to: appIdFile, atomically: true, encoding: .utf8)
+
+        // Create a fake exe path in this directory
+        let exeURL = tempDir.appending(path: "game.exe")
+
+        let appId = SteamAppManifest.findAppIdForProgram(at: exeURL)
+        XCTAssertEqual(appId, 1_245_620)
+    }
+
+    // MARK: - Additional ACF Parsing Edge Cases
+
+    func testSteamAppManifestParsesACFWithSpaces() {
+        let acfContent = """
+        "AppState"
+        {
+            "appid"   "570"
+            "name"    "Dota 2"
+        }
+        """
+
+        let appId = SteamAppManifest.parseAppId(from: acfContent)
+        XCTAssertEqual(appId, 570)
+    }
+
+    func testSteamAppManifestReturnsNilForMissingAppId() {
+        let acfContent = """
+        "AppState"
+        {
+            "name"    "Some Game"
+        }
+        """
+
+        let appId = SteamAppManifest.parseAppId(from: acfContent)
+        XCTAssertNil(appId)
     }
 
     // MARK: - Test 11: GameConfigSnapshot Plist Round-Trip
 
     func testGameConfigSnapshotPlistRoundTrip() throws {
         let sampleSettings = Data("sample-settings-plist".utf8)
+        let programSettings = ["file:///app/game.exe": Data("program-data".utf8)]
 
         let snapshot = GameConfigSnapshot(
             bottleSettingsData: sampleSettings,
+            programSettingsData: programSettings,
             installedVerbs: ["vcrun2022", "dotnet48"],
             appliedEntryId: "elden-ring",
             appliedVariantId: "recommended-apple-silicon",
@@ -383,6 +408,7 @@ final class GameDatabaseTests: XCTestCase {
         let decoded = try PropertyListDecoder().decode(GameConfigSnapshot.self, from: data)
 
         XCTAssertEqual(decoded.bottleSettingsData, sampleSettings)
+        XCTAssertEqual(decoded.programSettingsData, programSettings)
         XCTAssertEqual(decoded.installedVerbs, ["vcrun2022", "dotnet48"])
         XCTAssertEqual(decoded.appliedEntryId, "elden-ring")
         XCTAssertEqual(decoded.appliedVariantId, "recommended-apple-silicon")

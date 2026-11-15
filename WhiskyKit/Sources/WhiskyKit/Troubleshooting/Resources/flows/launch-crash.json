@@ -1,4 +1,6 @@
 {
+  "version": 1,
+  "categoryId": "launch-crash",
   "entryNodeId": "check_crash_log",
   "nodes": {
     "check_crash_log": {
@@ -8,6 +10,7 @@
       "title": "Analyze crash log",
       "description": "Examining the most recent log for crash patterns and error signatures.",
       "checkId": "crash.log_classify",
+      "params": {},
       "on": {
         "pass": "check_winetricks",
         "fail": "check_graphics_backend",
@@ -27,10 +30,10 @@
       "phase": "checks",
       "title": "Check graphics backend",
       "description": "The crash appears graphics-related. Checking the current graphics translation layer.",
-      "checkId": "setting.value_check",
+      "checkId": "graphics.backend_is",
       "params": {
-        "setting": "graphicsBackend",
-        "expected": "dxvk"
+        "expected": "dxvk",
+        "scope": "program_or_bottle"
       },
       "on": {
         "pass": "check_winetricks",
@@ -54,8 +57,16 @@
       "params": {
         "backend": "dxvk"
       },
+      "fixPreview": {
+        "settingName": "Graphics Backend",
+        "currentValueKey": "current",
+        "newValue": "dxvk",
+        "scope": "bottle"
+      },
+      "isReversible": true,
       "requiresConfirmation": false,
       "on": {
+        "applied": "verify_fix",
         "skipped": "check_winetricks"
       }
     },
@@ -71,6 +82,7 @@
       },
       "on": {
         "pass": "escalate",
+        "already_configured": "escalate",
         "fail": "fix_install_verb",
         "unknown": "escalate",
         "error": "escalate"
@@ -87,10 +99,30 @@
       "title": "Install recommended components",
       "description": "Install missing runtime components that may resolve the access violation crash.",
       "fixId": "install-winetricks-verb",
+      "isReversible": false,
       "requiresConfirmation": true,
       "on": {
+        "applied": "verify_fix",
         "skipped": "escalate"
       }
+    },
+    "verify_fix": {
+      "id": "verify_fix",
+      "type": "verify",
+      "phase": "verify",
+      "title": "Did this fix the crash?",
+      "description": "Try launching the program again to see if the crash is resolved.",
+      "on": {
+        "yes": "resolved",
+        "no": "check_winetricks"
+      }
+    },
+    "resolved": {
+      "id": "resolved",
+      "type": "info",
+      "phase": "export",
+      "title": "Problem resolved",
+      "description": "The launch issue has been fixed. You can export a session report for your records."
     },
     "escalate": {
       "id": "escalate",

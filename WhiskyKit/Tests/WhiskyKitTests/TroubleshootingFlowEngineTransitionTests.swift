@@ -25,7 +25,7 @@ import XCTest
 final class TroubleshootingFlowEngineTransitionTests: XCTestCase {
     private func infoNode(
         _ nodeId: String,
-        phase: TroubleshootingSession.SessionPhase = .checks,
+        phase: FlowPhase = .checks,
         transitions: [String: String]? = nil,
         fragmentRef: String? = nil
     ) -> FlowStepNode {
@@ -38,17 +38,16 @@ final class TroubleshootingFlowEngineTransitionTests: XCTestCase {
         nodes: [String: FlowStepNode],
         fragments: [String: FlowDefinition] = [:]
     ) -> TroubleshootingFlowEngine {
-        let flow = FlowDefinition(nodes: nodes, entryNodeId: "start")
-        var session = TroubleshootingSession(bottleURL: makeBottleDirectory())
+        let flow = FlowDefinition(version: 1, categoryId: "graphics", nodes: nodes, entryNodeId: "start")
+        var session = TroubleshootingSession(bottleURL: URL(filePath: "/tmp/engine-transition-test-bottle"))
         session.currentFlowCategoryId = "graphics"
-        let engine = TroubleshootingFlowEngine(
+        return TroubleshootingFlowEngine(
             flowDefinitions: ["graphics": flow],
             fragments: fragments,
             checkRegistry: CheckRegistry(),
-            sessionStore: TroubleshootingSessionStore()
+            sessionStore: SpySessionStore(),
+            session: session
         )
-        engine.session = session
-        return engine
     }
 
     func testContinueFollowsTheInfoNodeTransition() {
@@ -66,24 +65,6 @@ final class TroubleshootingFlowEngineTransitionTests: XCTestCase {
         XCTAssertFalse(engine.canContinue)
     }
 
-    func testContinueRoutesOnTheDetectedLauncher() {
-        let nodes: [String: FlowStepNode] = [
-            "start": infoNode("start", transitions: ["steam": "steam", "ea": "ea", "default": "other"]),
-            "steam": infoNode("steam"), "ea": infoNode("ea"), "other": infoNode("other")
-        ]
-        let routes: [(launcher: String?, target: String)] = [("EA App", "ea"), ("Steam", "steam"), (nil, "other")]
-        for (launcher, target) in routes {
-            let engine = makeEngine(nodes: nodes)
-            engine.session.preflightSnapshot = PreflightData(
-                bottleURL: URL(filePath: "/tmp/b"), bottleName: "b", launcherType: launcher,
-                graphicsBackend: "dxmt"
-            )
-            engine.navigateToNode("start")
-            engine.continueStep()
-            XCTAssertEqual(engine.currentNode?.id, target, "launcher \(launcher ?? "none")")
-        }
-    }
-
     func testSkipFallsBackToTheContinueTransition() {
         let engine = makeEngine(nodes: [
             "start": infoNode("start", transitions: ["continue": "next"]),
@@ -98,6 +79,8 @@ final class TroubleshootingFlowEngineTransitionTests: XCTestCase {
 
     func testNodeReferencingTheEscalationFragmentEscalates() {
         let fragment = FlowDefinition(
+            version: 1,
+            categoryId: "export-escalation",
             nodes: ["export-start": infoNode("export-start", phase: .export)],
             entryNodeId: "export-start"
         )

@@ -24,22 +24,29 @@ import Foundation
 /// flow engine can branch on. The ``outcome`` drives JSON-defined branching,
 /// while ``evidence`` carries key-value pairs for UI display via the node's
 /// `evidenceMap`.
-public struct CheckResult: Sendable, Codable, Error {
+public struct CheckResult: Sendable, Codable {
     /// The normalized outcome used for flow branching.
     public let outcome: CheckOutcome
 
     /// Key-value pairs surfaced in the UI via the node's `evidenceMap`.
-    public var evidence: [String: String] = [:]
+    public let evidence: [String: String]
 
     /// Human-readable one-line summary of the result.
     public let summary: String
 
     /// Optional confidence tier reusing the Phase 5 model.
-    public var confidence: ConfidenceTier?
+    public let confidence: ConfidenceTier?
 
-    /// A check that could not run: bad params, unreadable input, or an unknown check ID.
-    public static func error(_ summary: String, evidence: [String: String] = [:]) -> CheckResult {
-        CheckResult(outcome: .error, evidence: evidence, summary: summary)
+    public init(
+        outcome: CheckOutcome,
+        evidence: [String: String] = [:],
+        summary: String,
+        confidence: ConfidenceTier? = nil
+    ) {
+        self.outcome = outcome
+        self.evidence = evidence
+        self.summary = summary
+        self.confidence = confidence
     }
 }
 

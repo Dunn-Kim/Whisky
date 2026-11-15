@@ -41,7 +41,7 @@ struct GameEntryRowView: View {
         Text(entry.rating.displayName)
             .font(.caption2)
             .fontWeight(.medium)
-            .foregroundStyle(.white)
+            .foregroundStyle(ratingForegroundColor)
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
             .background(ratingBackgroundColor)
@@ -63,13 +63,17 @@ struct GameEntryRowView: View {
         }
     }
 
+    private var ratingForegroundColor: Color {
+        .white
+    }
+
     // MARK: - Title Area
 
     private var titleArea: some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(entry.title)
                 .font(.headline)
-            if let subtitle = entry.subtitle ?? entry.store {
+            if let subtitle = entry.subtitle ?? entry.store.map(GameDBEntry.storeDisplayName) {
                 Text(subtitle)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
@@ -106,7 +110,18 @@ struct GameEntryRowView: View {
     private var recommendedBackendTag: String? {
         guard let variant = entry.defaultVariant else { return nil }
         guard let backend = variant.settings.graphicsBackend else { return nil }
-        return backend == .recommended ? nil : backend.displayName
+        switch backend {
+        case .d3dMetal:
+            return "D3DMetal"
+        case .dxvk:
+            return "DXVK"
+        case .dxmt:
+            return "DXMT"
+        case .wined3d:
+            return "WineD3D"
+        case .recommended:
+            return nil
+        }
     }
 
     private var constraintTagLabels: [String]? {
@@ -118,7 +133,7 @@ struct GameEntryRowView: View {
         }
 
         if let minWine = entry.constraints?.minWineVersion {
-            tags.append("Wine \(minWine)+")
+            tags.append(String(localized: "gamedb.tag.minWine \(minWine)"))
         }
 
         return tags.isEmpty ? nil : tags

@@ -35,13 +35,12 @@ struct WhiskyMenuBarView: View {
         SettingsLink()
 
         let bottles = bottleVM.bottles.filter(\.isAvailable)
-        let allPins = QuickLaunch.availablePins()
         Divider()
         if bottles.isEmpty {
             Text("menubar.empty")
         } else {
             ForEach(bottles) { bottle in
-                bottleMenu(bottle, allPins: allPins)
+                bottleMenu(bottle)
             }
         }
 
@@ -61,9 +60,12 @@ struct WhiskyMenuBarView: View {
     /// bottle view scans it. On a fresh launch (no bottle ever opened) that would
     /// make every bottle wrongly report "no pinned programs". Pins live in
     /// settings and are always loaded, so they're the right source here.
-    private func bottleMenu(_ bottle: Bottle, allPins: [(bottle: Bottle, pin: PinnedProgram)]) -> some View {
+    private func bottleMenu(_ bottle: Bottle) -> some View {
         Menu(bottle.settings.name) {
-            let pins = allPins.filter { $0.bottle === bottle }.map(\.pin)
+            let pins = bottle.settings.pins.filter { pin in
+                guard let path = pin.url?.path(percentEncoded: false) else { return false }
+                return FileManager.default.fileExists(atPath: path)
+            }
             if pins.isEmpty {
                 Text("menubar.bottle.noPins")
             } else {

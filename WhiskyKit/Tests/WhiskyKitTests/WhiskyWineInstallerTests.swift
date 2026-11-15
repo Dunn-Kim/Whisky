@@ -25,7 +25,9 @@ import XCTest
 // swiftlint:disable:next type_body_length
 final class WhiskyWineInstallerTests: XCTestCase {
     func testCleanupTarballRemovesExistingFile() throws {
-        let tempDir = try makeTempDir()
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
 
         let tarURL = tempDir.appendingPathComponent("whiskywine").appendingPathExtension("tar.gz")
         try Data("test".utf8).write(to: tarURL)
@@ -38,22 +40,36 @@ final class WhiskyWineInstallerTests: XCTestCase {
 
     func testRemoveBottleStorageDeletesDefaultBottlesAndRegistryOnly() throws {
         let tempDir = try makeTempDir()
-        let bottles = tempDir.appendingPathComponent("Bottles")
-        let registry = tempDir.appendingPathComponent("BottleVM.plist")
-        let custom = tempDir.appendingPathComponent("elsewhere")
-        for dir in [bottles.appendingPathComponent("one"), custom] {
+        let bottles = tempDir.appending(path: "Bottles")
+        let registry = tempDir.appending(path: "BottleVM.plist")
+        let custom = tempDir.appending(path: "elsewhere")
+        for dir in [bottles.appending(path: "one"), custom] {
             try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         }
         try Data("x".utf8).write(to: registry)
 
         WhiskyWineInstaller.removeBottleStorage(defaultBottlesDir: bottles, registryFile: registry)
 
-        XCTAssertFalse(FileManager.default.fileExists(atPath: bottles.path))
-        XCTAssertFalse(FileManager.default.fileExists(atPath: registry.path))
-        XCTAssertTrue(FileManager.default.fileExists(atPath: custom.path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: bottles.path(percentEncoded: false)))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: registry.path(percentEncoded: false)))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: custom.path(percentEncoded: false)))
 
         // Running again with nothing left must not fail.
         WhiskyWineInstaller.removeBottleStorage(defaultBottlesDir: bottles, registryFile: registry)
+    }
+
+    func testRemovedRegistryReloadsAsEmpty() throws {
+        let tempDir = try makeTempDir()
+        let registry = tempDir.appending(path: "BottleVM.plist")
+        var data = BottleData(entriesFile: registry)
+        data.paths = [tempDir.appending(path: "Bottles/one")]
+        XCTAssertEqual(BottleData(entriesFile: registry).paths.count, 1)
+
+        WhiskyWineInstaller.removeBottleStorage(
+            defaultBottlesDir: tempDir.appending(path: "Bottles"), registryFile: registry
+        )
+
+        XCTAssertTrue(BottleData(entriesFile: registry).paths.isEmpty)
     }
 
     func testCleanupTarballIgnoresMissingFile() {
@@ -92,7 +108,9 @@ final class WhiskyWineInstallerTests: XCTestCase {
     }
 
     func testWhiskyWineInfoAtReadsVersionAndDXVK() throws {
-        let tempDir = try makeTempDir()
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
 
         let plistURL = tempDir.appendingPathComponent("WhiskyWineVersion").appendingPathExtension("plist")
         let plist: [String: Any] = [
@@ -117,7 +135,9 @@ final class WhiskyWineInstallerTests: XCTestCase {
     }
 
     func testWhiskyWineInfoAtMalformedFileReturnsNil() throws {
-        let tempDir = try makeTempDir()
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
 
         // A present-but-corrupt plist must be swallowed to nil, not crash.
         let garbageURL = tempDir.appendingPathComponent("WhiskyWineVersion").appendingPathExtension("plist")
@@ -127,7 +147,9 @@ final class WhiskyWineInstallerTests: XCTestCase {
     }
 
     func testWhiskyWineInfoAtPartialPlistReturnsNil() throws {
-        let tempDir = try makeTempDir()
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
 
         // Valid plist but missing a required version field — decode throws, swallowed to nil.
         let partialURL = tempDir.appendingPathComponent("WhiskyWineVersion").appendingPathExtension("plist")
@@ -239,17 +261,6 @@ final class WhiskyWineInstallerTests: XCTestCase {
         ))
     }
 
-    func testDXMTFollowsRuntimeRecord() {
-        let withoutDXMT = WhiskyWineVersion(version: SemanticVersion(3, 0, 0))
-
-        XCTAssertFalse(WhiskyWineInstaller.backendAvailability(
-            .dxmt, runtimeInfo: withoutDXMT, d3dMetalInstalled: true, dxmtRuntimeNative: true
-        ))
-        XCTAssertFalse(WhiskyWineInstaller.backendAvailability(
-            .dxmt, runtimeInfo: nil, d3dMetalInstalled: true, dxmtRuntimeNative: true
-        ), "No runtime installed: DXMT unavailable")
-    }
-
     func testUniversalBackendsUnaffectedByMissingPayloads() {
         for backend in [GraphicsBackend.recommended, .dxvk, .wined3d] {
             XCTAssertTrue(WhiskyWineInstaller.backendAvailability(
@@ -278,7 +289,9 @@ final class WhiskyWineInstallerTests: XCTestCase {
     }
 
     func testInstallThrowsOnInvalidArchive() throws {
-        let tempDir = try makeTempDir()
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
 
         // A non-tar payload makes the extraction fail; `into:` keeps it off the
         // real application folder.
@@ -290,7 +303,9 @@ final class WhiskyWineInstallerTests: XCTestCase {
     }
 
     func testInstallExtractsValidArchiveIntoDestination() throws {
-        let tempDir = try makeTempDir()
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
 
         // Build a tiny source tree and gzip-tar it the way the runtime archive ships.
         let sourceDir = tempDir.appendingPathComponent("Libraries")
@@ -314,7 +329,9 @@ final class WhiskyWineInstallerTests: XCTestCase {
     }
 
     func testInstallReplacesExistingDestinationContents() throws {
-        let tempDir = try makeTempDir()
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
 
         let sourceDir = tempDir.appendingPathComponent("Libraries")
         try FileManager.default.createDirectory(at: sourceDir, withIntermediateDirectories: true)
@@ -353,7 +370,9 @@ final class WhiskyWineInstallerTests: XCTestCase {
         // runtime install must replace only Libraries/, never its siblings —
         // wiping the whole folder silently destroys that state on every
         // install/update.
-        let tempDir = try makeTempDir()
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
 
         let sourceDir = tempDir.appendingPathComponent("Libraries")
         try FileManager.default.createDirectory(at: sourceDir, withIntermediateDirectories: true)

@@ -31,7 +31,7 @@ enum LibraryEntryState: Equatable {
     case idle
     /// Whisky has been asked to start it and Wine has not put a window up yet.
     case launching
-    /// Its own processes are in the bottle's process list.
+    /// It has a process of its own in ``ProcessRegistry``.
     case running
 }
 
@@ -230,7 +230,7 @@ struct LibraryCard: View {
         if item.isLauncher {
             parts.append(String(localized: "library.card.launcher"))
         }
-        if case .steam = item.launch {
+        if item.source == .steam {
             parts.append(String(localized: "library.source.steam"))
         }
         if let lastPlayed {

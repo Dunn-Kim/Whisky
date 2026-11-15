@@ -21,44 +21,77 @@ import Foundation
 /// Checks a specific bottle setting property value against an expected value.
 ///
 /// Reads the setting named in `params["setting"]` from the bottle's
-/// ``BottleSettings`` and compares against `params["expected"]`.
-/// Supports `enhancedSync`, `graphicsBackend`, `dxvkAsync`,
-/// `controllerCompatibilityMode` and `audioLatencyPreset`.
+/// ``BottleSettings`` and compares against `params["expected"]`, a value or
+/// a comma-separated list of the values that are fine (`"msync,esync"`).
+/// Supports common settings like `enhancedSync`, `graphicsBackend`,
+/// `windowsVersion`, `dxvk`, `metalHud`.
 public struct SettingValueCheck: TroubleshootingCheck {
     public let checkId = "setting.value_check"
 
+    public init() {}
+
+    public let signature: CheckSignature? = CheckSignature(
+        requiredParams: ["setting", "expected"], outcomes: [.alreadyConfigured, .fail, .error]
+    )
+
+    // swiftlint:disable:next function_body_length
     public func run(params: [String: String], context: CheckContext) async -> CheckResult {
         guard let settingName = params["setting"] else {
-            return .error("Missing 'setting' parameter")
+            return CheckResult(
+                outcome: .error,
+                evidence: [:],
+                summary: "Missing 'setting' parameter",
+                confidence: nil
+            )
         }
 
         guard let expected = params["expected"] else {
-            return .error("Missing 'expected' parameter")
+            return CheckResult(
+                outcome: .error,
+                evidence: [:],
+                summary: "Missing 'expected' parameter",
+                confidence: nil
+            )
         }
 
+        let bottleURL = context.bottleURL
+        let metadataURL = bottleURL.appending(path: "Metadata.plist")
+
         let settings: BottleSettings
-        switch context.loadBottleSettings() {
-        case let .success(loaded): settings = loaded
-        case let .failure(result): return result
+        do {
+            settings = try BottleSettings.decode(from: metadataURL)
+        } catch {
+            return CheckResult(
+                outcome: .error,
+                evidence: ["error": error.localizedDescription],
+                summary: "Failed to read bottle settings",
+                confidence: nil
+            )
         }
 
         let currentValue = readSetting(settingName, from: settings)
 
         guard let currentValue else {
-            return .error("Unknown setting: \(settingName)", evidence: ["setting": settingName])
+            return CheckResult(
+                outcome: .error,
+                evidence: ["setting": settingName],
+                summary: "Unknown setting: \(settingName)",
+                confidence: nil
+            )
         }
 
+        let accepted = expected.flowParamList
         let evidence = [
             "setting": settingName,
             "current": currentValue,
-            "expected": expected
+            "expected": accepted.joined(separator: ", ")
         ]
 
-        if currentValue == expected {
+        if accepted.contains(currentValue) {
             return CheckResult(
                 outcome: .alreadyConfigured,
                 evidence: evidence,
-                summary: "\(settingName) is already \(expected)",
+                summary: "\(settingName) is already \(currentValue)",
                 confidence: .high
             )
         }
@@ -73,21 +106,85 @@ public struct SettingValueCheck: TroubleshootingCheck {
 
     // MARK: - Private
 
-    /// The settings the bundled flows ask about.
+    // swiftlint:disable:next cyclomatic_complexity
     private func readSetting(_ name: String, from settings: BottleSettings) -> String? {
         switch name {
         case "enhancedSync":
             String(describing: settings.enhancedSync)
         case "graphicsBackend":
             settings.graphicsBackend.rawValue
+        case "windowsVersion":
+            String(describing: settings.windowsVersion)
+        case "dxvk":
+            settings.dxvk ? "true" : "false"
         case "dxvkAsync":
             settings.dxvkAsync ? "true" : "false"
+        case "metalHud":
+            settings.metalHud ? "true" : "false"
+        case "metalTrace":
+            settings.metalTrace ? "true" : "false"
+        case "dxrEnabled":
+            settings.dxrEnabled ? "true" : "false"
+        case "metalValidation":
+            settings.metalValidation ? "true" : "false"
+        case "sequoiaCompatMode":
+            settings.sequoiaCompatMode ? "true" : "false"
+        case "shaderCacheEnabled":
+            settings.shaderCacheEnabled ? "true" : "false"
+        case "avxEnabled":
+            settings.avxEnabled ? "true" : "false"
+        case "launcherCompatibilityMode":
+            settings.launcherCompatibilityMode ? "true" : "false"
         case "controllerCompatibilityMode":
             settings.controllerCompatibilityMode ? "true" : "false"
+        case "virtualDesktopEnabled":
+            settings.virtualDesktopEnabled ? "true" : "false"
+        case "audioDriver":
+            settings.audioDriver.rawValue
         case "audioLatencyPreset":
             settings.audioLatencyPreset.rawValue
         default:
             nil
+        }
+    }
+
+    /// The summary of a result from this check in the user's language.
+    ///
+    /// ``CheckResult/summary`` stays in English because it is written to
+    /// history and escalation exports; this rebuilds the on-screen text from
+    /// the result's outcome and evidence.
+    ///
+    /// - Parameter result: A result produced by ``run(params:context:)``.
+    /// - Returns: The localized summary, or `nil` to show ``CheckResult/summary`` (the
+    ///   flow-authoring errors for missing parameters have no localized form).
+    public static func localizedSummary(for result: CheckResult) -> String? {
+        let evidence = result.evidence
+        switch result.outcome {
+        case .error:
+            if evidence["error"] != nil {
+                return String(localized: "troubleshooting.check.settingsUnreadable")
+            }
+            guard let setting = evidence["setting"] else { return nil }
+            return String(localized: "troubleshooting.check.setting.unknown \(setting)")
+        case .alreadyConfigured:
+            // The value in use: with several accepted, the expected list
+            // would not say which one it is.
+            guard let setting = evidence["setting"],
+                  let current = evidence["current"] ?? evidence["expected"]
+            else {
+                return nil
+            }
+            return String(localized: "troubleshooting.check.value.matches \(setting) \(current)")
+        case .fail:
+            guard let setting = evidence["setting"],
+                  let current = evidence["current"],
+                  let expected = evidence["expected"]
+            else {
+                return nil
+            }
+            return String(localized: "troubleshooting.check.value.mismatch \(setting) \(current) \(expected)")
+        case .pass, .unknown:
+            return nil
         }
     }
 }

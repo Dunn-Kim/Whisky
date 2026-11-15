@@ -22,23 +22,25 @@ import WhiskyKit
 /// Per-bottle or per-program troubleshooting history list.
 ///
 /// Shows completed troubleshooting sessions with outcome badges, relative timestamps,
-/// and primary findings. Each row expands to show fix details and offers to
-/// export a session report.
+/// and primary findings. Each row expands to show fix details and offers a
+/// "Reopen as template" action to start a new session with the same symptom category.
 struct TroubleshootingHistoryView: View {
     let bottleURL: URL
+    let programURL: URL?
 
     @State private var history: TroubleshootingHistory = .init()
     @State private var expandedEntryId: UUID?
+    @State private var templateEntry: TroubleshootingHistoryEntry?
 
     var body: some View {
         Group {
-            if history.recentEntries.isEmpty {
+            if filteredEntries.isEmpty {
                 ContentUnavailableView(
                     String(localized: "troubleshooting.history.empty"),
                     systemImage: "clock.arrow.circlepath"
                 )
             } else {
-                ForEach(history.recentEntries) { entry in
+                ForEach(filteredEntries) { entry in
                     entryRow(entry)
                 }
             }
@@ -46,6 +48,15 @@ struct TroubleshootingHistoryView: View {
         .onAppear {
             history = TroubleshootingHistory.load(from: bottleURL)
         }
+    }
+
+    private var filteredEntries: [TroubleshootingHistoryEntry] {
+        let recent = history.recentEntries
+        if let programURL {
+            let programName = programURL.deletingPathExtension().lastPathComponent
+            return recent.filter { $0.programName == programName }
+        }
+        return recent
     }
 }
 
@@ -64,7 +75,7 @@ extension TroubleshootingHistoryView {
                         .foregroundStyle(.secondary)
                         .frame(width: 20)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(entry.symptomCategory.displayTitle)
+                        Text(entry.symptomCategory.localizedTitle)
                             .font(.subheadline)
                             .fontWeight(.medium)
                             .foregroundStyle(.primary)
@@ -151,6 +162,18 @@ extension TroubleshootingHistoryView {
             }
 
             HStack(spacing: 8) {
+                Button {
+                    templateEntry = entry
+                } label: {
+                    Label(
+                        String(localized: "troubleshooting.history.reopenTemplate"),
+                        systemImage: "doc.on.doc"
+                    )
+                    .font(.caption)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+
                 Button {
                     exportSessionReport(entry)
                 } label: {

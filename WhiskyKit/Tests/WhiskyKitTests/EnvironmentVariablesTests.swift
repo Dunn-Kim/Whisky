@@ -20,28 +20,6 @@
 @testable import WhiskyKit
 import XCTest
 
-extension BottleSettings {
-    /// Resolved bottle + launcher env (and composed WINEDLLOVERRIDES) merged into `wineEnv`.
-    func environmentVariables(wineEnv: inout [String: String]) {
-        var builder = EnvironmentBuilder()
-        let managed = Wine.populateSettingsLayers(of: self, builder: &builder)
-        wineEnv.merge(builder.resolve().0) { _, new in new }
-        let overrides = DLLOverrideResolver(
-            managed: managed, bottleCustom: dllOverrides, programCustom: []
-        ).resolve().0
-        if !overrides.isEmpty {
-            wineEnv["WINEDLLOVERRIDES"] = overrides
-        }
-    }
-
-    /// `environmentVariables(wineEnv:)` into a fresh dictionary.
-    var env: [String: String] {
-        var env: [String: String] = [:]
-        environmentVariables(wineEnv: &env)
-        return env
-    }
-}
-
 // swiftlint:disable:next type_body_length
 final class EnvironmentVariablesTests: XCTestCase {
     // MARK: - DXVK Environment Variables
@@ -51,7 +29,8 @@ final class EnvironmentVariablesTests: XCTestCase {
         settings.dxvk = true
         settings.dxvkHud = .full
 
-        let env = settings.env
+        var env: [String: String] = [:]
+        settings.environmentVariables(wineEnv: &env)
 
         // DLL overrides are now composed per-DLL via DLLOverrideResolver (sorted alphabetically).
         // The test runner has no runtime, so no GPTK payload: d3d12 is Wine's own
@@ -66,7 +45,8 @@ final class EnvironmentVariablesTests: XCTestCase {
         var settings = BottleSettings()
         settings.graphicsBackend = .dxmt
 
-        let env = settings.env
+        var env: [String: String] = [:]
+        settings.environmentVariables(wineEnv: &env)
 
         // The trio is native-then-builtin; winemetal pinned builtin for unixlib binding.
         // No runtime here, so no payload either, and d3d12 is left alone.
@@ -77,18 +57,6 @@ final class EnvironmentVariablesTests: XCTestCase {
         XCTAssertNil(env["WINED3DMETAL"])
     }
 
-    func testDXMTMetalFXUpscaleIsOptInAndDXMTOnly() {
-        var settings = BottleSettings()
-        settings.graphicsBackend = .dxmt
-        XCTAssertNil(settings.env["DXMT_METALFX_SPATIAL_SWAPCHAIN"], "off by default")
-
-        settings.dxmtMetalFXUpscale = true
-        XCTAssertEqual(settings.env["DXMT_METALFX_SPATIAL_SWAPCHAIN"], "1")
-
-        settings.graphicsBackend = .dxvk
-        XCTAssertNil(settings.env["DXMT_METALFX_SPATIAL_SWAPCHAIN"], "inert under other backends")
-    }
-
     func testDXVKSettingsDoNotApplyUnderDXMT() {
         // dxvkHud/dxvkAsync persist in dxvkConfig but only take effect when the
         // backend is DXVK.
@@ -97,7 +65,8 @@ final class EnvironmentVariablesTests: XCTestCase {
         settings.dxvkHud = .full
         settings.dxvkAsync = true
 
-        let env = settings.env
+        var env: [String: String] = [:]
+        settings.environmentVariables(wineEnv: &env)
 
         XCTAssertNil(env["DXVK_HUD"])
         XCTAssertNil(env["DXVK_ASYNC"])
@@ -108,7 +77,8 @@ final class EnvironmentVariablesTests: XCTestCase {
         settings.dxvk = true
         settings.dxvkHud = .partial
 
-        let env = settings.env
+        var env: [String: String] = [:]
+        settings.environmentVariables(wineEnv: &env)
 
         XCTAssertEqual(env["DXVK_HUD"], "devinfo,fps,frametimes")
     }
@@ -118,7 +88,8 @@ final class EnvironmentVariablesTests: XCTestCase {
         settings.dxvk = true
         settings.dxvkHud = .fps
 
-        let env = settings.env
+        var env: [String: String] = [:]
+        settings.environmentVariables(wineEnv: &env)
 
         XCTAssertEqual(env["DXVK_HUD"], "fps")
     }
@@ -128,65 +99,10 @@ final class EnvironmentVariablesTests: XCTestCase {
         settings.graphicsBackend = .dxvk
         settings.dxvkAsync = true
 
-        let env = settings.env
+        var env: [String: String] = [:]
+        settings.environmentVariables(wineEnv: &env)
 
         XCTAssertEqual(env["DXVK_ASYNC"], "1")
-    }
-
-    func testDXVKBackendEnablesConcurrentMetalShaderCompilation() {
-        var settings = BottleSettings()
-        settings.graphicsBackend = .dxvk
-
-        let env = settings.env
-
-        // MoltenVK compiles Metal shaders serially unless told otherwise;
-        // Apple Silicon has the cores for it.
-        XCTAssertEqual(env["MVK_CONFIG_SHOULD_MAXIMIZE_CONCURRENT_COMPILATION"], "1")
-    }
-
-    func testOtherBackendsDoNotSetMoltenVKConfig() {
-        var settings = BottleSettings()
-        settings.graphicsBackend = .d3dMetal
-
-        let env = settings.env
-
-        XCTAssertNil(env["MVK_CONFIG_SHOULD_MAXIMIZE_CONCURRENT_COMPILATION"])
-    }
-
-    func testExportedEnvironmentCarriesNoUnreadKnobs() {
-        // Sweeping the shipped WhiskyWine 2.5.0 binaries (ntdll.so, wineserver,
-        // wine64, the preloader) showed none of these names anywhere. They must
-        // not come back: every launch exports the platform layer, and inert
-        // keys turn launch logs and diagnostics into fiction. The second group
-        // is read by no Wine, DXVK, DXMT or D3DMetal build either (upstream #301).
-        let unread = [
-            "WINE_CPU_TOPOLOGY", "WINE_THREAD_PRIORITY_PRESERVE",
-            "WINE_ENABLE_POSIX_SIGNALS", "WINE_SIGPIPE_IGNORE",
-            "WINE_PRELOADER_DEBUG", "WINE_DISABLE_FAST_PATH",
-            "WINE_MACH_PORT_TIMEOUT", "WINE_MACH_PORT_RETRY_COUNT",
-            "WINE_ENABLE_PIPE_SYNC_FOR_APP", "WINE_DISABLE_NTDLL_THREAD_REGS",
-            "D3DM_VALIDATION", "DXVK_REQUIRED", "GPU_VENDOR_ID", "GPU_DEVICE_ID",
-            "GPU_DESCRIPTION", "GPU_MEMORY_SIZE", "D3DM_SHADER_MODEL"
-        ]
-        var exported = Set(MacOSCompatibilityFixes.allFixes.map(\.key))
-        for vendor in GPUVendor.allCases {
-            exported.formUnion(GPUDetection.spoofGPU(vendor: vendor).keys)
-        }
-        for launcher in LauncherType.allCases {
-            exported.formUnion(launcher.environmentOverrides().keys)
-        }
-        for entry in GameDBLoader.loadDefaults() {
-            for variant in entry.variants {
-                exported.formUnion((variant.environmentVariables ?? [:]).keys)
-            }
-        }
-        for key in unread {
-            XCTAssertFalse(exported.contains(key), "\(key) is not read by the shipped runtime")
-        }
-        // The survivors have real consumers: libd3dshared reads WINEFSYNC, the
-        // Windows-side programs read the CEF/Steam variables.
-        XCTAssertTrue(exported.contains("WINEFSYNC"))
-        XCTAssertTrue(exported.contains("CEF_DISABLE_SANDBOX"))
     }
 
     // MARK: - Enhanced Sync Environment Variables
@@ -195,7 +111,8 @@ final class EnvironmentVariablesTests: XCTestCase {
         var settings = BottleSettings()
         settings.enhancedSync = .esync
 
-        let env = settings.env
+        var env: [String: String] = [:]
+        settings.environmentVariables(wineEnv: &env)
 
         XCTAssertEqual(env["WINEESYNC"], "1")
         XCTAssertNil(env["WINEMSYNC"])
@@ -205,7 +122,8 @@ final class EnvironmentVariablesTests: XCTestCase {
         var settings = BottleSettings()
         settings.enhancedSync = .msync
 
-        let env = settings.env
+        var env: [String: String] = [:]
+        settings.environmentVariables(wineEnv: &env)
 
         // When MSync is enabled, both WINEMSYNC and WINEESYNC must be set.
         // This is required for D3DM compatibility - values are hardcoded in lid3dshared.dylib
@@ -217,7 +135,8 @@ final class EnvironmentVariablesTests: XCTestCase {
         var settings = BottleSettings()
         settings.enhancedSync = .none
 
-        let env = settings.env
+        var env: [String: String] = [:]
+        settings.environmentVariables(wineEnv: &env)
 
         if MacOSVersion.current >= .sequoia15_4 {
             XCTAssertEqual(env["WINEESYNC"], "1")
@@ -234,7 +153,8 @@ final class EnvironmentVariablesTests: XCTestCase {
         var settings = BottleSettings()
         settings.metalHud = true
 
-        let env = settings.env
+        var env: [String: String] = [:]
+        settings.environmentVariables(wineEnv: &env)
 
         XCTAssertEqual(env["MTL_HUD_ENABLED"], "1")
     }
@@ -243,19 +163,19 @@ final class EnvironmentVariablesTests: XCTestCase {
         var settings = BottleSettings()
         settings.metalTrace = true
 
-        let env = settings.env
+        var env: [String: String] = [:]
+        settings.environmentVariables(wineEnv: &env)
 
-        // The documented name, which DXMT also checks, and the older one
-        // Metal.framework still reads.
-        XCTAssertEqual(env["MTL_CAPTURE_ENABLED"], "1")
         XCTAssertEqual(env["METAL_CAPTURE_ENABLED"], "1")
     }
 
     func testEnvironmentVariablesWithMetalValidation() {
         var settings = BottleSettings()
         settings.metalValidation = true
+        settings.sequoiaCompatMode = false
 
-        let env = settings.env
+        var env: [String: String] = [:]
+        settings.environmentVariables(wineEnv: &env)
 
         XCTAssertEqual(env["MTL_DEBUG_LAYER"], "1")
     }
@@ -266,7 +186,8 @@ final class EnvironmentVariablesTests: XCTestCase {
         var settings = BottleSettings()
         settings.avxEnabled = true
 
-        let env = settings.env
+        var env: [String: String] = [:]
+        settings.environmentVariables(wineEnv: &env)
 
         XCTAssertEqual(env["ROSETTA_ADVERTISE_AVX"], "1")
     }
@@ -275,7 +196,8 @@ final class EnvironmentVariablesTests: XCTestCase {
         var settings = BottleSettings()
         settings.dxrEnabled = true
 
-        let env = settings.env
+        var env: [String: String] = [:]
+        settings.environmentVariables(wineEnv: &env)
 
         XCTAssertEqual(env["D3DM_SUPPORT_DXR"], "1")
     }
@@ -288,7 +210,10 @@ final class EnvironmentVariablesTests: XCTestCase {
 
         for dxrEnabled in [false, true] {
             settings.dxrEnabled = dxrEnabled
-            let env = settings.env
+            var builder = EnvironmentBuilder()
+            _ = settings.populateBottleManagedLayer(builder: &builder, resolvedBackend: .d3dMetal)
+            _ = settings.populateLauncherManagedLayer(builder: &builder)
+            let (env, _) = builder.resolve()
 
             // Ray tracing is the bottle's decision; the spoof's launcher layer
             // wins over the bottle layer, so it must not carry its own answer.
@@ -298,16 +223,19 @@ final class EnvironmentVariablesTests: XCTestCase {
 
     // MARK: - Sequoia Compatibility Mode
 
-    func testBottleLayerEmitsNoSequoiaFixes() {
+    func testSequoiaToggleEmitsNothing() {
         var settings = BottleSettings()
+        settings.sequoiaCompatMode = true
         settings.metalValidation = false
 
-        let env = settings.env
+        var env: [String: String] = [:]
+        settings.environmentVariables(wineEnv: &env)
 
-        // Of the three values the removed Sequoia toggle used to set, two are
-        // platform-layer fixes on every supported macOS, carried with
-        // provenance by constructWineEnvironment, and D3DM_VALIDATION is read
-        // by no runtime.
+        // Of the three values the toggle used to set, two are platform-layer
+        // fixes on every supported macOS, carried with provenance by
+        // constructWineEnvironment, and D3DM_VALIDATION is read by no runtime;
+        // the bottle-layer duplicates meant the toggle's off position changed
+        // nothing.
         XCTAssertNil(env["MTL_DEBUG_LAYER"])
         XCTAssertNil(env["D3DM_VALIDATION"])
         XCTAssertNil(env["WINEFSYNC"])
@@ -315,7 +243,9 @@ final class EnvironmentVariablesTests: XCTestCase {
 
     @MainActor
     func testPlatformLayerCarriesTheSequoiaFixes() throws {
-        let tempDir = try makeTempDir()
+        let tempDir = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
         let bottle = Bottle(bottleUrl: tempDir, inFlight: false, isAvailable: true)
 
         let env = Wine.constructWineEnvironment(for: bottle)
@@ -329,7 +259,9 @@ final class EnvironmentVariablesTests: XCTestCase {
 
     @MainActor
     func testMetalValidationOverridesThePlatformFix() throws {
-        let tempDir = try makeTempDir()
+        let tempDir = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
         let bottle = Bottle(bottleUrl: tempDir, inFlight: false, isAvailable: true)
         bottle.settings.metalValidation = true
 
@@ -347,23 +279,13 @@ final class EnvironmentVariablesTests: XCTestCase {
         var settings = BottleSettings()
         settings.shaderCacheEnabled = false
 
-        let env = settings.env
+        var env: [String: String] = [:]
+        settings.environmentVariables(wineEnv: &env)
 
-        // The variables DXVK and DXMT read, not the NVIDIA GL one the toggle used to set.
+        // The variable DXVK reads, not the NVIDIA GL one the toggle used to set.
         XCTAssertEqual(env["DXVK_STATE_CACHE"], "0")
-        XCTAssertEqual(env["DXMT_SHADER_CACHE"], "0")
         XCTAssertNil(env["DXVK_SHADER_COMPILE_THREADS"])
         XCTAssertNil(env["__GL_SHADER_DISK_CACHE"])
-    }
-
-    func testEnabledShaderCacheSetsNothing() {
-        var settings = BottleSettings()
-        settings.graphicsBackend = .dxmt
-
-        let env = settings.env
-
-        XCTAssertNil(env["DXVK_STATE_CACHE"])
-        XCTAssertNil(env["DXMT_SHADER_CACHE"])
     }
 
     // MARK: - EnvironmentBuilder Layer Populator Tests
@@ -468,34 +390,6 @@ final class EnvironmentVariablesTests: XCTestCase {
 
         let (overrideString, _) = dllResolver.resolve()
         return overrideString
-    }
-
-    /// A program steered onto DXVK in a bottle running something else used to
-    /// get DXVK's DLLs but neither async compilation nor MoltenVK's concurrent
-    /// compile, both of which the bottle layer only sets under DXVK.
-    func testProgramDXVKOverrideGetsBottleDXVKEnvironment() {
-        for (dxvkAsync, legacyFlag) in [(true, false), (false, false), (true, true)] {
-            var settings = BottleSettings()
-            settings.graphicsBackend = .dxmt
-            var builder = EnvironmentBuilder()
-            var dllResolver = DLLOverrideResolver(managed: [], bottleCustom: [], programCustom: [])
-            _ = settings.populateBottleManagedLayer(builder: &builder, builtinD3D12IsD3DMetal: false)
-
-            var overrides = ProgramOverrides()
-            if legacyFlag {
-                overrides.dxvk = true
-            } else {
-                overrides.graphicsBackend = .dxvk
-            }
-            Wine.applyProgramOverrides(
-                overrides, dxvkAsync: dxvkAsync, builtinD3D12IsD3DMetal: false,
-                builder: &builder, dllResolver: &dllResolver
-            )
-
-            let env = builder.resolve().environment
-            XCTAssertEqual(env["DXVK_ASYNC"], dxvkAsync ? "1" : nil)
-            XCTAssertEqual(env["MVK_CONFIG_SHOULD_MAXIMIZE_CONCURRENT_COMPILATION"], "1")
-        }
     }
 
     func testProgramBackendOverrideDXMTAppendsPreset() {
@@ -680,7 +574,8 @@ final class EnvironmentVariablesTests: XCTestCase {
         var settings = BottleSettings()
         settings.graphicsBackend = .d3dMetal
         settings.frameGeneration = true
-        let env = settings.env
+        var env: [String: String] = [:]
+        settings.environmentVariables(wineEnv: &env)
         XCTAssertEqual(env["CX_ACTIVE_GRAPHICS_BACKEND"], "d3dmetal")
     }
 
@@ -691,7 +586,8 @@ final class EnvironmentVariablesTests: XCTestCase {
         var settings = BottleSettings()
         settings.graphicsBackend = .d3dMetal
         XCTAssertFalse(settings.frameGeneration)
-        let env = settings.env
+        var env: [String: String] = [:]
+        settings.environmentVariables(wineEnv: &env)
         XCTAssertNil(env["CX_ACTIVE_GRAPHICS_BACKEND"])
     }
 
@@ -701,7 +597,8 @@ final class EnvironmentVariablesTests: XCTestCase {
         var settings = BottleSettings()
         settings.graphicsBackend = .d3dMetal
         settings.metalFX = true
-        let env = settings.env
+        var env: [String: String] = [:]
+        settings.environmentVariables(wineEnv: &env)
         XCTAssertEqual(env["D3DM_ENABLE_METALFX"], "1")
         XCTAssertNil(env["CX_ACTIVE_GRAPHICS_BACKEND"])
     }
@@ -709,7 +606,8 @@ final class EnvironmentVariablesTests: XCTestCase {
     func testDXVKBottleDoesNotClaimHardwareScheduling() {
         var settings = BottleSettings()
         settings.graphicsBackend = .dxvk
-        let env = settings.env
+        var env: [String: String] = [:]
+        settings.environmentVariables(wineEnv: &env)
         XCTAssertNil(env["CX_ACTIVE_GRAPHICS_BACKEND"])
     }
 
@@ -764,6 +662,84 @@ final class EnvironmentVariablesTests: XCTestCase {
         XCTAssertEqual(decoded.metal4Enabled, false)
     }
 
+    // MARK: - Metal HUD is per program, because the bottle value also covers launchers
+
+    /// Resolves the environment a program gets from a bottle with the Metal HUD
+    /// on, which is where `MTL_HUD_ENABLED` is set, with its own overrides on top.
+    private func resolvedHUDEnvironment(
+        bottleHUD: Bool,
+        _ overrides: ProgramOverrides
+    ) -> [String: String] {
+        var settings = BottleSettings()
+        settings.metalHud = bottleHUD
+        var builder = EnvironmentBuilder()
+        var dllResolver = DLLOverrideResolver(managed: [], bottleCustom: [], programCustom: [])
+
+        _ = settings.populateBottleManagedLayer(builder: &builder)
+        Wine.applyProgramOverrides(overrides, builder: &builder, dllResolver: &dllResolver)
+
+        return builder.resolve().environment
+    }
+
+    func testProgramCanTakeTheHUDWithoutTheBottleHavingIt() {
+        // The point of the override: measure one title without the HUD sitting
+        // over the launcher the player is still using.
+        var overrides = ProgramOverrides()
+        overrides.metalHud = true
+
+        XCTAssertEqual(resolvedHUDEnvironment(bottleHUD: false, overrides)["MTL_HUD_ENABLED"], "1")
+    }
+
+    func testProgramCanDropTheHUDWithoutTheBottleLosingIt() {
+        var overrides = ProgramOverrides()
+        overrides.metalHud = false
+
+        // Removed rather than set to "0": the removal shadows the bottle's value,
+        // and an absent variable leaves Metal's HUD off.
+        XCTAssertNil(resolvedHUDEnvironment(bottleHUD: true, overrides)["MTL_HUD_ENABLED"])
+    }
+
+    func testMetalHUDOverrideUnsetInheritsTheBottle() {
+        XCTAssertEqual(resolvedHUDEnvironment(bottleHUD: true, ProgramOverrides())["MTL_HUD_ENABLED"], "1")
+        XCTAssertNil(resolvedHUDEnvironment(bottleHUD: false, ProgramOverrides())["MTL_HUD_ENABLED"])
+        XCTAssertNil(ProgramOverrides().metalHud)
+    }
+
+    func testMetalHUDOverrideCountsTowardsIsEmpty() {
+        var overrides = ProgramOverrides()
+        overrides.metalHud = true
+
+        XCTAssertFalse(overrides.isEmpty)
+    }
+
+    func testOverridesWithoutAMetalHUDKeyDecodeToInherit() throws {
+        // Overrides written before this key existed must keep inheriting.
+        let json = Data(#"{"metal4Enabled":true}"#.utf8)
+        let decoded = try JSONDecoder().decode(ProgramOverrides.self, from: json)
+
+        XCTAssertNil(decoded.metalHud)
+        XCTAssertEqual(decoded.metal4Enabled, true)
+    }
+
+    func testMetalHUDOverrideSurvivesASettingsRoundTrip() throws {
+        var overrides = ProgramOverrides()
+        overrides.metalHud = true
+
+        let data = try PropertyListEncoder().encode(overrides)
+        let decoded = try PropertyListDecoder().decode(ProgramOverrides.self, from: data)
+
+        XCTAssertEqual(decoded.metalHud, true)
+    }
+
+    func testSettingsWithoutAMetalHUDKeyDecodeToInherit() throws {
+        // Settings written before this override existed must keep inheriting.
+        let json = Data(#"{"metal4Enabled":false}"#.utf8)
+        let decoded = try JSONDecoder().decode(ProgramOverrides.self, from: json)
+
+        XCTAssertNil(decoded.metalHud)
+        XCTAssertEqual(decoded.metal4Enabled, false)
+    }
+
     /// Resolves the environment a program launch actually sees: the bottle-managed
     /// layer with the program override applied on top.
     private func resolvedEnvironment(
@@ -780,44 +756,6 @@ final class EnvironmentVariablesTests: XCTestCase {
 
         let (resolved, _) = builder.resolve()
         return resolved
-    }
-
-    func testProgramCanDisableShaderCacheOnDXMT() {
-        var settings = BottleSettings()
-        settings.graphicsBackend = .dxmt
-
-        var overrides = ProgramOverrides()
-        overrides.shaderCacheEnabled = false
-
-        let env = resolvedEnvironment(bottleSettings: settings, programOverrides: overrides)
-        XCTAssertEqual(env["DXMT_SHADER_CACHE"], "0")
-    }
-
-    func testProgramCanReenableShaderCacheOnDXMT() {
-        var settings = BottleSettings()
-        settings.graphicsBackend = .dxmt
-        settings.shaderCacheEnabled = false
-
-        var overrides = ProgramOverrides()
-        overrides.shaderCacheEnabled = true
-
-        let env = resolvedEnvironment(bottleSettings: settings, programOverrides: overrides)
-        XCTAssertNil(env["DXMT_SHADER_CACHE"])
-        XCTAssertNil(env["DXVK_STATE_CACHE"])
-    }
-
-    /// A program moved onto DXMT keeps the bottle's disabled cache, because the
-    /// bottle sets DXMT's variable whatever its own backend.
-    func testProgramBackendSwitchToDXMTKeepsDisabledShaderCache() {
-        var settings = BottleSettings()
-        settings.graphicsBackend = .dxvk
-        settings.shaderCacheEnabled = false
-
-        var overrides = ProgramOverrides()
-        overrides.graphicsBackend = .dxmt
-
-        let env = resolvedEnvironment(bottleSettings: settings, programOverrides: overrides)
-        XCTAssertEqual(env["DXMT_SHADER_CACHE"], "0")
     }
 
     func testDXVKProgramOverrideKeepsHardwareSchedulingClaim() {

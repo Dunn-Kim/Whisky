@@ -53,12 +53,12 @@ struct AudioDeviceHistoryView: View {
 
     private func eventRow(_ event: AudioDeviceChangeEvent) -> some View {
         HStack(spacing: 8) {
-            Image(systemName: "speaker.wave.2")
-                .foregroundStyle(.blue)
+            Image(systemName: eventIcon(event.eventType))
+                .foregroundStyle(eventColor(event.eventType))
                 .frame(width: 20)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(verbatim: "Default output changed to \(event.deviceName)")
+                Text(eventDescription(event))
                     .font(.caption)
                 HStack(spacing: 4) {
                     Text(event.transportType.displayName)
@@ -75,5 +75,36 @@ struct AudioDeviceHistoryView: View {
             Spacer()
         }
         .padding(.vertical, 2)
+    }
+
+    private func eventIcon(_ eventType: AudioDeviceChangeEvent.EventType) -> String {
+        switch eventType {
+        case .defaultOutputChanged: "speaker.wave.2"
+        case .disconnected: "speaker.slash"
+        case .reconnected: "speaker.wave.3"
+        case .sampleRateChanged: "waveform"
+        }
+    }
+
+    private func eventColor(_ eventType: AudioDeviceChangeEvent.EventType) -> Color {
+        switch eventType {
+        case .defaultOutputChanged: .blue
+        case .disconnected: .red
+        case .reconnected: .green
+        case .sampleRateChanged: .orange
+        }
+    }
+
+    private func eventDescription(_ event: AudioDeviceChangeEvent) -> String {
+        switch event.eventType {
+        case .defaultOutputChanged:
+            String(localized: "audio.history.event.defaultOutputChanged \(event.deviceName)")
+        case .disconnected:
+            String(localized: "audio.history.event.disconnected \(event.deviceName)")
+        case .reconnected:
+            String(localized: "audio.history.event.reconnected \(event.deviceName)")
+        case .sampleRateChanged:
+            String(localized: "audio.history.event.sampleRateChanged \(event.deviceName)")
+        }
     }
 }

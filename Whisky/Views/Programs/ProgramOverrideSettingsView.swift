@@ -31,13 +31,30 @@ struct ProgramOverrideSettingsView: View {
     @ObservedObject var bottle: Bottle
     @ObservedObject var program: Program
     @Binding var isExpanded: Bool
+    /// Opens the bottle's configuration page, where the advanced audio
+    /// settings live. Without it the wizard does not offer to open them.
+    var onOpenBottleConfig: (() -> Void)?
 
     @State private var showResetConfirmation = false
-    @State private var showAudioWizard = false
     @State private var diagnosisPresentation: DiagnosisPresentation?
     @State private var gameMatch: MatchResult?
+    @State private var showGameConfigDetail: Bool = false
     @State private var recommendedDependencies: [DependencyDefinition] = []
     @State private var dependencyToInstall: DependencyDefinition?
+    /// The audio troubleshooting wizard for this program's bottle, while it is open.
+    @State private var audioWizard: AudioWizardPresentation?
+    @State private var audioMonitor = AudioDeviceMonitor()
+    /// Set when the wizard asked for the advanced audio settings; acted on
+    /// once its sheet is gone so the navigation is not lost to the dismissal.
+    @State private var openAdvancedAudioAfterWizard = false
+    @AppStorage("audioAdvancedMode") private var audioAdvancedMode = false
+    /// The bottle's virtual desktop as its registry has it, once read. The
+    /// bottle's setting only mirrors the registry and misses changes made
+    /// outside its Display section, such as in winecfg.
+    @State private var bottleVirtualDesktopInRegistry: (enabled: Bool, resolution: String?)?
+    /// Read from the runtime's version plist when the sync group appears, not
+    /// on every redraw, and assumed until then.
+    @State private var runtimeImplementsEnhancedSync = true
 
     var body: some View {
         dependencyBadgeSection
@@ -49,6 +66,7 @@ struct ProgramOverrideSettingsView: View {
             inputGroup
             displayGroup
             dllOverridesGroup
+            winetricksSection
             resetButton
         }
         diagnosticsSection
@@ -56,6 +74,12 @@ struct ProgramOverrideSettingsView: View {
             .task {
                 await loadGameMatch()
                 await loadRecommendedDependencies()
+            }
+            .sheet(isPresented: $showGameConfigDetail) {
+                if let match = gameMatch {
+                    GameEntryDetailView(entry: match.entry, bottle: bottle, programURL: program.url)
+                        .frame(minWidth: 600, minHeight: 500)
+                }
             }
             // Item-based so the sheet is built from the value that presents it.
             // With isPresented plus a separate optional, the content closure can
@@ -67,7 +91,8 @@ struct ProgramOverrideSettingsView: View {
                     programName: program.name,
                     bottleName: bottle.settings.name,
                     timestamp: Date(),
-                    applyBottle: bottle
+                    applyBottle: bottle,
+                    applyProgramURL: program.url
                 )
                 .frame(minWidth: 600, minHeight: 400)
             }
@@ -87,6 +112,9 @@ struct ProgramOverrideSettingsView: View {
                 onViewDetails: { entry in
                     viewDiagnosisDetails(for: entry)
                 },
+                onReanalyze: { entry in
+                    viewDiagnosisDetails(for: entry)
+                },
                 onAnalyzeLastRun: {
                     analyzeLastRun()
                 }
@@ -104,36 +132,67 @@ struct ProgramOverrideSettingsView: View {
     }
 
     private func viewDiagnosisDetails(for entry: DiagnosisHistoryEntry) {
-        presentDiagnosis(logURL: Wine.logsFolder.appendingPathComponent(entry.logFileRef))
+        let logURL = Wine.logsFolder.appendingPathComponent(entry.logFileRef)
+        Task {
+            guard let diagnosis = await Wine.classifyLastRun(
+                logFileURL: logURL,
+                exitCode: 1
+            )
+            else { return }
+            diagnosisPresentation = DiagnosisPresentation(
+                diagnosis: diagnosis,
+                logText: (try? String(contentsOf: logURL, encoding: .utf8)) ?? ""
+            )
+        }
     }
 
     private func analyzeLastRun() {
         guard let logURL = program.settings.lastLogFileURL else { return }
-        presentDiagnosis(logURL: logURL)
-    }
-
-    /// Classifies the log at `logURL` and presents the diagnosis with its text.
-    private func presentDiagnosis(logURL: URL) {
-        Task { diagnosisPresentation = await DiagnosisPresentation.load(logURL: logURL, program: program) }
+        Task {
+            guard let diagnosis = await Wine.classifyLastRun(
+                logFileURL: logURL,
+                exitCode: 1
+            )
+            else { return }
+            diagnosisPresentation = DiagnosisPresentation(
+                diagnosis: diagnosis,
+                logText: (try? String(contentsOf: logURL, encoding: .utf8)) ?? ""
+            )
+        }
     }
 
     // MARK: - Audio Troubleshooting Section
 
     private var audioTroubleshootingSection: some View {
-        Section("Audio") {
+        Section("config.title.audio") {
             Button("Troubleshoot Audio\u{2026}") {
-                showAudioWizard = true
+                audioWizard = .make(for: bottle, monitor: audioMonitor)
             }
-            .help("Open audio diagnostics and troubleshooting for this bottle")
+            .help("program.overrides.audio.troubleshoot.help")
         }
-        .sheet(isPresented: $showAudioWizard) {
-            TroubleshootingWizardView(
-                bottle: bottle,
-                program: program,
-                entryContext: .program(programURL: program.url, bottleURL: bottle.url),
-                startingCategory: .audio
+        .sheet(item: $audioWizard, onDismiss: openAdvancedAudioIfRequested) { presentation in
+            AudioTroubleshootingWizardView(
+                engine: presentation.engine,
+                onDismiss: {
+                    audioWizard = nil
+                },
+                onOpenAdvanced: onOpenBottleConfig == nil ? nil : {
+                    openAdvancedAudioAfterWizard = true
+                },
+                onApplyFix: { actionId in
+                    await AudioWizardPresentation.applyFix(actionId, bottle: bottle).failureReason
+                }
             )
         }
+    }
+
+    /// Shows the bottle's audio settings in advanced mode on its configuration
+    /// page, after the wizard asked for them.
+    private func openAdvancedAudioIfRequested() {
+        guard openAdvancedAudioAfterWizard else { return }
+        openAdvancedAudioAfterWizard = false
+        audioAdvancedMode = true
+        onOpenBottleConfig?()
     }
 
     // MARK: - Dependency Badge
@@ -182,8 +241,25 @@ struct ProgramOverrideSettingsView: View {
             Section(String(localized: "gameConfig.banner.recommended")) {
                 GameConfigBannerView(
                     matchResult: match,
-                    bottle: bottle
+                    bottle: bottle,
+                    programURL: program.url
                 )
+
+                Button {
+                    showGameConfigDetail = true
+                } label: {
+                    HStack {
+                        Text(match.entry.title)
+                            .font(.subheadline)
+                        Spacer()
+                        Text(match.entry.rating.displayName)
+                            .font(.caption)
+                            .foregroundStyle(ratingColor(match.entry.rating))
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
             }
         }
     }
@@ -195,6 +271,7 @@ struct ProgramOverrideSettingsView: View {
 
         let metadata = ProgramMetadata(
             exeName: exeName,
+            exeURL: exeURL,
             steamAppId: steamAppId
         )
 
@@ -203,6 +280,16 @@ struct ProgramOverrideSettingsView: View {
 
         await MainActor.run {
             gameMatch = match
+        }
+    }
+
+    private func ratingColor(_ rating: CompatibilityRating) -> Color {
+        switch rating {
+        case .works: .green
+        case .playable: .yellow
+        case .unverified: .gray
+        case .broken: .red
+        case .notSupported: .red
         }
     }
 
@@ -216,10 +303,7 @@ struct ProgramOverrideSettingsView: View {
             )
             if hasGraphicsOverride {
                 // Backend picker
-                Picker(
-                    "config.graphics.backend",
-                    selection: override(\.graphicsBackend, fallback: bottle.settings.graphicsBackend)
-                ) {
+                Picker("config.graphics.backend", selection: graphicsBackendBinding) {
                     // Payload-gated backends (DXMT on an old runtime) are not
                     // offered — except when this program already uses one, so
                     // the picker can still display the current selection.
@@ -232,22 +316,6 @@ struct ProgramOverrideSettingsView: View {
                     }
                 }
 
-                // Frame cap applies to every backend that ships a limiter, not
-                // just DXVK, so it sits outside the DXVK-only controls below.
-                if resolvedOverriddenBackend.supportsFrameRateLimit {
-                    Picker(
-                        "config.frameRateLimit",
-                        selection: override(\.frameRateLimit, fallback: bottle.settings.frameRateLimit)
-                    ) {
-                        ForEach(FrameRateLimit.allCases, id: \.self) { limit in
-                            Text(limit.label).tag(limit)
-                        }
-                    }
-                    Text("config.frameRateLimit.pacing")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
                 // Resolved, so a program on Recommended that runs DXVK does
                 // not hide the controls that are in effect.
                 if resolvedOverriddenBackend == .dxvk {
@@ -258,20 +326,26 @@ struct ProgramOverrideSettingsView: View {
                 // this is the one graphics setting a single title needs to be
                 // able to turn off while the bottle keeps it.
                 if resolvedOverriddenBackend == .d3dMetal {
-                    Toggle("config.metal4", isOn: override(\.metal4Enabled, fallback: bottle.settings.metal4Enabled))
+                    Toggle("config.metal4", isOn: metal4Binding)
                 }
+
+                // Not gated on the backend: the Metal HUD is Apple's, and it
+                // draws over DXVK titles too. The bottle value covers every
+                // process in the prefix, launcher windows included, so this is
+                // how one title gets the HUD to itself.
+                Toggle("config.metalHud", isOn: metalHudBinding)
 
                 // "Takes effect next launch" note
                 Text("config.graphics.nextLaunch")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             } else {
+                // Resolved, or a bottle on Recommended reports "Recommended".
+                let backendName = resolvedBottleBackend.displayName
+                let asyncState = onOff(bottle.settings.dxvkAsync)
+                let hudState = hudDescription(bottle.settings.dxvkHud)
                 inheritedSummary(
-                    // Resolved, or a bottle on Recommended reports "Recommended".
-                    "\(resolvedBottleBackend.displayName), "
-                        + "\(bottle.settings.frameRateLimit.label), "
-                        + "DXVK Async \(bottle.settings.dxvkAsync ? "On" : "Off"), "
-                        + "HUD \(hudDescription(bottle.settings.dxvkHud))"
+                    String(localized: "program.overrides.graphics.summary \(backendName) \(asyncState) \(hudState)")
                 )
             }
         }
@@ -279,8 +353,8 @@ struct ProgramOverrideSettingsView: View {
 
     @ViewBuilder
     private var graphicsControls: some View {
-        Toggle("config.dxvk.async", isOn: override(\.dxvkAsync, fallback: bottle.settings.dxvkAsync))
-        Picker("config.dxvkHud", selection: override(\.dxvkHud, fallback: bottle.settings.dxvkHud)) {
+        Toggle("config.dxvk.async", isOn: dxvkAsyncBinding)
+        Picker("config.dxvkHud", selection: dxvkHudBinding) {
             Text("config.dxvkHud.full").tag(DXVKHUD.full)
             Text("config.dxvkHud.partial").tag(DXVKHUD.partial)
             Text("config.dxvkHud.fps").tag(DXVKHUD.fps)
@@ -297,22 +371,22 @@ struct ProgramOverrideSettingsView: View {
                 isOn: syncOverrideBinding
             )
             if hasSyncOverride {
-                Picker(
-                    "config.enhancedSync",
-                    selection: override(\.enhancedSync, fallback: bottle.settings.enhancedSync)
-                ) {
+                Picker("config.enhancedSync", selection: enhancedSyncBinding) {
                     Text("config.enhancedSync.none").tag(EnhancedSync.none)
                     Text("config.enhancedSync.esync").tag(EnhancedSync.esync)
                     Text("config.enhancedSync.msync").tag(EnhancedSync.msync)
                 }
-                if WhiskyWineInstaller.whiskyWineInfo()?.msyncCapable != true {
-                    Text("config.enhancedSync.unavailable")
+                if !runtimeImplementsEnhancedSync {
+                    Text("config.enhancedSync.runtimeUnsupported")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
             } else {
-                inheritedSummary(bottle.settings.enhancedSync.displayName)
+                inheritedSummary(syncDescription(bottle.settings.enhancedSync))
             }
+        }
+        .task {
+            runtimeImplementsEnhancedSync = WhiskyWineInstaller.runtimeImplementsEnhancedSync()
         }
     }
 
@@ -327,14 +401,17 @@ struct ProgramOverrideSettingsView: View {
             if hasPerformanceOverride {
                 performanceControls
             } else {
-                inheritedSummary("Shader Cache \(bottle.settings.shaderCacheEnabled ? "On" : "Off")")
+                inheritedSummary(
+                    String(
+                        localized: "program.overrides.performance.summary \(onOff(bottle.settings.shaderCacheEnabled))"
+                    )
+                )
             }
         }
     }
 
-    @ViewBuilder
     private var performanceControls: some View {
-        Toggle("config.shaderCache", isOn: override(\.shaderCacheEnabled, fallback: bottle.settings.shaderCacheEnabled))
+        Toggle("config.shaderCache", isOn: shaderCacheBinding)
     }
 
     // MARK: - Input Group
@@ -348,9 +425,10 @@ struct ProgramOverrideSettingsView: View {
             if hasInputOverride {
                 inputControls
             } else {
+                let compatState = onOff(bottle.settings.controllerCompatibilityMode)
+                let labelsState = onOff(bottle.settings.useButtonLabels)
                 inheritedSummary(
-                    "Controller Compat \(bottle.settings.controllerCompatibilityMode ? "On" : "Off"), "
-                        + "Native Labels \(bottle.settings.useButtonLabels ? "On" : "Off")"
+                    String(localized: "program.overrides.input.summary \(compatState) \(labelsState)")
                 )
             }
         }
@@ -358,11 +436,11 @@ struct ProgramOverrideSettingsView: View {
 
     @ViewBuilder
     private var inputControls: some View {
-        Toggle("config.controllerCompat", isOn: override(\.controllerCompatibilityMode, fallback: false))
-        Toggle("config.disableHIDAPI", isOn: override(\.disableHIDAPI, fallback: false))
-        Toggle("config.allowBackgroundEvents", isOn: override(\.allowBackgroundEvents, fallback: false))
-        Toggle("config.disableControllerMapping", isOn: override(\.disableControllerMapping, fallback: false))
-        Toggle("config.useButtonLabels", isOn: override(\.useButtonLabels, fallback: false))
+        Toggle("config.controllerCompat", isOn: controllerCompatBinding)
+        Toggle("config.disableHIDAPI", isOn: disableHIDAPIBinding)
+        Toggle("config.allowBackgroundEvents", isOn: allowBackgroundBinding)
+        Toggle("config.disableControllerMapping", isOn: disableControllerMappingBinding)
+        Toggle("config.useButtonLabels", isOn: useButtonLabelsBinding)
     }
 
     // MARK: - Display Group
@@ -376,27 +454,44 @@ struct ProgramOverrideSettingsView: View {
             if hasDisplayOverride {
                 displayControls
             } else {
-                if bottle.settings.virtualDesktopEnabled {
-                    let preset = bottle.settings.resolutionPreset
-                    let resText = preset.dimensions.map { "\($0.width)x\($0.height)" }
-                        ?? (preset == .custom
-                            ? "\(bottle.settings.customResolutionWidth)x\(bottle.settings.customResolutionHeight)"
-                            : String(localized: "config.virtualDesktop.matchDisplay.label"))
+                if bottleVirtualDesktopEnabled {
                     inheritedSummary(
-                        String(localized: "program.overrides.display.enabled") + " " + resText
+                        String(localized: "program.overrides.display.enabledSummary \(bottleVirtualDesktopSize)")
                     )
                 } else {
                     inheritedSummary(String(localized: "config.virtualDesktop.off"))
                 }
             }
         }
+        .task(id: bottle.url) {
+            bottleVirtualDesktopInRegistry = try? await Wine.virtualDesktop(bottle: bottle)
+        }
+    }
+
+    /// Whether the bottle runs its programs in a virtual desktop: the registry's
+    /// answer once read, the bottle's setting until then.
+    private var bottleVirtualDesktopEnabled: Bool {
+        bottleVirtualDesktopInRegistry?.enabled ?? bottle.settings.virtualDesktopEnabled
+    }
+
+    /// The size of the bottle's virtual desktop, from its settings, or from the
+    /// registry when the settings do not know it is on.
+    private var bottleVirtualDesktopSize: String {
+        if !bottle.settings.virtualDesktopEnabled, let resolution = bottleVirtualDesktopInRegistry?.resolution {
+            return resolution
+        }
+        let preset = bottle.settings.resolutionPreset
+        return preset.dimensions.map { "\($0.width)x\($0.height)" }
+            ?? (preset == .custom
+                ? "\(bottle.settings.customResolutionWidth)x\(bottle.settings.customResolutionHeight)"
+                : String(localized: "config.virtualDesktop.matchDisplay.label"))
     }
 
     @ViewBuilder
     private var displayControls: some View {
-        Toggle("config.virtualDesktop", isOn: override(\.virtualDesktopEnabled, fallback: false))
+        Toggle("config.virtualDesktop", isOn: virtualDesktopEnabledBinding)
         if program.settings.overrides?.virtualDesktopEnabled == true {
-            Picker("config.virtualDesktop.resolution", selection: override(\.resolutionPreset, fallback: .r1920x1080)) {
+            Picker("config.virtualDesktop.resolution", selection: displayPresetBinding) {
                 ForEach(ResolutionPreset.allCases, id: \.self) { preset in
                     Text(preset.label).tag(preset)
                 }
@@ -438,14 +533,55 @@ struct ProgramOverrideSettingsView: View {
             if hasDLLOverride {
                 DLLOverrideEditor(
                     managedOverrides: computedManagedOverrides,
-                    customOverrides: override(\.dllOverrides, fallback: []),
+                    customOverrides: programDLLOverridesBinding,
                     warnings: computedDLLWarnings
                 )
             } else {
                 inheritedSummary(
-                    "\(bottle.settings.dllOverrides.count) "
-                        + String(localized: "program.overrides.dll.customCount")
+                    String(
+                        format: String(localized: "program.overrides.dll.customCount"),
+                        bottle.settings.dllOverrides.count
+                    )
                 )
+            }
+        }
+    }
+
+    // MARK: - Winetricks Verbs Section (Read-Only)
+
+    private var winetricksSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("program.overrides.winetricks.title")
+                .font(.headline)
+            Text("program.overrides.winetricks.subtitle")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            let verbs = installedVerbs
+            if verbs.isEmpty {
+                Text("program.overrides.winetricks.none")
+                    .foregroundStyle(.secondary)
+                    .font(.callout)
+            } else {
+                ForEach(verbs, id: \.self) { verb in
+                    HStack {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                            .font(.caption)
+                        Text(verb)
+                            .font(.system(.body, design: .monospaced))
+                        Spacer()
+                        Toggle(
+                            "program.overrides.winetricks.usedByProgram",
+                            isOn: verbTagBinding(for: verb)
+                        )
+                        .toggleStyle(.checkbox)
+                        .labelsHidden()
+                        Text("program.overrides.winetricks.usedByProgram")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
             }
         }
     }
@@ -492,12 +628,15 @@ struct ProgramOverrideSettingsView: View {
 
     /// The backend this program actually launches with.
     private var resolvedOverriddenBackend: GraphicsBackend {
-        (program.settings.overrides?.graphicsBackend ?? .recommended).resolved
+        let backend = program.settings.overrides?.graphicsBackend ?? .recommended
+        return backend == .recommended ? GraphicsBackendResolver.resolve() : backend
     }
 
     /// The bottle's backend, resolved, for the inherited summary.
     private var resolvedBottleBackend: GraphicsBackend {
-        bottle.settings.graphicsBackend.resolved
+        bottle.settings.graphicsBackend == .recommended
+            ? GraphicsBackendResolver.resolve()
+            : bottle.settings.graphicsBackend
     }
 
     private var hasSyncOverride: Bool {
@@ -520,33 +659,31 @@ struct ProgramOverrideSettingsView: View {
         program.settings.overrides?.dllOverrides != nil
     }
 
-    /// The backend this program launches with and the DLL overrides it manages, chosen the way
-    /// `Wine.runProgram` chooses them: the program's backend override wins over the bottle's, and
-    /// `.recommended` resolves against this executable, so a launcher gets DXVK's.
-    private var launchPreset: (backend: GraphicsBackend, entries: [DLLOverrideEntry]) {
-        let choice = program.settings.overrides?.graphicsBackend ?? bottle.settings.graphicsBackend
-        let backend = choice == .recommended
-            ? GraphicsBackendResolver.resolve(for: LauncherType.detect(from: program.url))
-            : choice
-        let entries = DLLOverrideResolver.managedPreset(
-            for: backend, builtinD3D12IsD3DMetal: GPTKImporter.isDeployed()
-        )
-        return (backend, entries)
+    private var installedVerbs: [String] {
+        let cache = WinetricksVerbCache.load(from: bottle.url)
+        return (cache?.installedVerbs ?? []).sorted()
     }
 
     private var computedManagedOverrides: [(entry: DLLOverrideEntry, source: String)] {
-        let preset = launchPreset
-        return preset.entries.map { (entry: $0, source: preset.backend.displayName) }
+        var managed: [(entry: DLLOverrideEntry, source: String)] = []
+        if bottle.settings.graphicsBackend == .dxvk {
+            for entry in DLLOverrideResolver.dxvkPreset(builtinD3D12IsD3DMetal: GPTKImporter.isDeployed()) {
+                managed.append((
+                    entry: entry,
+                    source: String(localized: "config.dllOverrides.source.dxvk")
+                ))
+            }
+        }
+        return managed
     }
 
     private var computedDLLWarnings: [DLLOverrideWarning] {
-        let preset = launchPreset
-        // Only DXVK and DXMT contribute a preset. Crediting the one that did is
-        // what keeps a conflict warning on a DXMT program from naming DXVK.
-        let source: DLLOverrideSource = preset.backend == .dxmt ? .dxmt : .dxvk
+        let managedEntries: [(entry: DLLOverrideEntry, source: DLLOverrideSource)] = computedManagedOverrides.map {
+            ($0.entry, .dxvk)
+        }
         let programDLLs = program.settings.overrides?.dllOverrides ?? []
         let resolver = DLLOverrideResolver(
-            managed: preset.entries.map { ($0, source) },
+            managed: managedEntries,
             bottleCustom: bottle.settings.dllOverrides,
             programCustom: programDLLs
         )
@@ -567,12 +704,14 @@ struct ProgramOverrideSettingsView: View {
                     program.settings.overrides?.dxvkAsync = bottle.settings.dxvkAsync
                     program.settings.overrides?.dxvkHud = bottle.settings.dxvkHud
                     program.settings.overrides?.metal4Enabled = bottle.settings.metal4Enabled
+                    program.settings.overrides?.metalHud = bottle.settings.metalHud
                 } else {
                     program.settings.overrides?.graphicsBackend = nil
                     program.settings.overrides?.dxvk = nil
                     program.settings.overrides?.dxvkAsync = nil
                     program.settings.overrides?.dxvkHud = nil
                     program.settings.overrides?.metal4Enabled = nil
+                    program.settings.overrides?.metalHud = nil
                 }
             }
         )
@@ -635,7 +774,7 @@ struct ProgramOverrideSettingsView: View {
             set: { isOn in
                 ensureOverrides()
                 if isOn {
-                    program.settings.overrides?.virtualDesktopEnabled = bottle.settings.virtualDesktopEnabled
+                    program.settings.overrides?.virtualDesktopEnabled = bottleVirtualDesktopEnabled
                     program.settings.overrides?.resolutionPreset = bottle.settings.resolutionPreset
                     program.settings.overrides?.customResolutionWidth = bottle.settings.customResolutionWidth
                     program.settings.overrides?.customResolutionHeight = bottle.settings.customResolutionHeight
@@ -665,15 +804,101 @@ struct ProgramOverrideSettingsView: View {
 
     // MARK: - Individual Setting Bindings
 
-    /// A program override that reads through to `fallback` while unset.
-    /// Writes are dropped while the program has no overrides at all.
-    private func override<T>(
-        _ keyPath: WritableKeyPath<ProgramOverrides, T?>,
-        fallback: @autoclosure @escaping () -> T
-    ) -> Binding<T> {
+    private var graphicsBackendBinding: Binding<GraphicsBackend> {
         Binding(
-            get: { program.settings.overrides?[keyPath: keyPath] ?? fallback() },
-            set: { program.settings.overrides?[keyPath: keyPath] = $0 }
+            get: { program.settings.overrides?.graphicsBackend ?? bottle.settings.graphicsBackend },
+            set: { program.settings.overrides?.graphicsBackend = $0 }
+        )
+    }
+
+    private var dxvkAsyncBinding: Binding<Bool> {
+        Binding(
+            get: { program.settings.overrides?.dxvkAsync ?? bottle.settings.dxvkAsync },
+            set: { program.settings.overrides?.dxvkAsync = $0 }
+        )
+    }
+
+    private var metal4Binding: Binding<Bool> {
+        Binding(
+            get: { program.settings.overrides?.metal4Enabled ?? bottle.settings.metal4Enabled },
+            set: { program.settings.overrides?.metal4Enabled = $0 }
+        )
+    }
+
+    private var metalHudBinding: Binding<Bool> {
+        Binding(
+            get: { program.settings.overrides?.metalHud ?? bottle.settings.metalHud },
+            set: { program.settings.overrides?.metalHud = $0 }
+        )
+    }
+
+    private var dxvkHudBinding: Binding<DXVKHUD> {
+        Binding(
+            get: { program.settings.overrides?.dxvkHud ?? bottle.settings.dxvkHud },
+            set: { program.settings.overrides?.dxvkHud = $0 }
+        )
+    }
+
+    private var enhancedSyncBinding: Binding<EnhancedSync> {
+        Binding(
+            get: { program.settings.overrides?.enhancedSync ?? bottle.settings.enhancedSync },
+            set: { program.settings.overrides?.enhancedSync = $0 }
+        )
+    }
+
+    private var shaderCacheBinding: Binding<Bool> {
+        Binding(
+            get: { program.settings.overrides?.shaderCacheEnabled ?? bottle.settings.shaderCacheEnabled },
+            set: { program.settings.overrides?.shaderCacheEnabled = $0 }
+        )
+    }
+
+    private var controllerCompatBinding: Binding<Bool> {
+        Binding(
+            get: { program.settings.overrides?.controllerCompatibilityMode ?? false },
+            set: { program.settings.overrides?.controllerCompatibilityMode = $0 }
+        )
+    }
+
+    private var disableHIDAPIBinding: Binding<Bool> {
+        Binding(
+            get: { program.settings.overrides?.disableHIDAPI ?? false },
+            set: { program.settings.overrides?.disableHIDAPI = $0 }
+        )
+    }
+
+    private var allowBackgroundBinding: Binding<Bool> {
+        Binding(
+            get: { program.settings.overrides?.allowBackgroundEvents ?? false },
+            set: { program.settings.overrides?.allowBackgroundEvents = $0 }
+        )
+    }
+
+    private var disableControllerMappingBinding: Binding<Bool> {
+        Binding(
+            get: { program.settings.overrides?.disableControllerMapping ?? false },
+            set: { program.settings.overrides?.disableControllerMapping = $0 }
+        )
+    }
+
+    private var useButtonLabelsBinding: Binding<Bool> {
+        Binding(
+            get: { program.settings.overrides?.useButtonLabels ?? false },
+            set: { program.settings.overrides?.useButtonLabels = $0 }
+        )
+    }
+
+    private var virtualDesktopEnabledBinding: Binding<Bool> {
+        Binding(
+            get: { program.settings.overrides?.virtualDesktopEnabled ?? false },
+            set: { program.settings.overrides?.virtualDesktopEnabled = $0 }
+        )
+    }
+
+    private var displayPresetBinding: Binding<ResolutionPreset> {
+        Binding(
+            get: { program.settings.overrides?.resolutionPreset ?? .r1920x1080 },
+            set: { program.settings.overrides?.resolutionPreset = $0 }
         )
     }
 
@@ -691,6 +916,34 @@ struct ProgramOverrideSettingsView: View {
         )
     }
 
+    private var programDLLOverridesBinding: Binding<[DLLOverrideEntry]> {
+        Binding(
+            get: { program.settings.overrides?.dllOverrides ?? [] },
+            set: { program.settings.overrides?.dllOverrides = $0 }
+        )
+    }
+
+    private func verbTagBinding(for verb: String) -> Binding<Bool> {
+        Binding(
+            get: {
+                program.settings.overrides?.taggedVerbs?.contains(verb) ?? false
+            },
+            set: { isTagged in
+                ensureOverrides()
+                if program.settings.overrides?.taggedVerbs == nil {
+                    program.settings.overrides?.taggedVerbs = []
+                }
+                if isTagged {
+                    if !(program.settings.overrides?.taggedVerbs?.contains(verb) ?? false) {
+                        program.settings.overrides?.taggedVerbs?.append(verb)
+                    }
+                } else {
+                    program.settings.overrides?.taggedVerbs?.removeAll { $0 == verb }
+                }
+            }
+        )
+    }
+
     // MARK: - Helpers
 
     private func ensureOverrides() {
@@ -701,12 +954,35 @@ struct ProgramOverrideSettingsView: View {
 
     private func hudDescription(_ hud: DXVKHUD) -> String {
         switch hud {
-        case .full: "Full"
-        case .partial: "Partial"
-        case .fps: "FPS"
-        case .off: "Off"
+        case .full: String(localized: "config.dxvkHud.full")
+        case .partial: String(localized: "config.dxvkHud.partial")
+        case .fps: String(localized: "config.dxvkHud.fps")
+        case .off: String(localized: "config.dxvkHud.off")
         }
+    }
+
+    private func syncDescription(_ sync: EnhancedSync) -> String {
+        switch sync {
+        case .none: String(localized: "config.enhancedSync.none")
+        case .esync: String(localized: "config.enhancedSync.esync")
+        case .msync: String(localized: "config.enhancedSync.msync")
+        }
+    }
+
+    /// "On" or "Off" for a bottle setting shown in an inherited summary.
+    private func onOff(_ value: Bool) -> String {
+        value
+            ? String(localized: "config.retinaMode.on")
+            : String(localized: "config.retinaMode.off")
     }
 }
 
 // swiftlint:enable type_body_length
+
+/// What a diagnostics sheet is showing; `Identifiable` so it can drive
+/// `.sheet(item:)` and the sheet is never presented without a diagnosis.
+struct DiagnosisPresentation: Identifiable {
+    let id = UUID()
+    let diagnosis: CrashDiagnosis
+    let logText: String
+}

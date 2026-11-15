@@ -18,6 +18,7 @@
 
 import Foundation
 import os.log
+import SemanticVersion
 
 private let logger = Logger(subsystem: Bundle.whiskyBundleIdentifier, category: "ResourceDirectoryTable")
 
@@ -64,6 +65,12 @@ private final class TraversalBudget {
 ///
 /// https://learn.microsoft.com/en-us/windows/win32/debug/pe-format#resource-directory-table
 public struct ResourceDirectoryTable: Hashable, Equatable {
+    public let characteristics: UInt32
+    public let timeDateStamp: Date
+    public let version: SemanticVersion
+    public let numberOfNameEntries: UInt16
+    public let numberOfIdEntries: UInt16
+
     public let subtables: [ResourceDirectoryTable]
     public let entries: [ResourceDataEntry]
 
@@ -78,7 +85,7 @@ public struct ResourceDirectoryTable: Hashable, Equatable {
     /// process. Real resource trees have at most a few thousand entries; this
     /// generous cap stops sibling fan-out amplification from a crafted file
     /// without truncating any legitimate input.
-    private static let maxTotalEntries = 100_000
+    static let maxTotalEntries = 100_000
 
     /// Each resource directory entry is 8 bytes on disk.
     private static let entrySize: UInt64 = 8
@@ -91,12 +98,30 @@ public struct ResourceDirectoryTable: Hashable, Equatable {
     ///   - types: Only read entrys of the given types. Only applies to the root table. Defaults to `nil`.
     ///   - fileName: Display name of the file being parsed, for log attribution.
     init(handle: FileHandle, pointerToRawData: UInt64, types: [ResourceType]?, fileName: String = "<unknown>") {
-        var visited: Set<UInt64> = [0]
+        self.init(handle: handle, pointerToRawData: pointerToRawData, offset: 0, types: types, fileName: fileName)
+    }
+
+    /// Read the Resource Directory Table
+    ///
+    /// - Parameters:
+    ///   - fileHandle: The file handle to read the data from.
+    ///   - pointerToRawData: The offset to the Resource Directory Table in the file handle.
+    ///   - offset: Additional offset to the `pointerToRawData`.
+    ///             Use only for sub-tables. The root-table has the offset 0.
+    ///   - types: Only read entrys of the given types. Only applies to the root table. Defaults to `nil`.
+    init(
+        handle: FileHandle,
+        pointerToRawData: UInt64,
+        offset initialOffset: UInt64,
+        types: [ResourceType]? = nil,
+        fileName: String = "<unknown>"
+    ) {
+        var visited: Set<UInt64> = [initialOffset]
         let budget = TraversalBudget(Self.maxTotalEntries, fileName: fileName)
         self.init(
             handle: handle,
             pointerToRawData: pointerToRawData,
-            offset: 0,
+            offset: initialOffset,
             types: types,
             fileName: fileName,
             depth: 0,
@@ -121,14 +146,27 @@ public struct ResourceDirectoryTable: Hashable, Equatable {
         visited: inout Set<UInt64>,
         budget: TraversalBudget
     ) {
-        // Characteristics, TimeDateStamp and Major/MinorVersion (12 bytes) are not needed
-        let tableOffset = pointerToRawData + initialOffset
-        let numberOfNameEntries = handle.extract(UInt16.self, offset: tableOffset + 12) ?? 0
-        let numberOfIdEntries = handle.extract(UInt16.self, offset: tableOffset + 14) ?? 0
+        var offset = pointerToRawData + initialOffset
+        self.characteristics = handle.extract(UInt32.self, offset: offset) ?? 0
+        offset += 4
+        let timeDateStamp = handle.extract(UInt32.self, offset: offset) ?? 0
+        self.timeDateStamp = Date(timeIntervalSince1970: TimeInterval(timeDateStamp))
+        offset += 4
+        let majorVersion = handle.extract(UInt16.self, offset: offset) ?? 0
+        offset += 2
+        let minorVersion = handle.extract(UInt16.self, offset: offset) ?? 0
+        offset += 2
+        self.version = SemanticVersion(Int(majorVersion), Int(minorVersion), 0)
+        let numberOfNameEntries = handle.extract(UInt16.self, offset: offset) ?? 0
+        self.numberOfNameEntries = numberOfNameEntries
+        offset += 2
+        let numberOfIdEntries = handle.extract(UInt16.self, offset: offset) ?? 0
+        self.numberOfIdEntries = numberOfIdEntries
+        offset += 2
 
         // We don't care about named entries
         // the entries we're looking for are ID'd
-        let offset = tableOffset + 16 + 8 * UInt64(numberOfNameEntries)
+        offset += 8 * UInt64(numberOfNameEntries)
 
         (self.subtables, self.entries) = Self.readIDEntries(
             handle: handle,
@@ -150,7 +188,7 @@ public struct ResourceDirectoryTable: Hashable, Equatable {
     /// read returns zero-filled garbage) and waste time. Capping at the number of
     /// 8-byte entries between `firstEntryOffset` and the end of the file bounds
     /// the loop to real data.
-    private static func clampedEntryCount(
+    static func clampedEntryCount(
         claimed: UInt16,
         firstEntryOffset: UInt64,
         handle: FileHandle,

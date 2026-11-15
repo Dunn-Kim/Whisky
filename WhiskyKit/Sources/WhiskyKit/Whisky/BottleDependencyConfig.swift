@@ -18,6 +18,21 @@
 
 import Foundation
 
+// MARK: - Dependency Category
+
+/// Grouping category for standard Windows dependencies.
+///
+/// Used to organize dependencies in the UI and to group related
+/// winetricks verbs by their functional purpose.
+public enum DependencyCategory: String, Codable, CaseIterable, Sendable {
+    /// Runtime libraries (Visual C++, .NET Framework).
+    case runtime = "Runtime"
+    /// DirectX graphics components.
+    case directx = "DirectX"
+    /// Audio middleware and codecs.
+    case audio = "Audio"
+}
+
 // MARK: - Dependency Definition
 
 /// Maps a user-facing dependency name to its underlying winetricks verbs.
@@ -42,8 +57,26 @@ public struct DependencyDefinition: Codable, Identifiable, Sendable {
     public let description: String
     /// The winetricks verb names required to install this dependency.
     public let winetricksVerbs: [String]
+    /// The functional category this dependency belongs to.
+    public let category: DependencyCategory
     /// Rough time estimate for installation, shown in the UI.
     public let estimatedInstallMinutes: Int
+
+    public init(
+        id: String,
+        displayName: String,
+        description: String,
+        winetricksVerbs: [String],
+        category: DependencyCategory,
+        estimatedInstallMinutes: Int
+    ) {
+        self.id = id
+        self.displayName = displayName
+        self.description = description
+        self.winetricksVerbs = winetricksVerbs
+        self.category = category
+        self.estimatedInstallMinutes = estimatedInstallMinutes
+    }
 }
 
 extension DependencyDefinition {
@@ -52,36 +85,45 @@ extension DependencyDefinition {
     /// Each entry maps a user-facing name to one or more winetricks verbs.
     /// The list covers the most commonly needed Windows components for
     /// games and applications running under Wine.
-    public static let standardDependencies: [DependencyDefinition] = [
-        DependencyDefinition(
-            id: "vcruntime",
-            displayName: "Visual C++ Runtime",
-            description: "Required by most Windows games and applications",
-            winetricksVerbs: ["vcrun2019"],
-            estimatedInstallMinutes: 2
-        ),
-        DependencyDefinition(
-            id: "dotnet48",
-            displayName: ".NET Framework 4.8",
-            description: "Required by .NET applications and some game launchers",
-            winetricksVerbs: ["dotnet48"],
-            estimatedInstallMinutes: 10
-        ),
-        DependencyDefinition(
-            id: "directx",
-            displayName: "DirectX Runtime",
-            description: "DirectX 9/10/11 components for older games",
-            winetricksVerbs: ["d3dx9", "d3dcompiler_47"],
-            estimatedInstallMinutes: 3
-        ),
-        DependencyDefinition(
-            id: "directx_audio",
-            displayName: "DirectX Audio",
-            description: "XACT audio framework for games using DirectX audio",
-            winetricksVerbs: ["xact"],
-            estimatedInstallMinutes: 2
-        )
-    ]
+    ///
+    /// Computed on each access so the names and descriptions follow the
+    /// app's current language.
+    public static var standardDependencies: [DependencyDefinition] {
+        [
+            DependencyDefinition(
+                id: "vcruntime",
+                displayName: String(localized: "dependency.vcruntime.name"),
+                description: String(localized: "dependency.vcruntime.description"),
+                winetricksVerbs: ["vcrun2019"],
+                category: .runtime,
+                estimatedInstallMinutes: 2
+            ),
+            DependencyDefinition(
+                id: "dotnet48",
+                displayName: ".NET Framework 4.8",
+                description: String(localized: "dependency.dotnet48.description"),
+                winetricksVerbs: ["dotnet48"],
+                category: .runtime,
+                estimatedInstallMinutes: 10
+            ),
+            DependencyDefinition(
+                id: "directx",
+                displayName: String(localized: "dependency.directx.name"),
+                description: String(localized: "dependency.directx.description"),
+                winetricksVerbs: ["d3dx9", "d3dcompiler_47"],
+                category: .directx,
+                estimatedInstallMinutes: 3
+            ),
+            DependencyDefinition(
+                id: "directx_audio",
+                displayName: String(localized: "dependency.directxAudio.name"),
+                description: String(localized: "dependency.directxAudio.description"),
+                winetricksVerbs: ["xact"],
+                category: .audio,
+                estimatedInstallMinutes: 2
+            )
+        ]
+    }
 }
 
 // MARK: - Dependency Confidence
@@ -97,6 +139,8 @@ public enum DependencyConfidence: String, Codable, Sendable {
     case cached
     /// Status inferred from DLL presence or registry probes (best-effort).
     case heuristic
+    /// Status could not be determined.
+    case unknown
 }
 
 // MARK: - Install Status
@@ -147,5 +191,163 @@ public struct DependencyStatus: Identifiable, Sendable {
         self.status = status
         self.lastChecked = lastChecked
         self.confidence = confidence
+    }
+}
+
+// MARK: - Install Attempt
+
+/// Records a single dependency installation attempt for diagnostics.
+///
+/// Persisted in ``BottleDependencyHistory`` so that the diagnostics
+/// export can include a record of what was tried and whether it succeeded.
+public struct DependencyInstallAttempt: Codable, Sendable {
+    /// The ``DependencyDefinition/id`` of the dependency that was installed.
+    public let definitionId: String
+    /// The winetricks verbs that were executed.
+    public let verbsAttempted: [String]
+    /// When the installation was attempted.
+    public let timestamp: Date
+    /// Whether the installation completed successfully.
+    public let success: Bool
+    /// The process exit code, if available.
+    public let exitCode: Int32?
+    /// The last few KB of winetricks output, recorded for failed attempts.
+    ///
+    /// `nil` for successful attempts and for entries written by earlier
+    /// versions that did not capture output.
+    public let outputTail: String?
+
+    public init(
+        definitionId: String,
+        verbsAttempted: [String],
+        timestamp: Date,
+        success: Bool,
+        exitCode: Int32?,
+        outputTail: String? = nil
+    ) {
+        self.definitionId = definitionId
+        self.verbsAttempted = verbsAttempted
+        self.timestamp = timestamp
+        self.success = success
+        self.exitCode = exitCode
+        self.outputTail = outputTail
+    }
+
+    /// Maximum number of output bytes retained in ``outputTail``.
+    public static let maxOutputTailBytes = 4_096
+
+    /// Joins the newest output lines that fit within ``maxOutputTailBytes``.
+    ///
+    /// Lines are kept whole and in order; when even the newest line alone
+    /// exceeds the budget, its trailing bytes are kept. Returns `nil` for
+    /// empty input so entries without output stay compact.
+    ///
+    /// - Parameter lines: Process output lines, oldest first.
+    /// - Returns: The bounded tail joined with newlines, or `nil`.
+    public static func boundedTail(of lines: [String]) -> String? {
+        guard !lines.isEmpty else { return nil }
+
+        var kept: [String] = []
+        var bytes = 0
+        for line in lines.reversed() {
+            let lineBytes = line.utf8.count + (kept.isEmpty ? 0 : 1)
+            if bytes + lineBytes > maxOutputTailBytes { break }
+            kept.append(line)
+            bytes += lineBytes
+        }
+
+        if kept.isEmpty, let last = lines.last {
+            var data = Data(last.utf8).suffix(maxOutputTailBytes)
+            // The byte cut can land inside a multi-byte character; drop
+            // leading continuation bytes so the suffix decodes cleanly.
+            while let first = data.first, first & 0b1100_0000 == 0b1000_0000 {
+                data = data.dropFirst()
+            }
+            return String(bytes: data, encoding: .utf8)
+        }
+
+        return kept.reversed().joined(separator: "\n")
+    }
+}
+
+// MARK: - Dependency History
+
+/// Bounded history of dependency installation attempts for a bottle.
+///
+/// Persisted as `dependency-history.plist` in the bottle directory.
+/// Retains up to ``maxEntries`` attempts, evicting the oldest when
+/// the limit is exceeded.
+///
+/// ## Storage
+///
+/// ```swift
+/// let history = BottleDependencyHistory.load(from: bottleURL)
+/// // ... append new attempt ...
+/// try history?.save(to: bottleURL)
+/// ```
+public struct BottleDependencyHistory: Codable, Sendable {
+    /// Maximum number of install attempts retained.
+    public static let maxEntries = 20
+
+    private static let fileName = "dependency-history.plist"
+
+    /// The stored install attempt entries, ordered oldest-first.
+    public private(set) var attempts: [DependencyInstallAttempt]
+
+    /// Creates an empty dependency history.
+    public init() {
+        self.attempts = []
+    }
+
+    /// Appends a new attempt, evicting the oldest when the limit is exceeded.
+    ///
+    /// - Parameter attempt: The install attempt to record.
+    public mutating func append(_ attempt: DependencyInstallAttempt) {
+        attempts.append(attempt)
+        while attempts.count > Self.maxEntries {
+            attempts.removeFirst()
+        }
+    }
+
+    /// Removes all entries from the history.
+    public mutating func clear() {
+        attempts.removeAll()
+    }
+
+    /// Whether the history contains no entries.
+    public var isEmpty: Bool {
+        attempts.isEmpty
+    }
+
+    /// Loads the dependency history from a bottle directory.
+    ///
+    /// Returns `nil` if the file does not exist or cannot be decoded.
+    ///
+    /// - Parameter bottleURL: The URL of the bottle directory.
+    /// - Returns: The decoded history, or `nil` on failure.
+    public static func load(from bottleURL: URL) -> BottleDependencyHistory? {
+        let url = bottleURL.appending(path: fileName)
+        guard FileManager.default.fileExists(atPath: url.path(percentEncoded: false)) else {
+            return nil
+        }
+
+        do {
+            let data = try Data(contentsOf: url)
+            return try PropertyListDecoder().decode(BottleDependencyHistory.self, from: data)
+        } catch {
+            return nil
+        }
+    }
+
+    /// Saves the history to the bottle directory.
+    ///
+    /// - Parameter bottleURL: The URL of the bottle directory.
+    /// - Throws: An error if encoding or writing fails.
+    public func save(to bottleURL: URL) throws {
+        let url = bottleURL.appending(path: Self.fileName)
+        let encoder = PropertyListEncoder()
+        encoder.outputFormat = .xml
+        let data = try encoder.encode(self)
+        try data.write(to: url)
     }
 }

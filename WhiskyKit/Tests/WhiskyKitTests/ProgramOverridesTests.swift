@@ -137,6 +137,7 @@ final class ProgramOverridesTests: XCTestCase {
         let decoded = try PropertyListDecoder().decode(ProgramOverrides.self, from: Data(mutated.utf8))
 
         XCTAssertEqual(decoded, overrides)
+        XCTAssertFalse(decoded.isEmpty)
 
         // An override that only ever set the removed key now reads as no override.
         let onlyLegacy = """

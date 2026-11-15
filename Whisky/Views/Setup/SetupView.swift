@@ -30,11 +30,12 @@ struct SetupView: View {
     @State var tarLocation: URL = .init(fileURLWithPath: "")
     @State private var whiskyWineDiagnostics = WhiskyWineSetupDiagnostics()
     @Binding var showSetup: Bool
+    var firstTime: Bool = true
 
     var body: some View {
         VStack {
             NavigationStack(path: $path) {
-                WelcomeView(path: $path, showSetup: $showSetup)
+                WelcomeView(path: $path, showSetup: $showSetup, firstTime: firstTime)
                     .navigationBarBackButtonHidden(true)
                     .navigationDestination(for: SetupStage.self) { stage in
                         switch stage {
@@ -61,10 +62,17 @@ struct SetupView: View {
         .padding()
         .interactiveDismissDisabled()
         .onAppear {
-            // Skip the welcome screen and go straight to the download stage when
-            // only the runtime is missing. A missing Rosetta keeps it: the download
-            // stage skips the Rosetta step.
-            if Rosetta2.isRosettaInstalled, !WhiskyWineInstaller.isWhiskyWineInstalled() {
+            // Skip the welcome screen and go straight to the download stage only
+            // once telemetry consent is already decided. WelcomeView is the sole
+            // screen carrying the consent toggle, so on a genuine first run (consent
+            // still undecided) we must show it even when the runtime is missing —
+            // otherwise the opt-in would be unreachable. The only call site
+            // (ContentView) always passes `firstTime: false`, so the consent check,
+            // not `firstTime`, is what keeps the welcome screen reachable. A missing
+            // Rosetta also keeps it, since the welcome screen routes to the Rosetta
+            // step first and the download stage would skip it.
+            if !firstTime, Telemetry.consent != .undecided, Rosetta2.isRosettaInstalled,
+               !WhiskyWineInstaller.isWhiskyWineInstalled() {
                 path = [.whiskyWineDownload]
             }
         }

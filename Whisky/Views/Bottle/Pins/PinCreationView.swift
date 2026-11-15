@@ -42,7 +42,14 @@ struct PinCreationView: View {
                 ) {
                     let panel = NSOpenPanel()
                     panel.canChooseFiles = true
-                    panel.allowedContentTypes = UTType.windowsRunnables
+                    panel.allowedContentTypes = [
+                        UTType.exe,
+                        UTType(exportedAs: "com.microsoft.msi-installer"),
+                        UTType(exportedAs: "com.microsoft.bat"),
+                        UTType(exportedAs: "com.microsoft.msix-package"),
+                        UTType(exportedAs: "com.microsoft.appx-package"),
+                        UTType(exportedAs: "com.microsoft.windows-internet-shortcut")
+                    ]
                     panel.directoryURL = newPinURL ?? bottle.url.appending(path: "drive_c")
                     panel.canChooseDirectories = false
                     panel.allowsMultipleSelection = false
@@ -70,7 +77,7 @@ struct PinCreationView: View {
                     .keyboardShortcut(.defaultAction)
                     .disabled(newPinName.isEmpty || newPinURL == nil)
                     .alert("pin.error.title", isPresented: $isDuplicate) {} message: {
-                        Text("pin.error.duplicate.\(newPinURL?.lastPathComponent ?? "unknown")")
+                        Text("pin.error.duplicate.\(newPinURL?.lastPathComponent ?? newPinName)")
                     }
                 }
             }
@@ -104,6 +111,10 @@ struct PinCreationView: View {
         }
 
         bottle.settings.pins.append(PinnedProgram(name: newPinName, url: newPinURL))
+        // A deliberate pin outranks an earlier unpin of the same program.
+        if bottle.settings.isUnpinned(newPinURL) {
+            bottle.settings.clearUnpin(newPinURL)
+        }
 
         // Trigger a reload
         Task { await bottle.updateInstalledPrograms() }

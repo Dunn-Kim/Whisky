@@ -18,83 +18,6 @@
 
 import Foundation
 
-/// Report mechanics shared by the user-shareable diagnostics: a capped,
-/// timestamped event log and a report bounded in UTF-8 bytes that keeps the
-/// most recent events.
-enum BoundedReport {
-    /// Appends a timestamped event, dropping the oldest beyond `maxCount`.
-    static func record(_ message: String, into events: inout [String], maxCount: Int) {
-        let timestamp = Date().formatted(Date.ISO8601FormatStyle())
-        events.append("[\(timestamp)] \(message)")
-        if events.count > maxCount {
-            events.removeFirst(events.count - maxCount)
-        }
-    }
-
-    static func appendIfPresent(_ label: String, value: (some CustomStringConvertible)?, into lines: inout [String]) {
-        guard let value else { return }
-        lines.append("\(label): \(value)")
-    }
-
-    /// Joins `headerLines` with an `[EVENTS]` section holding as many of the most
-    /// recent events as fit within `limit` UTF-8 bytes.
-    static func build(headerLines: [String], events: [String], limit: Int) -> String {
-        var lines = headerLines
-        lines.append("[EVENTS]")
-
-        let prefixString = lines.joined(separator: "\n")
-        let prefixBytes = prefixString.utf8.count
-        guard prefixBytes < limit else {
-            return truncate(prefixString, limit: limit)
-        }
-        guard !events.isEmpty else { return prefixString }
-
-        // Include as many recent events as fit within the limit
-        let availableBytes = limit - prefixBytes
-        var includedEvents: [String] = []
-        includedEvents.reserveCapacity(events.count)
-        var usedBytes = 0
-
-        // Iterate from most recent to oldest
-        for event in events.reversed() {
-            let eventBytes = event.utf8.count + 1 // +1 for newline
-            if usedBytes + eventBytes > availableBytes {
-                break
-            }
-            includedEvents.append(event)
-            usedBytes += eventBytes
-        }
-
-        guard !includedEvents.isEmpty else { return prefixString }
-        return prefixString + "\n" + includedEvents.reversed().joined(separator: "\n")
-    }
-
-    private static func truncate(_ report: String, limit: Int) -> String {
-        // Limit is based on UTF-8 byte count to keep shared output bounded.
-        let utf8View = report.utf8
-        guard utf8View.count > limit else { return report }
-
-        var prefixBytes = utf8View.prefix(limit)
-        // Drop trailing bytes until we have valid UTF-8 (handles incomplete multi-byte sequences).
-        while !prefixBytes.isEmpty,
-              String(bytes: prefixBytes, encoding: .utf8) == nil {
-            prefixBytes = prefixBytes.dropLast()
-        }
-
-        guard let prefixString = String(bytes: prefixBytes, encoding: .utf8) else {
-            return ""
-        }
-        let prefixView = prefixString[...]
-        if let lastNewline = prefixView.lastIndex(of: "\n") {
-            return String(prefixView[..<lastNewline])
-        }
-        if let lastWhitespace = prefixView.lastIndex(where: { $0.isWhitespace }) {
-            return String(prefixView[..<lastWhitespace])
-        }
-        return String(prefixView)
-    }
-}
-
 public struct WhiskyWineSetupDiagnostics: Codable, Sendable {
     public private(set) var sessionID = UUID()
     public private(set) var startedAt = Date()
@@ -107,6 +30,9 @@ public struct WhiskyWineSetupDiagnostics: Codable, Sendable {
     /// Maximum report size in UTF-8 bytes to keep sharing manageable.
     public static let maxReportBytes = 8_000
 
+    /// Overhead lines for report sections (header, network, progress, disk, separators).
+    private static let reportSectionOverhead = 20
+
     private static let eventTimestampFormatter = Date.ISO8601FormatStyle()
     private static let issueURL = "https://github.com/frankea/Whisky/issues"
 
@@ -114,6 +40,12 @@ public struct WhiskyWineSetupDiagnostics: Codable, Sendable {
         public let startedAt: Date
         public let finishedAt: Date
         public let succeeded: Bool
+
+        public init(startedAt: Date, finishedAt: Date, succeeded: Bool) {
+            self.startedAt = startedAt
+            self.finishedAt = finishedAt
+            self.succeeded = succeeded
+        }
     }
 
     /// Public version plist URL (safe to share)
@@ -165,7 +97,11 @@ public struct WhiskyWineSetupDiagnostics: Codable, Sendable {
     }
 
     public mutating func record(_ message: String) {
-        BoundedReport.record(message, into: &events, maxCount: Self.maxEventCount)
+        let timestamp = Date().formatted(Self.eventTimestampFormatter)
+        events.append("[\(timestamp)] \(message)")
+        if events.count > Self.maxEventCount {
+            events.removeFirst(events.count - Self.maxEventCount)
+        }
     }
 
     public mutating func recordProgress(bytesReceived: Int64, bytesExpected: Int64) {
@@ -183,7 +119,10 @@ public struct WhiskyWineSetupDiagnostics: Codable, Sendable {
     }
 
     public func reportString(stage: String, error: String? = nil) -> String {
+        let estimatedCapacity = max(Self.maxEventCount, events.count) + installAttempts.count
+            + Self.reportSectionOverhead
         var lines: [String] = []
+        lines.reserveCapacity(estimatedCapacity)
 
         appendHeaderLines(into: &lines, stage: stage, error: error)
         appendVersionLines(into: &lines)
@@ -192,7 +131,7 @@ public struct WhiskyWineSetupDiagnostics: Codable, Sendable {
         appendInstallAttemptLines(into: &lines)
         appendDiskLines(into: &lines)
 
-        return BoundedReport.build(headerLines: lines, events: events, limit: Self.maxReportBytes)
+        return buildReport(prefixLines: lines, events: events, limit: Self.maxReportBytes)
     }
 
     private func appendHeaderLines(into lines: inout [String], stage: String, error: String?) {
@@ -200,7 +139,7 @@ public struct WhiskyWineSetupDiagnostics: Codable, Sendable {
         lines.append("Session: \(sessionID.uuidString)")
         lines.append("Stage: \(stage)")
         lines.append("Generated: \(Date().formatted(Self.eventTimestampFormatter))")
-        BoundedReport.appendIfPresent("Error", value: error, into: &lines)
+        appendIfPresent("Error", value: error, into: &lines)
         lines.append("")
     }
 
@@ -229,10 +168,10 @@ public struct WhiskyWineSetupDiagnostics: Codable, Sendable {
 
     private func appendNetworkLines(into lines: inout [String]) {
         lines.append("[NETWORK]")
-        BoundedReport.appendIfPresent("Version plist", value: sanitizedURLString(versionPlistURL), into: &lines)
-        BoundedReport.appendIfPresent("Version plist HTTP", value: versionHTTPStatus, into: &lines)
-        BoundedReport.appendIfPresent("Download URL", value: sanitizedURLString(downloadURL), into: &lines)
-        BoundedReport.appendIfPresent("Download HTTP", value: downloadHTTPStatus, into: &lines)
+        appendIfPresent("Version plist", value: sanitizedURLString(versionPlistURL), into: &lines)
+        appendIfPresent("Version plist HTTP", value: versionHTTPStatus, into: &lines)
+        appendIfPresent("Download URL", value: sanitizedURLString(downloadURL), into: &lines)
+        appendIfPresent("Download HTTP", value: downloadHTTPStatus, into: &lines)
         lines.append("")
     }
 
@@ -240,11 +179,11 @@ public struct WhiskyWineSetupDiagnostics: Codable, Sendable {
         lines.append("[PROGRESS]")
         lines.append("Bytes received: \(bytesReceived)")
         lines.append("Bytes expected: \(bytesExpected)")
-        BoundedReport.appendIfPresent("Last progress", value: formattedTimestamp(lastProgressAt), into: &lines)
-        BoundedReport.appendIfPresent("Download started", value: formattedTimestamp(downloadStartedAt), into: &lines)
-        BoundedReport.appendIfPresent("Download finished", value: formattedTimestamp(downloadFinishedAt), into: &lines)
-        BoundedReport.appendIfPresent("Install started", value: formattedTimestamp(installStartedAt), into: &lines)
-        BoundedReport.appendIfPresent("Install finished", value: formattedTimestamp(installFinishedAt), into: &lines)
+        appendIfPresent("Last progress", value: formattedTimestamp(lastProgressAt), into: &lines)
+        appendIfPresent("Download started", value: formattedTimestamp(downloadStartedAt), into: &lines)
+        appendIfPresent("Download finished", value: formattedTimestamp(downloadFinishedAt), into: &lines)
+        appendIfPresent("Install started", value: formattedTimestamp(installStartedAt), into: &lines)
+        appendIfPresent("Install finished", value: formattedTimestamp(installFinishedAt), into: &lines)
         lines.append("")
     }
 
@@ -271,6 +210,35 @@ public struct WhiskyWineSetupDiagnostics: Codable, Sendable {
         lines.append("")
     }
 
+    private func buildReport(prefixLines: [String], events: [String], limit: Int) -> String {
+        var lines = prefixLines
+        lines.append("[EVENTS]")
+
+        let prefixString = lines.joined(separator: "\n")
+        let prefixBytes = prefixString.utf8.count
+        guard prefixBytes < limit else {
+            return truncateReport(prefixString, limit: limit)
+        }
+        guard !events.isEmpty else { return prefixString }
+
+        let availableBytes = limit - prefixBytes
+        var includedEvents: [String] = []
+        includedEvents.reserveCapacity(events.count)
+        var usedBytes = 0
+
+        for event in events.reversed() {
+            let eventBytes = event.utf8.count + 1
+            if usedBytes + eventBytes > availableBytes {
+                break
+            }
+            includedEvents.append(event)
+            usedBytes += eventBytes
+        }
+
+        guard !includedEvents.isEmpty else { return prefixString }
+        return prefixString + "\n" + includedEvents.reversed().joined(separator: "\n")
+    }
+
     private func formattedTimestamp(_ date: Date?) -> String? {
         guard let date else { return nil }
         return date.formatted(Self.eventTimestampFormatter)
@@ -282,6 +250,36 @@ public struct WhiskyWineSetupDiagnostics: Codable, Sendable {
         components.query = nil
         components.fragment = nil
         return components.url?.absoluteString ?? urlString
+    }
+
+    private func truncateReport(_ report: String, limit: Int) -> String {
+        // Limit is based on UTF-8 byte count to keep shared output bounded.
+        let utf8View = report.utf8
+        guard utf8View.count > limit else { return report }
+
+        var prefixBytes = utf8View.prefix(limit)
+        // Drop trailing bytes until we have valid UTF-8 (handles incomplete multi-byte sequences).
+        while !prefixBytes.isEmpty,
+              String(bytes: prefixBytes, encoding: .utf8) == nil {
+            prefixBytes = prefixBytes.dropLast()
+        }
+
+        guard let prefixString = String(bytes: prefixBytes, encoding: .utf8) else {
+            return ""
+        }
+        let prefixView = prefixString[...]
+        if let lastNewline = prefixView.lastIndex(of: "\n") {
+            return String(prefixView[..<lastNewline])
+        }
+        if let lastWhitespace = prefixView.lastIndex(where: { $0.isWhitespace }) {
+            return String(prefixView[..<lastWhitespace])
+        }
+        return String(prefixView)
+    }
+
+    private func appendIfPresent(_ label: String, value: (some CustomStringConvertible)?, into lines: inout [String]) {
+        guard let value else { return }
+        lines.append("\(label): \(value)")
     }
 
     private static func availableDiskString(for url: URL) -> String? {

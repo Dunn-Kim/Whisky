@@ -16,7 +16,6 @@
 //  If not, see https://www.gnu.org/licenses/.
 //
 
-import GameController
 import SwiftUI
 import WhiskyKit
 
@@ -59,7 +58,7 @@ struct InputConfigSection: View {
 
                     // Button mapping toggle (legacy)
                     Toggle(
-                        "Disable Controller Mapping",
+                        "config.disableControllerMapping",
                         isOn: $bottle.settings.disableControllerMapping
                     )
                     .help("""
@@ -122,12 +121,12 @@ struct InputConfigSection: View {
                 }
             }
         }
-        .onAppear { controllerMonitor.refresh() }
-        .onReceive(
-            NotificationCenter.default.publisher(for: .GCControllerDidConnect)
-                .merge(with: NotificationCenter.default.publisher(for: .GCControllerDidDisconnect))
-                .receive(on: DispatchQueue.main)
-        ) { _ in controllerMonitor.refresh() }
+        .onAppear {
+            controllerMonitor.startMonitoring()
+        }
+        .onDisappear {
+            controllerMonitor.stopMonitoring()
+        }
     }
 
     // MARK: - Info Banner
@@ -183,7 +182,7 @@ struct InputConfigSection: View {
             }
         } label: {
             HStack(spacing: 6) {
-                Label("Connected Controllers", systemImage: "gamecontroller.fill")
+                Label("controller.connected", systemImage: "gamecontroller.fill")
                     .font(.subheadline)
                     .fontWeight(.medium)
 
@@ -207,7 +206,7 @@ struct InputConfigSection: View {
             HStack(spacing: 6) {
                 Image(systemName: "gamecontroller")
                     .foregroundStyle(.secondary)
-                Text("No controllers detected")
+                Text("controller.none")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
@@ -237,7 +236,7 @@ struct InputConfigSection: View {
             HStack(spacing: 12) {
                 // Type badge
                 HStack(spacing: 4) {
-                    Image(systemName: "gamecontroller")
+                    Image(systemName: controller.typeBadge.sfSymbol)
                         .font(.caption)
                     Text(controller.typeBadge.displayName)
                         .font(.caption)
@@ -258,7 +257,7 @@ struct InputConfigSection: View {
                     HStack(spacing: 4) {
                         Image(systemName: batterySymbol(level: level, state: controller.batteryState))
                             .font(.caption)
-                        Text("Battery: \(Int(level * 100))%")
+                        Text("controller.battery \(String(Int(level * 100)))")
                             .font(.caption)
                         if controller.batteryState == "charging" {
                             Image(systemName: "bolt.fill")
@@ -291,7 +290,7 @@ struct InputConfigSection: View {
                     .foregroundColor(.orange)
                     .font(.caption)
 
-                Text("Bluetooth dropouts can break input; USB is more reliable")
+                Text("controller.bluetooth.warning")
                     .font(.caption)
                     .foregroundColor(.orange)
                     .fixedSize(horizontal: false, vertical: true)
@@ -310,7 +309,7 @@ struct InputConfigSection: View {
             Button {
                 controllerMonitor.refresh()
             } label: {
-                Label("Refresh", systemImage: "arrow.clockwise")
+                Label("controller.refresh", systemImage: "arrow.clockwise")
                     .font(.caption)
             }
             .buttonStyle(.borderless)
@@ -318,7 +317,7 @@ struct InputConfigSection: View {
             Button {
                 copyControllerInfo()
             } label: {
-                Label("Copy Controller Info", systemImage: "doc.on.doc")
+                Label("controller.copyInfo", systemImage: "doc.on.doc")
                     .font(.caption)
             }
             .buttonStyle(.borderless)
@@ -354,8 +353,8 @@ struct InputConfigSection: View {
     private func copyControllerInfo() {
         var lines = ["Connected Controllers:"]
         for controller in controllerMonitor.controllers {
-            lines.append("  - \(controller.name)")
-            lines.append("    Type: \(controller.typeBadge.displayName)")
+            lines.append("  - \(controller.exportName)")
+            lines.append("    Type: \(controller.typeBadge.exportName)")
             lines.append("    Connection: \(controller.connectionType.rawValue)")
             if let level = controller.batteryLevel {
                 let stateStr = controller.batteryState.map { " (\($0))" } ?? ""

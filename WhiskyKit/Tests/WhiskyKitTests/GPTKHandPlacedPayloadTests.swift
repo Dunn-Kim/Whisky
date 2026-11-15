@@ -37,7 +37,7 @@ struct GPTKHandPlacedPayloadTests {
         nvapi.append(Data("store's nvapi".utf8))
         try nvapi.write(
             to: store.appending(path: "lib").appending(path: "wine").appending(path: "x86_64-windows")
-                .appending(path: GPTKBridge.nvapi.sourceName)
+                .appending(path: GPTKImporter.nvapiBridgeName)
         )
     }
 
@@ -49,8 +49,8 @@ struct GPTKHandPlacedPayloadTests {
         try addBridges(toStore: store)
         let runtime = try fixture.makeRuntimeTree()
         try fixture.overlayPayloadByHand(version: "3.0", into: runtime)
-        let nvapi = GPTKImporter.installedPE(of: .nvapi, inLibraryFolder: runtime)
-        let nvngx = GPTKImporter.installedPE(of: .metalFX, inLibraryFolder: runtime)
+        let nvapi = GPTKImporter.nvapiBridgePE(inLibraryFolder: runtime)
+        let nvngx = GPTKImporter.metalFXBridgePE(inLibraryFolder: runtime)
         try Data("owner's nvapi".utf8).write(to: nvapi)
         try Data("owner's nvngx".utf8).write(to: nvngx)
 
@@ -72,8 +72,8 @@ struct GPTKHandPlacedPayloadTests {
         GPTKImporter.ensureMetalFXBridgeInstalled(inLibraryFolder: runtime, usingStore: store)
         GPTKImporter.ensureNVAPIBridgeInstalled(inLibraryFolder: runtime, usingStore: store)
 
-        #expect(GPTKImporter.isInstalled(.metalFX, inLibraryFolder: runtime, usingStore: store))
-        #expect(GPTKImporter.isInstalled(.nvapi, inLibraryFolder: runtime, usingStore: store))
+        #expect(GPTKImporter.isMetalFXBridgeInstalled(inLibraryFolder: runtime, usingStore: store))
+        #expect(GPTKImporter.isNVAPIBridgeInstalled(inLibraryFolder: runtime, usingStore: store))
     }
 
     // MARK: - Deploy when Settings opens

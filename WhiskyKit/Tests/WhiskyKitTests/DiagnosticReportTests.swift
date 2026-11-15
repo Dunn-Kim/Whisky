@@ -112,6 +112,8 @@ final class DiagnosticReportTests: XCTestCase {
             confidence: 0.9,
             substringPrefilter: nil,
             regex: "test",
+            tags: [],
+            captureGroups: nil,
             remediationActionIds: ["install-vcredist"]
         )
 
@@ -152,7 +154,7 @@ final class DiagnosticReportTests: XCTestCase {
             markdown += "**\(headline)**\n\n"
         }
         if let category = diagnosis.primaryCategory, let confidence = diagnosis.primaryConfidence {
-            markdown += "- **Primary Category:** \(category.displayName)\n"
+            markdown += "- **Primary Category:** \(category.exportName)\n"
             markdown += "- **Confidence:** \(confidence.displayName)\n"
         }
         if let exitCode = diagnosis.exitCode {
@@ -161,7 +163,7 @@ final class DiagnosticReportTests: XCTestCase {
         if !diagnosis.categoryCounts.isEmpty {
             markdown += "\n**Category Counts:**\n"
             for (category, count) in diagnosis.categoryCounts.sorted(by: { $0.value > $1.value }) {
-                markdown += "- \(category.displayName): \(count)\n"
+                markdown += "- \(category.exportName): \(count)\n"
             }
         }
         markdown += "\n"
@@ -170,7 +172,7 @@ final class DiagnosticReportTests: XCTestCase {
             markdown += "### Matched Patterns\n\n"
             for diagMatch in diagnosis.matches.prefix(5) {
                 let conf = ConfidenceTier(score: diagMatch.pattern.confidence).displayName
-                markdown += "- **\(diagMatch.pattern.id)** [\(diagMatch.pattern.category.displayName)]"
+                markdown += "- **\(diagMatch.pattern.id)** [\(diagMatch.pattern.category.exportName)]"
                 markdown += " (\(conf) confidence)\n"
             }
             markdown += "\n"

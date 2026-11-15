@@ -44,6 +44,9 @@ public struct RunLogEntry: Codable, Identifiable, Equatable, Sendable {
     /// Display name of the program that was launched.
     public let programName: String
 
+    /// Name of the WINEDEBUG preset active during this run, if any.
+    public var activeWineDebugPreset: String?
+
     /// Whether WINEDEBUG output was captured during this run.
     public var hasWineDebugOutput: Bool = false
 
@@ -96,7 +99,11 @@ public struct RunLogHistory: Codable, Equatable {
     @discardableResult
     public mutating func append(_ entry: RunLogEntry) -> [RunLogEntry] {
         entries.append(entry)
-        return deleteOldEntries()
+        var removed: [RunLogEntry] = []
+        while entries.count > Self.maxEntriesPerProgram {
+            removed.append(entries.removeFirst())
+        }
+        return removed
     }
 
     /// Marks a run entry as completed with an exit code.
@@ -110,6 +117,14 @@ public struct RunLogHistory: Codable, Equatable {
         entries[index].endTime = Date()
         entries[index].exitCode = exitCode
         entries[index].hasWineDebugOutput = hasWineDebug
+    }
+
+    /// Resolves all log file names to full URLs in the given logs folder.
+    ///
+    /// - Parameter logsFolder: The URL to the logs directory.
+    /// - Returns: An array of resolved log file URLs.
+    public func logFileURLs(in logsFolder: URL) -> [URL] {
+        entries.map { logsFolder.appending(path: $0.logFileName) }
     }
 
     /// Removes a specific entry by ID.
@@ -191,7 +206,9 @@ public enum RunLogStore {
         let settingsFolder = bottleURL.appending(path: "Program Settings")
 
         do {
-            try FileManager.default.createDirectory(at: settingsFolder, withIntermediateDirectories: true)
+            if !FileManager.default.fileExists(atPath: settingsFolder.path(percentEncoded: false)) {
+                try FileManager.default.createDirectory(at: settingsFolder, withIntermediateDirectories: true)
+            }
 
             let encoder = PropertyListEncoder()
             encoder.outputFormat = .xml
@@ -199,6 +216,28 @@ public enum RunLogStore {
             try data.write(to: url)
         } catch {
             logger.error("Failed to save run history: \(error.localizedDescription)")
+        }
+    }
+
+    /// Calculates the total size of all `.log` files in a logs folder.
+    ///
+    /// - Parameter logsFolder: The URL to the logs directory.
+    /// - Returns: Total size in bytes, or 0 on failure.
+    public static func totalLogSize(in logsFolder: URL) -> Int64 {
+        do {
+            let urls = try FileManager.default.contentsOfDirectory(
+                at: logsFolder,
+                includingPropertiesForKeys: [.fileSizeKey],
+                options: [.skipsHiddenFiles]
+            )
+
+            return urls.reduce(Int64(0)) { total, url in
+                guard url.pathExtension.lowercased() == "log" else { return total }
+                let size = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
+                return total + Int64(size)
+            }
+        } catch {
+            return 0
         }
     }
 }

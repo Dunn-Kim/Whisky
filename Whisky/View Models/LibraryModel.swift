@@ -202,6 +202,11 @@ extension LibraryModel {
                 launchError = String(localized: "library.launch.steamGameMissing")
                 return
             }
+            // A program launch applies the clipboard policy inside the launch;
+            // a Steam game is handed to the client, so it is applied here.
+            if case let .autoCleared(contentType, sizeBytes) = bottle.performClipboardCheck() {
+                toast = .clipboardCleared(contentType: contentType, sizeBytes: sizeBytes)
+            }
             orchestrator(for: bottle).launch(game)
         }
     }
@@ -220,12 +225,20 @@ extension LibraryModel {
     }
 
     private func launchProgram(at url: URL, in bottle: Bottle) {
-        // Through a Program even when the bottle's list doesn't carry one (a pin
-        // outside Program Files), so the launch picks up that program's saved
-        // locale and overrides rather than only the bottle's.
-        let program = bottle.program(at: url)
+        // Always as a Program, so the launch picks up that program's overrides
+        // and gets launcher detection and the clipboard policy like every other
+        // Play. The bottle's own list is used where it has the program; built
+        // from the URL otherwise, as the Dock and menu bar do for a pin before
+        // any scan.
+        let program = bottle.programs.first(where: { $0.url == url }) ?? Program(url: url, bottle: bottle)
+
         programLaunching.insert(url)
-        program.launchFromUI { [self] result in
+        Telemetry.capture(.firstProgramLaunchAttempted)
+        let useTerminal = NSEvent.modifierFlags.contains(.shift)
+        Task {
+            let result = await program.launchWithUserMode(useTerminal: useTerminal) { [weak self] type, size in
+                self?.toast = .clipboardCleared(contentType: type, sizeBytes: size)
+            }
             programLaunching.remove(url)
             toast = result.toastData
         }
@@ -233,7 +246,7 @@ extension LibraryModel {
 
     /// The orchestrator for a bottle, made once and kept.
     ///
-    /// Its `launchingAppIds` and `runningAppIds` are what the cards read, so it has to
+    /// Its `phases` and `runningAppIds` are what the cards read, so it has to
     /// outlive the launch that created it.
     private func orchestrator(for bottle: Bottle) -> SteamClientOrchestrator {
         if let existing = orchestrators[bottle.url] {
@@ -242,9 +255,9 @@ extension LibraryModel {
 
         let made = SteamClientOrchestrator(bottle: bottle)
         let url = bottle.url
-        made.$launchingAppIds
-            .sink { [weak self] launching in
-                self?.steamLaunching[url] = launching
+        made.$phases
+            .sink { [weak self] phases in
+                self?.steamLaunching[url] = Set(phases.keys)
             }
             .store(in: &cancellables)
         made.$runningAppIds

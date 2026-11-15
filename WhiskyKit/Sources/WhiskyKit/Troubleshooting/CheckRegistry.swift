@@ -28,45 +28,16 @@ import os.log
 /// ## Usage
 ///
 /// ```swift
-/// let registry = CheckRegistry()  // All built-in checks pre-registered
+/// let registry = CheckRegistry()  // All 15 checks pre-registered
 /// let result = await registry.run(
-///     checkId: "setting.value_check",
-///     params: ["setting": "graphicsBackend", "expected": "dxvk"],
+///     checkId: "graphics.backend_is",
+///     params: ["expected": "dxvk"],
 ///     context: checkContext
 /// )
 /// ```
-public final class CheckRegistry: Sendable {
-    /// Every built-in check implementation.
-    ///
-    /// Each check wraps an existing diagnostic primitive and returns a
-    /// normalized ``CheckResult``. Check IDs are stable and match the
-    /// references in flow definition JSON files.
-    public static let builtIn: [any TroubleshootingCheck] = [
-        // Crash diagnostics
-        CrashLogCheck(),
-
-        // Audio diagnostics
-        AudioDriverCheck(),
-        AudioDeviceCheck(),
-
-        // Dependency and winetricks
-        DependencyCheck(),
-        WinetricksVerbCheck(),
-
-        // Launcher and process
-        LauncherTypeCheck(),
-        ProcessRunningCheck(),
-
-        // Registry
-        RegistryValueCheck(),
-
-        // Game config, settings, and diagnostics
-        GameConfigAvailableCheck(),
-        SettingValueCheck(),
-        DiagnosticsEnhanceCheck()
-    ]
-
-    private let checks: [String: any TroubleshootingCheck]
+public final class CheckRegistry: @unchecked Sendable {
+    private let lock = NSLock()
+    private var checks: [String: any TroubleshootingCheck] = [:]
 
     private let logger = Logger(
         subsystem: "com.franke.Whisky",
@@ -75,12 +46,36 @@ public final class CheckRegistry: Sendable {
 
     // MARK: - Init
 
-    /// Creates a check registry from `checks`, all built-in checks by default.
+    /// Creates a check registry with all built-in checks pre-registered.
     ///
-    /// If two checks share a ``TroubleshootingCheck/checkId``, the later one
-    /// wins.
-    public init(checks: [any TroubleshootingCheck] = builtIn) {
-        self.checks = Dictionary(checks.map { ($0.checkId, $0) }, uniquingKeysWith: { _, later in later })
+    /// All 15 default check implementations are registered automatically.
+    /// Additional checks can be registered via ``register(_:)`` after
+    /// construction.
+    public init() {
+        registerDefaults()
+    }
+
+    // MARK: - Registration
+
+    /// Registers a check implementation in the registry.
+    ///
+    /// If a check with the same ``TroubleshootingCheck/checkId`` is already
+    /// registered, it is replaced silently.
+    ///
+    /// - Parameter check: The check implementation to register.
+    public func register(_ check: any TroubleshootingCheck) {
+        lock.withLock {
+            checks[check.checkId] = check
+        }
+        logger.debug("Registered check: \(check.checkId)")
+    }
+
+    /// The check registered under `checkId`, if any.
+    ///
+    /// - Parameter checkId: The stable identifier of the check.
+    /// - Returns: The registered implementation, or `nil`.
+    public func check(for checkId: String) -> (any TroubleshootingCheck)? {
+        lock.withLock { checks[checkId] }
     }
 
     // MARK: - Execution
@@ -93,19 +88,64 @@ public final class CheckRegistry: Sendable {
     /// - Parameters:
     ///   - checkId: The stable identifier of the check to run.
     ///   - params: Key-value parameters from the flow step node.
-    ///   - context: The check context with bottle, program, and preflight data.
+    ///   - context: The check context with bottle, program, and session state.
     /// - Returns: The check result for flow branching.
     public func run(
         checkId: String,
         params: [String: String],
         context: CheckContext
     ) async -> CheckResult {
-        guard let check = checks[checkId] else {
+        let check: (any TroubleshootingCheck)? = lock.withLock {
+            checks[checkId]
+        }
+
+        guard let check else {
             logger.error("Unknown check ID: \(checkId)")
-            return .error("Check not found: \(checkId)", evidence: ["error": "Unknown checkId: \(checkId)"])
+            return CheckResult(
+                outcome: .error,
+                evidence: ["error": "Unknown checkId: \(checkId)"],
+                summary: "Check not found: \(checkId)",
+                confidence: nil
+            )
         }
 
         logger.debug("Running check: \(checkId)")
         return await check.run(params: params, context: context)
+    }
+
+    // MARK: - Default Registration
+
+    /// Registers all 15 built-in check implementations.
+    ///
+    /// Each check wraps an existing diagnostic primitive and returns a
+    /// normalized ``CheckResult``. Check IDs are stable and match the
+    /// references in flow definition JSON files.
+    public func registerDefaults() {
+        // Graphics and crash diagnostics
+        register(CrashLogCheck())
+        register(GraphicsBackendCheck())
+        register(DXVKSettingsCheck())
+
+        // Audio diagnostics
+        register(AudioDriverCheck())
+        register(AudioDeviceCheck())
+        register(AudioTestCheck())
+
+        // Dependency and winetricks
+        register(DependencyCheck())
+        register(WinetricksVerbCheck())
+
+        // Launcher and process
+        register(LauncherTypeCheck())
+        register(ProcessRunningCheck())
+
+        // Environment and registry
+        register(EnvironmentCheck())
+        register(RegistryValueCheck())
+
+        // Game config, settings, and diagnostics
+        register(GameConfigAvailableCheck())
+        register(SettingValueCheck())
+        register(DiagnosticsEnhanceCheck())
     }
 }

@@ -21,7 +21,10 @@ import os.log
 import SwiftUI
 import WhiskyKit
 
-private let launcherConfigLogger = Logger(subsystem: Bundle.whiskyBundleIdentifier, category: "LauncherConfig")
+private let launcherConfigLogger = Logger(
+    subsystem: Bundle.main.bundleIdentifier ?? "com.franke.Whisky",
+    category: "LauncherConfig"
+)
 
 struct LauncherConfigSection: View {
     @ObservedObject var bottle: Bottle
@@ -94,9 +97,6 @@ extension LauncherConfigSection {
         gpuSpoofingControls
 
         Divider()
-
-        // Network configuration
-        networkControls
 
         // Rockstar is the only launcher that requires DXVK; every launcher
         // already resolves to DXVK under the Recommended backend
@@ -215,14 +215,15 @@ extension LauncherConfigSection {
                 }
             }
             .help("""
-            Steam and Chromium-based launchers require en_US locale \
-            to avoid steamwebhelper crashes
+            Sets the Windows locale for every program in this bottle, including games a launcher starts. \
+            Auto keeps the launcher's default: US English for EA App, Epic Games, Battle.net and Rockstar, \
+            and the Mac's own language and region otherwise.
             """)
 
             if bottle.settings.launcherLocale != .auto {
                 Text("""
-                Forces \(bottle.settings.launcherLocale.pretty()) locale \
-                to fix steamwebhelper crashes
+                Programs in this bottle, the launcher included, use \(bottle.settings.launcherLocale.pretty()). \
+                If the launcher's window stops working, set this back to Auto.
                 """)
                 .font(.caption)
                 .foregroundColor(.secondary)
@@ -248,30 +249,6 @@ extension LauncherConfigSection {
         }
     }
 
-    private var networkControls: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack {
-                Text("Network Timeout:")
-                Spacer()
-                Text("\(bottle.settings.networkTimeout / 1_000)s")
-                    .foregroundColor(.secondary)
-            }
-
-            Slider(
-                value: Binding(
-                    get: { Double(bottle.settings.networkTimeout) },
-                    set: { bottle.settings.networkTimeout = Int($0) }
-                ),
-                in: 30_000 ... 180_000,
-                step: 15_000
-            )
-
-            Text("Fixes Steam download stalls and connection timeouts")
-                .font(.caption)
-                .foregroundColor(.secondary)
-        }
-    }
-
     @ViewBuilder
     private var configurationWarnings: some View {
         if let launcher = bottle.settings.detectedLauncher {
@@ -289,7 +266,7 @@ extension LauncherConfigSection {
                         .fontWeight(.medium)
 
                     ForEach(warnings, id: \.self) { warning in
-                        Text(warning)
+                        Text(warning.localizedMessage)
                             .font(.caption)
                             .foregroundColor(.secondary)
                             .padding(.leading, 24)
@@ -312,7 +289,7 @@ private struct ActiveEnvironmentOverrides: View {
     @Binding var isExpanded: Bool
 
     var body: some View {
-        DisclosureGroup("Active Environment Overrides", isExpanded: $isExpanded) {
+        DisclosureGroup("launcher.config.activeOverrides", isExpanded: $isExpanded) {
             VStack(alignment: .leading, spacing: 12) {
                 if let launcher, !launcher.fixDetails().isEmpty {
                     launcherFixesSection(launcher)
@@ -328,16 +305,23 @@ private struct ActiveEnvironmentOverrides: View {
 
     // MARK: - Launcher Fixes
 
+    @ViewBuilder
     private func launcherFixesSection(_ launcher: LauncherType) -> some View {
+        let details = launcher.fixDetails()
+        let grouped = Dictionary(grouping: details, by: \.category)
+        let sortedCategories = grouped.keys.sorted { $0.rawValue < $1.rawValue }
+
         VStack(alignment: .leading, spacing: 8) {
             Label("\(launcher.displayName) Fixes", systemImage: "gamecontroller")
                 .font(.caption)
                 .fontWeight(.semibold)
                 .foregroundColor(.primary)
 
-            categoryGroups(launcher.fixDetails().map {
-                ($0.category, FixRow(key: $0.key, value: $0.value, reason: $0.reason))
-            })
+            ForEach(sortedCategories, id: \.self) { category in
+                if let fixes = grouped[category] {
+                    categoryGroup(category: category, fixes: fixes, provenance: nil)
+                }
+            }
         }
     }
 
@@ -346,6 +330,9 @@ private struct ActiveEnvironmentOverrides: View {
     @ViewBuilder
     private var platformFixesSection: some View {
         let activeFixes = MacOSCompatibilityFixes.activeFixes()
+        let grouped = Dictionary(grouping: activeFixes, by: \.category)
+        let sortedCategories = grouped.keys.sorted { $0.rawValue < $1.rawValue }
+
         if !activeFixes.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
                 Label("Platform Fixes", systemImage: "desktopcomputer")
@@ -353,51 +340,66 @@ private struct ActiveEnvironmentOverrides: View {
                     .fontWeight(.semibold)
                     .foregroundColor(.primary)
 
-                categoryGroups(activeFixes.map { fix in
-                    (fix.category, FixRow(
-                        key: fix.key, value: fix.value,
-                        reason: "Applied because macOS >= \(fix.appliesFrom.description): \(fix.reason)"
-                    ))
-                })
+                ForEach(sortedCategories, id: \.self) { category in
+                    if let fixes = grouped[category] {
+                        macOSCategoryGroup(category: category, fixes: fixes)
+                    }
+                }
             }
         }
     }
 
     // MARK: - Category Group Views
 
-    private struct FixRow {
-        let key: String
-        let value: String
-        let reason: String
+    private func categoryGroup(
+        category: FixCategory,
+        fixes: [LauncherFixDetail],
+        provenance: String?
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(category.displayName)
+                .font(.caption2)
+                .fontWeight(.medium)
+                .foregroundColor(.secondary)
+                .textCase(.uppercase)
+
+            ForEach(fixes, id: \.key) { fix in
+                fixRow(key: fix.key, value: fix.value, reason: fix.localizedReason)
+            }
+        }
     }
 
-    private func categoryGroups(_ rows: [(category: FixCategory, row: FixRow)]) -> some View {
-        let grouped = Dictionary(grouping: rows, by: \.category)
-        return ForEach(grouped.keys.sorted { $0.rawValue < $1.rawValue }, id: \.self) { category in
-            VStack(alignment: .leading, spacing: 4) {
-                Text(category.rawValue.capitalized)
-                    .font(.caption2)
-                    .fontWeight(.medium)
-                    .foregroundColor(.secondary)
-                    .textCase(.uppercase)
+    private func macOSCategoryGroup(
+        category: FixCategory,
+        fixes: [MacOSFix]
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(category.displayName)
+                .font(.caption2)
+                .fontWeight(.medium)
+                .foregroundColor(.secondary)
+                .textCase(.uppercase)
 
-                ForEach(grouped[category] ?? [], id: \.row.key) { entry in
-                    fixRow(entry.row)
-                }
+            ForEach(fixes, id: \.key) { fix in
+                fixRow(
+                    key: fix.key,
+                    value: fix.value,
+                    reason: platformReason(fix)
+                )
             }
         }
     }
 
     // MARK: - Individual Fix Row
 
-    private func fixRow(_ row: FixRow) -> some View {
+    private func fixRow(key: String, value: String, reason: String) -> some View {
         HStack(alignment: .top, spacing: 6) {
             Image(systemName: "lock.fill")
                 .font(.caption2)
                 .foregroundColor(.secondary)
 
             VStack(alignment: .leading, spacing: 1) {
-                Text(row.key)
+                Text(key)
                     .font(.system(.caption, design: .monospaced))
                     .foregroundColor(.primary)
                     +
@@ -405,17 +407,29 @@ private struct ActiveEnvironmentOverrides: View {
                     .font(.system(.caption, design: .monospaced))
                     .foregroundColor(.secondary)
                     +
-                    Text(row.value)
+                    Text(value)
                     .font(.system(.caption, design: .monospaced))
                     .foregroundColor(.primary)
 
-                Text(row.reason)
+                Text(reason)
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
         .padding(.leading, 8)
+    }
+
+    // MARK: - Helpers
+
+    /// Why a platform fix is active. Universal fixes carry macOS 0.0.0, which
+    /// reads as nonsense when printed as a minimum version.
+    private func platformReason(_ fix: MacOSFix) -> String {
+        if fix.appliesFrom.major == 0 {
+            return String(localized: "launcher.config.provenance.allVersions \(fix.localizedReason)")
+        }
+        let version = fix.appliesFrom.description
+        return String(localized: "launcher.config.provenance.platformReason \(version) \(fix.localizedReason)")
     }
 }
 

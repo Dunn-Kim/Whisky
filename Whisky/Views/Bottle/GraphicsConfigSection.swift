@@ -26,11 +26,16 @@ struct GraphicsConfigSection: View {
     @State private var hasRunningProcesses: Bool = false
 
     private var resolvedBackend: GraphicsBackend {
-        bottle.settings.graphicsBackend.resolved
+        if bottle.settings.graphicsBackend == .recommended {
+            return GraphicsBackendResolver.resolve()
+        }
+        return bottle.settings.graphicsBackend
     }
 
     var body: some View {
         Section("config.title.graphics") {
+            let d3dMetalReadiness = D3DMetalReadiness.current()
+
             // Simple/Advanced segmented control
             Picker("", selection: $advancedMode) {
                 Text("config.graphics.simple").tag(false)
@@ -42,41 +47,32 @@ struct GraphicsConfigSection: View {
             // Backend picker -- always visible
             BackendPickerView(
                 selection: $bottle.settings.graphicsBackend,
-                resolvedBackend: resolvedBackend
+                resolvedBackend: resolvedBackend,
+                isBackendAvailable: { backend in
+                    WhiskyWineInstaller.isBackendAvailable(backend)
+                },
+                d3dMetalReadiness: d3dMetalReadiness
             )
 
-            // A bottle explicitly set to D3DMetal without its payload silently
-            // degrades to WineD3D at launch — say so instead (issue #146).
-            if bottle.settings.graphicsBackend == .d3dMetal,
-               !WhiskyWineInstaller.isBackendAvailable(.d3dMetal) {
-                d3dMetalMissingWarning
+            // Said once, after an update put a bottle the old Steam profile had
+            // switched to DXVK back on Recommended (#276).
+            if bottle.settings.launcherBackendResetNotice {
+                launcherBackendResetNotice
+            }
+
+            // A bottle explicitly set to D3DMetal that can't run it silently
+            // degrades to WineD3D at launch, so say so (issue #146). An imported
+            // payload the engine can't run is explained whatever the bottle is
+            // set to, since importing it looks like it should have been enough
+            // (#358).
+            if (bottle.settings.graphicsBackend == .d3dMetal && !d3dMetalReadiness.isAvailable)
+                || d3dMetalReadiness == .engineNotCapable {
+                d3dMetalNotice(d3dMetalReadiness)
             }
 
             // Running process warning banner
             if hasRunningProcesses {
                 runningProcessWarning
-            }
-
-            // Frame rate cap -- always visible. Uncapped rendering is the single
-            // biggest avoidable source of GPU power draw and heat.
-            VStack(alignment: .leading, spacing: 4) {
-                Picker("config.frameRateLimit", selection: $bottle.settings.frameRateLimit) {
-                    ForEach(FrameRateLimit.allCases, id: \.self) { limit in
-                        Text(limit.label).tag(limit)
-                    }
-                }
-                if resolvedBackend.supportsFrameRateLimit {
-                    Text("config.frameRateLimit.info")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Text("config.frameRateLimit.pacing")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                } else {
-                    Text("config.frameRateLimit.unsupported")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
             }
 
             // MetalFX rides on D3DMetal's DLSS bridge and Metal 4 is D3DMetal's
@@ -112,17 +108,6 @@ struct GraphicsConfigSection: View {
                 .disabled(!bottle.settings.metalFX)
             }
 
-            if resolvedBackend == .dxmt {
-                Toggle(isOn: $bottle.settings.dxmtMetalFXUpscale) {
-                    VStack(alignment: .leading) {
-                        Text("config.dxmtMetalFXUpscale")
-                        Text("config.dxmtMetalFXUpscale.info")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
-
             // The Sequoia compatibility toggle is gone: everything it set is a
             // platform-layer fix applied on every supported macOS, so the
             // switch changed nothing in either position.
@@ -142,7 +127,8 @@ struct GraphicsConfigSection: View {
                 // DXVK settings subsection
                 DXVKSettingsView(
                     bottle: bottle,
-                    resolvedBackend: resolvedBackend
+                    resolvedBackend: resolvedBackend,
+                    bottleURL: bottle.url
                 )
 
                 // Metal settings subsection (migrated from MetalConfigSection)
@@ -176,20 +162,70 @@ struct GraphicsConfigSection: View {
             }
         }
         .animation(.default, value: advancedMode)
+        .onChange(of: bottle.settings.graphicsBackend) {
+            // Picking a backend answers the notice.
+            if bottle.settings.launcherBackendResetNotice {
+                bottle.settings.launcherBackendResetNotice = false
+            }
+        }
         .task {
             await checkRunningProcesses()
         }
     }
 
-    // MARK: - D3DMetal Missing Warning
+    // MARK: - Launcher Backend Reset Notice
 
-    private var d3dMetalMissingWarning: some View {
+    private var launcherBackendResetNotice: some View {
         HStack {
-            Image(systemName: "exclamationmark.triangle")
-                .foregroundStyle(.orange)
-            Text("config.graphics.backend.d3dMetal.missingWarning")
+            Image(systemName: "info.circle")
+                .foregroundStyle(.blue)
+            Text("config.graphics.backend.launcherReset")
                 .font(.caption)
             Spacer()
+            Button {
+                bottle.settings.launcherBackendResetNotice = false
+            } label: {
+                Image(systemName: "xmark")
+            }
+            .buttonStyle(.borderless)
+            .help("config.graphics.backend.launcherReset.dismiss")
+            .accessibilityLabel("config.graphics.backend.launcherReset.dismiss")
+        }
+    }
+
+    // MARK: - D3DMetal Notice
+
+    /// A warning when this bottle is set to D3DMetal and can't run it, or a
+    /// note when it is set to something else; either way it names what is
+    /// missing and, when that is the engine, links to the engine releases.
+    private func d3dMetalNotice(_ readiness: D3DMetalReadiness) -> some View {
+        let isWarning = bottle.settings.graphicsBackend == .d3dMetal
+        return HStack(alignment: .top) {
+            Image(systemName: isWarning ? "exclamationmark.triangle" : "info.circle")
+                .foregroundStyle(isWarning ? Color.orange : Color.blue)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(d3dMetalNoticeKey(readiness, isWarning: isWarning))
+                    .font(.caption)
+                if readiness.needsCapableEngine, let url = D3DMetalReadiness.engineReleasesURL {
+                    Link("gptk.engineReleases", destination: url)
+                        .font(.caption)
+                }
+            }
+            Spacer()
+        }
+    }
+
+    private func d3dMetalNoticeKey(_ readiness: D3DMetalReadiness, isWarning: Bool) -> LocalizedStringKey {
+        guard isWarning else { return "config.graphics.backend.d3dMetal.engineNote" }
+        switch readiness {
+        case .engineNotCapable:
+            return "config.graphics.backend.d3dMetal.warning.needsEngine"
+        case .payloadAndEngineMissing:
+            return "config.graphics.backend.d3dMetal.warning.needsPayloadAndEngine"
+        case .payloadNotDeployed:
+            return "config.graphics.backend.d3dMetal.warning.needsSetup"
+        case .payloadMissing, .available:
+            return "config.graphics.backend.d3dMetal.warning.needsPayload"
         }
     }
 
@@ -220,7 +256,9 @@ struct GraphicsConfigSection: View {
     // MARK: - Running Process Check
 
     private func checkRunningProcesses() async {
-        hasRunningProcesses = await bottle.hasRunningProcesses()
+        let wineserverActive = await Wine.isWineserverRunning(for: bottle)
+        let trackedCount = ProcessRegistry.shared.getProcessCount(for: bottle)
+        hasRunningProcesses = wineserverActive || trackedCount > 0
     }
 
     // MARK: - Advanced Settings Badge

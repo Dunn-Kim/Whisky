@@ -55,7 +55,7 @@ struct RunningProcessesView: View {
         ) {
             stopConfirmationButtons
         } message: {
-            Text("process.confirm.stop.message")
+            stopConfirmationMessage
         }
         .confirmationDialog(
             String(localized: "process.confirm.forceStop.title"),
@@ -72,14 +72,17 @@ struct RunningProcessesView: View {
 
     private var emptyStateView: some View {
         VStack(spacing: 12) {
-            if viewModel.hasRefreshed {
-                Text("process.empty")
-                    .foregroundStyle(.secondary)
-            } else {
+            if viewModel.isPolling {
                 ProgressView()
                     .controlSize(.small)
                 Text("process.checking")
                     .foregroundStyle(.secondary)
+            } else {
+                Text("process.empty")
+                    .foregroundStyle(.secondary)
+                Button("process.action.refresh") {
+                    Task { await viewModel.refreshProcessList() }
+                }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -114,13 +117,27 @@ struct RunningProcessesView: View {
         Button(String(localized: "process.action.stopBottle"), role: .destructive) {
             Task {
                 let count = await viewModel.stopBottle()
-                toast = ToastData(
-                    message: String(localized: "process.toast.stopped \(count)"),
-                    style: .success
-                )
+                withAnimation {
+                    toast = ToastData(
+                        message: String(localized: "process.toast.stopped \(count)"),
+                        style: .success
+                    )
+                }
             }
         }
         Button("button.cancel", role: .cancel) {}
+    }
+
+    @ViewBuilder
+    private var stopConfirmationMessage: some View {
+        let hasUntracked = viewModel.processes.contains { $0.source == .untracked }
+        if hasUntracked {
+            Text("process.confirm.stop.message")
+                + Text("\n")
+                + Text("process.confirm.stop.includesUntracked")
+        } else {
+            Text("process.confirm.stop.message")
+        }
     }
 
     @ViewBuilder
@@ -128,10 +145,12 @@ struct RunningProcessesView: View {
         Button(String(localized: "process.action.forceStop"), role: .destructive) {
             Task {
                 let count = await viewModel.forceStopBottle()
-                toast = ToastData(
-                    message: String(localized: "process.toast.stopped \(count)"),
-                    style: .success
-                )
+                withAnimation {
+                    toast = ToastData(
+                        message: String(localized: "process.toast.stopped \(count)"),
+                        style: .success
+                    )
+                }
             }
         }
         Button("button.cancel", role: .cancel) {}
@@ -161,10 +180,26 @@ extension RunningProcessesView {
                 }
                 .width(min: 60, ideal: 80)
 
+                TableColumn(String(localized: "process.column.started")) { process in
+                    if let launchTime = process.launchTime {
+                        Text(launchTime, style: .relative)
+                    } else {
+                        Text("process.column.started.unknown")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .width(min: 70, ideal: 90)
+
                 TableColumn(String(localized: "process.column.kind")) { process in
                     Text(localizedKind(process.kind))
                 }
                 .width(min: 50, ideal: 60)
+
+                TableColumn(String(localized: "process.column.source")) { process in
+                    Text(localizedSource(process.source))
+                        .foregroundStyle(process.source == .untracked ? .orange : .primary)
+                }
+                .width(min: 60, ideal: 80)
             }
             .contextMenu(forSelectionType: Int32.self) { selectedIDs in
                 if let processID = selectedIDs.first,
@@ -192,7 +227,7 @@ extension RunningProcessesView {
         .disabled(viewModel.shutdownState != .idle)
 
         Button {
-            Task { await viewModel.quitProcess(process, force: true) }
+            Task { await viewModel.forceQuitProcess(process) }
         } label: {
             Label("process.action.forceQuit", systemImage: "xmark.circle.fill")
         }
@@ -221,9 +256,16 @@ extension RunningProcessesView {
                 VStack(alignment: .leading, spacing: 4) {
                     detailRow(label: "process.column.name", value: process.imageName)
                     detailRow(label: "process.detail.winePID", value: String(process.winePID))
+                    if let macosPID = process.macosPID {
+                        detailRow(label: "process.detail.macosPID", value: String(macosPID))
+                    }
                 }
                 VStack(alignment: .leading, spacing: 4) {
+                    detailRow(label: "process.detail.source", value: localizedSource(process.source))
                     detailRow(label: "process.detail.kind", value: localizedKind(process.kind))
+                    if let commandLine = process.commandLine {
+                        detailRow(label: "process.detail.commandLine", value: commandLine)
+                    }
                 }
                 Spacer()
             }
@@ -291,6 +333,13 @@ extension RunningProcessesView {
         case .app: String(localized: "process.kind.app")
         case .service: String(localized: "process.kind.service")
         case .system: String(localized: "process.kind.system")
+        }
+    }
+
+    func localizedSource(_ source: ProcessSource) -> String {
+        switch source {
+        case .whisky: String(localized: "process.source.whisky")
+        case .untracked: String(localized: "process.source.untracked")
         }
     }
 }

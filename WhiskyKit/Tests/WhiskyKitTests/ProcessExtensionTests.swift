@@ -20,14 +20,146 @@ import Foundation
 @testable import WhiskyKit
 import XCTest
 
-// MARK: - FileHandle.nextOutput Tests
+// MARK: - ProcessOutput Enum Extended Tests
 
-final class FileHandleNextOutputTests: XCTestCase {
+final class ProcessOutputExtendedTests: XCTestCase {
+    // MARK: - Equality Tests
+
+    func testStartedEquality() {
+        XCTAssertEqual(ProcessOutput.started, ProcessOutput.started)
+    }
+
+    func testMessageEquality() {
+        XCTAssertEqual(ProcessOutput.message("hello"), ProcessOutput.message("hello"))
+        XCTAssertNotEqual(ProcessOutput.message("hello"), ProcessOutput.message("world"))
+    }
+
+    func testErrorEquality() {
+        XCTAssertEqual(ProcessOutput.error("error1"), ProcessOutput.error("error1"))
+        XCTAssertNotEqual(ProcessOutput.error("error1"), ProcessOutput.error("error2"))
+    }
+
+    func testTerminatedEquality() {
+        XCTAssertEqual(ProcessOutput.terminated(0), ProcessOutput.terminated(0))
+        XCTAssertEqual(ProcessOutput.terminated(1), ProcessOutput.terminated(1))
+        XCTAssertNotEqual(ProcessOutput.terminated(0), ProcessOutput.terminated(1))
+    }
+
+    func testDifferentCasesNotEqual() {
+        XCTAssertNotEqual(ProcessOutput.started, ProcessOutput.terminated(0))
+        XCTAssertNotEqual(ProcessOutput.message("test"), ProcessOutput.error("test"))
+        XCTAssertNotEqual(ProcessOutput.message("test"), ProcessOutput.started)
+    }
+
+    // MARK: - Hashable Tests
+
+    func testHashableConsistency() {
+        let output1 = ProcessOutput.message("test")
+        let output2 = ProcessOutput.message("test")
+
+        XCTAssertEqual(output1.hashValue, output2.hashValue)
+    }
+
+    func testHashableInSet() {
+        var outputSet: Set<ProcessOutput> = []
+
+        outputSet.insert(.started)
+        outputSet.insert(.message("hello"))
+        outputSet.insert(.error("error"))
+        outputSet.insert(.terminated(0))
+
+        XCTAssertEqual(outputSet.count, 4)
+        XCTAssertTrue(outputSet.contains(.started))
+        XCTAssertTrue(outputSet.contains(.message("hello")))
+        XCTAssertTrue(outputSet.contains(.error("error")))
+        XCTAssertTrue(outputSet.contains(.terminated(0)))
+    }
+
+    func testHashableInSetDeduplication() {
+        var outputSet: Set<ProcessOutput> = []
+
+        outputSet.insert(.message("test"))
+        outputSet.insert(.message("test"))
+        outputSet.insert(.message("test"))
+
+        XCTAssertEqual(outputSet.count, 1)
+    }
+
+    func testHashableAsDictionaryKey() {
+        var dict: [ProcessOutput: String] = [:]
+
+        dict[.started] = "started"
+        dict[.message("msg")] = "message"
+        dict[.error("err")] = "error"
+        dict[.terminated(0)] = "success"
+        dict[.terminated(1)] = "failure"
+
+        XCTAssertEqual(dict[.started], "started")
+        XCTAssertEqual(dict[.message("msg")], "message")
+        XCTAssertEqual(dict[.error("err")], "error")
+        XCTAssertEqual(dict[.terminated(0)], "success")
+        XCTAssertEqual(dict[.terminated(1)], "failure")
+    }
+
+    // MARK: - Sendable Conformance
+
+    func testSendableConformance() {
+        // This test verifies at compile-time that ProcessOutput is Sendable
+        // by using it in a context that requires Sendable
+        let output: ProcessOutput = .message("test")
+        Task {
+            // If ProcessOutput weren't Sendable, this would be a compile error
+            _ = output
+        }
+    }
+
+    // MARK: - Edge Cases
+
+    func testMessageWithEmptyString() {
+        let output = ProcessOutput.message("")
+        XCTAssertEqual(output, ProcessOutput.message(""))
+    }
+
+    func testErrorWithEmptyString() {
+        let output = ProcessOutput.error("")
+        XCTAssertEqual(output, ProcessOutput.error(""))
+    }
+
+    func testTerminatedWithNegativeCode() {
+        let output = ProcessOutput.terminated(-1)
+        XCTAssertEqual(output, ProcessOutput.terminated(-1))
+        XCTAssertNotEqual(output, ProcessOutput.terminated(1))
+    }
+
+    func testTerminatedWithMaxInt32() {
+        let output = ProcessOutput.terminated(Int32.max)
+        XCTAssertEqual(output, ProcessOutput.terminated(Int32.max))
+    }
+
+    func testTerminatedWithMinInt32() {
+        let output = ProcessOutput.terminated(Int32.min)
+        XCTAssertEqual(output, ProcessOutput.terminated(Int32.min))
+    }
+
+    func testMessageWithUnicodeContent() {
+        let unicodeMessage = "日本語テスト 🎮 émoji"
+        XCTAssertEqual(ProcessOutput.message(unicodeMessage), ProcessOutput.message(unicodeMessage))
+    }
+
+    func testErrorWithMultilineContent() {
+        let multiline = "Error line 1\nError line 2\nError line 3"
+        XCTAssertEqual(ProcessOutput.error(multiline), ProcessOutput.error(multiline))
+    }
+}
+
+// MARK: - FileHandle.readChunk Tests
+
+final class FileHandleReadChunkTests: XCTestCase {
     var tempURL: URL!
 
     override func setUp() {
         super.setUp()
-        tempURL = FileManager.default.temporaryDirectory.appending(path: "nextoutput_\(UUID().uuidString).txt")
+        tempURL = FileManager.default.temporaryDirectory.appending(path: "readchunk_\(UUID().uuidString).txt")
     }
 
     override func tearDown() {
@@ -35,54 +167,81 @@ final class FileHandleNextOutputTests: XCTestCase {
         super.tearDown()
     }
 
-    func testReturnsTextForContent() throws {
+    func testReturnsDataForContent() throws {
         try Data("Hello, World!".utf8).write(to: tempURL)
 
         let handle = try FileHandle(forReadingFrom: tempURL)
         defer { try? handle.close() }
 
-        XCTAssertEqual(handle.nextOutput(), .text("Hello, World!"))
+        XCTAssertEqual(handle.readChunk(), .data(Data("Hello, World!".utf8)))
     }
 
-    /// The crux of the fix: an empty read is EOF, reported distinctly so the
-    /// readability handler can remove itself instead of spinning on it.
+    /// An empty read is EOF, reported distinctly so the readability handler
+    /// can remove itself instead of spinning on it (whisky-app/whisky#917).
     func testReturnsEndOfFileForEmptyRead() throws {
         try Data().write(to: tempURL)
 
         let handle = try FileHandle(forReadingFrom: tempURL)
         defer { try? handle.close() }
 
-        XCTAssertEqual(handle.nextOutput(), .endOfFile)
+        XCTAssertEqual(handle.readChunk(), .endOfFile)
     }
 
-    func testReturnsTextForMultipleLines() throws {
+    /// A pipe that is open but empty must not block a non-blocking reader, nor read as EOF.
+    func testReturnsWouldBlockForAnEmptyOpenPipe() {
+        let pipe = Pipe()
+        let descriptor = pipe.fileHandleForReading.fileDescriptor
+        _ = fcntl(descriptor, F_SETFL, fcntl(descriptor, F_GETFL) | O_NONBLOCK)
+
+        XCTAssertEqual(pipe.fileHandleForReading.readChunk(), .wouldBlock)
+
+        pipe.fileHandleForWriting.write(Data("late".utf8))
+        XCTAssertEqual(pipe.fileHandleForReading.readChunk(), .data(Data("late".utf8)))
+
+        try? pipe.fileHandleForWriting.close()
+        XCTAssertEqual(pipe.fileHandleForReading.readChunk(), .endOfFile)
+    }
+
+    func testReadsAtMostMaxCount() throws {
         try Data("Line 1\nLine 2\nLine 3".utf8).write(to: tempURL)
 
         let handle = try FileHandle(forReadingFrom: tempURL)
         defer { try? handle.close() }
 
-        // A single read returns all currently-available data as one chunk.
-        XCTAssertEqual(handle.nextOutput(), .text("Line 1\nLine 2\nLine 3"))
+        XCTAssertEqual(handle.readChunk(maxCount: 7), .data(Data("Line 1\n".utf8)))
+    }
+}
+
+// MARK: - UTF8ChunkDecoder Tests
+
+final class UTF8ChunkDecoderTests: XCTestCase {
+    func testDecodesWholeText() {
+        var decoder = UTF8ChunkDecoder()
+        XCTAssertEqual(decoder.decode(Data("日本語テスト 🍷".utf8)), "日本語テスト 🍷")
+        XCTAssertEqual(decoder.flush(), "")
     }
 
-    func testReturnsTextForUnicodeContent() throws {
-        try Data("日本語テスト 🍷".utf8).write(to: tempURL)
+    /// A character split across two reads arrives whole with the second read.
+    func testHoldsBackACharacterSplitAcrossReads() {
+        let bytes = Array("a🍷b".utf8)
+        var decoder = UTF8ChunkDecoder()
 
-        let handle = try FileHandle(forReadingFrom: tempURL)
-        defer { try? handle.close() }
-
-        XCTAssertEqual(handle.nextOutput(), .text("日本語テスト 🍷"))
+        XCTAssertEqual(decoder.decode(Data(bytes[0 ..< 3])), "a")
+        XCTAssertEqual(decoder.decode(Data(bytes[3...])), "🍷b")
+        XCTAssertEqual(decoder.flush(), "")
     }
 
-    /// A non-empty but not-yet-decodable chunk (e.g. a split multi-byte sequence)
-    /// is `.pending`, NOT `.endOfFile` — the handler must keep reading, not stop.
-    func testReturnsPendingForUndecodableData() throws {
-        try Data([0xFF, 0xFE]).write(to: tempURL)
+    /// Bytes that aren't UTF-8 become replacement characters rather than
+    /// taking the rest of their chunk with them.
+    func testKeepsTheRestOfAChunkWithInvalidBytes() {
+        var decoder = UTF8ChunkDecoder()
+        XCTAssertEqual(decoder.decode(Data([0x6F, 0x6B, 0xFF, 0x21, 0x0A])), "ok\u{FFFD}!\n")
+    }
 
-        let handle = try FileHandle(forReadingFrom: tempURL)
-        defer { try? handle.close() }
-
-        XCTAssertEqual(handle.nextOutput(), .pending)
+    func testFlushDecodesAnUnfinishedCharacter() {
+        var decoder = UTF8ChunkDecoder()
+        XCTAssertEqual(decoder.decode(Data([0x61, 0xE6, 0x97])), "a")
+        XCTAssertEqual(decoder.flush(), "\u{FFFD}")
     }
 }
 

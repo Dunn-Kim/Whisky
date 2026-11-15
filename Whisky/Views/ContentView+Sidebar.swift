@@ -17,6 +17,7 @@
 //
 
 import AppKit
+import SemanticVersion
 import SwiftUI
 import WhiskyKit
 
@@ -50,7 +51,8 @@ extension ContentView {
                                     Text(bottle.settings.name)
                                     Spacer()
                                     Button {
-                                        Task { await bottle.remove(delete: false) }
+                                        // Only deregisters, which cannot fail.
+                                        Task { try? await bottle.remove(delete: false) }
                                     } label: {
                                         Image(systemName: "xmark.circle")
                                             .foregroundStyle(.secondary)
@@ -121,7 +123,7 @@ extension ContentView {
         } else if bottleVM.countActive() > 0 {
             LibraryView(selectedBottle: $selected, refresh: $triggerRefresh)
         } else {
-            if bottlesLoaded {
+            if bottleVM.bottles.isEmpty || bottleVM.countActive() == 0, bottlesLoaded {
                 VStack {
                     Text("main.createFirst")
                     Button {
@@ -150,6 +152,11 @@ extension ContentView {
 extension ContentView {
     @MainActor
     func showProcessCloseAlert(for bottle: Bottle) {
+        let checkbox = NSButton(
+            checkboxWithTitle: String(localized: "bottle.close.remember"),
+            target: nil,
+            action: nil
+        )
         let alert = NSAlert()
         alert.messageText = String(localized: "bottle.close.confirm.title")
         alert.informativeText = String(localized: "bottle.close.confirm.message")
@@ -157,22 +164,22 @@ extension ContentView {
         alert.addButton(withTitle: String(localized: "bottle.close.keepRunning"))
         let stopButton = alert.addButton(withTitle: String(localized: "bottle.close.stopBottle"))
         stopButton.hasDestructiveAction = true
-        alert.showsSuppressionButton = true
-        alert.suppressionButton?.title = String(localized: "bottle.close.remember")
+        alert.accessoryView = checkbox
 
         let response = alert.runModal()
 
         if response == .alertFirstButtonReturn {
             // Keep Running (default)
-            if alert.suppressionButton?.state == .on {
+            if checkbox.state == .on {
                 bottle.settings.closeWithProcessesPolicy = .alwaysKeepRunning
             }
         } else if response == .alertSecondButtonReturn {
             // Stop Bottle
-            if alert.suppressionButton?.state == .on {
+            if checkbox.state == .on {
                 bottle.settings.closeWithProcessesPolicy = .alwaysStop
             }
             Wine.killBottle(bottle: bottle)
+            ProcessRegistry.shared.clearRegistry(for: bottle.url)
         }
     }
 }

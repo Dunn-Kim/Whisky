@@ -37,19 +37,31 @@ struct AudioConfigSection: View {
     /// Debounce timer for Bluetooth device change events.
     @State private var debounceTask: Task<Void, Never>?
 
-    @State private var showTroubleshootingWizard = false
+    /// The wizard and its engine, created when it opens. Item-based so the
+    /// sheet is built from the engine that presents it; with a flag plus a
+    /// separate optional the content closure could run before the engine
+    /// landed and show an empty sheet.
+    @State private var wizardPresentation: AudioWizardPresentation?
+
+    /// A fix that closes running programs, waiting for the user to confirm it.
+    @State private var pendingFix: PendingAudioFix?
+
+    /// The outcome of the last fix applied from the findings list.
+    @State private var fixOutcome: AudioFixOutcome?
+
+    /// True while a findings-list fix is being applied.
+    @State private var isApplyingFix = false
 
     var body: some View {
         Section("Audio") {
             // 1. Status line
-            let device = monitor.defaultOutputDevice()
             AudioStatusView(
                 audioStatus: audioStatus,
                 lastTestedDate: lastTestedDate,
-                defaultDeviceName: device?.name,
-                transportType: device?.transportType,
-                sampleRate: device?.sampleRate,
-                channelCount: device?.outputChannelCount
+                defaultDeviceName: monitor.defaultOutputDevice()?.name,
+                transportType: monitor.defaultOutputDevice()?.transportType,
+                sampleRate: monitor.defaultOutputDevice()?.sampleRate,
+                channelCount: monitor.defaultOutputDevice()?.outputChannelCount
             )
 
             // 2. Test buttons row
@@ -58,17 +70,20 @@ struct AudioConfigSection: View {
                 onStatusUpdate: { status in
                     audioStatus = status
                     lastTestedDate = Date()
+                    fixOutcome = nil
                 },
                 onTestComplete: { results in
                     probeResults = results
+                    fixOutcome = nil
                 },
                 testExeURL: Bundle.main.url(forResource: "WhiskyAudioTest", withExtension: "exe")
             )
+            .disabled(isApplyingFix)
 
             // 3. Simple/Advanced toggle
             Picker("", selection: $advancedMode) {
-                Text("Simple").tag(false)
-                Text("Advanced").tag(true)
+                Text("config.graphics.simple").tag(false)
+                Text("config.graphics.advanced").tag(true)
             }
             .pickerStyle(.segmented)
             .labelsHidden()
@@ -83,7 +98,11 @@ struct AudioConfigSection: View {
 
             // 6. Findings (if any from last test)
             if !currentFindings.isEmpty {
-                AudioFindingsView(findings: currentFindings, onApplyFix: handleApplyFix)
+                AudioFindingsView(findings: currentFindings, onApplyFix: requestFix)
+                    .disabled(isApplyingFix)
+            }
+            if let fixOutcome {
+                fixOutcomeLabel(fixOutcome)
             }
 
             // 7. Advanced device views
@@ -93,20 +112,36 @@ struct AudioConfigSection: View {
 
             // 8. Troubleshooting link
             Button("Audio Troubleshooting\u{2026}") {
-                showTroubleshootingWizard = true
+                openTroubleshootingWizard()
             }
         }
         .animation(.default, value: advancedMode)
         .onAppear {
             startDeviceListening()
         }
-        .sheet(isPresented: $showTroubleshootingWizard) {
-            TroubleshootingWizardView(
-                bottle: bottle,
-                program: nil,
-                entryContext: .bottleDiagnostics(bottleURL: bottle.url),
-                startingCategory: .audio
+        .sheet(item: $wizardPresentation) { presentation in
+            AudioTroubleshootingWizardView(
+                engine: presentation.engine,
+                onDismiss: {
+                    wizardPresentation = nil
+                },
+                onOpenAdvanced: {
+                    advancedMode = true
+                },
+                onApplyFix: applyWizardFix
             )
+        }
+        .confirmationDialog(
+            AudioTroubleshootingEngine.fixDescription(for: "reset-audio-state"),
+            isPresented: Binding(get: { pendingFix != nil }, set: { if !$0 { pendingFix = nil } }),
+            presenting: pendingFix
+        ) { pending in
+            Button("audio.troubleshoot.applyFix") {
+                applyFix(pending.action, for: pending.finding)
+            }
+            Button("button.cancel", role: .cancel) {}
+        } message: { _ in
+            Text("audio.fix.closesPrograms")
         }
     }
 }
@@ -118,6 +153,7 @@ extension AudioConfigSection {
     private var hasAdvancedAudioOverrides: Bool {
         bottle.settings.audioDriver != .auto
             || bottle.settings.audioLatencyPreset != .defaultPreset
+            || bottle.settings.outputDeviceMode != .followSystem
     }
 
     /// Aggregated findings from the most recent probe results.
@@ -164,24 +200,87 @@ extension AudioConfigSection {
 // MARK: - Fix Application
 
 extension AudioConfigSection {
-    private func handleApplyFix(_ actionId: String) {
+    /// Applies a finding's fix, first asking for confirmation when it would
+    /// close programs and the bottle's wineserver is running.
+    private func requestFix(_ finding: AudioFinding, _ action: AudioFixAction) {
+        guard action.changesBottle else {
+            openSoundSettings()
+            return
+        }
+        guard action.closesRunningPrograms else {
+            applyFix(action, for: finding)
+            return
+        }
+        isApplyingFix = true
         Task { @MainActor in
-            switch actionId {
-            case "check-audio-driver", "set-coreaudio-driver":
-                bottle.settings.audioDriver = .coreaudio
-                try? await Wine.setAudioDriver(bottle: bottle, driver: .coreaudio)
-            case "set-stable-latency":
-                bottle.settings.audioLatencyPreset = .stable
-                try? await Wine.setDirectSoundBuffer(
-                    bottle: bottle,
-                    helBuflen: AudioLatencyPreset.stable.helBuflenValue
-                )
-            case "reset-audio-state":
-                try? await Wine.resetAudioState(bottle: bottle)
-            default:
-                break
+            let running = await Wine.isWineserverRunning(for: bottle)
+            isApplyingFix = false
+            if running {
+                pendingFix = PendingAudioFix(finding: finding, action: action)
+            } else {
+                applyFix(action, for: finding)
             }
         }
+    }
+
+    private func applyFix(_ action: AudioFixAction, for finding: AudioFinding) {
+        isApplyingFix = true
+        Task { @MainActor in
+            defer { isApplyingFix = false }
+            do {
+                try await Wine.applyAudioFix(action, bottle: bottle)
+            } catch {
+                fixOutcome = .failed(error.localizedDescription)
+                return
+            }
+            // The finding no longer describes the bottle; the status is
+            // unknown until the user tests again.
+            probeResults = probeResults.map { $0.removingFinding(id: finding.id) }
+            audioStatus = .unknown
+            fixOutcome = .applied
+        }
+    }
+
+    /// Applies the fix behind a troubleshooting wizard step.
+    ///
+    /// - Returns: Why the fix failed, or `nil` when it was applied. On failure
+    ///   the bottle is unchanged, so the section keeps its last results.
+    private func applyWizardFix(_ actionId: String) async -> String? {
+        let result = await AudioWizardPresentation.applyFix(actionId, bottle: bottle)
+        if case .applied = result {
+            // The section's last results describe the bottle before the fix.
+            probeResults = []
+            audioStatus = .unknown
+            fixOutcome = nil
+        }
+        return result.failureReason
+    }
+
+    private func openSoundSettings() {
+        if let url = AudioFixAction.soundSettingsURL {
+            NSWorkspace.shared.open(url)
+        }
+    }
+
+    private func fixOutcomeLabel(_ outcome: AudioFixOutcome) -> some View {
+        switch outcome {
+        case .applied:
+            Label("audio.fix.applied", systemImage: "checkmark.circle")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        case let .failed(reason):
+            Label("audio.fix.failed \(reason)", systemImage: "exclamationmark.triangle")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+}
+
+// MARK: - Troubleshooting Wizard
+
+extension AudioConfigSection {
+    private func openTroubleshootingWizard() {
+        wizardPresentation = .make(for: bottle, monitor: monitor)
     }
 }
 
@@ -205,5 +304,31 @@ extension AudioConfigSection {
                 audioStatus = .unknown
             }
         }
+    }
+}
+
+/// A findings-list fix waiting for the user to confirm it.
+struct PendingAudioFix {
+    let finding: AudioFinding
+    let action: AudioFixAction
+}
+
+/// What happened to the last fix applied from the findings list.
+enum AudioFixOutcome {
+    case applied
+    case failed(String)
+}
+
+private extension AudioProbeResult {
+    /// This result without the finding with the given id.
+    func removingFinding(id: String) -> AudioProbeResult {
+        AudioProbeResult(
+            probeId: probeId,
+            status: status,
+            summary: summary,
+            evidence: evidence,
+            findings: findings.filter { $0.id != id },
+            timestamp: timestamp
+        )
     }
 }

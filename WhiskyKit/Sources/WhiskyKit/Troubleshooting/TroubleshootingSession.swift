@@ -21,11 +21,11 @@ import Foundation
 /// Full state of a troubleshooting wizard session.
 ///
 /// Captures every aspect of the wizard's progress: selected symptom, current flow
-/// position, completed steps, check results, fix attempts, and
+/// position, completed steps, check results, fix attempts, branch decisions, and
 /// outcome. Designed for persistence so sessions can be paused and resumed.
 public struct TroubleshootingSession: Codable, Sendable {
     /// Unique identifier for this session.
-    public var id: UUID = .init()
+    public var id: UUID
 
     /// URL of the bottle being troubleshot.
     public var bottleURL: URL?
@@ -37,10 +37,10 @@ public struct TroubleshootingSession: Codable, Sendable {
     public var symptomCategory: SymptomCategory?
 
     /// Current wizard phase.
-    public var phase: SessionPhase = .symptom
+    public var phase: SessionPhase
 
     /// History of completed steps in traversal order.
-    public var stepHistory: [CompletedStep] = []
+    public var stepHistory: [CompletedStep]
 
     /// The current flow step node ID.
     public var currentNodeId: String?
@@ -49,22 +49,78 @@ public struct TroubleshootingSession: Codable, Sendable {
     public var currentFlowCategoryId: String?
 
     /// Check results keyed by node ID.
-    public var checkResults: [String: CheckResult] = [:]
+    public var checkResults: [String: CheckResult]
 
     /// All fix attempts made during this session.
-    public var fixAttempts: [FixAttempt] = []
+    public var fixAttempts: [FixAttempt]
+
+    /// Branch decisions recorded during flow traversal.
+    public var branchDecisions: [BranchDecision]
 
     /// The final outcome of this session, if complete.
     public var outcome: SessionOutcome?
 
     /// When this session was created.
-    public var createdAt: Date = .init()
+    public var createdAt: Date
 
     /// When this session was last modified.
-    public var lastUpdatedAt: Date = .init()
+    public var lastUpdatedAt: Date
 
     /// Preflight data snapshot taken at session start.
     public var preflightSnapshot: PreflightData?
+
+    public init(
+        id: UUID = UUID(),
+        bottleURL: URL? = nil,
+        programURL: URL? = nil,
+        symptomCategory: SymptomCategory? = nil,
+        phase: SessionPhase = .symptom,
+        stepHistory: [CompletedStep] = [],
+        currentNodeId: String? = nil,
+        currentFlowCategoryId: String? = nil,
+        checkResults: [String: CheckResult] = [:],
+        fixAttempts: [FixAttempt] = [],
+        branchDecisions: [BranchDecision] = [],
+        outcome: SessionOutcome? = nil,
+        createdAt: Date = Date(),
+        lastUpdatedAt: Date = Date(),
+        preflightSnapshot: PreflightData? = nil
+    ) {
+        self.id = id
+        self.bottleURL = bottleURL
+        self.programURL = programURL
+        self.symptomCategory = symptomCategory
+        self.phase = phase
+        self.stepHistory = stepHistory
+        self.currentNodeId = currentNodeId
+        self.currentFlowCategoryId = currentFlowCategoryId
+        self.checkResults = checkResults
+        self.fixAttempts = fixAttempts
+        self.branchDecisions = branchDecisions
+        self.outcome = outcome
+        self.createdAt = createdAt
+        self.lastUpdatedAt = lastUpdatedAt
+        self.preflightSnapshot = preflightSnapshot
+    }
+
+    // MARK: - Computed Properties
+
+    /// The number of fix attempts that resulted in failure.
+    public var failedFixCount: Int {
+        fixAttempts.filter { $0.result == .failed }.count
+    }
+
+    /// The most recent attempt at a fix that is still in effect: applied,
+    /// and neither undone nor reported as not helping.
+    ///
+    /// - Parameter fixId: The fix identifier.
+    /// - Returns: The attempt, or `nil` when no attempt at the fix is in effect.
+    public func appliedAttempt(of fixId: String) -> FixAttempt? {
+        guard let last = fixAttempts.last(where: { $0.fixId == fixId }), last.result == .applied else {
+            return nil
+        }
+        return last
+    }
 
     // MARK: - Mutating Methods
 
@@ -74,9 +130,10 @@ public struct TroubleshootingSession: Codable, Sendable {
     public mutating func pushStep(_ node: FlowStepNode) {
         let step = CompletedStep(
             nodeId: node.id,
-            phase: node.phase,
+            phase: SessionPhase(flowPhase: node.phase),
             title: node.title,
-            checkResult: nil
+            checkResult: nil,
+            isSuperseded: false
         )
         stepHistory.append(step)
         currentNodeId = node.id
@@ -105,6 +162,23 @@ public struct TroubleshootingSession: Codable, Sendable {
         lastUpdatedAt = Date()
     }
 
+    /// Records a branch decision.
+    ///
+    /// - Parameters:
+    ///   - from: The node ID where the branch originated.
+    ///   - targetNodeId: The node ID that was chosen.
+    ///   - reason: Optional explanation of why this branch was taken.
+    public mutating func recordBranch(from: String, targetNodeId: String, reason: String? = nil) {
+        let decision = BranchDecision(
+            fromNodeId: from,
+            toNodeId: targetNodeId,
+            reason: reason,
+            timestamp: Date()
+        )
+        branchDecisions.append(decision)
+        lastUpdatedAt = Date()
+    }
+
     // MARK: - Nested Types
 
     /// The phase of a troubleshooting wizard session.
@@ -121,6 +195,17 @@ public struct TroubleshootingSession: Codable, Sendable {
         case export
         /// Escalation after exhausting automated fixes.
         case escalation
+
+        /// Creates a session phase from a flow phase.
+        public init(flowPhase: FlowPhase) {
+            switch flowPhase {
+            case .symptom: self = .symptom
+            case .checks: self = .checks
+            case .fix: self = .fix
+            case .verify: self = .verify
+            case .export: self = .export
+            }
+        }
     }
 
     /// The final outcome of a completed troubleshooting session.
@@ -142,9 +227,48 @@ public struct TroubleshootingSession: Codable, Sendable {
         public let phase: SessionPhase
 
         /// The step title, if any.
-        public var title: String?
+        public let title: String?
 
         /// The check result, if this was a check step.
         public var checkResult: CheckResult?
+
+        /// Whether this step has been superseded by a branch change.
+        public var isSuperseded: Bool
+
+        public init(
+            nodeId: String,
+            phase: SessionPhase,
+            title: String? = nil,
+            checkResult: CheckResult? = nil,
+            isSuperseded: Bool = false
+        ) {
+            self.nodeId = nodeId
+            self.phase = phase
+            self.title = title
+            self.checkResult = checkResult
+            self.isSuperseded = isSuperseded
+        }
+    }
+
+    /// A record of a branch decision during flow traversal.
+    public struct BranchDecision: Codable, Sendable {
+        /// The node ID where the branch originated.
+        public let fromNodeId: String
+
+        /// The node ID that was chosen.
+        public let toNodeId: String
+
+        /// Optional explanation of why this branch was taken.
+        public let reason: String?
+
+        /// When this branch decision was made.
+        public let timestamp: Date
+
+        public init(fromNodeId: String, toNodeId: String, reason: String? = nil, timestamp: Date = Date()) {
+            self.fromNodeId = fromNodeId
+            self.toNodeId = toNodeId
+            self.reason = reason
+            self.timestamp = timestamp
+        }
     }
 }

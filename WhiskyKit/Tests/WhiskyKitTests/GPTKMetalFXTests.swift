@@ -54,14 +54,14 @@ struct GPTKMetalFXTests {
 
         try GPTKImporter.deploy(fromStore: store, intoLibraryFolder: runtime)
 
-        #expect(GPTKImporter.isInstalled(.metalFX, inLibraryFolder: runtime, usingStore: store))
+        #expect(GPTKImporter.isMetalFXBridgeInstalled(inLibraryFolder: runtime, usingStore: store))
         // the filename Apple ships is not the name the loader will accept
         let shipped = runtime.appending(path: "Wine").appending(path: "lib").appending(path: "wine")
-            .appending(path: "x86_64-windows").appending(path: GPTKBridge.metalFX.sourceName)
+            .appending(path: "x86_64-windows").appending(path: GPTKImporter.metalFXBridgeSourceName)
         #expect(!FileManager.default.fileExists(atPath: shipped.path(percentEncoded: false)))
 
         // without the unix half DllMain fails and the PE is useless
-        let link = GPTKImporter.unixLink(of: .metalFX, inLibraryFolder: runtime)
+        let link = GPTKImporter.metalFXBridgeUnixLink(inLibraryFolder: runtime)
         let destination = try FileManager.default.destinationOfSymbolicLink(
             atPath: link.path(percentEncoded: false)
         )
@@ -76,8 +76,8 @@ struct GPTKMetalFXTests {
 
         try GPTKImporter.deploy(fromStore: store, intoLibraryFolder: runtime)
 
-        #expect(!GPTKImporter.isInstalled(.metalFX, inLibraryFolder: runtime, usingStore: store))
-        let bridge = GPTKImporter.installedPE(of: .metalFX, inLibraryFolder: runtime)
+        #expect(!GPTKImporter.isMetalFXBridgeInstalled(inLibraryFolder: runtime, usingStore: store))
+        let bridge = GPTKImporter.metalFXBridgePE(inLibraryFolder: runtime)
         #expect(!FileManager.default.fileExists(atPath: bridge.path(percentEncoded: false)))
     }
 
@@ -85,14 +85,14 @@ struct GPTKMetalFXTests {
     func installIsIdempotent() throws {
         let (store, runtime) = try makeBridgeableRuntime()
         try GPTKImporter.deploy(fromStore: store, intoLibraryFolder: runtime)
-        let bridge = GPTKImporter.installedPE(of: .metalFX, inLibraryFolder: runtime)
+        let bridge = GPTKImporter.metalFXBridgePE(inLibraryFolder: runtime)
         let before = try FileManager.default.attributesOfItem(
             atPath: bridge.path(percentEncoded: false)
         )[.creationDate] as? Date
 
         try GPTKImporter.installMetalFXBridge(intoLibraryFolder: runtime, usingStore: store)
 
-        #expect(GPTKImporter.isInstalled(.metalFX, inLibraryFolder: runtime, usingStore: store))
+        #expect(GPTKImporter.isMetalFXBridgeInstalled(inLibraryFolder: runtime, usingStore: store))
         // launch-time install runs every time, and rewriting a file that already
         // matches the store is work nobody asked for
         let after = try FileManager.default.attributesOfItem(
@@ -111,17 +111,17 @@ struct GPTKMetalFXTests {
         try GPTKImporter.remove(fromLibraryFolder: runtime, usingStore: store)
 
         let fileManager = FileManager.default
-        let bridge = GPTKImporter.installedPE(of: .metalFX, inLibraryFolder: runtime)
+        let bridge = GPTKImporter.metalFXBridgePE(inLibraryFolder: runtime)
         #expect(!fileManager.fileExists(atPath: bridge.path(percentEncoded: false)))
         // the link is dangling by now, so ask about the link itself
-        let link = GPTKImporter.unixLink(of: .metalFX, inLibraryFolder: runtime)
+        let link = GPTKImporter.metalFXBridgeUnixLink(inLibraryFolder: runtime)
         #expect((try? fileManager.destinationOfSymbolicLink(atPath: link.path(percentEncoded: false))) == nil)
     }
 
     @Test("A bridge this store did not install is left alone")
     func removeLeavesForeignBridge() throws {
         let (store, runtime) = try makeBridgeableRuntime()
-        let bridge = GPTKImporter.installedPE(of: .metalFX, inLibraryFolder: runtime)
+        let bridge = GPTKImporter.metalFXBridgePE(inLibraryFolder: runtime)
         try FileManager.default.createDirectory(
             at: bridge.deletingLastPathComponent(), withIntermediateDirectories: true
         )
@@ -140,12 +140,10 @@ struct GPTKMetalFXTests {
         try GPTKImporter.deploy(fromStore: store, intoLibraryFolder: runtime)
         let bottle = try makeBottle()
 
-        GPTKImporter.seedPlaceholder(
-            named: GPTKBridge.metalFX.installedName, inBottle: bottle, fromLibraryFolder: runtime
-        )
+        GPTKImporter.seedMetalFXBridgePlaceholder(inBottle: bottle, fromLibraryFolder: runtime)
 
         let placeholder = bottle.appending(path: "drive_c").appending(path: "windows")
-            .appending(path: "system32").appending(path: GPTKBridge.metalFX.installedName)
+            .appending(path: "system32").appending(path: GPTKImporter.metalFXBridgeName)
         #expect(FileManager.default.fileExists(atPath: placeholder.path(percentEncoded: false)))
     }
 
@@ -155,12 +153,10 @@ struct GPTKMetalFXTests {
         try GPTKImporter.deploy(fromStore: store, intoLibraryFolder: runtime)
         let bottle = try makeBottle()
         let placeholder = bottle.appending(path: "drive_c").appending(path: "windows")
-            .appending(path: "system32").appending(path: GPTKBridge.metalFX.installedName)
+            .appending(path: "system32").appending(path: GPTKImporter.metalFXBridgeName)
         try Data("wineboot's own".utf8).write(to: placeholder)
 
-        GPTKImporter.seedPlaceholder(
-            named: GPTKBridge.metalFX.installedName, inBottle: bottle, fromLibraryFolder: runtime
-        )
+        GPTKImporter.seedMetalFXBridgePlaceholder(inBottle: bottle, fromLibraryFolder: runtime)
 
         #expect(try Data(contentsOf: placeholder) == Data("wineboot's own".utf8))
     }
@@ -171,12 +167,10 @@ struct GPTKMetalFXTests {
         try makeRuntime(at: runtime)
         let bottle = try makeBottle()
 
-        GPTKImporter.seedPlaceholder(
-            named: GPTKBridge.metalFX.installedName, inBottle: bottle, fromLibraryFolder: runtime
-        )
+        GPTKImporter.seedMetalFXBridgePlaceholder(inBottle: bottle, fromLibraryFolder: runtime)
 
         let placeholder = bottle.appending(path: "drive_c").appending(path: "windows")
-            .appending(path: "system32").appending(path: GPTKBridge.metalFX.installedName)
+            .appending(path: "system32").appending(path: GPTKImporter.metalFXBridgeName)
         #expect(!FileManager.default.fileExists(atPath: placeholder.path(percentEncoded: false)))
     }
 
@@ -187,14 +181,12 @@ struct GPTKMetalFXTests {
         let (store, runtime) = try makeBridgeableRuntime()
         try GPTKImporter.deploy(fromStore: store, intoLibraryFolder: runtime)
         let bottle = try makeBottle()
-        GPTKImporter.seedPlaceholder(
-            named: GPTKBridge.metalFX.installedName, inBottle: bottle, fromLibraryFolder: runtime
-        )
+        GPTKImporter.seedMetalFXBridgePlaceholder(inBottle: bottle, fromLibraryFolder: runtime)
 
         GPTKImporter.clearMetalFXBridgePlaceholder(inBottle: bottle)
 
         let placeholder = bottle.appending(path: "drive_c").appending(path: "windows")
-            .appending(path: "system32").appending(path: GPTKBridge.metalFX.installedName)
+            .appending(path: "system32").appending(path: GPTKImporter.metalFXBridgeName)
         #expect(!FileManager.default.fileExists(atPath: placeholder.path(percentEncoded: false)))
     }
 
@@ -204,7 +196,7 @@ struct GPTKMetalFXTests {
         try GPTKImporter.deploy(fromStore: store, intoLibraryFolder: runtime)
         let bottle = try makeBottle()
         let placeholder = bottle.appending(path: "drive_c").appending(path: "windows")
-            .appending(path: "system32").appending(path: GPTKBridge.metalFX.installedName)
+            .appending(path: "system32").appending(path: GPTKImporter.metalFXBridgeName)
         // wineboot's own stub: builtin-marked, but not a copy of ours
         try fakePE(builtin: true).write(to: placeholder)
 
@@ -219,7 +211,7 @@ struct GPTKMetalFXTests {
         try GPTKImporter.deploy(fromStore: store, intoLibraryFolder: runtime)
         let bottle = try makeBottle()
         let placeholder = bottle.appending(path: "drive_c").appending(path: "windows")
-            .appending(path: "system32").appending(path: GPTKBridge.metalFX.installedName)
+            .appending(path: "system32").appending(path: GPTKImporter.metalFXBridgeName)
         try fakePE(builtin: false).write(to: placeholder)
 
         GPTKImporter.clearMetalFXBridgePlaceholder(inBottle: bottle)
@@ -250,7 +242,7 @@ struct MetalFXBackendTests {
 
     private func placeholder(inBottle bottle: Bottle) -> URL {
         bottle.url.appending(path: "drive_c").appending(path: "windows")
-            .appending(path: "system32").appending(path: GPTKBridge.metalFX.installedName)
+            .appending(path: "system32").appending(path: GPTKImporter.metalFXBridgeName)
     }
 
     private func makeRuntimeWithBridge() throws -> URL {

@@ -33,10 +33,11 @@ struct ConfigView: View {
     @State private var buildVersionLoadingState: LoadingState = .loading
     @State private var retinaModeLoadingState: LoadingState = .loading
     @State private var dpiConfigLoadingState: LoadingState = .loading
+    @State private var dpiSheetPresented: Bool = false
     @State private var showStabilityDiagnostics: Bool = false
     @State private var stabilityDiagnosticReport: String = ""
-    @State private var exportPresentation: DiagnosisPresentation?
-    @State private var crashPresentation: DiagnosisPresentation?
+    @State private var exportPresentation: ExportPresentation?
+    @State private var crashPresentation: BottleDiagnosisPresentation?
     @State private var isRepairingPrefix: Bool = false
     @State private var prefixRepairResult: PrefixRepairResult?
     @State private var gameConfigSnapshot: GameConfigSnapshot?
@@ -72,18 +73,12 @@ struct ConfigView: View {
                 isExpanded: $wineSectionExpanded,
                 buildVersion: $buildVersion,
                 retinaModeState: $retinaModeState,
-                dpiConfig: Binding(
-                    get: { dpiConfig },
-                    set: { newValue in
-                        guard newValue != dpiConfig else { return }
-                        dpiConfig = newValue
-                        saveDpi(newValue)
-                    }
-                ),
-                winVersionLoadingState: winVersionLoadingState,
+                dpiConfig: dpiBinding,
+                winVersionLoadingState: $winVersionLoadingState,
                 buildVersionLoadingState: $buildVersionLoadingState,
                 retinaModeLoadingState: $retinaModeLoadingState,
-                dpiConfigLoadingState: dpiConfigLoadingState,
+                dpiConfigLoadingState: $dpiConfigLoadingState,
+                dpiSheetPresented: $dpiSheetPresented,
                 onRetryBuildVersion: loadBuildName,
                 onRetryRetinaMode: loadRetinaMode,
                 onRetryDpi: loadDpi
@@ -102,13 +97,14 @@ struct ConfigView: View {
             DLLOverrideConfigSection(bottle: bottle, isExpanded: $dllOverrideSectionExpanded)
             DependencyConfigSection(bottle: bottle)
             gameConfigRevertSection
+            gameConfigEnvironmentSection
             Section("Diagnostics") {
                 Text("Analyze Wine crash output for troubleshooting guidance")
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
                 if hasActiveSession {
-                    TroubleshootingEntryBanner {
+                    TroubleshootingEntryBanner(bannerType: .resumeSession) {
                         showTroubleshootingWizard = true
                     }
                 }
@@ -127,7 +123,10 @@ struct ConfigView: View {
                 }
                 .disabled(mostRecentlyDiagnosedProgram == nil)
 
-                TroubleshootingHistoryView(bottleURL: bottle.url)
+                TroubleshootingHistoryView(
+                    bottleURL: bottle.url,
+                    programURL: nil
+                )
             }
             Section("Stability") {
                 Button("Generate Stability Diagnostics") {
@@ -191,7 +190,7 @@ struct ConfigView: View {
         }
         .sheet(isPresented: $showStabilityDiagnostics) {
             DiagnosticsReportView(
-                title: "Stability Diagnostics Report",
+                title: String(localized: "config.stability.report.title"),
                 report: stabilityDiagnosticReport,
                 defaultFilenamePrefix: "whisky-stability-diagnostics"
             )
@@ -213,7 +212,8 @@ struct ConfigView: View {
                 programName: presentation.program.name,
                 bottleName: bottle.settings.name,
                 timestamp: presentation.program.settings.lastDiagnosisDate ?? Date(),
-                applyBottle: bottle
+                applyBottle: bottle,
+                applyProgramURL: presentation.program.url
             )
             .frame(minWidth: 600, minHeight: 400)
         }
@@ -237,13 +237,31 @@ struct ConfigView: View {
             HStack {
                 Spacer()
                 Button("config.controlPanel") {
-                    launchTool("control", Wine.control(bottle:))
+                    Task(priority: .userInitiated) {
+                        do {
+                            try await Wine.control(bottle: bottle)
+                        } catch {
+                            logger.error("Failed to launch control: \(error.localizedDescription)")
+                        }
+                    }
                 }
                 Button("config.regedit") {
-                    launchTool("regedit", Wine.regedit(bottle:))
+                    Task(priority: .userInitiated) {
+                        do {
+                            try await Wine.regedit(bottle: bottle)
+                        } catch {
+                            logger.error("Failed to launch regedit: \(error.localizedDescription)")
+                        }
+                    }
                 }
                 Button("config.winecfg") {
-                    launchTool("winecfg", Wine.cfg(bottle:))
+                    Task(priority: .userInitiated) {
+                        do {
+                            try await Wine.cfg(bottle: bottle)
+                        } catch {
+                            logger.error("Failed to launch winecfg: \(error.localizedDescription)")
+                        }
+                    }
                 }
             }
             .padding()
@@ -278,8 +296,20 @@ struct ConfigView: View {
         }
     }
 
-    /// Writes a DPI the user chose. Loading must not come through here: assigning the
-    /// loaded value to `dpiConfig` would otherwise write it straight back.
+    /// The DPI the sheet edits. It writes from the setter rather than an
+    /// `onChange(of: dpiConfig)`, because loading assigns `dpiConfig` too and
+    /// that must not write the value it just read back to the registry.
+    private var dpiBinding: Binding<Int> {
+        Binding(
+            get: { dpiConfig },
+            set: { newValue in
+                guard newValue != dpiConfig else { return }
+                dpiConfig = newValue
+                saveDpi(newValue)
+            }
+        )
+    }
+
     private func saveDpi(_ dpi: Int) {
         Task(priority: .userInitiated) {
             dpiConfigLoadingState = .modifying
@@ -289,17 +319,6 @@ struct ConfigView: View {
             } catch {
                 logger.error("Failed to change DPI resolution: \(error.localizedDescription)")
                 dpiConfigLoadingState = .failed
-            }
-        }
-    }
-
-    /// Opens a Wine system tool, logging a launch failure under `name`.
-    private func launchTool(_ name: String, _ launch: @escaping @MainActor (Bottle) async throws -> String) {
-        Task(priority: .userInitiated) {
-            do {
-                _ = try await launch(bottle)
-            } catch {
-                logger.error("Failed to launch \(name, privacy: .public): \(error.localizedDescription)")
             }
         }
     }
@@ -346,8 +365,10 @@ extension ConfigView {
         dpiConfigLoadingState = .loading
         Task(priority: .userInitiated) {
             do {
-                // Wine.dpiResolution returns nil if registry key doesn't exist (expected for unedited DPI),
-                // where Wine uses its default of 96. It throws only on actual Wine/registry errors.
+                // Wine.dpiResolution returns nil if the registry key doesn't exist (expected for
+                // unedited DPI) or holds the 0 that older versions wrote here; Wine uses its default
+                // of 96 for both. Nothing is written until the user picks a value. It throws only on
+                // actual Wine/registry errors.
                 dpiConfig = try await Wine.dpiResolution(bottle: bottle) ?? 96
                 dpiConfigLoadingState = .success
             } catch {
@@ -407,10 +428,44 @@ extension ConfigView {
         }
     }
 
+    /// Environment variables applied game configurations keep for games that
+    /// were not in the bottle yet, scoped to their executables. Programs that
+    /// were there got the variables in their own settings instead.
+    @ViewBuilder
+    var gameConfigEnvironmentSection: some View {
+        if !bottle.settings.gameConfigEnvironments.isEmpty {
+            Section("gameConfig.environment.title") {
+                ForEach(bottle.settings.gameConfigEnvironments) { record in
+                    HStack(alignment: .top) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(record.title)
+                                .font(.callout)
+                            if !record.executables.isEmpty {
+                                Text(record.executables.joined(separator: ", "))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            ForEach(record.variables.sorted(by: { $0.key < $1.key }), id: \.key) { key, value in
+                                Text(verbatim: "\(key)=\(value)")
+                                    .font(.caption.monospaced())
+                                    .textSelection(.enabled)
+                            }
+                        }
+                        Spacer()
+                        Button("gameConfig.environment.remove", role: .destructive) {
+                            bottle.settings.gameConfigEnvironments.removeAll { $0.entryId == record.entryId }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     func revertGameConfig(_ snapshot: GameConfigSnapshot) {
         do {
+            // revert deletes the snapshot file itself; deleting it again here
+            // threw, so the reverted section never went away.
             let remainingVerbs = try GameConfigApplicator.revert(bottle: bottle, snapshot: snapshot)
-            try GameConfigSnapshot.delete(from: bottle.url)
             gameConfigSnapshot = nil
             if !remainingVerbs.isEmpty {
                 logger.info(
@@ -432,39 +487,45 @@ extension ConfigView {
             .max { ($0.settings.lastDiagnosisDate ?? .distantPast) < ($1.settings.lastDiagnosisDate ?? .distantPast) }
     }
 
-    private func latestDiagnosis(readLog: Bool) async -> DiagnosisPresentation? {
+    func loadLatestDiagnosisAndExport() {
         guard let program = mostRecentlyDiagnosedProgram,
               let logURL = program.settings.lastLogFileURL
-        else { return nil }
-        return await DiagnosisPresentation.load(logURL: logURL, program: program, readLog: readLog)
-    }
-
-    func loadLatestDiagnosisAndExport() {
-        Task { exportPresentation = await latestDiagnosis(readLog: false) }
+        else { return }
+        Task {
+            guard let diagnosis = await Wine.classifyLastRun(logFileURL: logURL, exitCode: 1) else { return }
+            exportPresentation = ExportPresentation(diagnosis: diagnosis, program: program)
+        }
     }
 
     func loadLatestDiagnosisAndView() {
-        Task { crashPresentation = await latestDiagnosis(readLog: true) }
+        guard let program = mostRecentlyDiagnosedProgram,
+              let logURL = program.settings.lastLogFileURL
+        else { return }
+        Task {
+            guard let diagnosis = await Wine.classifyLastRun(logFileURL: logURL, exitCode: 1) else { return }
+            crashPresentation = BottleDiagnosisPresentation(
+                diagnosis: diagnosis,
+                program: program,
+                logText: (try? String(contentsOf: logURL, encoding: .utf8)) ?? ""
+            )
+        }
     }
 }
 
-/// A classified log, its text and the program it ran for; `Identifiable` so
-/// `.sheet(item:)` never presents without a diagnosis.
-struct DiagnosisPresentation: Identifiable {
+/// What the export sheet is exporting; `Identifiable` so `.sheet(item:)`
+/// never presents without both a diagnosis and its program.
+struct ExportPresentation: Identifiable {
+    let id = UUID()
+    let diagnosis: CrashDiagnosis
+    let program: Program
+}
+
+/// What the bottle-level diagnostics sheet is showing.
+struct BottleDiagnosisPresentation: Identifiable {
     let id = UUID()
     let diagnosis: CrashDiagnosis
     let program: Program
     let logText: String
-
-    /// Classifies the log at `logURL` and, when `readLog`, reads its text; `nil` when nothing in it classifies.
-    static func load(logURL: URL, program: Program, readLog: Bool = true) async -> DiagnosisPresentation? {
-        guard let diagnosis = await Wine.classifyLastRun(logFileURL: logURL, exitCode: 1) else { return nil }
-        return DiagnosisPresentation(
-            diagnosis: diagnosis,
-            program: program,
-            logText: readLog ? (try? String(contentsOf: logURL, encoding: .utf8)) ?? "" : ""
-        )
-    }
 }
 
 // swiftlint:enable file_length

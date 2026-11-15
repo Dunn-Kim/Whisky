@@ -40,7 +40,9 @@ struct DiagnosticsPickerSheet: View {
     @State private var selectedBottle: Bottle?
     @State private var selectedProgram: Program?
     @State private var isAnalyzing = false
-    @State private var presentation: DiagnosisPresentation?
+    @State private var showDiagnosticsResult = false
+    @State private var resultDiagnosis: CrashDiagnosis?
+    @State private var resultLogText: String = ""
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -64,7 +66,7 @@ struct DiagnosticsPickerSheet: View {
             }
 
             HStack {
-                Button("Cancel", role: .cancel) {
+                Button("button.cancel", role: .cancel) {
                     dismiss()
                 }
                 .keyboardShortcut(.cancelAction)
@@ -88,16 +90,19 @@ struct DiagnosticsPickerSheet: View {
         .onChange(of: selectedBottle) { _, _ in
             selectedProgram = nil
         }
-        .sheet(item: $presentation) { presentation in
-            DiagnosticsView(
-                diagnosis: presentation.diagnosis,
-                logText: presentation.logText,
-                programName: presentation.program.name,
-                bottleName: selectedBottle?.settings.name ?? "",
-                timestamp: Date(),
-                applyBottle: selectedBottle
-            )
-            .frame(minWidth: 600, minHeight: 400)
+        .sheet(isPresented: $showDiagnosticsResult) {
+            if let diagnosis = resultDiagnosis, let program = selectedProgram {
+                DiagnosticsView(
+                    diagnosis: diagnosis,
+                    logText: resultLogText,
+                    programName: program.name,
+                    bottleName: selectedBottle?.settings.name ?? "",
+                    timestamp: Date(),
+                    applyBottle: selectedBottle,
+                    applyProgramURL: program.url
+                )
+                .frame(minWidth: 600, minHeight: 400)
+            }
         }
     }
 
@@ -108,8 +113,14 @@ struct DiagnosticsPickerSheet: View {
 
         isAnalyzing = true
         Task {
-            presentation = await DiagnosisPresentation.load(logURL: logURL, program: program)
+            guard let diagnosis = await Wine.classifyLastRun(logFileURL: logURL, exitCode: 1) else {
+                isAnalyzing = false
+                return
+            }
+            resultDiagnosis = diagnosis
+            resultLogText = (try? String(contentsOf: logURL, encoding: .utf8)) ?? ""
             isAnalyzing = false
+            showDiagnosticsResult = true
         }
     }
 }

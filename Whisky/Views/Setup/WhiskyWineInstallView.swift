@@ -63,7 +63,10 @@ struct WhiskyWineInstallView: View {
             // Guard against multiple onAppear calls from NavigationStack
             guard !hasStartedInstallation else { return }
             hasStartedInstallation = true
-            startInstallation()
+            startInstallation(
+                startLogMessage: "Entered install stage",
+                finishLogMessage: "Install finished (installer returned)"
+            )
         }
     }
 
@@ -114,7 +117,10 @@ struct WhiskyWineInstallView: View {
                 guard !installing else { return }
                 installError = nil
                 installing = true
-                startInstallation()
+                startInstallation(
+                    startLogMessage: "Install started (retry)",
+                    finishLogMessage: "Install finished (retry)"
+                )
             }
             .buttonStyle(.borderedProminent)
             .disabled(installing)
@@ -126,21 +132,26 @@ struct WhiskyWineInstallView: View {
         }
     }
 
-    private func startInstallation() {
+    private func startInstallation(startLogMessage: String, finishLogMessage: String) {
         Task {
             let attemptStartedAt = Date()
             let attemptNumber = diagnostics.installAttempts.count + 1
             diagnostics.installFinishedAt = nil
             diagnostics.installStartedAt = attemptStartedAt
             diagnostics.record("Install attempt \(attemptNumber) started")
+            diagnostics.record(startLogMessage)
 
             let capturedTarURL = tarLocation
             diagnostics.record("Invoking WhiskyWineInstaller.install(from:) in detached task")
             let outcome = await Self.performInstall(tarball: capturedTarURL)
             let isInstalled = outcome.installed
-            if case let .failure(message?) = outcome {
-                diagnostics.record("Install failed: \(message)")
+            if case let .failure(_, _, diagnosticMessage?) = outcome {
+                diagnostics.record("Install failed: \(diagnosticMessage)")
             }
+            let installStatus = isInstalled ? "installed" : "not installed"
+            diagnostics.record(
+                "Detached WhiskyWineInstaller.install(from:) task completed: \(installStatus)"
+            )
             let attemptFinishedAt = Date()
             diagnostics.installFinishedAt = attemptFinishedAt
             diagnostics.recordInstallAttempt(
@@ -150,24 +161,30 @@ struct WhiskyWineInstallView: View {
             )
             let attemptResult = isInstalled ? "success" : "failed"
             diagnostics.record("Install attempt \(attemptNumber) finished (\(attemptResult))")
+            diagnostics.record(finishLogMessage)
             installing = false
             applyInstallOutcome(outcome)
             guard isInstalled else { return }
             // Only cleanup tarball after verified successful installation
             // This preserves it for retry attempts if installation fails
             WhiskyWineInstaller.cleanupTarball(at: capturedTarURL)
+            // The install may have brought D3DMetal with it (a stored GPTK
+            // payload redeploys), which lets Steam bottles off bottle-wide DXVK.
+            BottleVM.shared.migrateLauncherBackends()
             try? await Task.sleep(for: Self.installSuccessDelay)
             proceed()
         }
     }
 
-    /// Sets the user-facing error state.
+    /// Reports the funnel event and sets the user-facing error state.
     @MainActor
     private func applyInstallOutcome(_ outcome: InstallOutcome) {
         switch outcome {
         case .success:
+            Telemetry.capture(.runtimeInstallSucceeded)
             installError = nil
-        case let .failure(message):
+        case let .failure(reason, message, _):
+            Telemetry.capture(.runtimeInstallFailed(reason: reason))
             if let message {
                 installError = String(
                     format: String(localized: "setup.whiskywine.error.installFailed.detail"),
@@ -179,14 +196,18 @@ struct WhiskyWineInstallView: View {
         }
     }
 
-    /// Outcome of an install attempt. The failure case carries an optional
-    /// user-facing message; illegal combinations are unrepresentable.
+    /// Outcome of an install attempt. The failure case carries the coarse
+    /// telemetry reason (decided where the error is known), an optional
+    /// user-facing message, and the same message in English for the
+    /// diagnostics report; illegal combinations are unrepresentable.
     private enum InstallOutcome {
         case success
-        case failure(message: String?)
+        case failure(reason: Telemetry.InstallFailureReason, message: String?, diagnosticMessage: String?)
 
         var installed: Bool {
-            if case .success = self { return true }
+            if case .success = self {
+                return true
+            }
             return false
         }
     }
@@ -199,14 +220,22 @@ struct WhiskyWineInstallView: View {
                 try WhiskyWineInstaller.install(from: tarball)
                 guard WhiskyWineInstaller.isWhiskyWineInstalled() else {
                     // Extraction reported success but the runtime isn't usable.
-                    return .failure(message: nil)
+                    return .failure(reason: .runtimeIncomplete, message: nil, diagnosticMessage: nil)
                 }
                 // The install replaced Libraries, so any deployed GPTK payload
                 // went with it; the store outlives it and redeploys here.
                 GPTKImporter.deployStoredPayloadIfCapable()
                 return .success
             } catch {
-                return .failure(message: error.localizedDescription)
+                let reason: Telemetry.InstallFailureReason =
+                    (error as? WhiskyWineInstallError) == .tarballNotFound ? .tarballMissing : .extractFailed
+                // Tar errors have an English form for the diagnostics report.
+                let diagnosticMessage = (error as? TarError)?.diagnosticMessage ?? error.localizedDescription
+                return .failure(
+                    reason: reason,
+                    message: error.localizedDescription,
+                    diagnosticMessage: diagnosticMessage
+                )
             }
         }.value
     }

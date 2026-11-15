@@ -25,12 +25,25 @@ public struct ExportOptions: Sendable {
     /// Defaults to `false` (redacted by default).
     public var includeSensitiveDetails: Bool
 
+    /// Whether to include remediation history in the export.
+    public var includeRemediationHistory: Bool
+
     /// Whether to include the full log file in the ZIP export.
     public var includeFullLog: Bool
 
-    public init(includeSensitiveDetails: Bool = false, includeFullLog: Bool = true) {
+    /// Number of lines to include in the tail log excerpt.
+    public var tailLineCount: Int
+
+    public init(
+        includeSensitiveDetails: Bool = false,
+        includeRemediationHistory: Bool = true,
+        includeFullLog: Bool = true,
+        tailLineCount: Int = 500
+    ) {
         self.includeSensitiveDetails = includeSensitiveDetails
+        self.includeRemediationHistory = includeRemediationHistory
         self.includeFullLog = includeFullLog
+        self.tailLineCount = tailLineCount
     }
 }
 
@@ -49,65 +62,73 @@ public struct ExportOptions: Sendable {
 public enum DiagnosticExporter {
     // MARK: - ZIP Export
 
-    /// Exports a complete diagnostic report as a ZIP archive.
-    /// Creates a temporary directory containing all diagnostic files, then
-    /// compresses it via `/usr/bin/ditto`. The temporary directory is cleaned
-    /// up after compression.
+    /// Exports a complete diagnostic report as a ZIP archive at `destination`.
+    ///
+    /// Creates a temporary directory containing all diagnostic files,
+    /// compresses it via `/usr/bin/ditto`, and puts the archive at
+    /// `destination` with ``saveArchive(_:to:)``, so a file already there is
+    /// replaced only once the new archive is complete. The temporary files
+    /// are removed either way.
+    ///
+    /// - Throws: ``DiagnosticExportError`` when the archive cannot be built,
+    ///   or the file system's error when it cannot be saved. On failure
+    ///   anything already at `destination` is left as it was.
     @MainActor
+    // swiftlint:disable:next function_parameter_count
     public static func exportZIP(
         diagnosis: CrashDiagnosis,
         bottle: Bottle,
         program: Program,
         logFileURL: URL?,
-        options: ExportOptions = ExportOptions()
-    ) async -> URL {
-        let name = "Whisky-Diagnostics-\(sanitizeName(bottle.settings.name))-\(sanitizeName(program.name))"
-        let tempDir = FileManager.default.temporaryDirectory
-            .appendingPathComponent(UUID().uuidString, isDirectory: true)
-        let contentDir = tempDir.appendingPathComponent(name, isDirectory: true)
-        let zipURL = tempDir.appendingPathComponent(
-            zipFilename(bottleName: bottle.settings.name, programName: program.name, date: Date())
+        timeline: RemediationTimeline?,
+        options: ExportOptions = ExportOptions(),
+        to destination: URL
+    ) async throws {
+        let context = ZIPExportContext(
+            diagnosis: diagnosis,
+            bottle: bottle,
+            program: program,
+            logFileURL: logFileURL,
+            timeline: timeline,
+            options: options
         )
 
-        let report = generateMarkdownReport(diagnosis: diagnosis, bottle: bottle)
-        let files: [(name: String, text: String)] = [
-            ("report.md", report),
-            ("env.json", generateEnvironmentJSON(bottle: bottle, options: options)),
-            ("bottle-settings.json", bottleSettingsSummary(bottle: bottle)),
-            ("program-settings.json", programSettingsSummary(program: program, options: options))
-        ]
-        let systemInfo = await generateSystemInfoJSON()
-
-        await Task.detached(priority: .utility) {
-            do {
-                try FileManager.default.createDirectory(at: contentDir, withIntermediateDirectories: true)
-                let crashEncoder = JSONEncoder()
-                crashEncoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-                crashEncoder.dateEncodingStrategy = .iso8601
-                // Own try?: an encoding failure must not drop the other files.
-                try? crashEncoder.encode(CrashDiagnosisCodableWrapper(diagnosis))
-                    .write(to: contentDir.appendingPathComponent("crash.json"))
-                for (fileName, text) in files {
-                    try text.write(to: contentDir.appendingPathComponent(fileName), atomically: true, encoding: .utf8)
-                }
-                writeLogFiles(contentDir: contentDir, logFileURL: logFileURL, options: options)
-                try systemInfo.write(
-                    to: contentDir.appendingPathComponent("system.json"), atomically: true, encoding: .utf8
-                )
-            } catch {
-                // Best effort
-            }
-            compressZIP(from: contentDir, to: zipURL)
-            try? FileManager.default.removeItem(at: contentDir)
-        }.value
-
-        return zipURL
+        let archive = try await buildZIPArchive(context: context)
+        defer { try? FileManager.default.removeItem(at: archive.deletingLastPathComponent()) }
+        try saveArchive(archive, to: destination)
     }
 
-    /// The default file name of a diagnostic ZIP export.
-    public static func zipFilename(bottleName: String, programName: String, date: Date) -> String {
-        "Whisky-Diagnostics-\(sanitizeName(bottleName))-\(sanitizeName(programName))"
-            + "-\(formatDateForFilename(date)).zip"
+    /// Puts a finished archive at `destination`, replacing what is there only on success.
+    ///
+    /// The archive is first copied next to the destination under a hidden
+    /// temporary name; only then is it swapped in (or moved, when nothing is
+    /// there yet). A copy that fails leaves the existing file untouched and no
+    /// partial file behind.
+    ///
+    /// - Parameters:
+    ///   - archive: The finished archive. It is copied, not moved.
+    ///   - destination: Where the user chose to save it.
+    /// - Throws: ``DiagnosticExportError/archiveMissing`` when `archive` does
+    ///   not exist, or the file system's error.
+    static func saveArchive(_ archive: URL, to destination: URL) throws {
+        let fileManager = FileManager.default
+        guard fileManager.fileExists(atPath: archive.path(percentEncoded: false)) else {
+            throw DiagnosticExportError.archiveMissing
+        }
+        // Staged in the destination's folder so the swap stays on one volume.
+        let staged = destination.deletingLastPathComponent()
+            .appending(path: ".\(destination.lastPathComponent).\(UUID().uuidString).partial")
+        try fileManager.copyItem(at: archive, to: staged)
+        do {
+            if fileManager.fileExists(atPath: destination.path(percentEncoded: false)) {
+                _ = try fileManager.replaceItemAt(destination, withItemAt: staged)
+            } else {
+                try fileManager.moveItem(at: staged, to: destination)
+            }
+        } catch {
+            try? fileManager.removeItem(at: staged)
+            throw error
+        }
     }
 
     // MARK: - Markdown Export
@@ -116,16 +137,53 @@ public enum DiagnosticExporter {
     ///
     /// The report is always redacted (no sensitive details in clipboard copy).
     /// Includes system info, bottle config, diagnosis summary, matched patterns,
-    /// suggested remediations, and environment keys (keys only, no values).
-    ///
-    /// The ZIP export reuses it as `report.md`.
+    /// suggested remediations, the remediation history, and environment keys
+    /// (keys only, no values).
     ///
     /// - Parameters:
     ///   - diagnosis: The crash diagnosis to report.
     ///   - bottle: The bottle that was analyzed.
+    ///   - program: The program that was analyzed.
+    ///   - timeline: The remediation cards already applied for `program`, if any.
+    ///   - options: Export options. `includeRemediationHistory` decides whether
+    ///     `timeline` is listed; `includeSensitiveDetails` and `includeFullLog`
+    ///     are ignored because the copy is always redacted.
     /// - Returns: A Markdown string ready for pasting.
     @MainActor
-    public static func generateMarkdownReport(diagnosis: CrashDiagnosis, bottle: Bottle) -> String {
+    public static func generateMarkdownReport(
+        diagnosis: CrashDiagnosis,
+        bottle: Bottle,
+        program: Program,
+        timeline: RemediationTimeline? = nil,
+        options: ExportOptions = ExportOptions()
+    ) async -> String {
+        // Markdown copy is always redacted regardless of options
+        let redactedOptions = ExportOptions(
+            includeSensitiveDetails: false,
+            includeRemediationHistory: options.includeRemediationHistory,
+            includeFullLog: false,
+            tailLineCount: options.tailLineCount
+        )
+        return generateReportMarkdown(
+            diagnosis: diagnosis,
+            bottle: bottle,
+            program: program,
+            timeline: timeline,
+            options: redactedOptions
+        )
+    }
+
+    // MARK: - Internal Content Generators
+
+    /// Generates the main report.md content.
+    @MainActor
+    static func generateReportMarkdown(
+        diagnosis: CrashDiagnosis,
+        bottle: Bottle,
+        program: Program,
+        timeline: RemediationTimeline? = nil,
+        options: ExportOptions
+    ) -> String {
         var markdown = "## Whisky Diagnostic Report\n\n"
         markdown += "**Generated:** \(Date().formatted())\n\n"
 
@@ -134,12 +192,11 @@ public enum DiagnosticExporter {
         markdown += generateDiagnosisSummarySection(diagnosis: diagnosis)
         markdown += generateMatchedPatternsSection(diagnosis: diagnosis)
         markdown += generateSuggestedRemediationsSection(diagnosis: diagnosis)
+        markdown += generateRemediationHistorySection(timeline: timeline, options: options)
         markdown += generateEnvironmentKeysSection(bottle: bottle)
 
         return markdown
     }
-
-    // MARK: - Internal Content Generators
 
     @MainActor
     private static func generateSystemInfoSection() -> String {
@@ -151,15 +208,14 @@ public enum DiagnosticExporter {
         } else {
             section += "- **Architecture:** Intel (x86_64)\n"
         }
-        let runtimeInfo = WhiskyWineInstaller.whiskyWineInfo()
-        if let whiskyWineVersion = runtimeInfo?.version {
+        if let whiskyWineVersion = WhiskyWineInstaller.whiskyWineVersion() {
             section += "- **WhiskyWine:** \(whiskyWineVersion.major).\(whiskyWineVersion.minor)"
             section += ".\(whiskyWineVersion.patch)\n"
         }
-        if let dxvkVersion = runtimeInfo?.dxvkVersion {
+        if let dxvkVersion = WhiskyWineInstaller.whiskyWineDXVKVersion() {
             section += "- **DXVK:** \(dxvkVersion)\n"
         }
-        if let dxmtVersion = runtimeInfo?.dxmtVersion {
+        if let dxmtVersion = WhiskyWineInstaller.whiskyWineDXMTVersion() {
             section += "- **DXMT:** \(dxmtVersion)\n"
         }
         section += "\n"
@@ -185,7 +241,7 @@ public enum DiagnosticExporter {
             section += "**\(headline)**\n\n"
         }
         if let category = diagnosis.primaryCategory, let confidence = diagnosis.primaryConfidence {
-            section += "- **Primary Category:** \(category.displayName)\n"
+            section += "- **Primary Category:** \(category.exportName)\n"
             section += "- **Confidence:** \(confidence.displayName)\n"
         }
         if let exitCode = diagnosis.exitCode {
@@ -194,7 +250,7 @@ public enum DiagnosticExporter {
         if !diagnosis.categoryCounts.isEmpty {
             section += "\n**Category Counts:**\n"
             for (category, count) in diagnosis.categoryCounts.sorted(by: { $0.value > $1.value }) {
-                section += "- \(category.displayName): \(count)\n"
+                section += "- \(category.exportName): \(count)\n"
             }
         }
         section += "\n"
@@ -207,7 +263,7 @@ public enum DiagnosticExporter {
         var section = "### Matched Patterns\n\n"
         for diagMatch in diagnosis.matches.prefix(5) {
             let conf = ConfidenceTier(score: diagMatch.pattern.confidence).displayName
-            section += "- **\(diagMatch.pattern.id)** [\(diagMatch.pattern.category.displayName)]"
+            section += "- **\(diagMatch.pattern.id)** [\(diagMatch.pattern.category.exportName)]"
             section += " (\(conf) confidence)\n"
             if !diagMatch.captures.isEmpty {
                 section += "  - Captures: \(diagMatch.captures.joined(separator: ", "))\n"
@@ -220,12 +276,38 @@ public enum DiagnosticExporter {
     @MainActor
     private static func generateSuggestedRemediationsSection(diagnosis: CrashDiagnosis) -> String {
         guard !diagnosis.applicableRemediationIds.isEmpty else { return "" }
-        let resolved = diagnosis.remediations(from: PatternLoader.defaultRemediations())
+        let (_, remediations) = PatternLoader.loadDefaults()
+        let resolved = diagnosis.remediations(from: remediations)
         guard !resolved.isEmpty else { return "" }
 
         var section = "### Suggested Remediations\n\n"
         for action in resolved {
             section += "- **\(action.title)** [\(action.risk) risk]: \(action.whatWillChange)\n"
+        }
+        section += "\n"
+        return section
+    }
+
+    /// Lists the remediation cards already applied for the program, newest first.
+    ///
+    /// Empty unless ``ExportOptions/includeRemediationHistory`` is set and
+    /// `timeline` has entries.
+    static func generateRemediationHistorySection(
+        timeline: RemediationTimeline?,
+        options: ExportOptions
+    ) -> String {
+        guard options.includeRemediationHistory, let timeline, !timeline.isEmpty else { return "" }
+        let formatter = ISO8601DateFormatter()
+        var section = "### Remediation History\n\n"
+        for entry in exportedTimeline(timeline, options: options).entries.reversed() {
+            section += "- \(formatter.string(from: entry.timestamp)): **\(entry.actionTitle)** (`\(entry.actionId)`)"
+            switch (entry.beforeValue, entry.afterValue) {
+            case let (before?, after?): section += " \(before) -> \(after)"
+            case let (nil, after?): section += " \(after)"
+            case let (before?, nil): section += " \(before) -> unset"
+            case (nil, nil): break
+            }
+            section += "\n"
         }
         section += "\n"
         return section
@@ -255,6 +337,7 @@ public enum DiagnosticExporter {
         info["dxrEnabled"] = "\(bottle.settings.dxrEnabled)"
         info["shaderCacheEnabled"] = "\(bottle.settings.shaderCacheEnabled)"
         info["avxEnabled"] = "\(bottle.settings.avxEnabled)"
+        info["sequoiaCompatMode"] = "\(bottle.settings.sequoiaCompatMode)"
         info["launcherCompatibilityMode"] = "\(bottle.settings.launcherCompatibilityMode)"
 
         return dictionaryToJSON(info)
@@ -306,13 +389,138 @@ public enum DiagnosticExporter {
 // MARK: - DiagnosticExporter ZIP Building
 
 extension DiagnosticExporter {
-    fileprivate static func writeLogFiles(contentDir: URL, logFileURL: URL?, options: ExportOptions) {
-        guard let logURL = logFileURL else { return }
+    /// Builds the archive in a fresh temporary directory and returns its URL.
+    /// On failure the temporary directory is removed.
+    @MainActor
+    fileprivate static func buildZIPArchive(context: ZIPExportContext) async throws -> URL {
+        let bottleName = sanitizeName(context.bottle.settings.name)
+        let programName = sanitizeName(context.program.name)
+        let dateString = formatDateForFilename(Date())
+        let zipFilename = "Whisky-Diagnostics-\(bottleName)-\(programName)-\(dateString).zip"
 
-        if options.includeFullLog,
+        let tempDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let contentDir = tempDir.appendingPathComponent(
+            "Whisky-Diagnostics-\(bottleName)-\(programName)",
+            isDirectory: true
+        )
+        let zipURL = tempDir.appendingPathComponent(zipFilename)
+
+        let content = await prepareZIPContent(context: context)
+
+        do {
+            try await Task.detached(priority: .utility) {
+                defer { try? FileManager.default.removeItem(at: contentDir) }
+                writeZIPContent(content: content, contentDir: contentDir, context: context)
+                try compressZIP(from: contentDir, to: zipURL)
+            }.value
+        } catch {
+            try? FileManager.default.removeItem(at: tempDir)
+            throw error
+        }
+
+        return zipURL
+    }
+
+    @MainActor
+    fileprivate static func prepareZIPContent(context: ZIPExportContext) async -> ZIPContent {
+        await ZIPContent(
+            reportMarkdown: generateReportMarkdown(
+                diagnosis: context.diagnosis,
+                bottle: context.bottle,
+                program: context.program,
+                timeline: context.timeline,
+                options: context.options
+            ),
+            bottleSummary: bottleSettingsSummary(bottle: context.bottle),
+            programSummary: programSettingsSummary(program: context.program, options: context.options),
+            systemInfo: generateSystemInfoJSON(),
+            environmentJSON: generateEnvironmentJSON(bottle: context.bottle, options: context.options)
+        )
+    }
+
+    fileprivate static func writeZIPContent(content: ZIPContent, contentDir: URL, context: ZIPExportContext) {
+        do {
+            try FileManager.default.createDirectory(at: contentDir, withIntermediateDirectories: true)
+            try content.reportMarkdown.write(
+                to: contentDir.appendingPathComponent("report.md"),
+                atomically: true,
+                encoding: .utf8
+            )
+
+            let crashEncoder = JSONEncoder()
+            crashEncoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+            crashEncoder.dateEncodingStrategy = .iso8601
+            let crashData = try crashEncoder.encode(CrashDiagnosisCodableWrapper(context.diagnosis))
+            try crashData.write(to: contentDir.appendingPathComponent("crash.json"))
+
+            try content.environmentJSON.write(
+                to: contentDir.appendingPathComponent("env.json"),
+                atomically: true,
+                encoding: .utf8
+            )
+            try content.bottleSummary.write(
+                to: contentDir.appendingPathComponent("bottle-settings.json"),
+                atomically: true,
+                encoding: .utf8
+            )
+            try content.programSummary.write(
+                to: contentDir.appendingPathComponent("program-settings.json"),
+                atomically: true,
+                encoding: .utf8
+            )
+
+            writeLogFiles(contentDir: contentDir, context: context)
+
+            try content.systemInfo.write(
+                to: contentDir.appendingPathComponent("system.json"),
+                atomically: true,
+                encoding: .utf8
+            )
+
+            if context.options.includeRemediationHistory, let timeline = context.timeline {
+                try remediationHistoryJSON(exportedTimeline(timeline, options: context.options))
+                    .write(to: contentDir.appendingPathComponent("remediation-history.json"))
+            }
+        } catch {
+            // Best effort
+        }
+    }
+
+    /// The timeline as it goes into an export: before and after values pass
+    /// through ``Redactor`` like the logs do, unless sensitive details were
+    /// asked for. Values are recorded redacted already; this keeps an export
+    /// safe whatever a future remediation records.
+    static func exportedTimeline(_ timeline: RemediationTimeline, options: ExportOptions) -> RemediationTimeline {
+        guard !options.includeSensitiveDetails else { return timeline }
+        var redacted = RemediationTimeline()
+        for entry in timeline.entries {
+            redacted.record(RemediationTimelineEntry(
+                timestamp: entry.timestamp,
+                actionId: entry.actionId,
+                actionTitle: entry.actionTitle,
+                beforeValue: entry.beforeValue.map(Redactor.redactLogText),
+                afterValue: entry.afterValue.map(Redactor.redactLogText)
+            ))
+        }
+        return redacted
+    }
+
+    /// The `remediation-history.json` written into the ZIP.
+    static func remediationHistoryJSON(_ timeline: RemediationTimeline) throws -> Data {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        encoder.dateEncodingStrategy = .iso8601
+        return try encoder.encode(timeline)
+    }
+
+    fileprivate static func writeLogFiles(contentDir: URL, context: ZIPExportContext) {
+        guard let logURL = context.logFileURL else { return }
+
+        if context.options.includeFullLog,
            FileManager.default.fileExists(atPath: logURL.path(percentEncoded: false)) {
             if let logContent = try? String(contentsOf: logURL, encoding: .utf8) {
-                let redacted = options.includeSensitiveDetails ? logContent
+                let redacted = context.options.includeSensitiveDetails ? logContent
                     : Redactor.redactLogText(logContent)
                 try? redacted.write(
                     to: contentDir.appendingPathComponent("wine.log"),
@@ -322,10 +530,8 @@ extension DiagnosticExporter {
             }
         }
 
-        let tailText = StabilityDiagnostics.tailOfLogFile(
-            logURL, lineCount: 500, maxBytes: 256 * 1_024
-        )
-        let redactedTail = options.includeSensitiveDetails ? tailText
+        let tailText = tailOfLogFile(logURL, lineCount: context.options.tailLineCount)
+        let redactedTail = context.options.includeSensitiveDetails ? tailText
             : Redactor.redactLogText(tailText)
         try? redactedTail.write(
             to: contentDir.appendingPathComponent("wine.tail.log"),
@@ -334,9 +540,18 @@ extension DiagnosticExporter {
         )
     }
 
-    fileprivate static func compressZIP(from contentDir: URL, to zipURL: URL) {
+    /// Compresses `contentDir` into `zipURL` with `ditto`.
+    ///
+    /// - Throws: ``DiagnosticExportError/compressionFailed(status:)`` when
+    ///   ditto exits nonzero, ``DiagnosticExportError/archiveMissing`` when it
+    ///   reports success without writing the archive, or the launch error.
+    static func compressZIP(
+        from contentDir: URL,
+        to zipURL: URL,
+        ditto: URL = URL(fileURLWithPath: "/usr/bin/ditto")
+    ) throws {
         let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/ditto")
+        process.executableURL = ditto
         process.arguments = [
             "-c",
             "-k",
@@ -344,8 +559,31 @@ extension DiagnosticExporter {
             contentDir.path(percentEncoded: false),
             zipURL.path(percentEncoded: false)
         ]
-        try? process.run()
+        try process.run()
         process.waitUntilExit()
+        guard process.terminationStatus == 0 else {
+            throw DiagnosticExportError.compressionFailed(status: process.terminationStatus)
+        }
+        guard FileManager.default.fileExists(atPath: zipURL.path(percentEncoded: false)) else {
+            throw DiagnosticExportError.archiveMissing
+        }
+    }
+
+    fileprivate struct ZIPExportContext {
+        let diagnosis: CrashDiagnosis
+        let bottle: Bottle
+        let program: Program
+        let logFileURL: URL?
+        let timeline: RemediationTimeline?
+        let options: ExportOptions
+    }
+
+    fileprivate struct ZIPContent {
+        let reportMarkdown: String
+        let bottleSummary: String
+        let programSummary: String
+        let systemInfo: String
+        let environmentJSON: String
     }
 }
 
@@ -353,7 +591,7 @@ extension DiagnosticExporter {
 
 extension DiagnosticExporter {
     /// Sanitizes a name for use in filenames by replacing non-alphanumeric characters with hyphens.
-    public static func sanitizeName(_ name: String) -> String {
+    static func sanitizeName(_ name: String) -> String {
         let allowed = CharacterSet.alphanumerics
         return name.unicodeScalars
             .map { allowed.contains($0) ? String($0) : "-" }
@@ -363,19 +601,64 @@ extension DiagnosticExporter {
     }
 
     /// Formats a date for use in filenames: YYYYMMDD-HHmmss.
-    public static func formatDateForFilename(_ date: Date) -> String {
+    static func formatDateForFilename(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyyMMdd-HHmmss"
         formatter.timeZone = TimeZone.current
         return formatter.string(from: date)
     }
 
+    /// Reads the tail of a log file with a configurable line count.
+    static func tailOfLogFile(_ url: URL, lineCount: Int) -> String {
+        let maxBytesToRead = 256 * 1_024
+        do {
+            let handle = try FileHandle(forReadingFrom: url)
+            defer { try? handle.close() }
+
+            let end = try handle.seekToEnd()
+            let start = end > UInt64(maxBytesToRead) ? end - UInt64(maxBytesToRead) : 0
+            try handle.seek(toOffset: start)
+
+            let data = try handle.readToEnd() ?? Data()
+            guard var text = String(data: data, encoding: .utf8) else {
+                return "(Log tail unavailable: not UTF-8)"
+            }
+
+            guard !text.isEmpty else {
+                return "(Log tail unavailable: empty)"
+            }
+
+            // If we started from the middle, drop the first partial line
+            if start != 0, let firstNewline = text.firstIndex(of: "\n") {
+                text = String(text[text.index(after: firstNewline)...])
+            }
+
+            let lines = text.split(separator: "\n", omittingEmptySubsequences: false)
+            if lines.count <= lineCount {
+                return lines.joined(separator: "\n")
+            }
+            return lines.suffix(lineCount).joined(separator: "\n")
+        } catch {
+            return "(Failed to read log tail: \(error.localizedDescription))"
+        }
+    }
+
     /// Converts a [String: String] dictionary to a pretty-printed JSON string.
     fileprivate static func dictionaryToJSON(_ dict: [String: String]) -> String {
-        let data = try? JSONSerialization.data(
-            withJSONObject: dict, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
-        )
-        return data.flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
+        let sorted = dict.sorted { $0.key < $1.key }
+        var json = "{\n"
+        for (index, pair) in sorted.enumerated() {
+            let escapedValue = pair.value
+                .replacingOccurrences(of: "\\", with: "\\\\")
+                .replacingOccurrences(of: "\"", with: "\\\"")
+            json += "  \"\(pair.key)\": \"\(escapedValue)\""
+            if index < sorted.count - 1 {
+                json += ","
+            }
+            json += "\n"
+        }
+        json += "}"
+        return json
     }
 }
 

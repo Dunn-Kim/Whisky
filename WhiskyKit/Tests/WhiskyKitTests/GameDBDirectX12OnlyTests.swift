@@ -21,13 +21,14 @@ import Testing
 
 /// The bundled GameDB must never put a DirectX 12 only title on DXVK (#276).
 ///
-/// Whisky's DXVK covers Direct3D 10 and 11 only, and its preset turns d3d12 off beside
-/// D3DMetal's builtin, so such a title cannot start on it. Applying a variant
-/// sets the bottle's backend from it, so a wrong recommendation breaks the game.
+/// DXVK translates Direct3D 9 to 11 only, and its preset turns d3d12 off beside
+/// D3DMetal's builtin, so such a title cannot start on it. A game's plan now
+/// reaches the game on every Steam launch, so a wrong recommendation breaks it.
 @Suite("GameDB DirectX 12 only titles")
 struct GameDBDirectX12OnlyTests {
     /// Entry IDs of titles with no Direct3D 9-11 renderer, per PCGamingWiki's
     /// API section (cross-checked against Steam's system requirements).
+    /// Red Dead Redemption 2 also has Vulkan, but no path DXVK can render.
     static let directX12OnlyEntryIds: Set<String> = [
         "animal-well",
         "cyberpunk-2077",
@@ -36,6 +37,7 @@ struct GameDBDirectX12OnlyTests {
         "jusant",
         "monster-hunter-wilds",
         "persona-3-reload",
+        "red-dead-redemption-2",
         "starfield",
         "street-fighter-6",
         "talos-principle-2"

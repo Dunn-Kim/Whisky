@@ -54,6 +54,7 @@ final class GameApplicatorTests: XCTestCase {
         enhancedSync: EnhancedSync? = nil,
         shaderCacheEnabled: Bool? = nil,
         avxEnabled: Bool? = nil,
+        sequoiaCompatMode: Bool? = nil,
         dllOverrides: [DLLOverrideEntry]? = nil,
         winetricksVerbs: [String]? = nil,
         environmentVariables: [String: String]? = nil
@@ -68,7 +69,8 @@ final class GameApplicatorTests: XCTestCase {
                 dxvkAsync: dxvkAsync,
                 enhancedSync: enhancedSync,
                 shaderCacheEnabled: shaderCacheEnabled,
-                avxEnabled: avxEnabled
+                avxEnabled: avxEnabled,
+                sequoiaCompatMode: sequoiaCompatMode
             ),
             environmentVariables: environmentVariables,
             dllOverrides: dllOverrides,
@@ -115,13 +117,19 @@ final class GameApplicatorTests: XCTestCase {
 
         // Real entries pair an explicit backend with `dxvk: false`; the legacy
         // setter maps that `false` to Recommended, which used to undo the backend.
+        // D3DMetal is pinned as installed; a missing payload is covered in
+        // GameConfigBackendAvailabilityTests.
         let variant = makeTestVariant(graphicsBackend: .d3dMetal, dxvk: false)
         let entry = makeTestEntry(variant: variant)
 
-        _ = try GameConfigApplicator.apply(entry: entry, variant: variant, to: bottle)
+        _ = try GameConfigApplicator.apply(
+            entry: entry, variant: variant, to: bottle, isBackendAvailable: { _ in true }
+        )
 
         XCTAssertEqual(bottle.settings.graphicsBackend, .d3dMetal)
-        let changes = GameConfigApplicator.previewChanges(variant: variant, bottle: bottle)
+        let changes = GameConfigApplicator.previewChanges(
+            variant: variant, bottle: bottle, isBackendAvailable: { _ in true }
+        )
         XCTAssertFalse(changes.contains { $0.settingName == "DXVK" }, "no DXVK row when the backend is explicit")
     }
 
@@ -142,25 +150,6 @@ final class GameApplicatorTests: XCTestCase {
 
         XCTAssertEqual(bottle.settings.graphicsBackend, .dxvk, "Graphics backend should be changed to DXVK")
         XCTAssertTrue(bottle.settings.dxvkAsync, "DXVK async should be enabled")
-    }
-
-    @MainActor
-    func testLegacyDXVKFlagDoesNotClobberExplicitBackend() throws {
-        let bottle = try makeTestBottle()
-        defer { cleanupBottle(bottle) }
-
-        // The dxvk setter rewrites the backend (false -> .recommended), so an
-        // entry carrying both fields used to lose the backend it just chose —
-        // and with it, the frame cap that only DXMT/DXVK can apply.
-        let variant = makeTestVariant(graphicsBackend: .dxmt, dxvk: false)
-        let entry = makeTestEntry(variant: variant)
-
-        _ = try GameConfigApplicator.apply(entry: entry, variant: variant, to: bottle)
-
-        XCTAssertEqual(
-            bottle.settings.graphicsBackend, .dxmt,
-            "Explicit backend must survive the legacy dxvk flag"
-        )
     }
 
     // MARK: - Test 3: Apply Adds DLL Overrides
@@ -256,11 +245,28 @@ final class GameApplicatorTests: XCTestCase {
 
         let variant = makeTestVariant(winetricksVerbs: ["vcrun2022", "dotnet48"])
         let entry = makeTestEntry(variant: variant)
-        let snapshot = try GameConfigApplicator.apply(entry: entry, variant: variant, to: bottle)
+        _ = try GameConfigApplicator.apply(entry: entry, variant: variant, to: bottle)
+        // Only the verbs that actually installed are recorded, after the apply.
+        try GameConfigApplicator.recordInstalledVerbs(["vcrun2022"], bottleURL: bottle.url)
+        let snapshot = try XCTUnwrap(GameConfigSnapshot.load(from: bottle.url))
 
         let verbs = try GameConfigApplicator.revert(bottle: bottle, snapshot: snapshot)
 
-        XCTAssertEqual(verbs, ["vcrun2022", "dotnet48"], "Revert should return the installed verbs list")
+        XCTAssertEqual(verbs, ["vcrun2022"], "Revert should return the verbs that were installed")
+    }
+
+    // MARK: - Test 6: Pending Winetricks Verbs Filters Installed
+
+    func testPendingWinetricksVerbsFiltersInstalled() {
+        let variant = makeTestVariant(winetricksVerbs: ["vcrun2022", "dotnet48"])
+
+        let installedVerbs: Set = ["vcrun2022"]
+        let pending = GameConfigApplicator.pendingWinetricksVerbs(
+            variant: variant,
+            installedVerbs: installedVerbs
+        )
+
+        XCTAssertEqual(pending, ["dotnet48"], "Only uninstalled verbs should be returned")
     }
 
     // MARK: - Test 7: Preview Changes Shows Diff
@@ -280,20 +286,20 @@ final class GameApplicatorTests: XCTestCase {
         let changes = GameConfigApplicator.previewChanges(variant: variant, bottle: bottle)
 
         // Should have at least graphics backend change
-        let backendChange = changes.first { $0.settingName == "Graphics Backend" }
+        let backendChange = changes.first { $0.kind == .graphicsBackend }
         XCTAssertNotNil(backendChange, "Should include graphics backend change")
         XCTAssertEqual(backendChange?.newValue, GraphicsBackend.dxvk.displayName)
         XCTAssertTrue(backendChange?.isHighImpact == true, "Graphics backend change should be high impact")
 
         // Should have enhanced sync change
-        let syncChange = changes.first { $0.settingName == "Enhanced Sync" }
+        let syncChange = changes.first { $0.kind == .enhancedSync }
         XCTAssertNotNil(syncChange, "Should include enhanced sync change")
-        XCTAssertEqual(syncChange?.newValue, "ESync")
+        XCTAssertEqual(syncChange?.newValue, String(localized: "config.enhancedSync.esync"))
 
         // Should have DLL override change
-        let dllChange = changes.first { $0.settingName == "dxgi" }
+        let dllChange = changes.first { $0.kind == .dllOverride && $0.settingName == "dxgi" }
         XCTAssertNotNil(dllChange, "Should include DLL override change")
-        XCTAssertEqual(dllChange?.category, "DLL Overrides")
+        XCTAssertEqual(dllChange?.category, String(localized: "gameConfig.detail.dllOverrides"))
         XCTAssertTrue(dllChange?.isHighImpact == true, "DLL override additions should be high impact")
     }
 
@@ -354,7 +360,8 @@ final class GameApplicatorTests: XCTestCase {
             dxvkAsync: false,
             enhancedSync: .esync,
             shaderCacheEnabled: false,
-            avxEnabled: true
+            avxEnabled: true,
+            sequoiaCompatMode: true
         )
         let entry = makeTestEntry(variant: variant)
 
@@ -365,62 +372,209 @@ final class GameApplicatorTests: XCTestCase {
         XCTAssertEqual(bottle.settings.enhancedSync, .esync)
         XCTAssertFalse(bottle.settings.shaderCacheEnabled)
         XCTAssertTrue(bottle.settings.avxEnabled)
+        XCTAssertTrue(bottle.settings.sequoiaCompatMode)
     }
 }
 
 // MARK: - StalenessChecker Tests
 
 final class StalenessCheckerTests: XCTestCase {
-    /// This machine's macOS, so date tests are not also version-stale.
-    private let currentMacOS: String = {
-        let version = ProcessInfo.processInfo.operatingSystemVersion
-        return "\(version.majorVersion).\(version.minorVersion).\(version.patchVersion)"
-    }()
+    // MARK: - Test 8: Fresh Entry (Not Stale)
 
     func testStalenessCheckFresh() {
         let testedWith = TestedWith(
             lastTestedAt: Date().addingTimeInterval(-30 * 86_400), // 30 days ago
-            macOSVersion: currentMacOS,
+            macOSVersion: "15.3.0",
             wineVersion: "10.0"
         )
 
-        XCTAssertNil(
-            StalenessChecker.warning(for: testedWith),
-            "Entry tested 30 days ago on this macOS should not be stale"
+        let result = StalenessChecker.check(
+            testedWith: testedWith,
+            currentMacOSVersion: "15.3.0",
+            currentWineVersion: "10.0"
         )
+
+        XCTAssertFalse(result.isStale, "Entry tested 30 days ago on same versions should not be stale")
+        XCTAssertTrue(result.reasons.isEmpty)
+        XCTAssertNil(result.warningMessage)
     }
+
+    // MARK: - Test 9: Date Expired
 
     func testStalenessCheckDateExpired() {
         let testedWith = TestedWith(
             lastTestedAt: Date().addingTimeInterval(-100 * 86_400), // 100 days ago
-            macOSVersion: currentMacOS,
+            macOSVersion: "15.3.0",
             wineVersion: "10.0"
         )
 
-        XCTAssertEqual(StalenessChecker.warning(for: testedWith), "This config was last tested 100 days ago.")
+        let result = StalenessChecker.check(
+            testedWith: testedWith,
+            currentMacOSVersion: "15.3.0",
+            currentWineVersion: "10.0"
+        )
+
+        XCTAssertTrue(result.isStale, "Entry tested 100 days ago should be stale")
+        XCTAssertTrue(result.reasons.contains(.dateExpired))
+        XCTAssertNotNil(result.warningMessage)
+        XCTAssertTrue(
+            result.warningMessage?.contains("100 days ago") == true,
+            "Warning should mention days: \(result.warningMessage ?? "nil")"
+        )
     }
 
-    func testStalenessCheckDateAndMacOSMismatch() {
-        let olderMajor = ProcessInfo.processInfo.operatingSystemVersion.majorVersion - 1
+    // MARK: - Test 10: macOS Version Mismatch
+
+    func testStalenessCheckMacOSMismatch() {
         let testedWith = TestedWith(
-            lastTestedAt: Date().addingTimeInterval(-120 * 86_400), // 120 days ago
-            macOSVersion: "\(olderMajor).0.0",
+            lastTestedAt: Date(), // Just now (not date-stale)
+            macOSVersion: "14.0.0",
+            wineVersion: "10.0"
+        )
+
+        let result = StalenessChecker.check(
+            testedWith: testedWith,
+            currentMacOSVersion: "15.3.0",
+            currentWineVersion: "10.0"
+        )
+
+        XCTAssertTrue(result.isStale, "Entry tested on macOS 14 with current 15.3 should be stale")
+        XCTAssertTrue(result.reasons.contains(.macOSVersionMismatch))
+        XCTAssertNotNil(result.warningMessage)
+        XCTAssertTrue(
+            result.warningMessage?.contains("macOS 14.0.0") == true,
+            "Warning should mention tested macOS version"
+        )
+    }
+
+    // MARK: - Test 11: Wine Version Mismatch
+
+    func testStalenessCheckWineVersionMismatch() {
+        let testedWith = TestedWith(
+            lastTestedAt: Date(), // Just now
+            macOSVersion: "15.3.0",
             wineVersion: "9.0"
         )
 
-        XCTAssertEqual(
-            StalenessChecker.warning(for: testedWith),
-            "This config was last tested 120 days ago, on macOS \(olderMajor).0.0."
+        let result = StalenessChecker.check(
+            testedWith: testedWith,
+            currentMacOSVersion: "15.3.0",
+            currentWineVersion: "10.0"
+        )
+
+        XCTAssertTrue(result.isStale, "Entry tested on Wine 9 with current 10 should be stale")
+        XCTAssertTrue(result.reasons.contains(.wineVersionMismatch))
+        XCTAssertNotNil(result.warningMessage)
+        XCTAssertTrue(
+            result.warningMessage?.contains("Wine 9.0") == true,
+            "Warning should mention tested Wine version"
         )
     }
 
-    func testMacOSVersionStaleness() {
-        XCTAssertTrue(StalenessChecker.isMacOSVersionStale(tested: "14.0.0", current: "15.3.0"), "older major")
-        XCTAssertTrue(StalenessChecker.isMacOSVersionStale(tested: "15.1.0", current: "15.3.0"), "minor delta 2")
-        XCTAssertFalse(StalenessChecker.isMacOSVersionStale(tested: "15.2.0", current: "15.3.0"), "minor delta 1")
-        XCTAssertFalse(StalenessChecker.isMacOSVersionStale(tested: "15.3.0", current: "15.3.0"), "same version")
-        XCTAssertFalse(StalenessChecker.isMacOSVersionStale(tested: "16.0.0", current: "15.3.0"), "newer tested")
-        XCTAssertFalse(StalenessChecker.isMacOSVersionStale(tested: "garbage", current: "15.3.0"), "unparseable")
+    // MARK: - Test 12: Multiple Staleness Reasons
+
+    func testStalenessCheckMultipleReasons() {
+        let testedWith = TestedWith(
+            lastTestedAt: Date().addingTimeInterval(-120 * 86_400), // 120 days ago
+            macOSVersion: "14.0.0",
+            wineVersion: "9.0"
+        )
+
+        let result = StalenessChecker.check(
+            testedWith: testedWith,
+            currentMacOSVersion: "15.3.0",
+            currentWineVersion: "10.0"
+        )
+
+        XCTAssertTrue(result.isStale)
+        XCTAssertTrue(result.reasons.contains(.dateExpired), "Should have date expired reason")
+        XCTAssertTrue(result.reasons.contains(.macOSVersionMismatch), "Should have macOS mismatch reason")
+        XCTAssertTrue(result.reasons.contains(.wineVersionMismatch), "Should have Wine mismatch reason")
+        XCTAssertEqual(result.reasons.count, 3, "Should have all three reasons")
+    }
+
+    // MARK: - Test 13: Same Minor Version Not Stale
+
+    func testStalenessCheckSameMinorVersionNotStale() {
+        let testedWith = TestedWith(
+            lastTestedAt: Date(), // Just now
+            macOSVersion: "15.2.0",
+            wineVersion: "10.0"
+        )
+
+        let result = StalenessChecker.check(
+            testedWith: testedWith,
+            currentMacOSVersion: "15.3.0",
+            currentWineVersion: "10.0"
+        )
+
+        XCTAssertFalse(
+            result.isStale,
+            "Entry tested on 15.2.0 with current 15.3.0 should NOT be stale (within 1 minor)"
+        )
+        XCTAssertFalse(result.reasons.contains(.macOSVersionMismatch))
+    }
+
+    // MARK: - Test: Same Wine Major Not Stale
+
+    func testSameWineMajorNotStale() {
+        let testedWith = TestedWith(
+            lastTestedAt: Date(),
+            macOSVersion: "15.3.0",
+            wineVersion: "10.0"
+        )
+
+        let result = StalenessChecker.check(
+            testedWith: testedWith,
+            currentMacOSVersion: "15.3.0",
+            currentWineVersion: "10.5"
+        )
+
+        XCTAssertFalse(result.isStale, "Same Wine major version should not be stale")
+    }
+
+    // MARK: - Test: macOS Minor Delta Exactly 1 Not Stale
+
+    func testMacOSMinorDeltaExactlyOneNotStale() {
+        let testedWith = TestedWith(
+            lastTestedAt: Date(),
+            macOSVersion: "15.2.0",
+            wineVersion: "10.0"
+        )
+
+        // Delta is exactly 1 (15.3 - 15.2 = 1), threshold is >1
+        let result = StalenessChecker.check(
+            testedWith: testedWith,
+            currentMacOSVersion: "15.3.0",
+            currentWineVersion: "10.0"
+        )
+
+        XCTAssertFalse(
+            result.reasons.contains(.macOSVersionMismatch),
+            "Minor delta of exactly 1 should not trigger macOS mismatch"
+        )
+    }
+
+    // MARK: - Test: macOS Minor Delta 2 Is Stale
+
+    func testMacOSMinorDeltaTwoIsStale() {
+        let testedWith = TestedWith(
+            lastTestedAt: Date(),
+            macOSVersion: "15.1.0",
+            wineVersion: "10.0"
+        )
+
+        // Delta is 2 (15.3 - 15.1 = 2), threshold is >1
+        let result = StalenessChecker.check(
+            testedWith: testedWith,
+            currentMacOSVersion: "15.3.0",
+            currentWineVersion: "10.0"
+        )
+
+        XCTAssertTrue(
+            result.reasons.contains(.macOSVersionMismatch),
+            "Minor delta of 2 should trigger macOS mismatch"
+        )
     }
 }
 

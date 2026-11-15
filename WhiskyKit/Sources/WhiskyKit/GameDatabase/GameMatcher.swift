@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 //
 //  GameMatcher.swift
 //  WhiskyKit
@@ -25,6 +26,12 @@ import Foundation
 public struct ProgramMetadata: Sendable {
     /// The executable filename (e.g., "eldenring.exe").
     public let exeName: String
+    /// The URL to the executable file, if available.
+    public let exeURL: URL?
+    /// The file size of the executable in bytes.
+    public let fileSize: Int64?
+    /// The PE COFF header timestamp of the executable.
+    public let peTimestamp: Date?
     /// The Steam App ID, if discovered from manifest or steam_appid.txt.
     public let steamAppId: Int?
     /// The install path of the program within the Wine prefix.
@@ -32,10 +39,16 @@ public struct ProgramMetadata: Sendable {
 
     public init(
         exeName: String,
+        exeURL: URL? = nil,
+        fileSize: Int64? = nil,
+        peTimestamp: Date? = nil,
         steamAppId: Int? = nil,
         installPath: String? = nil
     ) {
         self.exeName = exeName
+        self.exeURL = exeURL
+        self.fileSize = fileSize
+        self.peTimestamp = peTimestamp
         self.steamAppId = steamAppId
         self.installPath = installPath
     }
@@ -44,7 +57,7 @@ public struct ProgramMetadata: Sendable {
 /// Tiered matching algorithm for identifying games from program metadata.
 ///
 /// Scores programs against the game compatibility database using three tiers:
-/// - **Hard identifiers** (1.0): Steam App ID
+/// - **Hard identifiers** (0.95-1.0): Steam App ID, SHA-256 hash, file size + PE timestamp
 /// - **Strong heuristics** (0.7-0.9): Executable name, path pattern matching
 /// - **Fuzzy matching** (0.3-0.6): Tokenized name comparison against titles and aliases
 ///
@@ -182,37 +195,48 @@ public enum GameMatcher {
         metadata: ProgramMetadata,
         entry: GameDBEntry
     ) -> MatchResult? {
-        // Try tiers in order of confidence: hard > strong > fuzzy. The first tier
-        // that matches decides; falling below the threshold rejects the entry.
-        let tier: MatchTier
-        let scored: (Double, String)
-        if let hard = scoreHardIdentifiers(metadata: metadata, entry: entry) {
-            tier = .hardIdentifier
-            scored = hard
-        } else if let strong = scoreStrongHeuristics(metadata: metadata, entry: entry) {
-            guard strong.0 >= minimumThreshold else { return nil }
-            tier = .strongHeuristic
-            scored = strong
-        } else if let fuzzy = scoreFuzzy(metadata: metadata, entry: entry) {
-            guard fuzzy.0 >= minimumThreshold else { return nil }
-            tier = .fuzzy
-            scored = fuzzy
-        } else {
-            return nil
+        // Try tiers in order of confidence: hard > strong > fuzzy
+        if let (score, explanation) = scoreHardIdentifiers(metadata: metadata, entry: entry) {
+            let variant = selectVariant(from: entry)
+            return MatchResult(
+                entry: entry,
+                confidence: score,
+                tier: .hardIdentifier,
+                explanation: explanation,
+                recommendedVariant: variant
+            )
         }
 
-        return MatchResult(
-            entry: entry,
-            confidence: scored.0,
-            tier: tier,
-            explanation: scored.1,
-            recommendedVariant: selectVariant(from: entry)
-        )
+        if let (score, explanation) = scoreStrongHeuristics(metadata: metadata, entry: entry) {
+            guard score >= minimumThreshold else { return nil }
+            let variant = selectVariant(from: entry)
+            return MatchResult(
+                entry: entry,
+                confidence: score,
+                tier: .strongHeuristic,
+                explanation: explanation,
+                recommendedVariant: variant
+            )
+        }
+
+        if let (score, explanation) = scoreFuzzy(metadata: metadata, entry: entry) {
+            guard score >= minimumThreshold else { return nil }
+            let variant = selectVariant(from: entry)
+            return MatchResult(
+                entry: entry,
+                confidence: score,
+                tier: .fuzzy,
+                explanation: explanation,
+                recommendedVariant: variant
+            )
+        }
+
+        return nil
     }
 
-    // MARK: - Hard Identifiers (1.0)
+    // MARK: - Hard Identifiers (0.95-1.0)
 
-    /// Checks for a Steam App ID match.
+    /// Checks Steam App ID, SHA-256 hash, and file size + PE timestamp matches.
     private static func scoreHardIdentifiers(
         metadata: ProgramMetadata,
         entry: GameDBEntry
@@ -220,18 +244,38 @@ public enum GameMatcher {
         // Steam App ID match (highest confidence)
         if let metadataAppId = metadata.steamAppId, let entryAppId = entry.steamAppId {
             if metadataAppId == entryAppId {
-                return (1.0, "Steam App ID \(entryAppId) matches exactly")
+                return (
+                    1.0,
+                    String(
+                        localized: "gameConfig.match.steamAppId %@",
+                        // An identifier, so no locale digit grouping ("1245620", not "1,245,620").
+                        defaultValue: "Steam App ID \(String(entryAppId)) matches exactly"
+                    )
+                )
+            }
+        }
+
+        // File size + PE timestamp match (0.95)
+        if let metaSize = metadata.fileSize, let metaTimestamp = metadata.peTimestamp {
+            if let fingerprints = entry.exeFingerprints {
+                for fingerprint in fingerprints {
+                    if let fpSize = fingerprint.fileSize, let fpTimestamp = fingerprint.peTimestamp {
+                        if metaSize == fpSize,
+                           abs(metaTimestamp.timeIntervalSince(fpTimestamp)) < 1.0 {
+                            return (
+                                0.95,
+                                String(
+                                    localized: "gameConfig.match.fingerprint",
+                                    defaultValue: "File size and PE timestamp match known fingerprint"
+                                )
+                            )
+                        }
+                    }
+                }
             }
         }
 
         return nil
-    }
-
-    /// Whether the install path contains any of the entry's path patterns (case-insensitive).
-    private static func matchesPathPattern(metadata: ProgramMetadata, entry: GameDBEntry) -> Bool {
-        guard let installPath = metadata.installPath, let pathPatterns = entry.pathPatterns else { return false }
-        let pathLower = installPath.lowercased()
-        return pathPatterns.contains { pathLower.contains($0.lowercased()) }
     }
 
     // MARK: - Strong Heuristics (0.7-0.9)
@@ -251,20 +295,28 @@ public enum GameMatcher {
 
         // Base score for exe name match
         var score = 0.85
-        var explanation = "Executable name '\(metadata.exeName)' matches database entry"
 
         // Bonus for path pattern match
-        if matchesPathPattern(metadata: metadata, entry: entry) {
-            score = 0.90
-            explanation += " with install path confirmation"
+        var pathConfirmed = false
+        if let installPath = metadata.installPath, let pathPatterns = entry.pathPatterns {
+            let pathLower = installPath.lowercased()
+            pathConfirmed = pathPatterns.contains { pathLower.contains($0.lowercased()) }
+            if pathConfirmed {
+                score = 0.90
+            }
         }
 
         // Apply generic exe penalty
-        if genericExeNames.contains(metaExeLower) {
+        let isGeneric = genericExeNames.contains(metaExeLower)
+        if isGeneric {
             score += genericPenalty
-            explanation += " (generic exe name penalty applied)"
         }
 
+        let explanation = exeNameExplanation(
+            exeName: metadata.exeName,
+            pathConfirmed: pathConfirmed,
+            isGeneric: isGeneric
+        )
         return (score, explanation)
     }
 
@@ -300,12 +352,23 @@ public enum GameMatcher {
         let ratio = Double(matchCount) / Double(exeTokens.count)
         var score = 0.3 + ratio * 0.3
 
-        var explanation = "Name tokens match: \(matchCount)/\(exeTokens.count) tokens"
+        let tokenCount = exeTokens.count
+        var explanation = String(
+            localized: "gameConfig.match.tokens %lld %lld",
+            defaultValue: "Name tokens match: \(matchCount)/\(tokenCount) tokens"
+        )
 
         // Install path bonus
-        if matchesPathPattern(metadata: metadata, entry: entry) {
-            score += 0.1
-            explanation += " + install path bonus"
+        if let installPath = metadata.installPath, let pathPatterns = entry.pathPatterns {
+            let pathLower = installPath.lowercased()
+            let pathMatch = pathPatterns.contains { pathLower.contains($0.lowercased()) }
+            if pathMatch {
+                score += 0.1
+                explanation = String(
+                    localized: "gameConfig.match.tokens.path %lld %lld",
+                    defaultValue: "Name tokens match: \(matchCount)/\(tokenCount) tokens + install path bonus"
+                )
+            }
         }
 
         // Cap at 0.69 to stay below strong heuristic tier
@@ -320,7 +383,8 @@ public enum GameMatcher {
     private static func selectVariant(from entry: GameDBEntry) -> GameConfigVariant? {
         guard !entry.variants.isEmpty else { return nil }
 
-        let currentArch = HostArchitecture.isAppleSilicon ? "arm64" : "x86_64"
+        let currentArch = machineArchitecture()
+        let currentOS = operatingSystemVersion()
 
         // Filter variants whose constraints match current machine
         // Sort variants: prefer those tested on current architecture
@@ -338,7 +402,7 @@ public enum GameMatcher {
             return defaultVariant
         }
 
-        return matching.first
+        return matching.first ?? entry.variants.first
     }
 
     // MARK: - Tokenization
@@ -363,4 +427,62 @@ public enum GameMatcher {
             .components(separatedBy: separators)
             .filter { !$0.isEmpty }
     }
+
+    // MARK: - System Info
+
+    /// Returns the current machine's CPU architecture string.
+    private static func machineArchitecture() -> String {
+        var sysinfo = utsname()
+        uname(&sysinfo)
+        return withUnsafePointer(to: &sysinfo.machine) {
+            $0.withMemoryRebound(to: CChar.self, capacity: 1) {
+                String(cString: $0)
+            }
+        }
+    }
+
+    /// Returns the current macOS version string (e.g., "15.3.0").
+    private static func operatingSystemVersion() -> String {
+        let version = ProcessInfo.processInfo.operatingSystemVersion
+        return "\(version.majorVersion).\(version.minorVersion).\(version.patchVersion)"
+    }
 }
+
+// MARK: - Match Explanations
+
+extension GameMatcher {
+    /// The explanation for an executable name match, as one whole sentence per
+    /// combination so translations never have to append English fragments.
+    ///
+    /// The English default is what a lookup without the app's string catalog
+    /// (such as the package tests) returns.
+    private static func exeNameExplanation(exeName: String, pathConfirmed: Bool, isGeneric: Bool) -> String {
+        switch (pathConfirmed, isGeneric) {
+        case (false, false):
+            String(
+                localized: "gameConfig.match.exeName %@",
+                defaultValue: "Executable name '\(exeName)' matches database entry"
+            )
+        case (true, false):
+            String(
+                localized: "gameConfig.match.exeName.path %@",
+                defaultValue: "Executable name '\(exeName)' matches database entry with install path confirmation"
+            )
+        case (false, true):
+            String(
+                localized: "gameConfig.match.exeName.generic %@",
+                defaultValue: "Executable name '\(exeName)' matches database entry (generic exe name penalty applied)"
+            )
+        case (true, true):
+            String(
+                localized: "gameConfig.match.exeName.pathGeneric %@",
+                defaultValue: """
+                Executable name '\(exeName)' matches database entry with install path \
+                confirmation (generic exe name penalty applied)
+                """
+            )
+        }
+    }
+}
+
+// swiftlint:enable file_length

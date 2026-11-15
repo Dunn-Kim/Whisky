@@ -20,11 +20,22 @@ import SwiftUI
 import WhiskyKit
 
 struct SettingsView: View {
+    @AppStorage("SUEnableAutomaticChecks") var whiskyUpdate = true
     @AppStorage("killOnTerminate") var killOnTerminate = true
     @AppStorage("showMenuBarExtra") var showMenuBarExtra = false
-    @AppStorage("checkWhiskyWineUpdates") var checkWhiskyWineUpdates = false
+    @AppStorage(WhiskyWineInstaller.automaticUpdateCheckDefaultsKey) var checkWhiskyWineUpdates = true
     @AppStorage("defaultBottleLocation") var defaultBottleLocation = BottleData.defaultBottleDir
     @AppStorage("preferredTerminal") var preferredTerminal = "terminal"
+    @AppStorage(Telemetry.consentDefaultsKey) private var telemetryConsentRaw: String = Telemetry.ConsentState
+        .undecided.rawValue
+
+    /// Mirrors the setup-flow opt-in; writing records the explicit choice.
+    private var telemetryOptIn: Binding<Bool> {
+        Binding(
+            get: { telemetryConsentRaw == Telemetry.ConsentState.granted.rawValue },
+            set: { Telemetry.setConsent(granted: $0) }
+        )
+    }
 
     var body: some View {
         Form {
@@ -59,9 +70,14 @@ struct SettingsView: View {
                 }
             }
             Section("settings.updates") {
+                Toggle("settings.toggle.whisky.updates", isOn: $whiskyUpdate)
                 Toggle("settings.toggle.whiskywine.updates", isOn: $checkWhiskyWineUpdates)
             }
             GPTKSettingsSection()
+            Section("settings.privacy") {
+                Toggle("settings.toggle.telemetry", isOn: telemetryOptIn)
+                    .help("setup.telemetry.consent.help")
+            }
         }
         .formStyle(.grouped)
         .fixedSize(horizontal: false, vertical: true)

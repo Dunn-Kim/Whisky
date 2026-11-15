@@ -116,6 +116,8 @@ extension GPTKImporter {
 
     /// Testable seam for ``ensureVideoProcessorInstalled(bottles:)``.
     static func ensureVideoProcessorInstalled(bottles: [URL], inLibraryFolder folder: URL, usingStore store: URL) {
+        mutationLock.lock()
+        defer { mutationLock.unlock() }
         guard isDeployed(inLibraryFolder: folder) else {
             return
         }
@@ -134,20 +136,20 @@ extension GPTKImporter {
 
         let slot = folder.appending(path: "Wine").appending(path: "lib").appending(path: "wine")
             .appending(path: "x86_64-windows").appending(path: videoProcessorInterposer.slotName)
-        let slotIsDeploys = isInstalled(videoProcessorInterposer, inLibraryFolder: folder)
+        let slotIsDeploys = isVideoProcessorInstalled(inLibraryFolder: folder)
             || isGPTKForwarder(slot, matching: store.appending(path: "lib"))
-        guard has(videoProcessorInterposer, inLibraryFolder: folder), slotIsDeploys else {
+        guard hasVideoProcessor(inLibraryFolder: folder), slotIsDeploys else {
             return
         }
 
         do {
-            try install(videoProcessorInterposer, intoLibraryFolder: folder)
+            try installVideoProcessor(intoLibraryFolder: folder)
         } catch {
             logger.error("Installing the D3D12 video processor failed: \(error.localizedDescription)")
             return
         }
         for bottle in bottles {
-            seedPlaceholder(named: videoProcessorInterposer.renamedName, inBottle: bottle, fromLibraryFolder: folder)
+            seedVideoDevicePlaceholder(inBottle: bottle, fromLibraryFolder: folder)
         }
     }
 

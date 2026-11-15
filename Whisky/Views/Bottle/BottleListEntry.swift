@@ -29,7 +29,8 @@ struct BottleListEntry: View {
     @State private var showBottleRename: Bool = false
     @State private var showBottleDuplicate: Bool = false
     @State private var name: String = ""
-    @State private var isRunning: Bool = false
+    @State private var runningCount: Int = 0
+    @State private var hasOrphanProcesses: Bool = false
     @State private var probeTask: Task<Void, Never>?
     @State private var duplicationPhase: DuplicationPhase?
 
@@ -42,7 +43,15 @@ struct BottleListEntry: View {
                     // identifies it.
                     .help(name)
                 Spacer()
-                if isRunning {
+                if runningCount > 0 {
+                    Text("\(runningCount)")
+                        .font(.caption2)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(.blue.opacity(0.15))
+                        .clipShape(Capsule())
+                        .foregroundStyle(.blue)
+                } else if hasOrphanProcesses {
                     // A button, not a decoration: this is the strongest signal
                     // in the sidebar and it used to be a tooltip with nothing
                     // behind it.
@@ -54,7 +63,7 @@ struct BottleListEntry: View {
                             .foregroundStyle(.orange)
                     }
                     .buttonStyle(.plain)
-                    .help(String(localized: "bottle.close.confirm.title"))
+                    .help(String(localized: "bottle.orphan.tooltip"))
                     .accessibilityLabel(Text("bottle.orphan.stop"))
                 }
             }
@@ -76,6 +85,11 @@ struct BottleListEntry: View {
         .onDisappear {
             probeTask?.cancel()
         }
+        .onReceive(NotificationCenter.default.publisher(for: ProcessRegistry.didChangeNotification)) { note in
+            // A launch or stop in this bottle shows at once rather than at the next tick.
+            guard note.userInfo?[ProcessRegistry.bottleURLKey] as? URL == bottle.url else { return }
+            Task { await probeRunningState() }
+        }
         .onChange(of: refresh, initial: true) {
             name = bottle.settings.name
             Task { await probeRunningState() }
@@ -83,24 +97,53 @@ struct BottleListEntry: View {
         .sheet(isPresented: $showBottleRename) {
             RenameView("rename.bottle.title", name: name) { newName in
                 name = newName
-                bottle.settings.name = newName
+                bottle.rename(newName: newName)
             }
         }
-        .duplicateBottleSheet(
-            isPresented: $showBottleDuplicate,
-            bottle: bottle,
-            baseName: name,
-            toast: $toast,
-            progress: { phase in
-                Task { @MainActor in duplicationPhase = phase }
-            },
-            finished: { newURL in
-                duplicationPhase = nil
-                if let newURL {
-                    selected = newURL
+        .sheet(isPresented: $showBottleDuplicate) {
+            RenameView(
+                "duplicate.bottle.title",
+                name: BottleOperations.nextDuplicateName(
+                    baseName: name,
+                    existingNames: BottleVM.shared.bottles.map(\.settings.name)
+                ),
+                confirmTitle: "duplicate.bottle.confirm"
+            ) { newName in
+                Task {
+                    do {
+                        let newURL = try await bottle.duplicate(newName: newName) { phase in
+                            Task { @MainActor in duplicationPhase = phase }
+                        }
+                        await MainActor.run {
+                            duplicationPhase = nil
+                            selected = newURL
+                            withAnimation {
+                                toast = ToastData(
+                                    message: String(
+                                        format: String(localized: "status.duplicateSuccess %@"),
+                                        newName
+                                    ),
+                                    style: .success
+                                )
+                            }
+                        }
+                    } catch {
+                        await MainActor.run {
+                            duplicationPhase = nil
+                            withAnimation {
+                                toast = ToastData(
+                                    message: String(
+                                        format: String(localized: "status.duplicateFailed %@"),
+                                        error.localizedDescription
+                                    ),
+                                    style: .error
+                                )
+                            }
+                        }
+                    }
                 }
             }
-        )
+        }
         .contextMenu {
             Button("button.rename", systemImage: "pencil.line") {
                 showBottleRename.toggle()
@@ -125,8 +168,12 @@ struct BottleListEntry: View {
                             let newBottePath = url
                                 .appending(path: bottle.url.lastPathComponent)
 
-                            BottleOperations.move(bottleAt: bottle.url, to: newBottePath, registry: BottleVM.shared)
-                            selected = newBottePath
+                            do {
+                                try bottle.move(destination: newBottePath)
+                                selected = newBottePath
+                            } catch {
+                                showOperationFailure(String(localized: "bottle.move.failed.title"), error: error)
+                            }
                         }
                     }
                 }
@@ -150,27 +197,29 @@ struct BottleListEntry: View {
                         if let url = panel.url {
                             Task {
                                 do {
-                                    try await BottleOperations.export(
-                                        bottleAt: bottle.url, to: url, registry: BottleVM.shared
-                                    )
+                                    try await bottle.exportAsArchive(destination: url)
                                     await MainActor.run {
-                                        toast = ToastData(
-                                            message: String(
-                                                format: String(localized: "status.exportSuccess %@"),
-                                                bottle.settings.name
-                                            ),
-                                            style: .success
-                                        )
+                                        withAnimation {
+                                            toast = ToastData(
+                                                message: String(
+                                                    format: String(localized: "status.exportSuccess %@"),
+                                                    bottle.settings.name
+                                                ),
+                                                style: .success
+                                            )
+                                        }
                                     }
                                 } catch {
                                     await MainActor.run {
-                                        toast = ToastData(
-                                            message: String(
-                                                format: String(localized: "status.exportFailed %@"),
-                                                error.localizedDescription
-                                            ),
-                                            style: .error
-                                        )
+                                        withAnimation {
+                                            toast = ToastData(
+                                                message: String(
+                                                    format: String(localized: "status.exportFailed %@"),
+                                                    error.localizedDescription
+                                                ),
+                                                style: .error
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -194,15 +243,22 @@ struct BottleListEntry: View {
     @MainActor
     private func stopBottle() {
         Wine.killBottle(bottle: bottle)
+        ProcessRegistry.shared.clearRegistry(for: bottle.url)
         Task {
             try? await Task.sleep(for: .seconds(1))
             await probeRunningState()
         }
     }
 
+    /// The orange stop button is only for a wineserver nothing Whisky launched
+    /// in this run of the app accounts for. A game started here keeps the
+    /// wineserver up long after its `wine start` process exits, and that is
+    /// a running bottle, not an orphan.
     @MainActor
     private func probeRunningState() async {
-        isRunning = await Wine.isWineserverRunning(for: bottle)
+        let state = await Wine.runState(for: bottle)
+        runningCount = state.badgeCount
+        hasOrphanProcesses = state == .orphaned
     }
 }
 
@@ -210,21 +266,51 @@ struct BottleListEntry: View {
 
 extension BottleListEntry {
     func duplicationProgressRow(phase: DuplicationPhase) -> some View {
-        let label: LocalizedStringKey = switch phase {
-        case .copying: "status.duplicating.copying"
-        case .updatingMetadata: "status.duplicating.updatingMetadata"
-        case .finalizing: "status.duplicating.finalizing"
-        }
-        return HStack(spacing: 4) {
-            ProgressView()
-                .controlSize(.mini)
-            Text(label)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
+        HStack(spacing: 4) {
+            switch phase {
+            case .calculatingSize:
+                ProgressView()
+                    .controlSize(.mini)
+                Text("status.duplicating.calculatingSize")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            case let .copying(bytesCopied, totalBytes):
+                if totalBytes > 0, bytesCopied > 0 {
+                    ProgressView(
+                        value: Double(bytesCopied),
+                        total: Double(totalBytes)
+                    )
+                    .controlSize(.mini)
+                    .frame(maxWidth: 60)
+                } else {
+                    ProgressView()
+                        .controlSize(.mini)
+                }
+                Text("status.duplicating.copying")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            case .updatingMetadata:
+                ProgressView()
+                    .controlSize(.mini)
+                Text("status.duplicating.updatingMetadata")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            case .finalizing:
+                ProgressView()
+                    .controlSize(.mini)
+                Text("status.duplicating.finalizing")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 
     func showRemoveAlert(bottle: Bottle) {
+        let checkbox = NSButton(
+            checkboxWithTitle: String(localized: "button.removeAlert.checkbox"),
+            target: self,
+            action: nil
+        )
         let alert = NSAlert()
         alert.messageText = String(
             format: String(localized: "button.removeAlert.msg"),
@@ -236,76 +322,44 @@ extension BottleListEntry {
         delete.hasDestructiveAction = true
         alert.addButton(withTitle: String(localized: "button.removeAlert.cancel"))
         if bottle.isAvailable {
-            alert.showsSuppressionButton = true
-            alert.suppressionButton?.title = String(localized: "button.removeAlert.checkbox")
+            alert.accessoryView = checkbox
         }
 
         let response = alert.runModal()
-        let deleteFiles = alert.suppressionButton?.state == .on
 
         if response == .alertFirstButtonReturn {
             Task(priority: .userInitiated) {
-                if selected == bottle.url {
+                let wasSelected = selected == bottle.url
+                if wasSelected {
                     selected = nil
                 }
 
-                await bottle.remove(delete: deleteFiles)
-            }
-        }
-    }
-}
-
-extension View {
-    /// The duplicate-bottle sheet: proposes a copy name from `baseName`,
-    /// duplicates `bottle`, and toasts the outcome. `progress` sees each phase;
-    /// `finished` gets the copy's URL, or `nil` when it failed, before the toast.
-    func duplicateBottleSheet(
-        isPresented: Binding<Bool>,
-        bottle: Bottle,
-        baseName: String,
-        toast: Binding<ToastData?>,
-        progress: (@Sendable (DuplicationPhase) -> Void)? = nil,
-        finished: @escaping @MainActor (URL?) -> Void = { _ in }
-    ) -> some View {
-        sheet(isPresented: isPresented) {
-            RenameView(
-                "duplicate.bottle.title",
-                name: BottleOperations.nextDuplicateName(
-                    baseName: baseName,
-                    existingNames: BottleVM.shared.bottles.map(\.settings.name)
-                ),
-                confirmTitle: "duplicate.bottle.confirm"
-            ) { newName in
-                Task {
-                    do {
-                        let newURL = try await BottleOperations.duplicate(
-                            bottleAt: bottle.url, newName: newName, registry: BottleVM.shared, progress: progress
-                        )
-                        await MainActor.run {
-                            finished(newURL)
-                            toast.wrappedValue = ToastData(
-                                message: String(
-                                    format: String(localized: "status.duplicateSuccess %@"),
-                                    newName
-                                ),
-                                style: .success
-                            )
-                        }
-                    } catch {
-                        await MainActor.run {
-                            finished(nil)
-                            toast.wrappedValue = ToastData(
-                                message: String(
-                                    format: String(localized: "status.duplicateFailed %@"),
-                                    error.localizedDescription
-                                ),
-                                style: .error
-                            )
-                        }
+                do {
+                    let removed = try await bottle.remove(delete: checkbox.state == .on)
+                    // Cancelled at the running-processes prompt: still listed.
+                    if !removed, wasSelected {
+                        selected = bottle.url
                     }
+                } catch {
+                    // The bottle is still in the list, so put the selection back.
+                    if wasSelected {
+                        selected = bottle.url
+                    }
+                    showOperationFailure(String(localized: "bottle.remove.failed.title"), error: error)
                 }
             }
         }
+    }
+
+    /// Tells the user a move or remove failed instead of failing silently.
+    @MainActor
+    func showOperationFailure(_ title: String, error: Error) {
+        let alert = NSAlert()
+        alert.messageText = title
+        alert.informativeText = error.localizedDescription
+        alert.alertStyle = .critical
+        alert.addButton(withTitle: String(localized: "button.ok"))
+        alert.runModal()
     }
 }
 

@@ -22,6 +22,8 @@ import WhiskyKit
 
 struct ProgramView: View {
     @ObservedObject var program: Program
+    /// Opens the bottle's configuration page, where its audio settings live.
+    var onOpenBottleConfig: (() -> Void)?
     @State private var programLoading: Bool = false
     @State private var cachedIconImage: Image?
     @State private var toast: ToastData?
@@ -38,7 +40,7 @@ struct ProgramView: View {
     var body: some View {
         Form {
             if hasActiveSession {
-                TroubleshootingEntryBanner {
+                TroubleshootingEntryBanner(bannerType: .resumeSession) {
                     showTroubleshootingWizard = true
                 }
             }
@@ -63,11 +65,13 @@ struct ProgramView: View {
             ProgramOverrideSettingsView(
                 bottle: program.bottle,
                 program: program,
-                isExpanded: $overridesSectionExpanded
+                isExpanded: $overridesSectionExpanded,
+                onOpenBottleConfig: onOpenBottleConfig
             )
             Section("console.title", isExpanded: $consoleRunsSectionExpanded) {
                 ConsoleRunHistoryView(
                     program: program,
+                    bottle: program.bottle,
                     selectedRunId: $selectedRunId
                 )
                 if let runId = selectedRunId,
@@ -105,8 +109,9 @@ struct ProgramView: View {
                     panel.begin { result in
                         if result == .OK {
                             if let url = panel.url {
+                                let name = url.deletingPathExtension().lastPathComponent
                                 Task(priority: .userInitiated) {
-                                    await ProgramShortcut.createShortcut(program, app: url)
+                                    await ProgramShortcut.createShortcut(program, app: url, name: name)
                                 }
                             }
                         }
@@ -127,11 +132,20 @@ struct ProgramView: View {
         }
         .toast($toast)
         .toolbar {
-            ToolbarItem(id: "ProgramViewIcon", placement: .navigation) {
-                (cachedIconImage ?? Image(systemName: "app.dashed"))
-                    .resizable()
-                    .frame(width: 25, height: 25)
-                    .padding(.trailing, 5)
+            if let image = cachedIconImage {
+                ToolbarItem(id: "ProgramViewIcon", placement: .navigation) {
+                    image
+                        .resizable()
+                        .frame(width: 25, height: 25)
+                        .padding(.trailing, 5)
+                }
+            } else {
+                ToolbarItem(id: "ProgramViewIcon", placement: .navigation) {
+                    Image(systemName: "app.dashed")
+                        .resizable()
+                        .frame(width: 25, height: 25)
+                        .padding(.trailing, 5)
+                }
             }
         }
         .navigationTitle(program.name)
@@ -156,8 +170,18 @@ struct ProgramView: View {
 
     private func launchProgram() {
         programLoading = true
-        program.launchFromUI { result in
-            toast = result.toastData
+        Telemetry.capture(.firstProgramLaunchAttempted)
+        // Capture modifier flags synchronously before entering async context
+        let useTerminal = NSEvent.modifierFlags.contains(.shift)
+        Task {
+            let result = await program.launchWithUserMode(useTerminal: useTerminal) { contentType, sizeBytes in
+                withAnimation {
+                    toast = .clipboardCleared(contentType: contentType, sizeBytes: sizeBytes)
+                }
+            }
+            withAnimation {
+                toast = result.toastData
+            }
             programLoading = false
         }
     }

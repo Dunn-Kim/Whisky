@@ -28,17 +28,17 @@ final class WineLogFileTests: XCTestCase {
     /// the program's output went to a file no longer on disk and the log recorded
     /// for the run held only the import's output.
     func testLogsOpenedInTheSameSecondKeepTheirOwnContent() throws {
-        let folder = try makeTempDir()
+        let folder = try makeTempDirectory()
 
         let (launch, launchURL) = try Wine.makeLogFile(in: folder, date: launchTime)
         launch.writeWineLog(line: "launch header\n")
 
         let (helper, helperURL) = try Wine.makeLogFile(in: folder, date: launchTime.addingTimeInterval(0.5))
         helper.writeWineLog(line: "reg import output\n")
-        try helper.close()
+        try helper.closeWineLog()
 
         launch.writeWineLog(line: "program output\n")
-        try launch.close()
+        try launch.closeWineLog()
 
         XCTAssertNotEqual(launchURL, helperURL)
         XCTAssertEqual(try String(contentsOf: launchURL, encoding: .utf8), "launch header\nprogram output\n")
@@ -49,14 +49,14 @@ final class WineLogFileTests: XCTestCase {
     /// The number goes before the extension: retention, Delete Old Logs and the
     /// diagnostics summary pick log files out of the folder by `.log`.
     func testLogsOpenedInTheSameMillisecondGetNumberedNames() throws {
-        let folder = try makeTempDir()
+        let folder = try makeTempDirectory()
 
         let (first, firstURL) = try Wine.makeLogFile(in: folder, date: launchTime)
         let (second, secondURL) = try Wine.makeLogFile(in: folder, date: launchTime)
         first.writeWineLog(line: "first\n")
         second.writeWineLog(line: "second\n")
-        try first.close()
-        try second.close()
+        try first.closeWineLog()
+        try second.closeWineLog()
 
         XCTAssertEqual(firstURL.lastPathComponent, "2026-09-21T14:13:20.250Z.log")
         XCTAssertEqual(secondURL.lastPathComponent, "2026-09-21T14:13:20.250Z-2.log")
@@ -68,7 +68,7 @@ final class WineLogFileTests: XCTestCase {
     /// a check for the name followed by a write. Logs opened all at once for the
     /// same instant each get a file of their own.
     func testLogsOpenedConcurrentlyEachGetTheirOwnFile() async throws {
-        let folder = try makeTempDir()
+        let folder = try makeTempDirectory()
         let date = launchTime
         let count = 32
 
@@ -78,7 +78,7 @@ final class WineLogFileTests: XCTestCase {
                     do {
                         let (handle, url) = try Wine.makeLogFile(in: folder, date: date)
                         handle.writeWineLog(line: "log \(index)\n")
-                        try handle.close()
+                        try handle.closeWineLog()
                         return (index, url)
                     } catch {
                         return nil
@@ -99,5 +99,16 @@ final class WineLogFileTests: XCTestCase {
         for log in logs {
             XCTAssertEqual(try String(contentsOf: log.url, encoding: .utf8), "log \(log.index)\n")
         }
+    }
+
+    // MARK: - Helpers
+
+    private func makeTempDirectory() throws -> URL {
+        let dir = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        addTeardownBlock {
+            try? FileManager.default.removeItem(at: dir)
+        }
+        return dir
     }
 }

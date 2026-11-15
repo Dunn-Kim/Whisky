@@ -44,13 +44,18 @@ public enum SteamOrchestratorError: LocalizedError, Equatable {
 ///
 /// - **Single-flight client startup.** Concurrent launches await one startup
 ///   attempt instead of each racing to start their own client.
-/// - **Per-game launches.** The launch grace period runs for up to two minutes,
+/// - **Per-game phases.** The launch grace period runs for up to two minutes,
 ///   and starting a second game while the first precompiles shaders is normal.
 /// - **One short-lived process snapshot.** The launch watch polls every 2s and
 ///   the status poller every 10s; sharing a snapshot stops them each running
 ///   their own `tasklist.exe`, and concurrent reads coalesce into one.
 @MainActor
 public final class SteamClientOrchestrator: ObservableObject {
+    public enum Phase: Equatable, Sendable {
+        case startingClient
+        case launching
+    }
+
     /// The waits and intervals, injectable so tests do not sit through them.
     public struct Timing: Sendable {
         /// How long to wait for steam.exe after starting the client.
@@ -81,8 +86,8 @@ public final class SteamClientOrchestrator: ObservableObject {
         }
     }
 
-    /// App IDs with a launch in flight.
-    @Published public private(set) var launchingAppIds: Set<Int> = []
+    /// Where each in-flight launch is, keyed by App ID.
+    @Published public private(set) var phases: [Int: Phase] = [:]
     /// App IDs whose executables are currently in the bottle's process list.
     @Published public private(set) var runningAppIds: Set<Int> = []
     @Published public var launchError: String?
@@ -118,8 +123,8 @@ public final class SteamClientOrchestrator: ObservableObject {
     /// Owns the task rather than the caller so ``stop()`` can cancel a launch
     /// still inside its grace period.
     public func launch(_ game: SteamGame) {
-        guard !launchingAppIds.contains(game.appId) else { return }
-        launchingAppIds.insert(game.appId)
+        guard phases[game.appId] == nil else { return }
+        phases[game.appId] = .startingClient
         launchTasks[game.appId] = Task { await performLaunch(game) }
     }
 
@@ -152,8 +157,9 @@ public final class SteamClientOrchestrator: ObservableObject {
         await refreshRunningState()
     }
 
-    /// Stops process tracking and cancels in-flight launches. Call when the
-    /// owning view disappears.
+    /// Stops process tracking, cancels in-flight launches, and lets the driver
+    /// release anything the ready hook started. Call when the owning view
+    /// disappears.
     public func stop() {
         trackingTask?.cancel()
         trackingTask = nil
@@ -163,6 +169,7 @@ public final class SteamClientOrchestrator: ObservableObject {
         launchTasks.removeAll()
         clientStartup?.cancel()
         clientStartup = nil
+        driver.shutdown()
     }
 
     /// Whether Play should apply Steam's launcher fixes to this bottle.
@@ -180,7 +187,7 @@ public final class SteamClientOrchestrator: ObservableObject {
 
     private func performLaunch(_ game: SteamGame) async {
         defer {
-            launchingAppIds.remove(game.appId)
+            phases[game.appId] = nil
             launchTasks[game.appId] = nil
         }
 
@@ -197,6 +204,7 @@ public final class SteamClientOrchestrator: ObservableObject {
             return
         }
 
+        phases[game.appId] = .launching
         do {
             try driver.launchGame(game)
         } catch {
@@ -221,18 +229,62 @@ public final class SteamClientOrchestrator: ObservableObject {
 
     private func startClient(steamExe: URL) async throws {
         if await isClientRunning() {
+            driver.clientDidBecomeReady()
             return
         }
 
         if Self.shouldApplyLauncherFixes(settings: bottle.settings) {
             driver.applyLauncherFixes()
         }
+        // Other bottles' clients, so the wait can tell a new one from them.
+        let hostClientsBeforeStart = await driver.hostSteamPIDs()
         driver.startClient(steamExe: steamExe)
 
-        if await watch.waitForAny(of: ["steam.exe"], timeout: timing.clientReadyTimeout) {
+        if await waitForStartedClient(excluding: hostClientsBeforeStart) {
+            driver.clientDidBecomeReady()
             return
         }
         throw SteamOrchestratorError.clientTimeout
+    }
+
+    /// Waits for the client this started, watching the host's process list
+    /// until a `steam.exe` that wasn't running before the start shows up, and
+    /// only then asking the bottle.
+    ///
+    /// On a cold prefix the client starts once Wine's boot has settled, and a
+    /// `tasklist.exe` every poll kept the boot busy: the wait ran out first and
+    /// `-applaunch` was never sent, while Steam came up after. Reading `ps`
+    /// starts no Wine process. It isn't scoped to the bottle, though, so once
+    /// a new `steam.exe` is up the bottle's own list confirms it is this one.
+    /// That check repeats, at most once per snapshot, while the new client is
+    /// still running: the first look can come back without it (a list read
+    /// that started just before it registered), and giving up there ran the
+    /// wait out with Steam already up. A client already running in another
+    /// bottle is in the `excluding` set, so it neither ends the wait nor turns
+    /// it back into polling the bottle.
+    ///
+    /// - Parameter running: Host PIDs of `steam.exe` from before the start.
+    private func waitForStartedClient(excluding running: Set<Int32>) async -> Bool {
+        let deadline = Date(timeIntervalSinceNow: timing.clientReadyTimeout)
+        var seen = running
+        // New host clients not yet confirmed in this bottle, while they run.
+        var unconfirmed = Set<Int32>()
+        repeat {
+            let host = await driver.hostSteamPIDs()
+            let new = host.subtracting(seen)
+            seen.formUnion(host)
+            unconfirmed = unconfirmed.union(new).intersection(host)
+            if !new.isEmpty {
+                // The snapshot from before the start can't have this client in it.
+                processSnapshot = nil
+            }
+            if !unconfirmed.isEmpty, await isClientRunning() {
+                return true
+            }
+            try? await Task.sleep(for: timing.pollInterval)
+            guard !Task.isCancelled else { return false }
+        } while Date() < deadline
+        return false
     }
 
     private func isClientRunning() async -> Bool {

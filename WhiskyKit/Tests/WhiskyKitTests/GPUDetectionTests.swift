@@ -34,6 +34,27 @@ final class GPUDetectionTests: XCTestCase {
         XCTAssertEqual(GPUVendor.intel.vendorID, "0x8086")
     }
 
+    func testGPUSpoofingOmitsUnreadVendorKeys() {
+        let env = GPUDetection.spoofGPU(vendor: .nvidia, model: "Custom GPU Name")
+
+        // No shipped runtime reads any of these, so the spoof doesn't set them.
+        XCTAssertNil(env["GPU_VENDOR_ID"])
+        XCTAssertNil(env["GPU_DEVICE_ID"])
+        XCTAssertNil(env["GPU_DESCRIPTION"])
+        XCTAssertNil(env["GPU_MEMORY_SIZE"])
+        XCTAssertNil(env["D3DM_SHADER_MODEL"])
+    }
+
+    func testGPUSpoofingOmitsUnreadFeatureLevelKeys() {
+        let env = GPUDetection.spoofGPU(vendor: .nvidia)
+
+        // D3DMetal, Wine, DXVK and DXMT read none of these, so the spoof
+        // doesn't set them.
+        XCTAssertNil(env["D3DM_FEATURE_LEVEL_12_1"])
+        XCTAssertNil(env["D3DM_FEATURE_LEVEL_12_0"])
+        XCTAssertNil(env["D3DM_FEATURE_LEVEL_11_1"])
+    }
+
     func testGPUSpoofingIncludesOpenGLVersion() {
         let env = GPUDetection.spoofGPU(vendor: .nvidia)
 
@@ -49,10 +70,29 @@ final class GPUDetectionTests: XCTestCase {
         XCTAssertEqual(env["D3DM_SUPPORT_DXR"], "1")
     }
 
-    func testSpoofingEnvironmentHasRequiredKeys() {
-        let env = GPUDetection.spoofGPU(vendor: .nvidia)
-        XCTAssertNotNil(env["MESA_GL_VERSION_OVERRIDE"])
-        XCTAssertNotNil(env["MESA_GLSL_VERSION_OVERRIDE"])
+    func testAppleSiliconSpoofing() {
+        let env = GPUDetection.spoofAppleSilicon()
+
+        // Should include Metal-specific settings
+        XCTAssertNotNil(env["MTL_SHADER_VALIDATION"])
+    }
+
+    func testSpoofWithVendor() {
+        let nvidiaEnv = GPUDetection.spoofWithVendor(.nvidia)
+        let amdEnv = GPUDetection.spoofWithVendor(.amd)
+
+        XCTAssertEqual(nvidiaEnv, GPUDetection.spoofGPU(vendor: .nvidia))
+        XCTAssertEqual(amdEnv, GPUDetection.spoofGPU(vendor: .amd))
+    }
+
+    func testValidateSpoofingEnvironment() {
+        // Valid environment
+        var validEnv = GPUDetection.spoofGPU(vendor: .nvidia)
+        XCTAssertTrue(GPUDetection.validateSpoofingEnvironment(validEnv))
+
+        // Invalid environment (missing required keys)
+        validEnv.removeValue(forKey: "MESA_GL_VERSION_OVERRIDE")
+        XCTAssertFalse(GPUDetection.validateSpoofingEnvironment(validEnv))
     }
 
     func testAllVendorsHaveDeviceIDs() {

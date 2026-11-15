@@ -30,6 +30,28 @@ public enum TarError: LocalizedError {
     public var errorDescription: String? {
         switch self {
         case let .pathTraversal(path):
+            String(
+                localized: "tar.error.pathTraversal",
+                defaultValue: "Archive contains unsafe path that escapes target directory: \(path)"
+            )
+        case let .unsafeSymlink(path, target):
+            String(
+                localized: "tar.error.unsafeSymlink",
+                defaultValue: "Archive contains symlink '\(path)' with unsafe target '\(target)'"
+            )
+        case let .commandFailed(output):
+            String(
+                localized: "tar.error.commandFailed",
+                defaultValue: "Tar command failed: \(output)"
+            )
+        }
+    }
+
+    /// The same message in English, for diagnostics reports and logs, which
+    /// read the same whatever the app's language.
+    public var diagnosticMessage: String {
+        switch self {
+        case let .pathTraversal(path):
             "Archive contains unsafe path that escapes target directory: \(path)"
         case let .unsafeSymlink(path, target):
             "Archive contains symlink '\(path)' with unsafe target '\(target)'"
@@ -43,45 +65,33 @@ public class Tar {
     static let tarBinary: URL = .init(fileURLWithPath: "/usr/bin/tar")
 
     public static func tar(folder: URL, toURL: URL) throws {
-        // Archive the folder by name from its parent so the entries are
-        // `<folder>/...` rather than the absolute path it happened to live at
-        // (which also put the user's home directory name into every export).
-        // COPYFILE_DISABLE keeps bsdtar from adding `._` AppleDouble entries.
-        try run(
-            ["-zcf", toURL.path, "-C", folder.deletingLastPathComponent().path, folder.lastPathComponent],
-            environment: ["COPYFILE_DISABLE": "1"]
-        )
-    }
-
-    /// Runs `/usr/bin/tar` and returns its combined output.
-    ///
-    /// The pipe is drained BEFORE `waitUntilExit`: a listing of a
-    /// multi-hundred-MB archive easily exceeds the pipe buffer, and waiting for
-    /// tar first would block it writing forever.
-    ///
-    /// - Throws: `TarError.commandFailed` when tar exits non-zero.
-    @discardableResult
-    private static func run(_ arguments: [String], environment: [String: String] = [:]) throws -> String {
         let process = Process()
         let pipe = Pipe()
 
         process.executableURL = tarBinary
-        process.arguments = arguments
-        if !environment.isEmpty {
-            process.environment = ProcessInfo.processInfo.environment.merging(environment) { $1 }
-        }
+        // Archive the folder by name from its parent so the entries are
+        // `<folder>/...` rather than the absolute path it happened to live at
+        // (which also put the user's home directory name into every export).
+        // COPYFILE_DISABLE keeps bsdtar from adding `._` AppleDouble entries.
+        process.arguments = [
+            "-zcf", toURL.path, "-C", folder.deletingLastPathComponent().path, folder.lastPathComponent
+        ]
+        var environment = ProcessInfo.processInfo.environment
+        environment["COPYFILE_DISABLE"] = "1"
+        process.environment = environment
         process.standardOutput = pipe
         process.standardError = pipe
 
         try process.run()
-        let output = try pipe.fileHandleForReading.readToEnd() ?? Data()
-        process.waitUntilExit()
 
-        let text = String(data: output, encoding: .utf8) ?? ""
-        if process.terminationStatus != 0 {
-            throw TarError.commandFailed(output: text)
+        if let output = try pipe.fileHandleForReading.readToEnd() {
+            let outputString = String(data: output, encoding: .utf8) ?? String()
+            process.waitUntilExit()
+            let status = process.terminationStatus
+            if status != 0 {
+                throw TarError.commandFailed(output: outputString)
+            }
         }
-        return text
     }
 
     /// Extracts a tarball to the specified directory with path traversal protection.
@@ -112,7 +122,24 @@ public class Tar {
         try FileManager.default.createDirectory(at: stagingDir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: stagingDir) }
 
-        try run(["-xzf", tarBall.path, "-C", stagingDir.path])
+        let process = Process()
+        let pipe = Pipe()
+
+        process.executableURL = tarBinary
+        process.arguments = ["-xzf", "\(tarBall.path)", "-C", "\(stagingDir.path)"]
+        process.standardOutput = pipe
+        process.standardError = pipe
+
+        try process.run()
+
+        if let output = try pipe.fileHandleForReading.readToEnd() {
+            let outputString = String(data: output, encoding: .utf8) ?? String()
+            process.waitUntilExit()
+            let status = process.terminationStatus
+            if status != 0 {
+                throw TarError.commandFailed(output: outputString)
+            }
+        }
 
         try auditSymlinks(underRoot: stagingDir)
 
@@ -132,11 +159,37 @@ public class Tar {
     /// - Throws: `TarError.pathTraversal` if any path would escape the target directory,
     ///   or `TarError.commandFailed` if the listing command fails.
     private static func validateArchivePaths(tarBall: URL, targetDirectory: URL) throws {
+        let process = Process()
+        let pipe = Pipe()
+
+        process.executableURL = tarBinary
+        process.arguments = ["-tzf", "\(tarBall.path)"]
         // Pin the C locale so bsdtar's escaping of non-printable filename bytes
         // is stable across machines. Escaping can't hide a traversal: `.` and
         // `/` are printable and never escaped, so `..` always appears literally.
-        // A failed listing throws: the archive cannot be validated, so extraction aborts.
-        let listing = try run(["-tzf", tarBall.path], environment: ["LC_ALL": "C", "LANG": "C"])
+        var environment = ProcessInfo.processInfo.environment
+        environment["LC_ALL"] = "C"
+        environment["LANG"] = "C"
+        process.environment = environment
+        process.standardOutput = pipe
+        process.standardError = pipe
+
+        try process.run()
+
+        // Drain the pipe BEFORE waitUntilExit. The listing for a
+        // multi-hundred-MB archive easily exceeds the pipe buffer; if we wait
+        // for tar to exit first, tar blocks writing while we wait for it to
+        // finish and the install hangs forever.
+        let output = try pipe.fileHandleForReading.readToEnd() ?? Data()
+        process.waitUntilExit()
+
+        let listing = String(data: output, encoding: .utf8) ?? ""
+
+        // Ensure the tar listing command succeeded - if it fails, we cannot
+        // safely validate the archive contents and must abort extraction
+        if process.terminationStatus != 0 {
+            throw TarError.commandFailed(output: listing)
+        }
 
         let targetPath = targetDirectory.standardizedFileURL.path
         let lines = listing.components(separatedBy: .newlines).filter { !$0.isEmpty }

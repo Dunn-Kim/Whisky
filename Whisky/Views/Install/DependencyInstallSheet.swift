@@ -37,6 +37,7 @@ struct DependencyInstallSheet: View {
 
     @State private var stage: InstallStage = .info
     @State private var logLines: [String] = []
+    @State private var isInstalling: Bool = false
     @State private var installResult: InstallResult?
     @State private var showLog: Bool = false
     @State private var preflightResult: PreflightResult?
@@ -120,7 +121,7 @@ extension DependencyInstallSheet {
                 .font(.callout)
 
                 Label(
-                    "Estimated time: \(definition.estimatedInstallMinutes) minutes",
+                    "dependency.install.estimated \(definition.estimatedInstallMinutes)",
                     systemImage: "clock"
                 )
                 .font(.callout)
@@ -268,7 +269,7 @@ extension DependencyInstallSheet {
 extension DependencyInstallSheet {
     @ViewBuilder
     private var verifyStage: some View {
-        Label("Verification", systemImage: "checkmark.seal")
+        Label("dependency.install.verify", systemImage: "checkmark.seal")
             .font(.title2)
             .fontWeight(.semibold)
 
@@ -296,13 +297,16 @@ extension DependencyInstallSheet {
                 .foregroundStyle(.green)
         case let .failure(exitCode):
             Label(
-                "Installation exited with code \(exitCode)",
+                "Installation exited with code \(Int(exitCode))",
                 systemImage: "exclamationmark.triangle.fill"
             )
             .foregroundStyle(.orange)
         case let .error(message):
-            Label("Installation failed: \(message)", systemImage: "xmark.circle.fill")
-                .foregroundStyle(.red)
+            Label(
+                String(format: String(localized: "setup.whiskywine.error.installFailed.detail"), message),
+                systemImage: "xmark.circle.fill"
+            )
+            .foregroundStyle(.red)
         }
     }
 
@@ -339,7 +343,7 @@ extension DependencyInstallSheet {
     private var bottomBar: some View {
         HStack {
             if stage != .verify {
-                Button("Cancel") {
+                Button("button.cancel") {
                     cancelInstall()
                     dismiss()
                 }
@@ -350,13 +354,13 @@ extension DependencyInstallSheet {
 
             switch stage {
             case .info:
-                Button("Continue") {
+                Button("troubleshooting.wizard.continue") {
                     stage = .preflight
                     runPreflightChecks()
                 }
                 .keyboardShortcut(.defaultAction)
             case .preflight:
-                Button("Install") {
+                Button("dependency.install") {
                     startInstallation()
                 }
                 .keyboardShortcut(.defaultAction)
@@ -379,18 +383,38 @@ extension DependencyInstallSheet {
 extension DependencyInstallSheet {
     private func runPreflightChecks() {
         Task {
-            let result = WinePrefixValidation.validatePrefix(for: bottle)
-            preflightResult = PreflightResult(
+            let result = await MainActor.run {
+                WinePrefixValidation.validatePrefix(for: bottle)
+            }
+            let preflight = PreflightResult(
                 prefixValid: result.isValid,
-                prefixMessage: result.isValid
-                    ? "Prefix is healthy and ready for installation"
-                    : result.diagnostics?.events.last ?? "Prefix validation failed"
+                prefixMessage: preflightMessage(for: result)
             )
+            await MainActor.run {
+                preflightResult = preflight
+            }
+        }
+    }
+
+    /// The Prefix Health caption for a validation result, in the user's language.
+    ///
+    /// The validation diagnostics stay English for reports and are not shown here.
+    private nonisolated func preflightMessage(for result: WinePrefixValidation.ValidationResult) -> String {
+        switch result {
+        case .valid:
+            String(localized: "dependency.install.preflight.healthy")
+        case .missingUserProfile:
+            String(localized: "winetricks.error.missingUserProfile")
+        case .missingAppData:
+            String(localized: "winetricks.error.missingAppData")
+        case .corruptedPrefix:
+            String(localized: "winetricks.error.corruptedPrefix")
         }
     }
 
     private func startInstallation() {
         stage = .running
+        isInstalling = true
         logLines = []
 
         installTask = Task {
@@ -399,36 +423,42 @@ extension DependencyInstallSheet {
             var hadError = false
 
             for await (verb, progress) in verbStream {
-                switch progress {
-                case .preparing:
-                    logLines.append("[\(verb)] Preparing\u{2026}")
-                case let .output(line):
-                    logLines.append("[\(verb)] \(line)")
-                case let .completed(exitCode):
-                    logLines.append("[\(verb)] Completed (exit code: \(exitCode))")
-                    lastExitCode = exitCode
-                case let .failed(message):
-                    logLines.append("[\(verb)] FAILED: \(message)")
-                    hadError = true
+                await MainActor.run {
+                    switch progress {
+                    case .preparing:
+                        logLines.append("[\(verb)] Preparing\u{2026}")
+                    case let .output(line):
+                        logLines.append("[\(verb)] \(line)")
+                    case let .completed(exitCode):
+                        logLines.append("[\(verb)] Completed (exit code: \(exitCode))")
+                        lastExitCode = exitCode
+                    case let .failed(message):
+                        logLines.append("[\(verb)] FAILED: \(message)")
+                        hadError = true
+                    }
                 }
             }
 
             // Cancelled: the sheet is gone and the processes are being killed;
-            // there is nothing to verify.
+            // there is nothing to verify or record.
             guard !Task.isCancelled else { return }
 
             let result: InstallResult = if hadError {
-                .error("One or more verbs failed")
+                .error(String(localized: "dependency.install.error.verbsFailed"))
             } else if lastExitCode == 0 {
                 .success
             } else {
                 .failure(exitCode: lastExitCode)
             }
 
-            installResult = result
-            stage = .verify
+            await MainActor.run {
+                installResult = result
+                isInstalling = false
+                stage = .verify
+            }
 
             await runVerification()
+            await saveInstallAttempt(result)
         }
     }
 
@@ -436,9 +466,10 @@ extension DependencyInstallSheet {
     /// through the stream, and the bottle's wine processes are killed so the
     /// redist installer it spawned does not keep running headless.
     private func cancelInstall() {
-        guard stage == .running else { return }
+        guard isInstalling else { return }
         installTask?.cancel()
         installTask = nil
+        isInstalling = false
         Wine.killBottle(bottle: bottle)
     }
 
@@ -447,7 +478,47 @@ extension DependencyInstallSheet {
             for: bottle,
             definitions: [definition]
         )
-        verifyStatus = statuses.first?.status ?? .unknown
+        await MainActor.run {
+            verifyStatus = statuses.first?.status ?? .unknown
+        }
+    }
+
+    private func saveInstallAttempt(_ result: InstallResult) async {
+        let bottleURL = await MainActor.run { bottle.url }
+        var history = BottleDependencyHistory.load(from: bottleURL) ?? BottleDependencyHistory()
+
+        let success: Bool
+        let exitCode: Int32?
+        switch result {
+        case .success:
+            success = true
+            exitCode = 0
+        case let .failure(code):
+            success = false
+            exitCode = code
+        case .error:
+            success = false
+            exitCode = nil
+        }
+
+        // Keep a bounded tail of the winetricks output for failed attempts so
+        // the recorded exit code comes with the error text that explains it.
+        let outputTail: String? = if success {
+            nil
+        } else {
+            await MainActor.run { DependencyInstallAttempt.boundedTail(of: logLines) }
+        }
+
+        let attempt = DependencyInstallAttempt(
+            definitionId: definition.id,
+            verbsAttempted: definition.winetricksVerbs,
+            timestamp: Date(),
+            success: success,
+            exitCode: exitCode,
+            outputTail: outputTail
+        )
+        history.append(attempt)
+        try? history.save(to: bottleURL)
     }
 }
 

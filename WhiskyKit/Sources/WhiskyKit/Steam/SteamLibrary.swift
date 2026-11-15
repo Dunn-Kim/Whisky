@@ -27,6 +27,8 @@ public struct SteamGame: Identifiable, Equatable, Sendable {
     public let name: String
     /// The resolved absolute URL of the game's install directory.
     public let installURL: URL
+    /// The full parsed manifest.
+    public let manifest: SteamAppManifest
 }
 
 /// Discovers a Windows Steam installation inside a Wine bottle and
@@ -238,7 +240,8 @@ public enum SteamLibrary {
             found.append(SteamGame(
                 appId: manifest.appId,
                 name: manifest.name,
-                installURL: installURL
+                installURL: installURL,
+                manifest: manifest
             ))
         }
         return found
@@ -299,4 +302,9 @@ public enum SteamLibrary {
 public struct ProgramOverrideCandidate: Equatable, Sendable {
     public let url: URL
     public let overrides: ProgramOverrides
+
+    public init(url: URL, overrides: ProgramOverrides) {
+        self.url = url
+        self.overrides = overrides
+    }
 }

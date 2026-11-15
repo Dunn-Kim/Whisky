@@ -57,7 +57,9 @@ public struct TroubleshootingHistory: Codable, Sendable {
         entries.removeAll { $0.completedAt < cutoff }
 
         // FIFO eviction if still over limit
-        entries = Array(entries.suffix(Self.maxEntries))
+        while entries.count > Self.maxEntries {
+            entries.removeFirst()
+        }
     }
 
     /// Loads a troubleshooting history from a bottle directory.

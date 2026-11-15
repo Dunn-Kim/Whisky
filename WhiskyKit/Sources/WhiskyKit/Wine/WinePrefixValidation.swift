@@ -189,7 +189,7 @@ public enum WinePrefixValidation {
         }
 
         // Prefer non-"crossover" username if available (for compatibility with different Wine builds)
-        if let preferred = sortedUserDirs.first(where: { $0.lastPathComponent != WineUserProfile.crossOverName }) {
+        if let preferred = sortedUserDirs.first(where: { $0.lastPathComponent != "crossover" }) {
             return preferred.lastPathComponent
         }
 

@@ -33,10 +33,12 @@ public struct TerminalLaunchError: LocalizedError, Equatable {
 public extension Program {
     /// Prepares the bottle for this program, then opens the user's terminal running it.
     ///
-    /// The shift-click Run. The command is the one `WhiskyCmd run --command`
-    /// prints: the prefix is created if missing, and the DLL overrides and
-    /// backend files a launch needs are in place before the terminal starts it.
-    /// The program's saved arguments are split on whitespace, as a launch splits them.
+    /// The launch is recorded in the bottle's session, as any other launch is.
+    ///
+    /// The command is the one `WhiskyCmd run --command` prints: the prefix is
+    /// created if missing, and the DLL overrides, backend files and CJK font
+    /// aliases a launch needs are in place before the terminal starts it. The
+    /// program's saved arguments are split on whitespace, as a launch splits them.
     ///
     /// - Throws: An error if the bottle cannot be prepared, the script cannot be
     ///   written, or the terminal cannot be opened.
@@ -49,7 +51,7 @@ public extension Program {
         defer {
             Task {
                 try? await Task.sleep(for: .seconds(5))
-                try? FileManager.default.removeItem(at: scriptURL)
+                await TempFileTracker.shared.cleanupWithRetry(file: scriptURL)
             }
         }
 
@@ -67,6 +69,9 @@ public extension Program {
             let description = error["NSAppleScriptErrorMessage"] as? String
             throw TerminalLaunchError(message: description ?? String(describing: error))
         }
+        // The terminal starts the program under the bottle's wineserver, which
+        // is then Whisky's doing and must not read as orphaned.
+        Wine.noteUserLaunch(in: bottle)
     }
 }
 
@@ -80,21 +85,26 @@ extension Program {
     /// - Parameters:
     ///   - args: Arguments for the program, one word each.
     ///   - overrideWriter: What writes the DLL overrides into the prefix registry.
+    ///   - importer: What imports the CJK font aliases the prefix is missing.
     ///   - bootstrapper: What creates the Wine prefix when the bottle has none yet.
-    /// - Returns: The executable script, which the caller deletes.
+    /// - Returns: The executable script, registered for cleanup.
     /// - Throws: An error if the bottle cannot be prepared or the script cannot be written.
     func writeTerminalScript(
         args: [String],
         overrideWriter: Wine.DLLOverrideWriter = { try await Wine.syncDLLOverrides(bottle: $0, scopes: $1) },
+        importer: Wine.RegistryImporter = { try await Wine.importRegistry(document: $0, bottle: $1) },
         bootstrapper: Wine.PrefixBootstrapper = { try await Wine.bootstrapPrefix(bottle: $0) }
     ) async throws -> URL {
-        let launch = try await prepareLaunch(args: args, overrideWriter: overrideWriter, bootstrapper: bootstrapper)
+        let launch = try await prepareLaunch(
+            args: args, overrideWriter: overrideWriter, importer: importer, bootstrapper: bootstrapper
+        )
         let command = Wine.generateRunCommand(for: launch)
 
         let scriptURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("whisky-run-\(UUID().uuidString).sh")
         try "#!/bin/bash\n\(command)\n".write(to: scriptURL, atomically: true, encoding: .utf8)
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: scriptURL.path)
+        TempFileTracker.shared.register(file: scriptURL)
         return scriptURL
     }
 }

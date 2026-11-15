@@ -29,6 +29,7 @@ struct ContentView: View {
     @State var selected: URL?
     @State var showBottleCreation: Bool = false
     @State var bottlesLoaded: Bool = false
+    @State var showBottleSelection: Bool = false
     @State var newlyCreatedBottleURL: URL?
     @State var openedFileURL: URL?
     @State var triggerRefresh: Bool = false
@@ -46,13 +47,15 @@ struct ContentView: View {
         .toast($toast)
         .onReceive(NotificationCenter.default.publisher(for: .zombieProcessesCleaned)) { notification in
             if let count = notification.userInfo?["count"] as? Int, count > 0 {
-                toast = ToastData(
-                    message: String(
-                        format: String(localized: "cleanup.zombies.toast"),
-                        count
-                    ),
-                    style: .info
-                )
+                withAnimation {
+                    toast = ToastData(
+                        message: String(
+                            format: String(localized: "cleanup.zombies.toast"),
+                            count
+                        ),
+                        style: .info
+                    )
+                }
             }
         }
         .alert(
@@ -144,7 +147,7 @@ struct ContentView: View {
             BottleCreationView(newlyCreatedBottleURL: $newlyCreatedBottleURL)
         }
         .sheet(isPresented: $showSetup) {
-            SetupView(showSetup: $showSetup)
+            SetupView(showSetup: $showSetup, firstTime: false)
         }
         .sheet(item: $openedFileURL) { url in
             FileOpenView(
@@ -160,14 +163,21 @@ struct ContentView: View {
                   let oldBottle = bottleVM.bottles.first(where: { $0.url == oldURL })
             else { return }
 
+            // Only for what Whisky launched there: a game keeps running under
+            // the wineserver after its launch returns, so the registry count
+            // alone misses it, and an orphan has its own stop button.
             Task {
-                guard await Wine.isWineserverRunning(for: oldBottle) else { return }
+                guard await Wine.runState(for: oldBottle).isRunning else { return }
+                // The probe takes a moment; if the user came back to this
+                // bottle meanwhile, they haven't left it, so don't stop it.
+                guard selected != oldURL else { return }
 
                 switch oldBottle.settings.closeWithProcessesPolicy {
                 case .alwaysKeepRunning:
                     break
                 case .alwaysStop:
                     Wine.killBottle(bottle: oldBottle)
+                    ProcessRegistry.shared.clearRegistry(for: oldBottle.url)
                 case .ask:
                     showProcessCloseAlert(for: oldBottle)
                 }
@@ -181,7 +191,7 @@ struct ContentView: View {
         .dropDestination(for: URL.self) { urls, _ in
             // A Finder drop of anything the Run panel would accept opens the
             // same run-this-file flow, wherever on the window it lands.
-            let runnable = ["exe", "msi", "bat", "msix", "appx", "url"]
+            let runnable = ["exe", "msi", "bat", "cmd", "msix", "appx", "url"]
             guard let url = urls.first(where: { runnable.contains($0.pathExtension.lowercased()) })
             else { return false }
             openedFileURL = url
@@ -209,25 +219,26 @@ struct ContentView: View {
             // sheet over the main window and race every toolbar interaction.
             guard !WhiskyApp.isUITesting else { return }
 
-            // Rosetta too: a major macOS update can remove it, and the x86_64 wine
+            // Rosetta too: a major macOS update can remove it, and the x86_64 Wine
             // then fails every launch with "Bad CPU type in executable".
             if !WhiskyWineInstaller.isWhiskyWineInstalled() || !Rosetta2.isRosettaInstalled {
                 showSetup = true
             }
-            // The Settings toggle. Unset counts as off, its default there: this fork
-            // takes upstream runtime updates by hand.
-            guard UserDefaults.standard.object(forKey: "checkWhiskyWineUpdates") as? Bool ?? false else { return }
+            // Settings' "Automatically check for WhiskyWine updates" gates only
+            // this launch-time check.
+            guard WhiskyWineInstaller.automaticUpdateChecksEnabled() else { return }
             let task = Task.detached {
                 await WhiskyWineInstaller.shouldUpdateWhiskyWine()
             }
-            if let remoteVersion = await task.value {
+            let updateInfo = await task.value
+            if updateInfo.0 {
                 let alert = NSAlert()
                 alert.messageText = String(localized: "update.whiskywine.title")
                 alert.informativeText = String(
                     format: String(localized: "update.whiskywine.description"),
                     String(WhiskyWineInstaller.whiskyWineVersion()
                         ?? SemanticVersion(0, 0, 0)),
-                    String(remoteVersion)
+                    String(updateInfo.1)
                 )
                 alert.alertStyle = .warning
                 alert.addButton(withTitle: String(localized: "update.whiskywine.update"))

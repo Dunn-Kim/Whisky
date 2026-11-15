@@ -26,7 +26,7 @@ final class EnvironmentBuilderTests: XCTestCase {
         let builder = EnvironmentBuilder()
         let result = builder.resolve()
         XCTAssertTrue(result.environment.isEmpty)
-        XCTAssertTrue(result.activeLayers.isEmpty)
+        XCTAssertTrue(result.provenance.entries.isEmpty)
     }
 
     func testLaterLayerWinsForSameKey() {
@@ -54,30 +54,42 @@ final class EnvironmentBuilderTests: XCTestCase {
         XCTAssertNil(result.environment["KEY"])
     }
 
-    // MARK: - Active Layers
+    func testSetAllSetsMultipleKeys() {
+        var builder = EnvironmentBuilder()
+        builder.setAll(["X": "1", "Y": "2"], layer: .bottleUser)
+        let result = builder.resolve()
+        XCTAssertEqual(result.environment["X"], "1")
+        XCTAssertEqual(result.environment["Y"], "2")
+    }
 
-    func testOverriddenLayerIsNotActive() {
+    // MARK: - Provenance Tracking
+
+    func testProvenanceTracksWinningLayer() {
         var builder = EnvironmentBuilder()
         builder.set("KEY", "a", layer: .base)
         builder.set("KEY", "b", layer: .platform)
         let result = builder.resolve()
-        XCTAssertEqual(result.activeLayers, [.platform])
+        XCTAssertEqual(result.provenance.entries["KEY"]?.layer, .platform)
     }
 
-    func testRemovedKeyLeavesNoActiveLayer() {
+    func testProvenanceTracksOverriddenBy() {
         var builder = EnvironmentBuilder()
-        builder.set("KEY", "val", layer: .base)
-        builder.remove("KEY", layer: .bottleManaged)
-        XCTAssertTrue(builder.resolve().activeLayers.isEmpty)
+        builder.set("KEY", "a", layer: .base)
+        builder.set("KEY", "b", layer: .platform)
+        let result = builder.resolve()
+        // The base entry was overridden by platform
+        // The winning entry should have overriddenBy == nil (it won)
+        XCTAssertNil(result.provenance.entries["KEY"]?.overriddenBy)
+        XCTAssertEqual(result.provenance.entries["KEY"]?.layer, .platform)
     }
 
-    func testActiveLayers() {
+    func testProvenanceActiveLayers() {
         var builder = EnvironmentBuilder()
         builder.set("A", "1", layer: .base)
         builder.set("B", "2", layer: .programUser)
         let result = builder.resolve()
-        XCTAssertTrue(result.activeLayers.contains(.base))
-        XCTAssertTrue(result.activeLayers.contains(.programUser))
-        XCTAssertFalse(result.activeLayers.contains(.platform))
+        XCTAssertTrue(result.provenance.activeLayers.contains(.base))
+        XCTAssertTrue(result.provenance.activeLayers.contains(.programUser))
+        XCTAssertFalse(result.provenance.activeLayers.contains(.platform))
     }
 }

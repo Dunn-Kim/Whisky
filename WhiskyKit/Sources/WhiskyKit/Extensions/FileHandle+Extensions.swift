@@ -20,9 +20,6 @@ import Foundation
 import os.log
 import SemanticVersion
 
-/// Serializes the seek-check-write sequence of `writeWineLog` across concurrent stdout/stderr writers.
-private let wineLogLock = NSLock()
-
 extension FileHandle {
     private enum Constants {
         /// Prevents extremely large environments from bloating logs while still providing useful diagnostics.
@@ -45,36 +42,36 @@ extension FileHandle {
         }
     }
 
+    func write(line: String) {
+        do {
+            guard let data = line.data(using: .utf8) else { return }
+            try write(contentsOf: data)
+        } catch {
+            Logger.wineKit.info("Failed to write line: \(error)")
+        }
+    }
+
     /// Writes a line to a Whisky log file while enforcing the log size cap.
     ///
-    /// This method is thread-safe across concurrent stdout/stderr writers.
-    /// The file offset is the byte count: once the cap is reached, additional output is discarded.
-    /// A single truncation marker fills the last bytes of the cap when truncation begins.
+    /// This method is thread-safe across concurrent stdout/stderr writers for the same file handle.
+    /// A log that reaches its cap keeps its head (the launch header and early output) and its
+    /// newest output, with the truncation marker between them (``WineLogLimits``).
     func writeWineLog(line: String) {
+        writeWineLog(line: line, limits: .standard)
+    }
+
+    /// Writes a line to a Whisky log file under the given limits. Tests use small ones.
+    func writeWineLog(line: String, limits: WineLogLimits) {
         guard let data = line.data(using: .utf8) else { return }
-        wineLogLock.lock()
-        defer { wineLogLock.unlock() }
+        WineLogCapRegistry.shared.write(data, to: self, limits: limits)
+    }
 
-        // Seeking to the end keeps writes append-only; if it fails, assume the cap is reached.
-        guard let offset = try? seekToEnd() else { return }
-        let maxBytes = Wine.maxLogFileBytes
-        let marker = Data(Wine.logTruncationMarker.utf8)
-        let dataCap = max(0, maxBytes - Int64(marker.count))
-        guard Int64(offset) < maxBytes else { return }
-
-        var out = Data()
-        if Int64(offset) < dataCap {
-            let room = Int(dataCap - Int64(offset))
-            out = data.prefix(room)
-            if data.count > room { out += marker }
-        } else {
-            out = marker.prefix(Int(maxBytes - Int64(offset)))
+    /// Closes a Whisky log file handle and clears any associated in-memory cap state.
+    func closeWineLog() throws {
+        defer {
+            WineLogCapRegistry.shared.removeState(for: self)
         }
-        do {
-            try write(contentsOf: out)
-        } catch {
-            Logger.wineKit.info("Failed to write log data: \(error)")
-        }
+        try close()
     }
 
     func writeApplicationInfo() {
@@ -119,7 +116,7 @@ extension FileHandle {
         header += "Bottle URL: \(bottle.url.path)\n\n"
 
         if let version = WhiskyWineInstaller.whiskyWineVersion() {
-            header += "WhiskyWine Version: \(version.description)\n"
+            header += "WhiskyWine Version: \(version.major).\(version.minor).\(version.patch)\n"
         }
         header += "Windows Version: \(bottle.settings.windowsVersion)\n"
         header += "Enhanced Sync: \(bottle.settings.enhancedSync)\n\n"

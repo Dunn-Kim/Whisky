@@ -121,14 +121,6 @@ final class DiagnosticExporterTests: XCTestCase {
 
     // MARK: - DiagnosisHistory Tests
 
-    func testDiagnosisHistoryURLSitsInProgramSettings() {
-        let url = DiagnosisHistory.url(for: "game.exe", in: URL(filePath: "/tmp/Bottle"))
-        XCTAssertEqual(
-            url.path(percentEncoded: false),
-            "/tmp/Bottle/Program Settings/game.exe.diagnosis-history.plist"
-        )
-    }
-
     func testDiagnosisHistoryFIFO() {
         var history = DiagnosisHistory()
         XCTAssertTrue(history.isEmpty)
@@ -229,6 +221,66 @@ final class DiagnosticExporterTests: XCTestCase {
             programPath: "/game.exe"
         )
         XCTAssertEqual(entry.topSignatures.count, 3, "topSignatures should be capped at 3")
+    }
+
+    // MARK: - Remediation History Section Tests
+
+    private func sampleTimeline() -> RemediationTimeline {
+        var timeline = RemediationTimeline()
+        timeline.record(RemediationTimelineEntry(
+            timestamp: Date(timeIntervalSince1970: 1_700_000_000),
+            actionId: "install-vcrun2019",
+            actionTitle: "Install Visual C++ 2019",
+            beforeValue: nil,
+            afterValue: "installed"
+        ))
+        timeline.record(RemediationTimelineEntry(
+            timestamp: Date(timeIntervalSince1970: 1_700_000_600),
+            actionId: "enable-dxr",
+            actionTitle: "Enable DirectX Raytracing",
+            beforeValue: "false",
+            afterValue: "true"
+        ))
+        return timeline
+    }
+
+    func testRemediationHistorySectionIncludedWhenEnabled() throws {
+        let section = DiagnosticExporter.generateRemediationHistorySection(
+            timeline: sampleTimeline(),
+            options: ExportOptions(includeRemediationHistory: true)
+        )
+        XCTAssertTrue(section.hasPrefix("### Remediation History"))
+        XCTAssertTrue(section.contains("**Enable DirectX Raytracing** (`enable-dxr`) false -> true"))
+        XCTAssertTrue(section.contains("**Install Visual C++ 2019** (`install-vcrun2019`) installed"))
+        // Newest first.
+        let newest = try XCTUnwrap(section.range(of: "enable-dxr"))
+        let oldest = try XCTUnwrap(section.range(of: "install-vcrun2019"))
+        XCTAssertLessThan(newest.lowerBound, oldest.lowerBound)
+    }
+
+    func testRemediationHistorySectionOmittedWhenDisabled() {
+        let section = DiagnosticExporter.generateRemediationHistorySection(
+            timeline: sampleTimeline(),
+            options: ExportOptions(includeRemediationHistory: false)
+        )
+        XCTAssertEqual(section, "")
+    }
+
+    func testRemediationHistorySectionOmittedForEmptyTimeline() {
+        let options = ExportOptions(includeRemediationHistory: true)
+        XCTAssertEqual(
+            DiagnosticExporter.generateRemediationHistorySection(timeline: RemediationTimeline(), options: options),
+            ""
+        )
+        XCTAssertEqual(DiagnosticExporter.generateRemediationHistorySection(timeline: nil, options: options), "")
+    }
+
+    func testRemediationHistoryJSONHasNoPaths() throws {
+        let data = try DiagnosticExporter.remediationHistoryJSON(sampleTimeline())
+        let json = try XCTUnwrap(String(data: data, encoding: .utf8))
+        XCTAssertTrue(json.contains("enable-dxr"))
+        XCTAssertFalse(json.contains("programPath"))
+        XCTAssertFalse(json.contains("bottleIdentifier"))
     }
 
     // MARK: - DiagnosticExporter Helper Tests

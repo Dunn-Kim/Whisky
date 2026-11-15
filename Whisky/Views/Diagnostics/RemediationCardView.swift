@@ -49,7 +49,7 @@ extension RemediationCardView {
                     .font(.subheadline)
                     .fontWeight(.semibold)
                 Spacer()
-                ConfidenceBadge(tier: confidenceTier)
+                confidenceBadge
             }
 
             // Body: what will change
@@ -80,7 +80,7 @@ extension RemediationCardView {
             "Confirm Action",
             isPresented: $showConfirmation
         ) {
-            Button("Cancel", role: .cancel) {}
+            Button("button.cancel", role: .cancel) {}
             Button("Apply") {
                 onAction?(action)
             }
@@ -143,25 +143,19 @@ extension RemediationCardView {
 
 // MARK: - Confidence Badge
 
-/// A capsule naming a ``ConfidenceTier`` in the tier's color.
-struct ConfidenceBadge: View {
-    let tier: ConfidenceTier
-
-    var body: some View {
-        Text(tier.displayName)
+extension RemediationCardView {
+    private var confidenceBadge: some View {
+        Text(confidenceTier.localizedName)
             .font(.caption2)
             .fontWeight(.medium)
             .padding(.horizontal, 8)
             .padding(.vertical, 3)
-            .background(tier.color.opacity(0.15), in: Capsule())
-            .foregroundStyle(tier.color)
+            .background(badgeColor.opacity(0.15), in: Capsule())
+            .foregroundStyle(badgeColor)
     }
-}
 
-extension ConfidenceTier {
-    /// Green, yellow or gray, from high to low.
-    var color: Color {
-        switch self {
+    private var badgeColor: Color {
+        switch confidenceTier {
         case .high:
             .green
         case .medium:
@@ -185,7 +179,7 @@ extension RemediationCardView {
                 }
                 .controlSize(.small)
             } else {
-                Button("Apply\u{2026}") {
+                Button("gameConfig.banner.apply") {
                     showConfirmation = true
                 }
                 .controlSize(.small)
@@ -209,17 +203,20 @@ extension RemediationCardView {
         }
     }
 
+    /// The Winetricks verb is an identifier and stays as is; only the
+    /// fallback for a missing verb is translated.
+    private var verbName: String {
+        action.winetricksVerb ?? String(localized: "remediation.confirm.installVerb.fallback")
+    }
+
     private var confirmationMessage: String {
         switch action.actionType {
         case .changeSetting:
-            "This will change: \(action.whatWillChange)\n\nUndo: \(action.undoPath)"
+            String(localized: "remediation.confirm.changeSetting \(action.whatWillChange) \(action.undoPath)")
         case .installVerb:
-            """
-            This will install \(action.winetricksVerb ?? "component") via Winetricks.\
-            \n\n\(action.whatWillChange)\n\nUndo: \(action.undoPath)
-            """
+            String(localized: "remediation.confirm.installVerb \(verbName) \(action.whatWillChange) \(action.undoPath)")
         case .switchBackend:
-            "This will switch your graphics backend.\n\n\(action.whatWillChange)\n\nUndo: \(action.undoPath)"
+            String(localized: "remediation.confirm.switchBackend \(action.whatWillChange) \(action.undoPath)")
         case .informational:
             ""
         }

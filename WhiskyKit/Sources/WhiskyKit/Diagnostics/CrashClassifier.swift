@@ -35,21 +35,37 @@ import Foundation
 /// ## Example
 ///
 /// ```swift
-/// let classifier = CrashClassifier(patterns: PatternLoader.defaultPatterns())
+/// let (patterns, remediations) = PatternLoader.loadDefaults()
+/// let classifier = CrashClassifier(patterns: patterns, remediations: remediations)
 /// let diagnosis = classifier.classify(log: wineLogOutput, exitCode: exitCode)
 /// ```
-public struct CrashClassifier: @unchecked Sendable {
-    /// Patterns paired with their compiled regex, ready for matching. Regex is not
-    /// Sendable, but the compiled patterns are immutable after init.
-    private let patterns: [(pattern: CrashPattern, regex: Regex<AnyRegexOutput>?)]
+public struct CrashClassifier: Sendable {
+    /// Compiled patterns ready for matching.
+    private var patterns: [CrashPattern]
 
-    /// Creates a classifier with the given patterns, the bundled ones by default.
+    /// Available remediation actions keyed by ID.
+    private let remediations: [String: RemediationAction]
+
+    /// Creates a classifier with the given patterns and remediations.
     ///
     /// All regex patterns are compiled eagerly at init time for performance.
     ///
-    /// - Parameter patterns: Array of crash patterns to match against.
-    public init(patterns: [CrashPattern] = PatternLoader.defaultPatterns()) {
-        self.patterns = patterns.map { ($0, $0.compiledRegex()) }
+    /// - Parameters:
+    ///   - patterns: Array of crash patterns to match against.
+    ///   - remediations: Dictionary of remediation actions keyed by ID.
+    public init(patterns: [CrashPattern], remediations: [String: RemediationAction]) {
+        var compiled = patterns
+        for index in compiled.indices {
+            compiled[index].compileRegex()
+        }
+        self.patterns = compiled
+        self.remediations = remediations
+    }
+
+    /// Creates a classifier using the default bundled patterns and remediations.
+    public init() {
+        let (patterns, remediations) = PatternLoader.loadDefaults()
+        self.init(patterns: patterns, remediations: remediations)
     }
 
     /// Classifies Wine log output for crash patterns.
@@ -65,16 +81,17 @@ public struct CrashClassifier: @unchecked Sendable {
     public func classify(log: String, exitCode: Int32? = nil) -> CrashDiagnosis {
         let lines = log.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
         var allMatches: [DiagnosisMatch] = []
+        var mutablePatterns = patterns
 
         // Step 1-2: Scan each line against all patterns
         for (lineIndex, line) in lines.enumerated() {
-            for (pattern, regex) in patterns {
-                if let captures = pattern.match(line: line, using: regex) {
+            for patternIndex in mutablePatterns.indices {
+                if let patternMatch = mutablePatterns[patternIndex].match(line: line) {
                     let diagMatch = DiagnosisMatch(
-                        pattern: pattern,
+                        pattern: mutablePatterns[patternIndex],
                         lineIndex: lineIndex,
                         lineText: line,
-                        captures: captures
+                        captures: patternMatch.captures
                     )
                     allMatches.append(diagMatch)
                 }
@@ -127,8 +144,12 @@ public struct CrashClassifier: @unchecked Sendable {
 
     // MARK: - Private
 
+    /// Builds the English headline stored on ``CrashDiagnosis/headline``.
+    ///
+    /// The headline feeds exported reports and stays English so they read the
+    /// same in every language; the UI shows ``CrashDiagnosis/displayHeadline``.
     private func buildHeadline(for match: DiagnosisMatch) -> String {
-        let category = match.pattern.category.displayName
+        let category = match.pattern.category.exportName
         let confidence = ConfidenceTier(score: match.pattern.confidence).displayName
 
         if !match.captures.isEmpty {
@@ -137,5 +158,39 @@ public struct CrashClassifier: @unchecked Sendable {
         }
 
         return "\(category) (\(confidence) confidence)"
+    }
+}
+
+// MARK: - Display Headline
+
+extension CrashDiagnosis {
+    /// The headline in the user's language, for the diagnostics UI.
+    ///
+    /// Built from the primary (first) match like ``headline``, which stays
+    /// English for exports. Falls back to ``headline`` when there are no matches.
+    public var displayHeadline: String? {
+        guard let match = matches.first else { return headline }
+        return Self.localizedHeadline(
+            category: match.pattern.category,
+            confidence: ConfidenceTier(score: match.pattern.confidence),
+            detail: match.captures.isEmpty ? nil : match.captures.joined(separator: ", ")
+        )
+    }
+
+    /// Builds a headline in the user's language from its parts.
+    ///
+    /// - Parameters:
+    ///   - category: The primary match's category.
+    ///   - confidence: The primary match's confidence tier.
+    ///   - detail: The primary match's log captures (DLL names, error codes),
+    ///     joined. They are log text and stay as they are.
+    /// - Returns: The localized headline.
+    static func localizedHeadline(category: CrashCategory, confidence: ConfidenceTier, detail: String?) -> String {
+        let name = category.displayName
+        let label = confidence.confidenceLabel
+        guard let detail, !detail.isEmpty else {
+            return String(localized: "diagnostics.headline \(name) \(label)")
+        }
+        return String(localized: "diagnostics.headline.detail \(name) \(detail) \(label)")
     }
 }

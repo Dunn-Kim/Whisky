@@ -29,14 +29,16 @@ public extension Program {
     ///
     /// - Parameters:
     ///   - args: Arguments for the program, one word each.
-    ///   - onOutput: Receives each output event of the Wine process as it arrives.
+    ///   - onOutput: Receives the launch's output events as they arrive. Output the
+    ///     program writes after the launcher exits arrives after
+    ///     ``ProcessOutput/terminated(_:)``, until the result's `outputCompletion` completes.
     /// - Returns: The exit code and log file of the run.
     /// - Throws: An error if the bottle cannot be prepared or the program cannot be started.
     @discardableResult
     func launch(
         args: [String], onOutput: (@MainActor (ProcessOutput) -> Void)? = nil
     ) async throws -> Wine.ProgramRunResult {
-        try await Wine.runProgram(at: url, bottle: bottle, onOutput: onOutput) {
+        try await Wine.runProgram(at: url, bottle: bottle, programSettings: settings, onOutput: onOutput) {
             try await prepareLaunch(args: args)
         }
     }
@@ -45,12 +47,12 @@ public extension Program {
     ///
     /// Where `generateTerminalCommand(args:)` only describes a launch, this first
     /// prepares the bottle exactly as ``launch(args:onOutput:)`` does: a missing
-    /// Wine prefix is created, the audio settings and the launch's DLL overrides
-    /// go into the prefix registry, and the graphics backend's files into the
+    /// Wine prefix is created, the audio
+    /// settings, any missing CJK font aliases and the launch's DLL overrides go
+    /// into the prefix registry, and the graphics backend's files into the
     /// prefix. The command then runs the program with its own overrides and
-    /// settings, and clears any
-    /// `WINEDLLOVERRIDES` the terminal exports, which would shadow the
-    /// per-executable registry entries.
+    /// settings, and clears any `WINEDLLOVERRIDES` the terminal exports, which
+    /// would shadow the per-executable registry entries.
     ///
     /// - Parameter args: Arguments for the program, one word each.
     /// - Returns: The full Wine command string ready for terminal execution.
@@ -71,6 +73,8 @@ extension Program {
     ///   - args: Arguments for the program, one word each.
     ///   - overrideWriter: What writes the DLL overrides into the prefix registry. Tests
     ///     pass a recorder, so they can see what a launch writes without running Wine.
+    ///   - importer: What imports the CJK font aliases the prefix is missing. Tests pass
+    ///     a recorder here too.
     ///   - bootstrapper: What creates the Wine prefix when the bottle has none yet, as
     ///     after `WhiskyCmd create`. Tests pass a recorder here as well.
     /// - Returns: The environment and `wine64` arguments of the launch.
@@ -78,6 +82,7 @@ extension Program {
     func prepareLaunch(
         args: [String],
         overrideWriter: Wine.DLLOverrideWriter = { try await Wine.syncDLLOverrides(bottle: $0, scopes: $1) },
+        importer: Wine.RegistryImporter = { try await Wine.importRegistry(document: $0, bottle: $1) },
         bootstrapper: Wine.PrefixBootstrapper = { try await Wine.bootstrapPrefix(bottle: $0) }
     ) async throws -> Wine.PreparedLaunch {
         try await Wine.prepareBottlePrefix(bottle: bottle, bootstrapper: bootstrapper)
@@ -85,7 +90,7 @@ extension Program {
         return try await Wine.prepareProgramLaunch(
             at: url, args: args, bottle: bottle, environment: generateEnvironment(),
             programOverrides: settings.overrides, programSettings: settings,
-            overrideWriter: overrideWriter
+            overrideWriter: overrideWriter, importer: importer
         )
     }
 }

@@ -23,12 +23,14 @@ enum ToastStyle: Equatable {
     case success
     case error
     case info
+    case launcherFixes
 
     var iconName: String {
         switch self {
         case .success: "checkmark.circle.fill"
         case .error: "xmark.circle.fill"
         case .info: "info.circle.fill"
+        case .launcherFixes: "wrench.and.screwdriver.fill"
         }
     }
 
@@ -37,6 +39,7 @@ enum ToastStyle: Equatable {
         case .success: .green
         case .error: .red
         case .info: .blue
+        case .launcherFixes: .orange
         }
     }
 
@@ -45,6 +48,7 @@ enum ToastStyle: Equatable {
         case .success: String(localized: "accessibility.toast.success")
         case .error: String(localized: "accessibility.toast.error")
         case .info: String(localized: "accessibility.toast.info")
+        case .launcherFixes: String(localized: "accessibility.toast.launcherFixes")
         }
     }
 }
@@ -79,6 +83,7 @@ struct StatusToast: View {
 /// View modifier to display toast notifications
 struct ToastModifier: ViewModifier {
     @Binding var toast: ToastData?
+    let autoDismissDelay: TimeInterval
     @State private var dismissTask: Task<Void, Never>?
 
     func body(content: Content) -> some View {
@@ -100,7 +105,9 @@ struct ToastModifier: ViewModifier {
                     }
                     .onTapGesture {
                         dismissTask?.cancel()
-                        self.toast = nil
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            self.toast = nil
+                        }
                     }
                 }
             }
@@ -113,11 +120,13 @@ struct ToastModifier: ViewModifier {
 
         let currentMessage = toast.message
         dismissTask = Task {
-            try? await Task.sleep(for: .seconds(3))
+            try? await Task.sleep(for: .seconds(autoDismissDelay))
             guard !Task.isCancelled else { return }
             await MainActor.run {
                 if self.toast?.message == currentMessage {
-                    self.toast = nil
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        self.toast = nil
+                    }
                 }
             }
         }
@@ -132,11 +141,12 @@ struct ToastData: Equatable {
 }
 
 extension View {
-    /// Adds a toast notification overlay to the view. Auto-dismissing toasts
-    /// disappear after 3 seconds.
-    /// - Parameter toast: Binding to the toast data. Set to non-nil to show toast.
-    func toast(_ toast: Binding<ToastData?>) -> some View {
-        modifier(ToastModifier(toast: toast))
+    /// Adds a toast notification overlay to the view
+    /// - Parameters:
+    ///   - toast: Binding to the toast data. Set to non-nil to show toast.
+    ///   - autoDismissDelay: Time in seconds before auto-dismissing (default 3s)
+    func toast(_ toast: Binding<ToastData?>, autoDismissDelay: TimeInterval = 3.0) -> some View {
+        modifier(ToastModifier(toast: toast, autoDismissDelay: autoDismissDelay))
     }
 }
 

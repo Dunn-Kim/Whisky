@@ -20,32 +20,66 @@ import Foundation
 
 /// Checks whether enhanced diagnostics (WINEDEBUG preset) can provide additional info.
 ///
-/// Reads the WINEDEBUG preset persisted in the troubleshot program's settings,
-/// which is where the launch path takes it from. Returns `.alreadyConfigured`
-/// if a debug preset is already active, `.pass` if enhanced diagnostics would
-/// add value (no program, or the default/normal preset), or `.error` if the
-/// bottle settings cannot be read.
+/// Reads the current WINEDEBUG environment setting from the bottle. Returns
+/// `.pass` if enhanced diagnostics would add value (default/normal preset),
+/// `.alreadyConfigured` if a debug preset is already active, or `.fail`
+/// if not applicable.
 public struct DiagnosticsEnhanceCheck: TroubleshootingCheck {
     public let checkId = "diagnostics.can_enhance"
 
+    public init() {}
+
+    public let signature: CheckSignature? = CheckSignature(
+        acceptedParams: ["preset"], outcomes: [.pass, .alreadyConfigured, .error]
+    )
+
     public func run(params: [String: String], context: CheckContext) async -> CheckResult {
-        if case let .failure(result) = context.loadBottleSettings() {
-            return result
+        let bottleURL = context.bottleURL
+        let metadataURL = bottleURL.appending(path: "Metadata.plist")
+
+        let settings: BottleSettings
+        do {
+            settings = try BottleSettings.decode(from: metadataURL)
+        } catch {
+            return CheckResult(
+                outcome: .error,
+                evidence: ["error": error.localizedDescription],
+                summary: "Failed to read bottle settings",
+                confidence: nil
+            )
         }
 
-        // Check if a non-default WINEDEBUG preset is active, as the launch path
-        // applies it: any preset but normal.
-        let preset = context.programURL.flatMap {
-            Program.persistedSettings(for: $0, bottleURL: context.bottleURL)?.activeWineDebugPreset
-        }
-        if let preset, preset != .normal {
+        // Build the environment to check for WINEDEBUG
+        var builder = EnvironmentBuilder()
+        _ = settings.populateBottleManagedLayer(builder: &builder)
+        let (environment, _) = builder.resolve()
+
+        let currentDebug = environment["WINEDEBUG"]
+
+        // Check if a non-default WINEDEBUG preset is active
+        let nonDefaultPresets = [
+            WineDebugPreset.crash.winedebugValue,
+            WineDebugPreset.dllLoad.winedebugValue,
+            WineDebugPreset.verbose.winedebugValue
+        ]
+
+        if let currentDebug, nonDefaultPresets.contains(currentDebug) {
+            // Determine which preset is active
+            let presetName: String = if currentDebug == WineDebugPreset.crash.winedebugValue {
+                WineDebugPreset.crash.exportName
+            } else if currentDebug == WineDebugPreset.dllLoad.winedebugValue {
+                WineDebugPreset.dllLoad.exportName
+            } else {
+                WineDebugPreset.verbose.exportName
+            }
+
             return CheckResult(
                 outcome: .alreadyConfigured,
                 evidence: [
-                    "currentPreset": preset.displayName,
-                    "winedebug": preset.winedebugValue
+                    "currentPreset": presetName,
+                    "winedebug": currentDebug
                 ],
-                summary: "Enhanced diagnostics already active: \(preset.displayName)",
+                summary: "Enhanced diagnostics already active: \(presetName)",
                 confidence: .high
             )
         }
@@ -61,5 +95,33 @@ public struct DiagnosticsEnhanceCheck: TroubleshootingCheck {
             summary: "Enhanced diagnostics available for more detailed logging",
             confidence: .medium
         )
+    }
+
+    /// The summary of a result from this check in the user's language.
+    ///
+    /// ``CheckResult/summary`` stays in English because it is written to
+    /// history and escalation exports; this rebuilds the on-screen text from
+    /// the result's outcome and evidence.
+    ///
+    /// - Parameter result: A result produced by ``run(params:context:)``.
+    /// - Returns: The localized summary, or `nil` if the result was not
+    ///   produced by this check.
+    public static func localizedSummary(for result: CheckResult) -> String? {
+        switch result.outcome {
+        case .error:
+            return String(localized: "troubleshooting.check.settingsUnreadable")
+        case .alreadyConfigured:
+            let preset = WineDebugPreset.allCases.first {
+                $0.winedebugValue == result.evidence["winedebug"]
+            }
+            guard let presetName = preset?.displayName ?? result.evidence["currentPreset"] else {
+                return nil
+            }
+            return String(localized: "troubleshooting.check.diagnostics.active \(presetName)")
+        case .pass:
+            return String(localized: "troubleshooting.check.diagnostics.available")
+        case .fail, .unknown:
+            return nil
+        }
     }
 }

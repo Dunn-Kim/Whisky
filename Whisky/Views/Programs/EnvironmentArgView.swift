@@ -28,9 +28,13 @@ enum Focusable: Hashable {
 }
 
 class Key: Identifiable {
+    static func == (lhs: Key, rhs: Key) -> Bool {
+        lhs.id == rhs.id
+    }
+
     var id: UUID = .init()
-    var key: String
-    var value: String
+    @Published var key: String
+    @Published var value: String
 
     init(key: String, value: String) {
         self.key = key

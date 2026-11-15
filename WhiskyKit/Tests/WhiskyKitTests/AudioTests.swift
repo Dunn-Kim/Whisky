@@ -29,6 +29,7 @@ final class AudioTests: XCTestCase {
         for index in 0 ..< 25 {
             let event = makeEvent(
                 deviceName: "Device-\(index)",
+                eventType: .defaultOutputChanged,
                 secondsAgo: Double(25 - index) * 60
             )
             history.append(event)
@@ -58,17 +59,19 @@ final class AudioTests: XCTestCase {
 
     // MARK: - AudioDeviceHistory: 30-Second Deduplication
 
-    func testHistoryDeduplicatesSameDeviceWithin30Seconds() {
+    func testHistoryDeduplicatesSameDeviceAndTypeWithin30Seconds() {
         let history = AudioDeviceHistory()
         let now = Date()
 
         let event1 = AudioDeviceChangeEvent(
             timestamp: now,
+            eventType: .defaultOutputChanged,
             deviceName: "Speakers",
             transportType: .builtIn
         )
         let event2 = AudioDeviceChangeEvent(
             timestamp: now.addingTimeInterval(10),
+            eventType: .defaultOutputChanged,
             deviceName: "Speakers",
             transportType: .builtIn
         )
@@ -85,11 +88,13 @@ final class AudioTests: XCTestCase {
 
         let event1 = AudioDeviceChangeEvent(
             timestamp: now,
+            eventType: .defaultOutputChanged,
             deviceName: "Speakers",
             transportType: .builtIn
         )
         let event2 = AudioDeviceChangeEvent(
             timestamp: now.addingTimeInterval(5),
+            eventType: .defaultOutputChanged,
             deviceName: "Headphones",
             transportType: .usb
         )
@@ -100,17 +105,42 @@ final class AudioTests: XCTestCase {
         XCTAssertEqual(history.events.count, 2, "Different devices should not be deduplicated")
     }
 
+    func testHistoryDoesNotDeduplicateDifferentEventTypes() {
+        let history = AudioDeviceHistory()
+        let now = Date()
+
+        let event1 = AudioDeviceChangeEvent(
+            timestamp: now,
+            eventType: .disconnected,
+            deviceName: "Speakers",
+            transportType: .builtIn
+        )
+        let event2 = AudioDeviceChangeEvent(
+            timestamp: now.addingTimeInterval(5),
+            eventType: .reconnected,
+            deviceName: "Speakers",
+            transportType: .builtIn
+        )
+
+        history.append(event1)
+        history.append(event2)
+
+        XCTAssertEqual(history.events.count, 2, "Different event types should not be deduplicated")
+    }
+
     func testHistoryAllowsSameDeviceAfter30Seconds() {
         let history = AudioDeviceHistory()
         let now = Date()
 
         let event1 = AudioDeviceChangeEvent(
             timestamp: now,
+            eventType: .defaultOutputChanged,
             deviceName: "Speakers",
             transportType: .builtIn
         )
         let event2 = AudioDeviceChangeEvent(
             timestamp: now.addingTimeInterval(31),
+            eventType: .defaultOutputChanged,
             deviceName: "Speakers",
             transportType: .builtIn
         )
@@ -121,7 +151,7 @@ final class AudioTests: XCTestCase {
         XCTAssertEqual(history.events.count, 2, "Same device after 30s should not be deduplicated")
     }
 
-    // MARK: - AudioDeviceHistory: Clear
+    // MARK: - AudioDeviceHistory: Clear and Export
 
     func testHistoryClearEmptiesEvents() {
         let history = AudioDeviceHistory()
@@ -133,13 +163,29 @@ final class AudioTests: XCTestCase {
         XCTAssertTrue(history.events.isEmpty, "clear() should remove all events")
     }
 
+    func testHistoryExportReturnsCopy() {
+        let history = AudioDeviceHistory()
+        history.append(makeEvent(deviceName: "Device", secondsAgo: 60))
+
+        let exported = history.export()
+        history.clear()
+
+        XCTAssertEqual(exported.count, 1, "export() should return an independent copy")
+        XCTAssertTrue(history.events.isEmpty, "Original should be cleared independently")
+    }
+
     // MARK: - AudioStatus
 
     func testStatusDisplayNames() {
-        XCTAssertEqual(AudioStatus.healthy.displayName, "OK")
-        XCTAssertEqual(AudioStatus.degraded(primaryIssue: "test").displayName, "Degraded")
-        XCTAssertEqual(AudioStatus.broken(primaryIssue: "test").displayName, "Broken")
-        XCTAssertEqual(AudioStatus.unknown.displayName, "Unknown")
+        // The names come from the app's string catalog, which the package tests
+        // don't load, so each case is checked against its own catalog key.
+        XCTAssertEqual(AudioStatus.healthy.displayName, String(localized: "audio.status.ok"))
+        XCTAssertEqual(
+            AudioStatus.degraded(primaryIssue: "test").displayName,
+            String(localized: "audio.status.degraded")
+        )
+        XCTAssertEqual(AudioStatus.broken(primaryIssue: "test").displayName, String(localized: "audio.status.broken"))
+        XCTAssertEqual(AudioStatus.unknown.displayName, String(localized: "audio.status.unknown"))
     }
 
     func testStatusSFSymbols() {
@@ -147,6 +193,13 @@ final class AudioTests: XCTestCase {
         XCTAssertEqual(AudioStatus.degraded(primaryIssue: "test").sfSymbol, "exclamationmark.triangle.fill")
         XCTAssertEqual(AudioStatus.broken(primaryIssue: "test").sfSymbol, "xmark.circle.fill")
         XCTAssertEqual(AudioStatus.unknown.sfSymbol, "questionmark.circle")
+    }
+
+    func testStatusTintColors() {
+        XCTAssertEqual(AudioStatus.healthy.tintColor, "green")
+        XCTAssertEqual(AudioStatus.degraded(primaryIssue: "test").tintColor, "orange")
+        XCTAssertEqual(AudioStatus.broken(primaryIssue: "test").tintColor, "red")
+        XCTAssertEqual(AudioStatus.unknown.tintColor, "secondary")
     }
 
     // MARK: - AudioTransportType
@@ -255,10 +308,12 @@ final class AudioTests: XCTestCase {
 
     private func makeEvent(
         deviceName: String,
+        eventType: AudioDeviceChangeEvent.EventType = .defaultOutputChanged,
         secondsAgo: Double
     ) -> AudioDeviceChangeEvent {
         AudioDeviceChangeEvent(
             timestamp: Date().addingTimeInterval(-secondsAgo),
+            eventType: eventType,
             deviceName: deviceName,
             transportType: .builtIn
         )

@@ -18,28 +18,35 @@
 
 import Foundation
 
-/// Checks whether Wine is running for the current bottle.
+/// Checks whether Wine processes are running for the current bottle.
 ///
-/// Probes the bottle's wineserver (`wineserver -k0`), which is up for as long
-/// as any Wine process in the prefix is. Returns `.pass` if it is running and
-/// `.fail` if not. Uses `params["process"]` as an optional name for reporting
-/// purposes.
+/// Delegates to ``ProcessRegistry`` for the tracked process count.
+/// Returns `.pass` if processes are running (with count in evidence),
+/// `.fail` if none are running. Uses `params["process"]` as an optional
+/// filter name for reporting purposes.
 public struct ProcessRunningCheck: TroubleshootingCheck {
     public let checkId = "process.running_check"
 
+    public init() {}
+
+    public let signature: CheckSignature? = CheckSignature(
+        acceptedParams: ["process"], outcomes: [.pass, .fail]
+    )
+
     public func run(params: [String: String], context: CheckContext) async -> CheckResult {
         let processName = params["process"] ?? "wineserver"
-        let running = await Wine.isWineserverRunning(at: context.bottleURL)
+        let count = ProcessRegistry.shared.getProcessCount(for: context.bottleURL)
+
         let evidence = [
             "process": processName,
-            "running": "\(running)"
+            "count": "\(count)"
         ]
 
-        if running {
+        if count > 0 {
             return CheckResult(
                 outcome: .pass,
                 evidence: evidence,
-                summary: "Wine is running for this bottle",
+                summary: "\(count) Wine process(es) running",
                 confidence: .high
             )
         }
@@ -50,5 +57,26 @@ public struct ProcessRunningCheck: TroubleshootingCheck {
             summary: "No Wine processes running for this bottle",
             confidence: .high
         )
+    }
+
+    /// The summary of a result from this check in the user's language.
+    ///
+    /// ``CheckResult/summary`` stays in English because it is written to
+    /// history and escalation exports; this rebuilds the on-screen text from
+    /// the result's outcome and evidence.
+    ///
+    /// - Parameter result: A result produced by ``run(params:context:)``.
+    /// - Returns: The localized summary, or `nil` if the result was not
+    ///   produced by this check.
+    public static func localizedSummary(for result: CheckResult) -> String? {
+        switch result.outcome {
+        case .pass:
+            guard let count = result.evidence["count"].flatMap({ Int($0) }) else { return nil }
+            return String(localized: "troubleshooting.check.process.running \(count)")
+        case .fail:
+            return String(localized: "troubleshooting.check.process.none")
+        default:
+            return nil
+        }
     }
 }

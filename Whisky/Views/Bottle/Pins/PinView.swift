@@ -110,8 +110,18 @@ struct PinView: View {
             }
         }
 
-        program.launchFromUI { result in
-            toast = result.toastData
+        // Capture modifier flags synchronously before entering async context
+        let useTerminal = NSEvent.modifierFlags.contains(.shift)
+        Telemetry.capture(.firstProgramLaunchAttempted)
+        Task {
+            let result = await program.launchWithUserMode(useTerminal: useTerminal) { contentType, sizeBytes in
+                withAnimation {
+                    toast = .clipboardCleared(contentType: contentType, sizeBytes: sizeBytes)
+                }
+            }
+            withAnimation {
+                toast = result.toastData
+            }
         }
     }
 }

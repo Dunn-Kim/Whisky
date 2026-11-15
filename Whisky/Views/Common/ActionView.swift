@@ -24,6 +24,18 @@ struct ActionView: View {
     let actionName: LocalizedStringKey
     let action: () -> Void
 
+    init(
+        text: LocalizedStringKey,
+        subtitle: String = "",
+        actionName: LocalizedStringKey,
+        action: @escaping () -> Void
+    ) {
+        self.text = text
+        self.subtitle = subtitle
+        self.actionName = actionName
+        self.action = action
+    }
+
     var body: some View {
         HStack(alignment: subtitle.isEmpty ? .center : .top) {
             VStack(alignment: .leading) {

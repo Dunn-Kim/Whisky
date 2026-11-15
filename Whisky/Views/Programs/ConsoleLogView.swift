@@ -36,7 +36,8 @@ struct ConsoleLogView: View {
     @State private var showWineDebug = false
     @State private var currentExitCode: Int32?
     @State private var isStillRunning: Bool = false
-    @State private var lastFileOffset: UInt64 = 0
+    @State private var logFollower: WineLogFollower?
+    @State private var refreshTimer: Timer?
 
     /// Regex patterns that indicate WINEDEBUG output.
     private static let wineDebugPatterns: [String] = [
@@ -57,13 +58,12 @@ struct ConsoleLogView: View {
             actionBar
         }
         .onAppear { loadLog() }
+        .onDisappear { stopRefreshTimer() }
         .task {
             isStillRunning = runEntry.isRunning
             currentExitCode = runEntry.exitCode
-            // Live-tail once a second until the process exits (loadNewContent clears isStillRunning).
-            while isStillRunning {
-                guard await (try? Task.sleep(for: .seconds(1))) != nil else { return }
-                loadNewContent()
+            if runEntry.isRunning {
+                startRefreshTimer()
             }
         }
     }
@@ -80,7 +80,7 @@ struct ConsoleLogView: View {
                         + Text(" ")
                         + Text(runEntry.startTime, style: .time)
                     if let duration = runEntry.duration {
-                        Text(Self.formattedDuration(duration))
+                        Text(formattedDuration(duration))
                             .foregroundStyle(.secondary)
                     } else if isStillRunning {
                         Text("console.running")
@@ -92,9 +92,9 @@ struct ConsoleLogView: View {
             }
             Spacer()
             if isStillRunning {
-                Self.runningBadge("console.log.liveIndicator")
+                liveIndicator
             } else if let exitCode = currentExitCode {
-                Self.exitCodeBadge(exitCode)
+                exitCodeBadge(exitCode)
             }
         }
         .padding(.horizontal, 8)
@@ -213,7 +213,7 @@ struct ConsoleLogView: View {
         Group {
             if !isStillRunning, let exitCode = currentExitCode {
                 HStack {
-                    Text("console.exited \(exitCode)")
+                    Text("console.exited \(Int(exitCode))")
                         .font(.caption)
                         .foregroundStyle(exitCode == 0 ? .green : .red)
                     Spacer()
@@ -263,21 +263,20 @@ struct ConsoleLogView: View {
 
     // MARK: - Shared Components
 
-    static func runningBadge(_ label: LocalizedStringKey) -> some View {
+    private var liveIndicator: some View {
         HStack(spacing: 4) {
-            Image(systemName: "circle.fill")
-                .resizable()
+            Circle()
+                .fill(.green)
                 .frame(width: 6, height: 6)
-                .foregroundStyle(.green)
-                .symbolEffect(.pulse)
-            Text(label)
+                .modifier(ConsoleLogPulseModifier())
+            Text("console.log.liveIndicator")
                 .font(.caption)
                 .foregroundStyle(.green)
         }
     }
 
-    static func exitCodeBadge(_ exitCode: Int32) -> some View {
-        Text("console.exitCode \(exitCode)")
+    private func exitCodeBadge(_ exitCode: Int32) -> some View {
+        Text("console.exitCode \(Int(exitCode))")
             .font(.caption)
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
@@ -292,19 +291,8 @@ struct ConsoleLogView: View {
 // MARK: - ConsoleLogView Data Operations
 
 extension ConsoleLogView {
-    static func formattedDuration(_ interval: TimeInterval) -> String {
-        let totalSeconds = Int(interval)
-        let hours = totalSeconds / 3_600
-        let minutes = (totalSeconds % 3_600) / 60
-        let seconds = totalSeconds % 60
-
-        if hours > 0 {
-            return "\(hours)h \(minutes)m"
-        } else if minutes > 0 {
-            return "\(minutes)m \(seconds)s"
-        } else {
-            return "\(seconds)s"
-        }
+    func formattedDuration(_ interval: TimeInterval) -> String {
+        RunDurationFormatting.string(from: interval)
     }
 
     func loadLog() {
@@ -317,14 +305,15 @@ extension ConsoleLogView {
             return
         }
 
+        // One read for the lines and the offset the live tail goes on from.
+        var follower = WineLogFollower(logFileURL: logURL, start: .beginning)
         do {
-            let content = try String(contentsOf: logURL, encoding: .utf8)
-            logLines = classifyLines(content)
-            if let attributes = try? FileManager.default.attributesOfItem(
-                atPath: logURL.path(percentEncoded: false)
-            ) {
-                lastFileOffset = (attributes[.size] as? UInt64) ?? 0
+            let chunk = try follower.read()
+            guard let content = String(data: chunk.data, encoding: .utf8) else {
+                throw CocoaError(.fileReadInapplicableStringEncoding)
             }
+            logLines = classifyLines(content)
+            logFollower = follower
         } catch {
             logLines = [ConsoleLogLine(
                 text: String(localized: "console.log.loadError"),
@@ -337,28 +326,25 @@ extension ConsoleLogView {
         let logURL = Wine.logsFolder.appending(path: runEntry.logFileName)
         guard FileManager.default.fileExists(atPath: logURL.path(percentEncoded: false)) else { return }
 
-        do {
-            let handle = try FileHandle(forReadingFrom: logURL)
-            defer { try? handle.close() }
-
-            handle.seek(toFileOffset: lastFileOffset)
-            guard let newData = try handle.readToEnd(), !newData.isEmpty else { return }
-
-            lastFileOffset += UInt64(newData.count)
-
-            if let newContent = String(data: newData, encoding: .utf8) {
-                let newLines = classifyLines(newContent)
-                logLines.append(contentsOf: newLines)
+        var follower = logFollower ?? WineLogFollower(logFileURL: logURL, start: .beginning)
+        if let chunk = try? follower.read() {
+            logFollower = follower
+            if chunk.resumedAtMarker {
+                // The log reached its size cap and was cut back to its head
+                // with the newest output after it; read it again from the top.
+                loadLog()
+            } else if !chunk.data.isEmpty, let newContent = String(data: chunk.data, encoding: .utf8) {
+                logLines.append(contentsOf: classifyLines(newContent))
             }
-        } catch {
-            // Best-effort: ignore read errors during live tailing
         }
+        // Read errors are ignored during live tailing; the next tick tries again.
 
         // Check if the process has exited
         let history = RunLogStore.load(for: runEntry.programName, in: bottle.url)
         if let updated = history.entries.first(where: { $0.id == runEntry.id }), !updated.isRunning {
             isStillRunning = false
             currentExitCode = updated.exitCode
+            stopRefreshTimer()
         }
     }
 
@@ -419,6 +405,20 @@ extension ConsoleLogView {
             }
         }
     }
+
+    func startRefreshTimer() {
+        stopRefreshTimer()
+        refreshTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
+            Task { @MainActor in
+                loadNewContent()
+            }
+        }
+    }
+
+    func stopRefreshTimer() {
+        refreshTimer?.invalidate()
+        refreshTimer = nil
+    }
 }
 
 // MARK: - Supporting Types
@@ -437,4 +437,19 @@ enum ConsoleLogChannel {
     case stderr
     /// WINEDEBUG diagnostic output.
     case wineDebug
+}
+
+/// Pulse animation modifier for the live streaming indicator.
+private struct ConsoleLogPulseModifier: ViewModifier {
+    @State private var isPulsing = false
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(isPulsing ? 0.4 : 1.0)
+            .animation(
+                .easeInOut(duration: 0.6).repeatForever(autoreverses: true),
+                value: isPulsing
+            )
+            .onAppear { isPulsing = true }
+    }
 }

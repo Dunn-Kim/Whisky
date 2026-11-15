@@ -38,22 +38,17 @@ If problems persist, see launcher-specific sections below.
    - Open bottle → Config → Launcher Compatibility
    - Toggle "Launcher Compatibility Mode" ON
 
-2. **Verify Locale Setting:**
-   - Check "Locale Override" is set to **English (en_US.UTF-8)**
-   - This fixes ICU parsing errors in steamwebhelper
-
-3. **Check Configuration:**
+2. **Check Configuration:**
    - Click "Generate Diagnostics Report"
-   - Verify `LC_ALL=en_US.UTF-8` in environment variables
    - Verify `STEAM_DISABLE_CEF_SANDBOX=1`
 
-**Why This Happens:**
-Steam's Chromium-based web helper crashes when parsing dates/times in certain locales. The `.UTF-8` suffix is critical for proper Unicode handling.
+**About Locale:**
+Earlier versions forced `LC_ALL=en_US.UTF-8` for Steam to avoid this crash. That crash did not reproduce in current testing (steamwebhelper started and the login page loaded under German and Japanese locales on both the stable and beta engines), so the Steam preset now sets no locale. With Locale Override on **Auto**, Steam and the games it starts get your Mac's language and region as their Windows locale; pick another locale there to change that. Steam's own interface language is a Steam setting (Steam > Settings > Interface). If Steam's window fails to load under your locale, set Locale Override to English (en_US) and please report it.
 
 **Related Upstream Issues:**
 - whisky-app/whisky#946 (steamwebhelper crash)
 - whisky-app/whisky#1224 (UI unusable)
-- whisky-app/whisky#1241 (Locale fix discovery)
+- whisky-app/whisky#1241 (Earlier locale workaround)
 
 ---
 
@@ -67,23 +62,18 @@ Steam's Chromium-based web helper crashes when parsing dates/times in certain lo
 
 **Solution:**
 
-1. **Increase Network Timeout:**
-   - Open bottle → Config → Launcher Compatibility
-   - Enable Launcher Compatibility Mode
-   - Adjust "Network Timeout" slider to **90 seconds** or higher
+The fix is in Steam's own settings; Whisky has no setting that affects Steam downloads.
 
-2. **Verify Network Settings:**
-   - Generate diagnostics report
-   - Check `WINHTTP_CONNECT_TIMEOUT=90000`
-   - Check `WINE_FORCE_HTTP11=1`
+1. **Clear Download Cache:**
+   - In Steam, Settings → Downloads → Clear Download Cache
 
-3. **Force Download Region:**
-   - In Steam, Settings → Downloads
-   - Change download region to one geographically close
-   - Pause and resume download
+2. **Change Download Region:**
+   - In the same pane, pick a different download region close to you
+
+3. **Restart Steam** and resume the download. Check it is not just paused or queued in Steam → Downloads.
 
 **Why This Happens:**
-Wine's HTTP/2 implementation has issues. Forcing HTTP/1.1 and increasing timeouts resolves connection stability problems.
+Stalls usually come from a damaged download cache or a busy content server. Steam's content downloads do not go through Wine's WinHTTP or WinINet, and Wine reads no environment variable or registry value for network timeouts.
 
 **Related Upstream Issues:**
 - whisky-app/whisky#1148 (Downloads stall)
@@ -112,11 +102,7 @@ Wine's HTTP/2 implementation has issues. Forcing HTTP/1.1 and increasing timeout
    - Enable Launcher Compatibility Mode
    - Set Detection Mode to Automatic or manually select "Rockstar Games Launcher"
 
-3. **Force D3D11 Mode:**
-   - Config → Performance
-   - Toggle "Force D3D11 Mode" ON
-
-4. **Verify Configuration:**
+3. **Verify Configuration:**
    - Generate diagnostics report
    - Verify `DXVK: Enabled`
    - Verify `WINEDLLOVERRIDES=dxgi,d3d9,d3d10core,d3d11=n,b`
@@ -150,10 +136,9 @@ Rockstar's logo screen uses DirectX rendering that requires DXVK translation. Wi
    - Toggle "GPU Spoofing" ON
    - Select "NVIDIA" vendor (recommended)
 
-2. **Verify DirectX Feature Levels:**
+2. **Verify GPU Spoofing:**
    - Generate diagnostics report
-   - Check `D3DM_FEATURE_LEVEL_12_1=1`
-   - Check `GPU_VENDOR_ID=0x10DE`
+   - Check that GPU Spoofing shows as enabled
 
 3. **Check Locale:**
    - Set Locale Override to **English**
@@ -182,16 +167,12 @@ EA App performs GPU capability checks via DirectX. Wine's incomplete driver repo
    - Config → Launcher Compatibility → Enable
    - Locale Override → **English**
 
-2. **Enable D3D11 Mode:**
-   - Config → Performance
-   - Toggle "Force D3D11 Mode" ON
-
-3. **Verify CEF Sandbox:**
+2. **Verify CEF Sandbox:**
    - Generate diagnostics
    - Check `CEF_DISABLE_SANDBOX=1`
 
 **Why This Happens:**
-Epic's Chromium Embedded Framework conflicts with Wine's threading model. Disabling CEF sandbox and forcing D3D11 resolves the conflicts.
+Epic's Chromium Embedded Framework conflicts with Wine's threading model. Disabling the CEF sandbox resolves the conflicts.
 
 ---
 
@@ -205,21 +186,10 @@ Epic's Chromium Embedded Framework conflicts with Wine's threading model. Disabl
 
 **Solution:**
 
-1. **Force D3D11 Mode (REQUIRED):**
-   - Config → Performance
-   - Toggle "Force D3D11 Mode" ON
-
-2. **Enable DXVK Async:**
+1. **Enable DXVK Async:**
    - Config → DXVK
    - Enable DXVK
    - Toggle "DXVK Async" ON
-
-3. **Increase Network Timeout:**
-   - Config → Launcher Compatibility
-   - Adjust timeout to **90 seconds**
-
-**Why This Happens:**
-Ubisoft Connect requires D3D11 mode for stability. Ubisoft's servers can be slow, requiring higher timeouts.
 
 **Related Upstream Issues:**
 - whisky-app/whisky#1004 (Beta update issues)
@@ -240,12 +210,8 @@ Ubisoft Connect requires D3D11 mode for stability. Ubisoft's servers can be slow
 1. **Enable Launcher Compatibility:**
    - Full compatibility mode with English locale
 
-2. **Verify Sync Mode:**
-   - Generate diagnostics
-   - Check `WINEMSYNC=1` (or `WINEESYNC=1`)
-
 **Why This Happens:**
-Battle.net's web-based authentication requires proper Chromium rendering and threading configuration.
+Battle.net's web-based authentication requires proper Chromium rendering.
 
 ---
 
@@ -261,8 +227,8 @@ Battle.net's web-based authentication requires proper Chromium rendering and thr
 1. **Enable Launcher Compatibility:**
    - Detect as Paradox Launcher (Auto or Manual)
 
-3. **Enable D3D11:**
-   - Config → Performance → Force D3D11 Mode
+Whisky has no Paradox-specific environment fix. The `WINE_DISABLE_FAST_PATH`
+workaround earlier versions set is read by no shipped runtime, so it was removed.
 
 **Related Upstream Issues:**
 - whisky-app/whisky#1091 (Resource lookup bug)
@@ -330,16 +296,14 @@ Rosetta 2: ✅ Installed
 ```
 Compatibility Mode: ✅ Enabled
 Detected Launcher: Steam
-Launcher Locale: English (en_US.UTF-8)
+Launcher Locale: Auto
 GPU Spoofing: ✅ Enabled (NVIDIA)
 ```
 
 **Environment Variables:**
 Look for:
-- `LC_ALL=en_US.UTF-8` (locale fix)
 - `STEAM_DISABLE_CEF_SANDBOX=1` (CEF fix)
-- `GPU_VENDOR_ID=0x10DE` (GPU spoofing)
-- `WINHTTP_CONNECT_TIMEOUT=90000` (network timeout)
+- `MESA_GL_VERSION_OVERRIDE=4.6` (GPU spoofing)
 
 **Validation Results:**
 - ✅ Configuration is optimal
@@ -357,17 +321,9 @@ Look for:
 **Impact:** Logo won't display, launcher unusable  
 **Solution:** Enable DXVK immediately (critical)
 
-### ⚠️ "Steam may crash without en_US locale"
-**Impact:** steamwebhelper crashes likely  
-**Solution:** Set Locale Override to English
-
 ### ❌ "GPU spoofing REQUIRED for EA App"
 **Impact:** Black screen, "GPU not supported"  
 **Solution:** Enable GPU Spoofing (critical)
-
-### ⚠️ "D3D11 mode recommended"
-**Impact:** Reduced stability, potential crashes  
-**Solution:** Enable Force D3D11 Mode
 
 ---
 
@@ -442,14 +398,12 @@ Isolate launcher issues:
 ### Steam
 **Must Have:**
 - ✅ Launcher Compatibility Mode
-- ✅ Locale: English (en_US.UTF-8)
 
 **Recommended:**
 - ✅ DXVK (improves UI performance)
-- ✅ Network timeout: 90s
+- ✅ Locale: Auto (your Mac's language and region; the Steam preset sets no locale)
 
 **Critical Settings:**
-- `LC_ALL=en_US.UTF-8` (prevents steamwebhelper crash)
 - `STEAM_DISABLE_CEF_SANDBOX=1` (Wine compatibility)
 
 ---
@@ -460,12 +414,10 @@ Isolate launcher issues:
 - ✅ Launcher Compatibility Mode
 
 **Recommended:**
-- ✅ Force D3D11 Mode
 - ✅ Locale: English
 
 **Critical Settings:**
 - DXVK cannot be disabled
-- `D3DM_FORCE_D3D11=1` for game compatibility
 
 **Alternative:**
 Use `LauncherPatcher.exe` instead of `Launcher.exe`
@@ -482,8 +434,7 @@ Use `LauncherPatcher.exe` instead of `Launcher.exe`
 - ✅ Locale: English
 
 **Critical Settings:**
-- `GPU_VENDOR_ID=0x10DE` (passes GPU check)
-- `D3DM_FEATURE_LEVEL_12_1=1` (DirectX capability)
+- GPU Spoofing enabled
 
 ---
 
@@ -493,7 +444,6 @@ Use `LauncherPatcher.exe` instead of `Launcher.exe`
 - ✅ Locale: English
 
 **Recommended:**
-- ✅ Force D3D11 Mode
 - ✅ GPU Spoofing
 
 **Critical Settings:**
@@ -503,15 +453,12 @@ Use `LauncherPatcher.exe` instead of `Launcher.exe`
 
 ### Ubisoft Connect
 **Must Have:**
-- ✅ Force D3D11 Mode (stability)
 - ✅ Launcher Compatibility Mode
 
 **Recommended:**
 - ✅ DXVK + DXVK Async
-- ✅ Network timeout: 90s
 
 **Critical Settings:**
-- `D3DM_FORCE_D3D11=1` (required for stability)
 - `DXVK_ASYNC=1` (game compatibility)
 
 ---
@@ -531,11 +478,10 @@ Use `LauncherPatcher.exe` instead of `Launcher.exe`
 
 ### Paradox Launcher
 **Must Have:**
-- ✅ Force D3D11 Mode
 - ✅ Launcher Compatibility Mode
 
 **Critical Settings:**
-- `D3DM_FORCE_D3D11=1` (stability)
+- None beyond Launcher Compatibility Mode
 
 ---
 
@@ -669,8 +615,8 @@ Before making changes:
 ### Q: Can I customize individual launcher settings?
 **A:** Currently, settings apply to the detected launcher. Per-game overrides may be added in future versions.
 
-### Q: Why does my launcher require English locale?
-**A:** Chromium Embedded Framework in launchers has Unicode parsing bugs with certain locales. English (en_US.UTF-8) avoids these issues.
+### Q: Why do some launchers use an English locale?
+**A:** The Rockstar, EA App, Epic Games, and Battle.net presets set en_US.UTF-8 to avoid locale problems reported for those launchers. Steam's preset sets no locale, so with Locale Override on Auto, Steam and the games it starts get your Mac's language and region. Launcher bottles that older versions of Whisky set to English are put back on Auto once. Locale Override can pick a specific locale for any launcher.
 
 ---
 
@@ -680,8 +626,7 @@ Before making changes:
 |---------------|-------------------|--------------|
 | 15.0-15.2 | ✅ Full | None known |
 | 15.3 | ✅ Full | Graphics validation (handled) |
-| 15.4 | ✅ Full | Thread management (handled) |
-| 15.4.1+ | ✅ Full | Mach port timing (handled) |
+| 15.4+ | ✅ Full | Sync mode and Steam Runtime (handled) |
 | < 15.0 | ⚠️ Limited | Sequoia fixes not available |
 
 ---

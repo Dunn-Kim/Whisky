@@ -96,7 +96,9 @@ public struct DiagnosisHistory: Codable, Sendable {
     /// - Parameter entry: The diagnosis entry to append.
     public mutating func append(_ entry: DiagnosisHistoryEntry) {
         entries.append(entry)
-        entries = Array(entries.suffix(Self.maxEntries))
+        while entries.count > Self.maxEntries {
+            entries.removeFirst()
+        }
     }
 
     /// Removes all entries from the history.
@@ -107,19 +109,6 @@ public struct DiagnosisHistory: Codable, Sendable {
     /// Whether the history contains no entries.
     public var isEmpty: Bool {
         entries.isEmpty
-    }
-
-    /// Returns the URL for a program's diagnosis history plist file.
-    ///
-    /// - Parameters:
-    ///   - programName: The program's file name (e.g., `"game.exe"`).
-    ///   - bottleURL: The bottle's root directory URL.
-    /// - Returns: URL to `{bottle}/Program Settings/{programName}.diagnosis-history.plist`.
-    public static func url(for programName: String, in bottleURL: URL) -> URL {
-        bottleURL
-            .appending(path: "Program Settings")
-            .appending(path: programName)
-            .appendingPathExtension("diagnosis-history.plist")
     }
 
     /// Loads a diagnosis history from a plist file.

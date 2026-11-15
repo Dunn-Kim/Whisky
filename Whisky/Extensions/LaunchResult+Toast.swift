@@ -20,19 +20,49 @@ import WhiskyKit
 
 extension LaunchResult {
     /// Converts launch result to appropriate toast notification data.
-    /// Errors stay on screen until dismissed; everything else auto-dismisses.
+    /// Toast style and auto-dismiss behavior are derived from the testable properties
+    /// `notificationStyle` and `shouldAutoDismiss` defined in WhiskyKit.
     var toastData: ToastData {
-        switch self {
-        case let .launchedSuccessfully(name):
-            ToastData(message: String(localized: "status.launched \(name)"), style: .success, autoDismiss: true)
-        case let .launchedInTerminal(name):
-            ToastData(message: String(localized: "status.launchedTerminal \(name)"), style: .info, autoDismiss: true)
-        case let .launchFailed(_, errorDescription):
-            ToastData(
-                message: String(localized: "status.launchFailed \(errorDescription)"),
-                style: .error,
-                autoDismiss: false
-            )
+        let style: ToastStyle = switch notificationStyle {
+        case .success: .success
+        case .info: .info
+        case .error: .error
         }
+
+        let message = switch self {
+        case let .launchedSuccessfully(name):
+            String(localized: "status.launched \(name)")
+        case let .launchedInTerminal(name):
+            String(localized: "status.launchedTerminal \(name)")
+        case let .launchFailed(_, errorDescription):
+            String(localized: "status.launchFailed \(errorDescription)")
+        }
+
+        return ToastData(message: message, style: style, autoDismiss: shouldAutoDismiss)
+    }
+}
+
+extension ToastData {
+    /// The toast for a launch whose clipboard policy cleared the clipboard first.
+    ///
+    /// - Parameters:
+    ///   - contentType: ClipboardManager's identifier ("text", "image", "other").
+    ///   - sizeBytes: The size of what was cleared.
+    static func clipboardCleared(contentType: String, sizeBytes: Int) -> ToastData {
+        let sizeKB = (Double(sizeBytes) / 1_024.0).formatted(.number.precision(.fractionLength(1)))
+        let contentName = switch contentType {
+        case "text":
+            String(localized: "clipboard.contentType.text")
+        case "image":
+            String(localized: "clipboard.contentType.image")
+        default:
+            String(localized: "clipboard.contentType.other")
+        }
+        return ToastData(
+            message: String(localized: "clipboard.cleared.toast")
+                .replacingOccurrences(of: "{contentType}", with: contentName)
+                .replacingOccurrences(of: "{sizeKB}", with: sizeKB),
+            style: .info
+        )
     }
 }

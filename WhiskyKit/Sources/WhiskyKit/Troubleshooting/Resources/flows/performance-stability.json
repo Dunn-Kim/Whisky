@@ -1,4 +1,6 @@
 {
+  "version": 1,
+  "categoryId": "performance-stability",
   "entryNodeId": "check_enhanced_sync",
   "nodes": {
     "check_enhanced_sync": {
@@ -10,7 +12,7 @@
       "checkId": "setting.value_check",
       "params": {
         "setting": "enhancedSync",
-        "expected": "esync"
+        "expected": "msync,esync"
       },
       "on": {
         "pass": "escalate",
@@ -31,9 +33,22 @@
       "title": "Enable enhanced sync",
       "description": "Enabling enhanced sync reduces CPU overhead and improves frame pacing. Enable the DXVK HUD in Graphics settings to monitor frame times after applying this fix.",
       "fixId": "enable-esync",
+      "isReversible": true,
       "requiresConfirmation": false,
       "on": {
+        "applied": "verify_fix",
         "skipped": "escalate"
+      }
+    },
+    "verify_fix": {
+      "id": "verify_fix",
+      "type": "verify",
+      "phase": "verify",
+      "title": "Did this improve performance?",
+      "description": "Try launching the program and playing for a few minutes. Check if stuttering or instability is reduced.",
+      "on": {
+        "yes": "resolved",
+        "no": "escalate"
       }
     },
     "escalate": {
@@ -43,6 +58,13 @@
       "title": "Additional diagnostics needed",
       "description": "Try enabling the DXVK HUD in Graphics settings to monitor frame times, and check the Game Config section for recommended performance settings. Export a diagnostic report for further analysis.",
       "fragmentRef": "export-escalation"
+    },
+    "resolved": {
+      "id": "resolved",
+      "type": "info",
+      "phase": "export",
+      "title": "Problem resolved",
+      "description": "The performance issue has been improved. You can export a session report for your records."
     }
   }
 }

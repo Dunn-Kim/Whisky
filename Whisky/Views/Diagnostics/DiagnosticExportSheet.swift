@@ -22,8 +22,8 @@ import WhiskyKit
 
 /// Sheet view for exporting diagnostic reports with privacy controls.
 ///
-/// Presents toggles for sensitive details and full log inclusion. Supports
-/// ZIP export via NSSavePanel and Markdown clipboard copy.
+/// Presents toggles for sensitive details, remediation history, and full log
+/// inclusion. Supports ZIP export via NSSavePanel and Markdown clipboard copy.
 struct DiagnosticExportSheet: View {
     let diagnosis: CrashDiagnosis
     let bottle: Bottle
@@ -33,19 +33,28 @@ struct DiagnosticExportSheet: View {
     @Environment(\.dismiss) var dismiss
 
     @State private var includeSensitive = false
+    @State private var includeRemediationHistory = true
     @State private var includeFullLog = true
     @State private var isExporting = false
     @State private var showCopySuccess = false
+    /// Why the last Save ZIP failed, while its alert is up.
+    @State private var saveFailure: String?
 
     private var exportOptions: ExportOptions {
         ExportOptions(
             includeSensitiveDetails: includeSensitive,
+            includeRemediationHistory: includeRemediationHistory,
             includeFullLog: includeFullLog
         )
     }
 
     private var suggestedFilename: String {
-        DiagnosticExporter.zipFilename(bottleName: bottle.settings.name, programName: program.name, date: Date())
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyyMMdd-HHmmss"
+        let dateString = dateFormatter.string(from: Date())
+        let bottleName = sanitizeName(bottle.settings.name)
+        let programName = sanitizeName(program.name)
+        return "Whisky-Diagnostics-\(bottleName)-\(programName)-\(dateString).zip"
     }
 
     var body: some View {
@@ -60,6 +69,15 @@ struct DiagnosticExportSheet: View {
         }
         .padding(20)
         .frame(minWidth: 480)
+        .alert(
+            "diagnostics.export.saveFailed",
+            isPresented: Binding(get: { saveFailure != nil }, set: { if !$0 { saveFailure = nil } }),
+            presenting: saveFailure
+        ) { _ in
+            Button("button.ok") {}
+        } message: { reason in
+            Text(reason)
+        }
     }
 }
 
@@ -89,6 +107,15 @@ extension DiagnosticExportSheet {
                 }
             }
 
+            Toggle(isOn: $includeRemediationHistory) {
+                VStack(alignment: .leading) {
+                    Text("Include remediation history")
+                    Text("diagnostics.export.includeRemediationHistory.detail")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
             Toggle(isOn: $includeFullLog) {
                 VStack(alignment: .leading) {
                     Text("Include full log file")
@@ -102,7 +129,7 @@ extension DiagnosticExportSheet {
 
     private var actionButtons: some View {
         HStack {
-            Button("Cancel", role: .cancel) {
+            Button("button.cancel", role: .cancel) {
                 dismiss()
             }
             .keyboardShortcut(.cancelAction)
@@ -148,15 +175,22 @@ extension DiagnosticExportSheet {
             guard result == .OK, let destination = panel.url else { return }
             isExporting = true
             Task {
-                let zipURL = await DiagnosticExporter.exportZIP(
-                    diagnosis: diagnosis,
-                    bottle: bottle,
-                    program: program,
-                    logFileURL: logFileURL,
-                    options: exportOptions
-                )
-
-                try? moveFile(from: zipURL, to: destination)
+                do {
+                    try await DiagnosticExporter.exportZIP(
+                        diagnosis: diagnosis,
+                        bottle: bottle,
+                        program: program,
+                        logFileURL: logFileURL,
+                        timeline: loadRemediationTimeline(),
+                        options: exportOptions,
+                        to: destination
+                    )
+                } catch {
+                    // Stay open so the user can try again or pick another place.
+                    isExporting = false
+                    saveFailure = error.localizedDescription
+                    return
+                }
                 isExporting = false
                 dismiss()
             }
@@ -166,7 +200,13 @@ extension DiagnosticExportSheet {
     private func copyMarkdownReport() {
         isExporting = true
         Task {
-            let markdown = DiagnosticExporter.generateMarkdownReport(diagnosis: diagnosis, bottle: bottle)
+            let markdown = await DiagnosticExporter.generateMarkdownReport(
+                diagnosis: diagnosis,
+                bottle: bottle,
+                program: program,
+                timeline: loadRemediationTimeline(),
+                options: exportOptions
+            )
 
             NSPasteboard.general.clearContents()
             NSPasteboard.general.setString(markdown, forType: .string)
@@ -186,11 +226,18 @@ extension DiagnosticExportSheet {
 // MARK: - Helpers
 
 extension DiagnosticExportSheet {
-    private func moveFile(from source: URL, to destination: URL) throws {
-        let fileManager = FileManager.default
-        if fileManager.fileExists(atPath: destination.path(percentEncoded: false)) {
-            try fileManager.removeItem(at: destination)
-        }
-        try fileManager.moveItem(at: source, to: destination)
+    private func loadRemediationTimeline() -> RemediationTimeline? {
+        let timelineURL = RemediationTimeline.url(forProgramAt: program.url, inBottleAt: bottle.url)
+        let timeline = RemediationTimeline.load(from: timelineURL)
+        return timeline.isEmpty ? nil : timeline
+    }
+
+    private func sanitizeName(_ name: String) -> String {
+        let allowed = CharacterSet.alphanumerics
+        return name.unicodeScalars
+            .map { allowed.contains($0) ? String($0) : "-" }
+            .joined()
+            .replacingOccurrences(of: "--", with: "-")
+            .trimmingCharacters(in: CharacterSet(charactersIn: "-"))
     }
 }

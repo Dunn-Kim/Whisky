@@ -40,7 +40,7 @@ final class RegistryFixture: BottleRegistry {
     }
 }
 
-/// Thread-safe collector for duplication progress phases; the first phase is
+/// Thread-safe collector for duplication progress phases; the early phases are
 /// reported from a background task, the later ones from the main actor.
 private final class PhaseRecorder: @unchecked Sendable {
     private let lock = NSLock()
@@ -68,8 +68,9 @@ class BottleOperationsTestCase: XCTestCase {
     var exeURL: URL!
     var blockedURL: URL!
 
-    override func setUpWithError() throws {
-        tempDir = try makeTempDir()
+    override func setUp() {
+        super.setUp()
+        tempDir = FileManager.default.temporaryDirectory.appending(path: "bottle_ops_\(UUID().uuidString)")
         bottleURL = tempDir.appending(path: "Original")
         let gameDir = bottleURL.appending(path: "drive_c/Program Files/Game")
         try? FileManager.default.createDirectory(at: gameDir, withIntermediateDirectories: true)
@@ -77,6 +78,11 @@ class BottleOperationsTestCase: XCTestCase {
         blockedURL = gameDir.appending(path: "helper.exe")
         try? Data("game".utf8).write(to: exeURL)
         try? Data("helper".utf8).write(to: blockedURL)
+    }
+
+    override func tearDown() {
+        try? FileManager.default.removeItem(at: tempDir)
+        super.tearDown()
     }
 
     /// Creates the live bottle with a pin and a blocklist entry and registers
@@ -106,7 +112,7 @@ final class BottleOperationsMoveTests: BottleOperationsTestCase {
         let bottle = makeRegisteredBottle(in: registry)
         let destination = tempDir.appending(path: "Moved")
 
-        BottleOperations.move(bottleAt: bottleURL, to: destination, registry: registry)
+        try BottleOperations.move(bottleAt: bottleURL, to: destination, registry: registry)
 
         let fileManager = FileManager.default
         XCTAssertFalse(fileManager.fileExists(atPath: bottleURL.path(percentEncoded: false)))
@@ -138,7 +144,8 @@ final class BottleOperationsMoveTests: BottleOperationsTestCase {
         // after the settings were already rewritten (the issue #154 scenario).
         let destination = tempDir.appending(path: "missing/Moved")
 
-        BottleOperations.move(bottleAt: bottleURL, to: destination, registry: registry)
+        // The failure reaches the caller so the UI can say so and keep the old selection.
+        XCTAssertThrowsError(try BottleOperations.move(bottleAt: bottleURL, to: destination, registry: registry))
 
         XCTAssertTrue(FileManager.default.fileExists(atPath: bottleURL.path(percentEncoded: false)))
         XCTAssertEqual(bottle.settings.pins, originalPins)
@@ -161,12 +168,12 @@ final class BottleOperationsMoveTests: BottleOperationsTestCase {
     }
 
     @MainActor
-    func testMoveWithNoRegisteredBottleStillMovesDirectory() {
+    func testMoveWithNoRegisteredBottleStillMovesDirectory() throws {
         let registry = RegistryFixture()
         registry.bottlePaths = [bottleURL]
         let destination = tempDir.appending(path: "Moved")
 
-        BottleOperations.move(bottleAt: bottleURL, to: destination, registry: registry)
+        try BottleOperations.move(bottleAt: bottleURL, to: destination, registry: registry)
 
         XCTAssertFalse(FileManager.default.fileExists(atPath: bottleURL.path(percentEncoded: false)))
         XCTAssertTrue(FileManager.default.fileExists(atPath: destination.path(percentEncoded: false)))
@@ -261,16 +268,30 @@ final class BottleOperationsDuplicateTests: BottleOperationsTestCase {
             registry: registry
         ) { recorder.record($0) }
 
-        XCTAssertEqual(recorder.phases, [.copying, .updatingMetadata, .finalizing])
+        let phases = recorder.phases
+        XCTAssertEqual(phases.count, 5)
+        guard phases.count == 5 else { return }
+        XCTAssertEqual(phases[0], .calculatingSize)
+        guard case let .copying(bytesCopied: startBytes, totalBytes: total) = phases[1] else {
+            return XCTFail("expected a copying start phase, got \(phases[1])")
+        }
+        XCTAssertEqual(startBytes, 0)
+        XCTAssertEqual(phases[2], .copying(bytesCopied: total, totalBytes: total))
+        XCTAssertEqual(phases[3], .updatingMetadata)
+        XCTAssertEqual(phases[4], .finalizing)
     }
 
     @MainActor
-    func testDuplicateStripsDiagnosisHistoryFromClone() async throws {
+    func testDuplicateStripsTransientArtifactsFromClone() async throws {
         let registry = RegistryFixture()
         _ = makeRegisteredBottle(in: registry)
-        let settingsDir = bottleURL.appending(path: "Program Settings")
-        try FileManager.default.createDirectory(at: settingsDir, withIntermediateDirectories: true)
-        let historyFile = settingsDir.appending(path: "game.exe.diagnosis-history.plist")
+        let logFile = bottleURL.appending(path: "logs/old-run.log")
+        try FileManager.default.createDirectory(
+            at: bottleURL.appending(path: "logs"),
+            withIntermediateDirectories: true
+        )
+        try Data("log".utf8).write(to: logFile)
+        let historyFile = bottleURL.appending(path: "drive_c/game.exe.diagnosis-history.plist")
         try Data("history".utf8).write(to: historyFile)
 
         let newURL = try await BottleOperations.duplicate(
@@ -280,9 +301,13 @@ final class BottleOperationsDuplicateTests: BottleOperationsTestCase {
         )
 
         let fileManager = FileManager.default
-        let clonedHistory = newURL.appending(path: "Program Settings/game.exe.diagnosis-history.plist")
+        XCTAssertFalse(
+            fileManager.fileExists(atPath: newURL.appending(path: "logs/old-run.log").path(percentEncoded: false))
+        )
+        let clonedHistory = newURL.appending(path: "drive_c/game.exe.diagnosis-history.plist")
         XCTAssertFalse(fileManager.fileExists(atPath: clonedHistory.path(percentEncoded: false)))
-        // The source keeps its history.
+        // The source keeps its artifacts.
+        XCTAssertTrue(fileManager.fileExists(atPath: logFile.path(percentEncoded: false)))
         XCTAssertTrue(fileManager.fileExists(atPath: historyFile.path(percentEncoded: false)))
     }
 
@@ -344,24 +369,24 @@ final class BottleOperationsRemoveTests: BottleOperationsTestCase {
     }
 
     @MainActor
-    func testRemoveDeletingFilesPrunesRoutesToTheBottle() {
+    func testRemoveDeletingFilesPrunesRoutesToTheBottle() throws {
         let registry = RegistryFixture()
         _ = makeRegisteredBottle(in: registry)
         let (routing, otherBottle) = makeRouting()
 
-        BottleOperations.remove(bottleAt: bottleURL, deleteFiles: true, registry: registry, routing: routing)
+        try BottleOperations.remove(bottleAt: bottleURL, deleteFiles: true, registry: registry, routing: routing)
 
         XCTAssertNil(routing.bottleURL(forAppId: 1_245_620))
         XCTAssertEqual(routing.bottleURL(forAppId: 4_576_510)?.lastPathComponent, otherBottle.lastPathComponent)
     }
 
     @MainActor
-    func testRemoveKeepingFilesKeepsRoutes() {
+    func testRemoveKeepingFilesKeepsRoutes() throws {
         let registry = RegistryFixture()
         _ = makeRegisteredBottle(in: registry)
         let (routing, _) = makeRouting()
 
-        BottleOperations.remove(bottleAt: bottleURL, deleteFiles: false, registry: registry, routing: routing)
+        try BottleOperations.remove(bottleAt: bottleURL, deleteFiles: false, registry: registry, routing: routing)
 
         // The bottle is still on disk and can be re-imported; its routes wait
         // for it, inert until then because resolution ignores routes to
@@ -377,17 +402,19 @@ final class BottleOperationsRemoveTests: BottleOperationsTestCase {
         // Deleting the directory up front makes the file removal throw.
         try FileManager.default.removeItem(at: bottleURL)
 
-        BottleOperations.remove(bottleAt: bottleURL, deleteFiles: true, registry: registry, routing: routing)
+        XCTAssertThrowsError(
+            try BottleOperations.remove(bottleAt: bottleURL, deleteFiles: true, registry: registry, routing: routing)
+        )
 
         XCTAssertEqual(routing.bottleURL(forAppId: 1_245_620)?.lastPathComponent, bottleURL.lastPathComponent)
     }
 
     @MainActor
-    func testRemoveDeletingFilesRemovesDirectoryAndRegistryEntry() {
+    func testRemoveDeletingFilesRemovesDirectoryAndRegistryEntry() throws {
         let registry = RegistryFixture()
         _ = makeRegisteredBottle(in: registry)
 
-        BottleOperations.remove(bottleAt: bottleURL, deleteFiles: true, registry: registry)
+        try BottleOperations.remove(bottleAt: bottleURL, deleteFiles: true, registry: registry)
 
         XCTAssertFalse(FileManager.default.fileExists(atPath: bottleURL.path(percentEncoded: false)))
         XCTAssertTrue(registry.bottlePaths.isEmpty)
@@ -395,11 +422,11 @@ final class BottleOperationsRemoveTests: BottleOperationsTestCase {
     }
 
     @MainActor
-    func testRemoveKeepingFilesOnlyDeregisters() {
+    func testRemoveKeepingFilesOnlyDeregisters() throws {
         let registry = RegistryFixture()
         _ = makeRegisteredBottle(in: registry)
 
-        BottleOperations.remove(bottleAt: bottleURL, deleteFiles: false, registry: registry)
+        try BottleOperations.remove(bottleAt: bottleURL, deleteFiles: false, registry: registry)
 
         XCTAssertTrue(FileManager.default.fileExists(atPath: bottleURL.path(percentEncoded: false)))
         XCTAssertTrue(registry.bottlePaths.isEmpty)
@@ -407,15 +434,17 @@ final class BottleOperationsRemoveTests: BottleOperationsTestCase {
     }
 
     @MainActor
-    func testRemoveFailureKeepsRegistryEntry() throws {
+    func testRemoveFailureThrowsKeepsRegistryEntryAndClearsInFlight() throws {
         let registry = RegistryFixture()
-        _ = makeRegisteredBottle(in: registry)
+        let bottle = makeRegisteredBottle(in: registry)
         // Deleting the directory up front makes the file removal throw.
         try FileManager.default.removeItem(at: bottleURL)
 
-        BottleOperations.remove(bottleAt: bottleURL, deleteFiles: true, registry: registry)
+        XCTAssertThrowsError(try BottleOperations.remove(bottleAt: bottleURL, deleteFiles: true, registry: registry))
 
         XCTAssertEqual(registry.bottlePaths, [bottleURL])
         XCTAssertEqual(registry.loadCount, 0)
+        // A failed remove must not leave the bottle disabled until relaunch.
+        XCTAssertFalse(bottle.inFlight)
     }
 }

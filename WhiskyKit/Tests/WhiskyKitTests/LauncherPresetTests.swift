@@ -20,16 +20,13 @@
 import XCTest
 
 final class LauncherPresetTests: XCTestCase {
-    func testSteamPresetIncludesLocale() {
+    func testSteamPresetLeavesTheLocaleToTheMac() {
         let env = LauncherType.steam.environmentOverrides()
 
-        // Steam should set en_US locale to fix steamwebhelper crashes
-        XCTAssertEqual(env["LC_ALL"], "en_US.UTF-8")
-        XCTAssertEqual(env["LANG"], "en_US.UTF-8")
-
-        // Should force C locale for time/numeric to avoid ICU issues
-        XCTAssertEqual(env["LC_TIME"], "C")
-        XCTAssertEqual(env["LC_NUMERIC"], "C")
+        // steamwebhelper runs under other locales, so the preset sets none (#330)
+        for key in ["LC_ALL", "LANG", "LC_TIME", "LC_NUMERIC"] {
+            XCTAssertNil(env[key], key)
+        }
     }
 
     func testSteamPresetDisablesSandbox() {
@@ -47,12 +44,10 @@ final class LauncherPresetTests: XCTestCase {
         XCTAssertEqual(env["STEAM_RUNTIME"], "0")
     }
 
-    func testSteamPresetIncludesNetworkFixes() {
+    func testSteamPresetSetsNoWinHTTPTimeouts() {
         let env = LauncherType.steam.environmentOverrides()
 
-        // Network timeouts are now configured via bottle.settings.networkTimeout
-        // instead of directly in launcher presets. This allows user customization.
-        // Verify Steam preset doesn't set them (they're set by BottleSettings)
+        // Wine's winhttp and wininet read no timeout environment variables
         XCTAssertNil(env["WINHTTP_CONNECT_TIMEOUT"])
         XCTAssertNil(env["WINHTTP_RECEIVE_TIMEOUT"])
 
@@ -64,23 +59,23 @@ final class LauncherPresetTests: XCTestCase {
     func testRockstarRequiresDXVK() {
         let launcher = LauncherType.rockstar
 
-        // Rockstar Launcher requires DXVK to display logo — the requirement
-        // lives in requiresDXVK; nothing consumes a "DXVK_REQUIRED" env var.
+        // Rockstar Launcher requires DXVK to display logo
         XCTAssertTrue(launcher.requiresDXVK)
 
+        // DXVK is turned on through requiresDXVK, not an environment variable
         let env = launcher.environmentOverrides()
-        XCTAssertNil(env["DXVK_REQUIRED"])
-        // Nothing in the runtime reads it, and x64 executables are
-        // large-address-aware already.
-        XCTAssertNil(env["WINE_LARGE_ADDRESS_AWARE"])
+        XCTAssertNil(env["DXVK_REQUIRED"], "No shipped runtime reads DXVK_REQUIRED")
+        XCTAssertNil(env["D3DM_FORCE_D3D11"], "No shipped runtime reads D3DM_FORCE_D3D11")
     }
 
     func testEAAppPreset() {
         let env = LauncherType.eaApp.environmentOverrides()
 
-        // GPU detection is the spoof's job (LauncherFixes turns it on).
         XCTAssertEqual(env["LC_ALL"], "en_US.UTF-8")
         XCTAssertEqual(env["LANG"], "en_US.UTF-8")
+        // GPU detection is the spoof's job (LauncherFixes turns it on); no
+        // shipped runtime reads the D3DMetal feature-level keys.
+        XCTAssertNil(env["D3DM_FEATURE_LEVEL_12_1"])
 
         // Note: CEF_DISABLE_SANDBOX is set globally in MacOSCompatibility.swift
         XCTAssertNil(env["CEF_DISABLE_SANDBOX"], "Should be set globally, not in preset")
@@ -94,13 +89,15 @@ final class LauncherPresetTests: XCTestCase {
 
         // Epic-specific settings
         XCTAssertEqual(env["LC_ALL"], "en_US.UTF-8")
-        XCTAssertNil(env["WINE_DISABLE_NTDLL_THREAD_REGS"], "Unread by the shipped runtime")
+        XCTAssertNil(env["WINE_DISABLE_NTDLL_THREAD_REGS"], "No shipped runtime reads it")
+        XCTAssertNil(env["D3DM_FORCE_D3D11"])
     }
 
     func testUbisoftPreset() {
         let env = LauncherType.ubisoft.environmentOverrides()
 
         XCTAssertEqual(env["DXVK_ASYNC"], "1")
+        XCTAssertNil(env["D3DM_FORCE_D3D11"])
     }
 
     func testBattleNetPreset() {
@@ -111,31 +108,31 @@ final class LauncherPresetTests: XCTestCase {
 
         // Battle.net-specific settings
         XCTAssertEqual(env["LC_ALL"], "en_US.UTF-8")
-        XCTAssertNil(env["WINE_CPU_TOPOLOGY"], "Unread by the shipped runtime")
-    }
-
-    func testZfGameFixDetails() {
-        // fixDetails() is what the UI shows; the overrides alone don't cover it.
-        XCTAssertEqual(
-            LauncherType.zfGame.fixDetails().first { $0.key == "DXVK_ASYNC" }?.value, "1"
-        )
+        XCTAssertNil(env["WINE_CPU_TOPOLOGY"], "No shipped runtime reads it")
     }
 
     func testParadoxPreset() {
-        // Both variables the preset used to set are read by no shipped runtime,
-        // so Paradox has no environment fix.
+        // The resource lookup workaround set WINE_DISABLE_FAST_PATH, which
+        // no shipped runtime reads, so Paradox has no environment fix.
         XCTAssertTrue(LauncherType.paradox.environmentOverrides().isEmpty)
         XCTAssertTrue(LauncherType.paradox.fixDetails().isEmpty)
     }
 
+    func testFixDetailsMatchEnvironmentOverrides() {
+        for launcher in LauncherType.allCases {
+            let details = Dictionary(uniqueKeysWithValues: launcher.fixDetails().map { ($0.key, $0.value) })
+            XCTAssertEqual(details, launcher.environmentOverrides(), "\(launcher.rawValue)")
+        }
+    }
+
     func testRecommendedLocales() {
-        // Steam, EA App, Epic Games, Battle.net should recommend English
-        XCTAssertEqual(LauncherType.steam.recommendedLocale, .english)
+        // EA App, Epic Games, Battle.net should recommend English
         XCTAssertEqual(LauncherType.eaApp.recommendedLocale, .english)
         XCTAssertEqual(LauncherType.epicGames.recommendedLocale, .english)
         XCTAssertEqual(LauncherType.battleNet.recommendedLocale, .english)
 
-        // Others can use auto
+        // Others can use auto; Steam's language follows the Mac's (#330)
+        XCTAssertEqual(LauncherType.steam.recommendedLocale, .auto)
         XCTAssertEqual(LauncherType.rockstar.recommendedLocale, .auto)
         XCTAssertEqual(LauncherType.ubisoft.recommendedLocale, .auto)
     }

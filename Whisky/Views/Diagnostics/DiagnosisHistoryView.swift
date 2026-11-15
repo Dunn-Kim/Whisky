@@ -19,21 +19,26 @@
 import SwiftUI
 import WhiskyKit
 
-/// View showing per-program crash diagnosis history with view/clear actions
+/// View showing per-program crash diagnosis history with view/re-analyze/clear actions
 /// and an enhanced logging section with WINEDEBUG preset picker.
 struct DiagnosisHistoryView: View {
     @ObservedObject var bottle: Bottle
     @ObservedObject var program: Program
 
-    let onViewDetails: (DiagnosisHistoryEntry) -> Void
-    let onAnalyzeLastRun: () -> Void
+    var onViewDetails: ((DiagnosisHistoryEntry) -> Void)?
+    var onReanalyze: ((DiagnosisHistoryEntry) -> Void)?
+    var onAnalyzeLastRun: (() -> Void)?
+    var onRerunWithPreset: ((WineDebugPreset) -> Void)?
 
     @State private var history = DiagnosisHistory()
     @State private var showClearConfirmation = false
     @State private var selectedPreset: WineDebugPreset = .normal
 
     private var historyURL: URL {
-        DiagnosisHistory.url(for: program.name, in: bottle.url)
+        bottle.url
+            .appending(path: "Program Settings")
+            .appending(path: program.name)
+            .appendingPathExtension("diagnosis-history.plist")
     }
 
     var body: some View {
@@ -76,13 +81,15 @@ extension DiagnosisHistoryView {
                 .foregroundStyle(.secondary)
                 .font(.callout)
 
-            Button("Analyze last run") {
-                onAnalyzeLastRun()
+            if let onAnalyzeLastRun {
+                Button("Analyze last run") {
+                    onAnalyzeLastRun()
+                }
+                .buttonStyle(.bordered)
+                // Analysis reads the last run's log; before the first run the
+                // button would otherwise click through to nothing.
+                .disabled(program.settings.lastLogFileURL == nil)
             }
-            .buttonStyle(.bordered)
-            // Analysis reads the last run's log; before the first run the
-            // button would otherwise click through to nothing.
-            .disabled(program.settings.lastLogFileURL == nil)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 8)
@@ -110,13 +117,13 @@ extension DiagnosisHistoryView {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
                 Image(systemName: entry.primaryCategory.sfSymbol)
-                    .foregroundStyle(entry.primaryCategory.color)
+                    .foregroundStyle(colorForCategory(entry.primaryCategory))
                     .font(.body)
                 Text(entry.primaryCategory.displayName)
                     .font(.body)
                     .fontWeight(.medium)
                 Spacer()
-                ConfidenceBadge(tier: entry.confidenceTier)
+                confidenceBadge(entry.confidenceTier)
             }
 
             Text(entry.timestamp, style: .relative)
@@ -131,12 +138,37 @@ extension DiagnosisHistoryView {
                     .truncationMode(.tail)
             }
 
-            Button("View Details") {
-                onViewDetails(entry)
+            HStack(spacing: 8) {
+                if let onViewDetails {
+                    Button("View Details") {
+                        onViewDetails(entry)
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                }
+
+                if let onReanalyze {
+                    Button("Re-analyze") {
+                        onReanalyze(entry)
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                }
             }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
         }
+    }
+
+    private func confidenceBadge(_ tier: ConfidenceTier) -> some View {
+        Text(tier.localizedName)
+            .font(.caption2)
+            .fontWeight(.medium)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(
+                Capsule()
+                    .fill(colorForConfidence(tier).opacity(0.15))
+            )
+            .foregroundStyle(colorForConfidence(tier))
     }
 
     private var clearButton: some View {
@@ -148,7 +180,7 @@ extension DiagnosisHistoryView {
             Button("Clear", role: .destructive) {
                 clearHistory()
             }
-            Button("Cancel", role: .cancel) {}
+            Button("button.cancel", role: .cancel) {}
         } message: {
             Text("This will remove all crash diagnosis records for this program.")
         }
@@ -181,6 +213,13 @@ extension DiagnosisHistoryView {
                     .font(.caption)
                     .foregroundStyle(.orange)
             }
+
+            if selectedPreset != .normal, let onRerunWithPreset {
+                Button("Re-run with enhanced logging") {
+                    onRerunWithPreset(selectedPreset)
+                }
+                .buttonStyle(.bordered)
+            }
         }
     }
 }
@@ -197,5 +236,25 @@ extension DiagnosisHistoryView {
         mutableHistory.clear()
         try? mutableHistory.save(to: historyURL)
         history = mutableHistory
+    }
+
+    private func colorForCategory(_ category: CrashCategory) -> Color {
+        switch category {
+        case .coreCrashFatal: .red
+        case .graphics: .orange
+        case .dependenciesLoading: .blue
+        case .prefixFilesystem: .purple
+        case .networkingLaunchers: .cyan
+        case .antiCheatUnsupported: .gray
+        case .otherUnknown: .secondary
+        }
+    }
+
+    private func colorForConfidence(_ tier: ConfidenceTier) -> Color {
+        switch tier {
+        case .high: .green
+        case .medium: .yellow
+        case .low: .gray
+        }
     }
 }

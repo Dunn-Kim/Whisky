@@ -62,8 +62,8 @@ public struct BottleLauncherConfig: Codable, Equatable {
 
     /// Locale override for launcher compatibility.
     ///
-    /// Most launchers (Steam, EA App, Epic) work best with `en_US.UTF-8`
-    /// to avoid steamwebhelper crashes and date/time parsing issues.
+    /// Auto keeps the launcher preset's locale, or the Mac's when the preset
+    /// sets none (Steam's sets none, #330).
     var launcherLocale: Locales = .auto
 
     /// Whether to enable GPU spoofing for launcher compatibility checks.
@@ -75,16 +75,37 @@ public struct BottleLauncherConfig: Codable, Equatable {
     /// GPU vendor to spoof when `gpuSpoofing` is enabled.
     var gpuVendor: GPUVendor = .nvidia
 
-    /// Network timeout in milliseconds for launcher downloads.
-    ///
-    /// Addresses Steam download stalls at 99% and connection timeouts.
-    /// Default: 60000ms (60 seconds)
-    var networkTimeout: Int = 60_000
-
     /// Whether to automatically apply DXVK when launcher requires it.
     ///
     /// Some launchers (Rockstar) will not render UI without DXVK.
     var autoEnableDXVK: Bool = true
+
+    /// The last ``LauncherBackendMigration`` this bottle has been through.
+    ///
+    /// A bottle created by this version starts at the current one, since the
+    /// profile it migrates from was never applied to it. A file without the
+    /// key predates the migration and decodes as `0`.
+    var backendMigration: Int = LauncherBackendMigration.current
+
+    /// Whether the graphics settings should say the migration put the bottle
+    /// back on Recommended, until the user dismisses it or picks a backend.
+    var backendResetNotice: Bool = false
+
+    /// Whether the bottle is on DXVK because a launcher profile switched it
+    /// there from Recommended, rather than because the user picked it.
+    ///
+    /// Set where the Steam profile has to switch the whole bottle, which is on
+    /// a runtime without the D3DMetal payload. Once the payload is installed,
+    /// ``LauncherBackendMigration`` puts such a bottle back on Recommended and
+    /// Steam keeps DXVK per executable. Any other change of backend clears it.
+    var backendSwitchedByLauncher: Bool = false
+
+    /// The last ``LauncherLocaleMigration`` this bottle has been through.
+    ///
+    /// A bottle created by this version starts at the current one, since no
+    /// older Steam fixes ever wrote its locale. A file without the key
+    /// predates the migration and decodes as `0`.
+    var localeMigration: Int = LauncherLocaleMigration.current
 
     public init() {}
 
@@ -96,8 +117,13 @@ public struct BottleLauncherConfig: Codable, Equatable {
         self.launcherLocale = container.decodeLenientIfPresent(Locales.self, forKey: .launcherLocale) ?? .auto
         self.gpuSpoofing = try container.decodeIfPresent(Bool.self, forKey: .gpuSpoofing) ?? true
         self.gpuVendor = container.decodeLenientIfPresent(GPUVendor.self, forKey: .gpuVendor) ?? .nvidia
-        self.networkTimeout = try container.decodeIfPresent(Int.self, forKey: .networkTimeout) ?? 60_000
         self.autoEnableDXVK = try container.decodeIfPresent(Bool.self, forKey: .autoEnableDXVK) ?? true
+        self.backendMigration = try container.decodeIfPresent(Int.self, forKey: .backendMigration) ?? 0
+        self.backendResetNotice = try container.decodeIfPresent(Bool.self, forKey: .backendResetNotice) ?? false
+        self.backendSwitchedByLauncher = try container.decodeIfPresent(
+            Bool.self, forKey: .backendSwitchedByLauncher
+        ) ?? false
+        self.localeMigration = try container.decodeIfPresent(Int.self, forKey: .localeMigration) ?? 0
     }
 }
 

@@ -44,7 +44,7 @@ final class BackendFixCoherenceTests: XCTestCase {
     // MARK: - Guided Troubleshooting
 
     private func fixNode(flow fileName: String, node nodeId: String) throws -> FlowStepNode {
-        let flow = try XCTUnwrap(FlowLoader.loadFlow(fileName))
+        let flow = try XCTUnwrap(FlowLoader.loadFlow(fileName: fileName))
         return try XCTUnwrap(flow.nodes[nodeId], "\(fileName) lost \(nodeId)")
     }
 
@@ -89,9 +89,12 @@ final class BackendFixCoherenceTests: XCTestCase {
     func testValidatorRejectsSwitchBackendWithoutTargetBackend() {
         func flow(params: [String: String]?) -> FlowDefinition {
             FlowDefinition(
+                version: 1,
+                categoryId: "test",
                 nodes: [
                     "start": FlowStepNode(
-                        id: "start", type: .fix, phase: .fix, params: params, fixId: "switch-backend"
+                        id: "start", type: .fix, phase: .fix, params: params,
+                        on: ["applied": "start"], fixId: "switch-backend"
                     )
                 ],
                 entryNodeId: "start"
@@ -99,21 +102,21 @@ final class BackendFixCoherenceTests: XCTestCase {
         }
 
         for params in [nil, ["backend": "not-a-backend"]] as [[String: String]?] {
-            let errors = validationErrors(flows: ["test": flow(params: params)])
+            let issues = FlowValidator.validate(flows: ["test": flow(params: params)], fragments: [:])
             XCTAssertTrue(
-                errors.contains { $0.contains("backend") },
-                "switch-backend with params \(String(describing: params)) must fail validation, got: \(errors)"
+                issues.contains { $0.severity == .error && $0.message.contains("backend") },
+                "switch-backend with params \(String(describing: params)) must fail validation, got: \(issues)"
             )
         }
 
-        let valid = validationErrors(flows: ["test": flow(params: ["backend": "dxvk"])])
-        XCTAssertFalse(valid.contains { $0.contains("backend") }, "got: \(valid)")
+        let valid = FlowValidator.validate(flows: ["test": flow(params: ["backend": "dxvk"])], fragments: [:])
+        XCTAssertFalse(valid.contains { $0.message.contains("backend") }, "got: \(valid)")
     }
 
     // MARK: - Crash diagnosis card
 
     private func switchBackendRemediation() throws -> RemediationAction {
-        let remediations = PatternLoader.defaultRemediations()
+        let (_, remediations) = PatternLoader.loadDefaults()
         return try XCTUnwrap(remediations["switch-backend"])
     }
 
@@ -139,7 +142,7 @@ final class BackendFixCoherenceTests: XCTestCase {
     }
 
     func testNonBackendRemediationsAlwaysApply() {
-        let remediations = PatternLoader.defaultRemediations()
+        let (_, remediations) = PatternLoader.loadDefaults()
         let others = remediations.values.filter { $0.actionType != .switchBackend }
         XCTAssertFalse(others.isEmpty)
         for action in others {

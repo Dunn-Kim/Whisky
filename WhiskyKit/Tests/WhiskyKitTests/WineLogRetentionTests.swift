@@ -22,8 +22,15 @@ import XCTest
 final class WineLogRetentionTests: XCTestCase {
     var tempDir: URL!
 
-    override func setUpWithError() throws {
-        tempDir = try makeTempDir()
+    override func setUp() {
+        super.setUp()
+        tempDir = FileManager.default.temporaryDirectory.appending(path: "logretention_\(UUID().uuidString)")
+        try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+    }
+
+    override func tearDown() {
+        try? FileManager.default.removeItem(at: tempDir)
+        super.tearDown()
     }
 
     /// Helper to create a log file with specific content
@@ -39,23 +46,6 @@ final class WineLogRetentionTests: XCTestCase {
         }
 
         return url
-    }
-
-    func testLogFilesListsOnlyVisibleRegularLogFiles() throws {
-        let modified = Date(timeIntervalSince1970: 1_700_000_000)
-        _ = try createLogFile(name: "wine.log", content: "abc", modificationDate: modified)
-        _ = try createLogFile(name: "UPPER.LOG", content: "de")
-        _ = try createLogFile(name: "notes.txt", content: "ignored")
-        _ = try createLogFile(name: ".hidden.log", content: "ignored")
-        try FileManager.default.createDirectory(
-            at: tempDir.appending(path: "folder.log"), withIntermediateDirectories: true
-        )
-
-        let files = try Wine.logFiles(in: tempDir).sorted { $0.url.lastPathComponent < $1.url.lastPathComponent }
-
-        XCTAssertEqual(files.map(\.url.lastPathComponent), ["UPPER.LOG", "wine.log"])
-        XCTAssertEqual(files.map(\.size), [2, 3])
-        XCTAssertEqual(files.last?.date, modified)
     }
 
     func testEnforceLogRetentionDoesNothingWhenUnderLimit() throws {

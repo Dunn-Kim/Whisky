@@ -90,7 +90,7 @@ struct GPTKInterposerPolicyTests {
 
         GPTKImporter.ensureVideoProcessorInstalled(bottles: [bottle], inLibraryFolder: runtime, usingStore: store)
 
-        #expect(GPTKImporter.isInstalled(GPTKImporter.videoProcessorInterposer, inLibraryFolder: runtime))
+        #expect(GPTKImporter.isVideoProcessorInstalled(inLibraryFolder: runtime))
         #expect(fixture.exists(fixture.placeholder(in: bottle)))
     }
 
@@ -124,7 +124,7 @@ struct GPTKInterposerPolicyTests {
         GPTKImporter.ensureVideoProcessorInstalled(bottles: [], inLibraryFolder: runtime, usingStore: store)
 
         #expect(try Data(contentsOf: slot) == before)
-        #expect(!GPTKImporter.isInstalled(GPTKImporter.videoProcessorInterposer, inLibraryFolder: runtime))
+        #expect(!GPTKImporter.isVideoProcessorInstalled(inLibraryFolder: runtime))
     }
 
     @Test("A d3d12 slot someone replaced by hand is not swapped at launch")

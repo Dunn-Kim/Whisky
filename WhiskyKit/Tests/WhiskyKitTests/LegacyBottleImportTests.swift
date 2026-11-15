@@ -126,6 +126,9 @@ final class LegacyBottleImportTests: XCTestCase {
 
         var settings = BottleSettings()
         settings.name = "My Real Bottle"
+        // Deliberately differ from the current default so the writing BottleSettings.decode(from:)
+        // path would rewrite this file — discovery must not.
+        settings.wineVersion = SemanticVersion(0, 0, 1)
         try settings.encode(to: metadata)
         let before = try Data(contentsOf: metadata)
 
@@ -154,5 +157,10 @@ final class LegacyBottleImportTests: XCTestCase {
     func testReturnsEmptyWhenContainerMissing() {
         let missing = FileManager.default.temporaryDirectory.appending(path: "missing_\(UUID().uuidString)")
         XCTAssertEqual(LegacyBottleImport.importableBottleURLs(legacyContainer: missing, existingPaths: []), [])
+        XCTAssertFalse(LegacyBottleImport.legacyContainerExists(at: missing))
+    }
+
+    func testLegacyContainerExists() {
+        XCTAssertTrue(LegacyBottleImport.legacyContainerExists(at: container))
     }
 }

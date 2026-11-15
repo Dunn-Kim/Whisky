@@ -57,6 +57,8 @@ struct SteamAppManifestTests {
         #expect(manifest.name == "Casualties: Unknown Demo")
         #expect(manifest.installDir == "Casualties Unknown Demo")
         #expect(manifest.stateFlags == 4)
+        #expect(manifest.buildID == 1_785_187_029)
+        #expect(manifest.sizeOnDisk == 541_968_407)
         #expect(manifest.isFullyInstalled)
         #expect(manifest.lastPlayed == Date(timeIntervalSince1970: 1_760_000_000))
     }
@@ -129,6 +131,13 @@ struct SteamAppManifestTests {
         #expect(SteamAppManifest(contentsOf: tempDir.appending(path: "missing.acf")) == nil)
     }
 
+    @Test("Legacy parseAppId fast path still works")
+    func parseAppIdCompat() {
+        let text = acf(appId: 1_245_620, name: "ELDEN RING", installDir: "ELDEN RING", stateFlags: 4)
+        #expect(SteamAppManifest.parseAppId(from: text) == 1_245_620)
+        #expect(SteamAppManifest.parseAppId(from: "no appid here") == nil)
+    }
+
     @Test("findAppIdForProgram walks parent directories")
     func findsAppIdNearExe() throws {
         let tempDir = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
@@ -140,9 +149,5 @@ struct SteamAppManifestTests {
 
         let found = SteamAppManifest.findAppIdForProgram(at: exeDir.appending(path: "game.exe"))
         #expect(found == 4_576_510)
-
-        // The first loop pass: steam_appid.txt next to the exe wins over a parent's.
-        try Data("42\n".utf8).write(to: exeDir.appending(path: "steam_appid.txt"))
-        #expect(SteamAppManifest.findAppIdForProgram(at: exeDir.appending(path: "game.exe")) == 42)
     }
 }

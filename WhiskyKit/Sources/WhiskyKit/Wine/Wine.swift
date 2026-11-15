@@ -71,6 +71,7 @@ private let logger = Logger(subsystem: Bundle.whiskyBundleIdentifier, category: 
 ///
 /// ### Wine Processes
 /// - ``runWineProcess(name:args:bottle:environment:)``
+/// - ``runWineserverProcess(name:args:bottle:environment:)``
 ///
 /// ### Utilities
 /// - ``wineVersion()``
@@ -92,35 +93,51 @@ public class Wine {
     /// URL to the `wineserver` binary for Wine server management.
     private static let wineserverBinary: URL = WhiskyWineInstaller.binFolder.appending(path: "wineserver")
 
-    private static let bottlesStartedThisSession = OSAllocatedUnfairLock(initialState: Set<URL>())
-
-    /// Whether this process has started any Wine work in the bottle since it launched.
-    ///
-    /// A wineserver in a bottle where this is false predates the app session,
-    /// so it is a leftover; one in a bottle where it is true may belong to a
-    /// program the user just started.
-    public static func hasStartedWork(in bottle: Bottle) -> Bool {
-        bottlesStartedThisSession.withLock { $0.contains(bottle.url.standardizedFileURL) }
-    }
-
-    static func recordStartedWork(in bottle: Bottle) {
-        bottlesStartedThisSession.withLock { _ = $0.insert(bottle.url.standardizedFileURL) }
-    }
-
     /// Run a process on a executable file given by the `executableURL`
     private static func runProcess(
-        name: String? = nil, args: [String], environment: [String: String], executableURL: URL,
-        fileHandle: FileHandle?, qualityOfService: QualityOfService = .userInitiated
+        name: String? = nil, args: [String], environment: [String: String], executableURL: URL, directory: URL? = nil,
+        fileHandle: FileHandle?
     ) throws -> AsyncStream<ProcessOutput> {
+        let process = makeProcess(
+            args: args, environment: environment, executableURL: executableURL, directory: directory
+        )
+        return try process.runStream(
+            name: name ?? args.joined(separator: " "), fileHandle: fileHandle
+        )
+    }
+
+    /// A process for the executable at `executableURL`, configured but not started.
+    static func makeProcess(
+        args: [String], environment: [String: String], executableURL: URL, directory: URL? = nil
+    ) -> Process {
         let process = Process()
         process.executableURL = executableURL
         process.arguments = args
-        process.currentDirectoryURL = executableURL.deletingLastPathComponent()
+        process.currentDirectoryURL = directory ?? executableURL.deletingLastPathComponent()
         process.environment = environment
-        process.qualityOfService = qualityOfService
+        process.qualityOfService = .userInitiated
+        return process
+    }
 
-        return try process.runStream(
-            name: name ?? args.joined(separator: " "), fileHandle: fileHandle
+    /// Run a `wine` process with the given arguments and environment variables returning a stream of output
+    private static func runWineProcess(
+        name: String? = nil, args: [String], environment: [String: String] = [:],
+        fileHandle: FileHandle?
+    ) throws -> AsyncStream<ProcessOutput> {
+        try runProcess(
+            name: name, args: args, environment: environment, executableURL: wineBinary,
+            fileHandle: fileHandle
+        )
+    }
+
+    /// Run a `wineserver` process with the given arguments and environment variables returning a stream of output
+    private static func runWineserverProcess(
+        name: String? = nil, args: [String], environment: [String: String] = [:],
+        fileHandle: FileHandle?
+    ) throws -> AsyncStream<ProcessOutput> {
+        try runProcess(
+            name: name, args: args, environment: environment, executableURL: wineserverBinary,
+            fileHandle: fileHandle
         )
     }
 
@@ -138,15 +155,11 @@ public class Wine {
     /// - Throws: An error if the process cannot be started.
     @MainActor
     public static func runWineProcess(
-        name: String? = nil, args: [String], bottle: Bottle, environment: [String: String] = [:],
-        createsLogFile: Bool = true
+        name: String? = nil, args: [String], bottle: Bottle, environment: [String: String] = [:]
     ) throws -> AsyncStream<ProcessOutput> {
-        // No log for polls whose output is parsed rather than read (tasklist.exe):
-        // a file per poll buries the launch logs people are asked to attach.
-        recordStartedWork(in: bottle)
-        let fileHandle = try createsLogFile ? makeFileHandle() : nil
-        fileHandle?.writeApplicationInfo()
-        fileHandle?.writeInfo(for: bottle)
+        let fileHandle = try makeFileHandle()
+        fileHandle.writeApplicationInfo()
+        fileHandle.writeInfo(for: bottle)
 
         WineUserProfile.reconcile(bottleURL: bottle.url)
         let wineEnvironment = constructWineEnvironment(for: bottle, environment: environment)
@@ -157,18 +170,32 @@ public class Wine {
         )
     }
 
-    /// A `wineserver <arg>` process with its output discarded, started from the binary's own folder.
+    /// Runs a Wine server process with the given arguments and returns a stream of output.
     ///
-    /// Not run through ``runProcess``: kills and `-k0` probes have no output worth a log file.
-    static func makeWineserverProcess(_ arg: String, environment: [String: String]) -> Process {
-        let process = Process()
-        process.executableURL = wineserverBinary
-        process.arguments = [arg]
-        process.currentDirectoryURL = wineserverBinary.deletingLastPathComponent()
-        process.environment = environment
-        process.standardOutput = FileHandle.nullDevice
-        process.standardError = FileHandle.nullDevice
-        return process
+    /// The Wine server manages shared resources and state for all Wine processes in a bottle.
+    /// This method is typically used for administrative operations like killing all processes.
+    ///
+    /// - Parameters:
+    ///   - name: An optional descriptive name for the process, used in logging.
+    ///   - args: The command-line arguments to pass to wineserver.
+    ///   - bottle: The ``Bottle`` context in which to run the server process.
+    ///   - environment: Additional environment variables to set for this process.
+    /// - Returns: An `AsyncStream` of ``ProcessOutput`` containing stdout, stderr, and lifecycle events.
+    /// - Throws: An error if the process cannot be started.
+    @MainActor
+    public static func runWineserverProcess(
+        name: String? = nil, args: [String], bottle: Bottle, environment: [String: String] = [:]
+    ) throws -> AsyncStream<ProcessOutput> {
+        let fileHandle = try makeFileHandle()
+        fileHandle.writeApplicationInfo()
+        fileHandle.writeInfo(for: bottle)
+
+        let wineserverEnvironment = constructWineEnvironment(for: bottle, environment: environment)
+
+        return try runProcess(
+            name: name, args: args, environment: wineserverEnvironment, executableURL: wineserverBinary,
+            fileHandle: fileHandle
+        )
     }
 
     /// Result of a Wine program run, providing the exit code and log file URL
@@ -178,6 +205,19 @@ public class Wine {
         public let exitCode: Int32
         /// URL to the log file created for this run.
         public let logFileURL: URL
+        /// The UUID of the run log entry created for this run.
+        ///
+        /// Use this to correlate the run result with the run log history
+        /// entry, e.g., to open the correct log entry in the console UI.
+        public let runLogEntryId: UUID
+        /// Completed once the session's output has closed: the log is then
+        /// complete, the run log entry is marked finished, and every late
+        /// output event has reached `onOutput`.
+        ///
+        /// A run returns when the `wine start` launcher exits, seconds after
+        /// launch. The program it started, and the bottle's services, keep
+        /// writing to the run's log until the bottle's session ends.
+        public let outputCompletion: ProcessOutputCompletion
     }
 
     /// What a program launch runs once its bottle has been prepared for it.
@@ -191,8 +231,9 @@ public class Wine {
         /// process this launch spawns: preparation moved the launch's own
         /// overrides into the prefix registry, where no child inherits them.
         let environment: [String: String]
-        /// The arguments `wine64` runs with: `start /unix` and the program, or
-        /// `explorer /desktop=...` for a program that runs in a virtual desktop.
+        /// The arguments `wine64` runs with: `start /unix` and the program,
+        /// preceded by `start explorer /desktop=...` for a program given its own
+        /// virtual desktop or kept out of the bottle's.
         let arguments: [String]
     }
 
@@ -230,8 +271,14 @@ public class Wine {
     ///   - gameProfileEnvironment: Environment variables from the game's GameDB profile.
     ///   - overridesApplyToDescendants: Whether the DLL overrides belong to a process this
     ///     one spawns rather than to `url` itself, as when `steam.exe` launches a game.
-    ///   - onOutput: Receives each output event of the `wine64` process as it arrives,
-    ///     starting with ``ProcessOutput/started`` once the process is running.
+    ///   - descendantExecutables: The executable names of what this launch starts, when the
+    ///     overrides apply to descendants.
+    ///   - descendantLaunchers: Launchers what this launch starts brings up on its own.
+    ///   - onOutput: Receives the launch's output events as they arrive, starting with
+    ///     ``ProcessOutput/started`` once the `wine64` process is running. ``ProcessOutput/terminated(_:)``
+    ///     is not the last event: what the program and the bottle's processes write after the
+    ///     launcher exits keeps arriving, after this method has returned, until the result's
+    ///     `outputCompletion` completes.
     /// - Returns: The exit code and log file of the run.
     /// - Throws: An error if the program cannot be started or Wine encounters an error.
     @discardableResult
@@ -241,14 +288,22 @@ public class Wine {
         programOverrides: ProgramOverrides? = nil, programSettings: ProgramSettings? = nil,
         gameProfileEnvironment: [String: String] = [:],
         overridesApplyToDescendants: Bool = false,
+        descendantExecutables: [String] = [],
+        descendantLaunchers: [LauncherType] = [],
         onOutput: (@MainActor (ProcessOutput) -> Void)? = nil
     ) async throws -> ProgramRunResult {
-        try await runProgram(at: url, bottle: bottle, onOutput: onOutput) {
-            try await prepareProgramLaunch(
+        try await runProgram(at: url, bottle: bottle, programSettings: programSettings, onOutput: onOutput) {
+            // Run... and opening a file with Whisky launch through here, so the
+            // audio settings (the pinned output device among them) reach the
+            // registry on these launches too.
+            await syncAudioRegistry(bottle: bottle)
+            return try await prepareProgramLaunch(
                 at: url, args: args, bottle: bottle, environment: environment,
                 programOverrides: programOverrides, programSettings: programSettings,
                 gameProfileEnvironment: gameProfileEnvironment,
-                overridesApplyToDescendants: overridesApplyToDescendants
+                overridesApplyToDescendants: overridesApplyToDescendants,
+                descendantExecutables: descendantExecutables,
+                descendantLaunchers: descendantLaunchers
             )
         }
     }
@@ -263,86 +318,92 @@ public class Wine {
     /// - Parameters:
     ///   - url: The URL to the Windows executable (.exe) file.
     ///   - bottle: The ``Bottle`` in which to run the program.
-    ///   - onOutput: Receives each output event of the `wine64` process as it arrives.
+    ///   - programSettings: The program's settings, whose `WINEDEBUG` preset the run log records.
+    ///   - onOutput: Receives the launch's output events as they arrive, including what
+    ///     arrives after ``ProcessOutput/terminated(_:)``, until `outputCompletion` completes.
     ///   - prepare: Prepares the bottle for the launch and returns what the launch runs.
     /// - Returns: The exit code and log file of the run.
     /// - Throws: An error if the bottle cannot be prepared or the program cannot be started.
     @MainActor
     static func runProgram(
-        at url: URL, bottle: Bottle,
+        at url: URL, bottle: Bottle, programSettings: ProgramSettings?,
         onOutput: (@MainActor (ProcessOutput) -> Void)?,
         prepare: @MainActor () async throws -> PreparedLaunch
     ) async throws -> ProgramRunResult {
         // Note: Launcher detection and fix application happen before this method
-        // is called, via LauncherFixes.detectAndApply from the app's run paths
-        // (FileOpenView/BottleView/ProgramMenuView).
+        // is called: in Program.launchWithUserMode for a program, and via
+        // LauncherFixes.detectAndApply in the app's run-a-file paths
+        // (FileOpenView, BottleActionBar).
 
-        recordStartedWork(in: bottle)
+        // Disable App Nap if requested, so macOS doesn't throttle Whisky while it
+        // pumps the session's output: held until the output closes, not only
+        // while the `wine start` launcher runs.
+        let activity = LaunchActivity(bottle: bottle)
+        var sessionHoldsActivity = false
+        defer {
+            if !sessionHoldsActivity {
+                activity.end()
+            }
+        }
+
         let launch = try await prepare()
 
+        // Opened after preparation, not before: the registry imports during
+        // preparation open logs of their own, and this way the program's log
+        // stays the newest in the folder, the one people are asked to attach.
         let (fileHandle, logFileURL) = try makeFileHandleWithURL()
         fileHandle.writeApplicationInfo()
         fileHandle.writeInfo(for: bottle)
 
-        // Create a run log entry to track this session
         let programName = url.lastPathComponent
-        let runLogEntry = RunLogEntry(programName: programName, logFileName: logFileURL.lastPathComponent)
-
-        // Persist the "running" state immediately
-        var runLogHistory = RunLogStore.load(for: programName, in: bottle.url)
-        let prunedEntries = runLogHistory.append(runLogEntry)
-        RunLogStore.save(runLogHistory, for: programName, in: bottle.url)
-
-        // Clean up log files for pruned entries
-        for pruned in prunedEntries {
-            let prunedLogURL = Self.logsFolder.appending(path: pruned.logFileName)
-            try? FileManager.default.removeItem(at: prunedLogURL)
-        }
+        let runLogEntryId = recordRunStart(
+            programName: programName, logFileURL: logFileURL, launch: launch,
+            programSettings: programSettings, bottle: bottle
+        )
 
         // As late as possible: the bridge holds the prefix open only for a short
         // grace window before standing down, so it wants the smallest gap it can
         // get between itself and the program it is bridging for.
         DiscordIntegration.shared.programLaunching(url, bottle: bottle)
 
+        let session = ProgramSession(onOutput: onOutput)
         var exitCode: Int32 = 0
-        // Game launches run user-interactive: on Apple Silicon the QoS class
-        // decides whether the scheduler offers performance or efficiency
-        // cores first, and a frame-producing process belongs on the former.
-        // Utility Wine invocations and wineserver stay at .userInitiated.
-        for await output in try runProcess(
-            name: programName,
-            args: launch.arguments,
-            environment: launch.environment, executableURL: wineBinary,
-            fileHandle: fileHandle, qualityOfService: .userInteractive
+        let process = makeProcess(args: launch.arguments, environment: launch.environment, executableURL: wineBinary)
+        for await output in try startTrackedProgram(
+            process, name: programName, bottle: bottle, fileHandle: fileHandle,
+            outputCompletion: session.pipeCompletion, lateOutput: session.lateOutput
         ) {
             onOutput?(output)
             if case let .terminated(code) = output {
                 exitCode = code
             }
         }
+        launcherDidExit(process, exitCode: exitCode)
 
-        // Update the run log entry with exit information
-        var updatedHistory = RunLogStore.load(for: programName, in: bottle.url)
-        updatedHistory.markCompleted(
-            id: runLogEntry.id,
-            exitCode: exitCode,
-            hasWineDebug: launch.environment.keys.contains("WINEDEBUG")
+        sessionHoldsActivity = true
+        let completion = session.finish { [exitCode] in
+            recordRunEnd(
+                id: runLogEntryId, programName: programName, exitCode: exitCode,
+                hasWineDebug: launch.environment.keys.contains("WINEDEBUG"), bottle: bottle
+            )
+            activity.end()
+        }
+        return ProgramRunResult(
+            exitCode: exitCode, logFileURL: logFileURL, runLogEntryId: runLogEntryId, outputCompletion: completion
         )
-        RunLogStore.save(updatedHistory, for: programName, in: bottle.url)
-
-        return ProgramRunResult(exitCode: exitCode, logFileURL: logFileURL)
     }
 
     /// Prepares a bottle to launch a program, without launching it.
     ///
     /// This is everything `runProgram` does before it starts the process: it
-    /// resolves the effective graphics backend, deploys that backend's files
-    /// into the prefix, builds the environment, and writes the launch's DLL
-    /// overrides into the prefix registry. What it writes stays in the prefix,
-    /// so running the returned arguments with the returned environment later,
-    /// from a terminal, starts the program with the DLLs and settings a launch
+    /// adds the Noto CJK aliases once Source Han Sans is installed, resolves
+    /// the effective graphics backend, deploys that backend's files into the
+    /// prefix, builds the environment, and writes the launch's DLL overrides
+    /// into the prefix registry. What it writes stays in the prefix, so running
+    /// the returned arguments with the returned environment later, from a
+    /// terminal, starts the program with the DLLs, fonts and settings a launch
     /// from Whisky gives it. What only happens while `runProgram` runs is not
-    /// part of it: the log file and run log entry, the process's QoS class, and
+    /// part of it: the log file and run log entry, the App Nap assertion, and
     /// the Discord bridge and presence.
     ///
     /// - Parameters:
@@ -354,37 +415,73 @@ public class Wine {
     ///   - programSettings: The program's settings, which carry its diagnostic `WINEDEBUG` preset.
     ///   - gameProfileEnvironment: Environment variables from the game's GameDB profile.
     ///   - overridesApplyToDescendants: Whether the DLL overrides belong to a process this one
-    ///     spawns. They then stay in the environment: the registry can only scope overrides to
-    ///     an executable whose name is known.
+    ///     spawns. For a launcher they go to `descendantExecutables` and the environment keeps
+    ///     none; otherwise they stay in the environment, since the registry can only scope
+    ///     overrides to an executable whose name is known.
+    ///   - descendantExecutables: The executable names of what this launch starts, when the
+    ///     overrides apply to descendants. The overrides go into their `AppDefaults` entries,
+    ///     replacing whatever an earlier launch or version left there.
+    ///   - descendantLaunchers: Launchers what this launch starts brings up on its own, such as
+    ///     the Rockstar Games Launcher a Rockstar title starts inside the Steam session.
+    ///   - recommendedBackend: What `.recommended` resolves to for the bottle's games.
+    ///     Defaults to the resolver's answer for the installed runtime; tests pin it.
+    ///   - builtinD3D12IsD3DMetal: Whether the runtime's builtin `d3d12` is D3DMetal's.
+    ///     Defaults to whether the GPTK payload is deployed; tests pin it.
     ///   - overrideWriter: What writes the DLL overrides into the prefix registry. Tests pass a
     ///     recorder, so they can see what a launch writes without running Wine.
+    ///   - importer: What imports the CJK font aliases the prefix is missing. Tests pass a
+    ///     recorder here too.
+    ///   - virtualDesktopQuery: Whether the bottle's registry turns its virtual desktop on.
+    ///     Only asked for a program whose override turns the virtual desktop off. Tests pin it.
     /// - Returns: The environment and `wine64` arguments the launch runs with.
-    /// - Throws: An error if a backend's files cannot be deployed or the registry import cannot
-    ///   be started.
+    /// - Throws: An error if a backend's files cannot be deployed or the DLL override import
+    ///   cannot be started. A failed font alias import is only logged.
     @MainActor
     static func prepareProgramLaunch(
         at url: URL, args: [String] = [], bottle: Bottle, environment: [String: String] = [:],
         programOverrides: ProgramOverrides? = nil, programSettings: ProgramSettings? = nil,
         gameProfileEnvironment: [String: String] = [:],
         overridesApplyToDescendants: Bool = false,
-        overrideWriter: DLLOverrideWriter = { try await syncDLLOverrides(bottle: $0, scopes: $1) }
+        descendantExecutables: [String] = [],
+        descendantLaunchers: [LauncherType] = [],
+        recommendedBackend: GraphicsBackend = GraphicsBackendResolver.resolve(),
+        builtinD3D12IsD3DMetal: Bool = GPTKImporter.isDeployed(),
+        overrideWriter: DLLOverrideWriter = { try await syncDLLOverrides(bottle: $0, scopes: $1) },
+        importer: RegistryImporter = { try await importRegistry(document: $0, bottle: $1) },
+        virtualDesktopQuery: VirtualDesktopQuery = { try await isVirtualDesktopEnabled(bottle: $0) }
     ) async throws -> PreparedLaunch {
+        // Font aliases first, before any setting is read: their import can take
+        // a few seconds, and a setting changed during it would leave this launch
+        // with one backend's files and another's environment. It must finish
+        // before the program starts, since a process reads the aliases once, and
+        // like every Wine process it reconciles the user profile before starting.
+        await syncCJKFontReplacements(bottle: bottle, importer: importer)
+
         // The effective backend for this launch: a program-level override wins
         // over the bottle setting, and `.recommended` resolves to its concrete
         // backend. This decides which translation layer's files are deployed;
         // the matching WINEDLLOVERRIDES come from the environment layers.
         // `.recommended` resolves against what is being launched, not just the
-        // machine.
+        // machine: a launcher is steered to DXVK. Not when the overrides are a
+        // descendant's, as with `steam.exe -applaunch`: steam.exe is only the
+        // vehicle there and the plan is the game's, so the game resolves the way
+        // the bottle's games do. Steered, every game started that way got DXVK's
+        // set, `d3d12=` included (#276). The launcher keeps DXVK through its own
+        // `AppDefaults` entry, written from the launcher's set.
+        let launcher = LauncherType.detect(from: url)
+        let steeredLauncher = overridesApplyToDescendants ? nil : launcher
         let effectiveBackendChoice = programOverrides?.graphicsBackend ?? bottle.settings.graphicsBackend
-        let effectiveBackend = effectiveBackendChoice == .recommended
-            ? GraphicsBackendResolver.resolve(for: LauncherType.detect(from: url))
-            : effectiveBackendChoice
+        let effectiveBackend = if effectiveBackendChoice == .recommended {
+            steeredLauncher.map { GraphicsBackendResolver.resolve(for: $0) } ?? recommendedBackend
+        } else {
+            effectiveBackendChoice
+        }
 
         // The bottle composes its overrides from its own resolution, which does
         // not know what is being launched, so pin the decision here or a
         // steered launcher gets DXVK's files and none of its overrides.
         var programOverrides = programOverrides
-        if effectiveBackendChoice == .recommended, effectiveBackend != GraphicsBackendResolver.resolve() {
+        if effectiveBackendChoice == .recommended, effectiveBackend != recommendedBackend {
             var pinned = programOverrides ?? ProgramOverrides()
             pinned.graphicsBackend = effectiveBackend
             programOverrides = pinned
@@ -394,141 +491,223 @@ public class Wine {
         // before anything in the bottle starts, or the app boots into an empty one.
         WineUserProfile.reconcile(bottleURL: bottle.url)
 
+        try prepareBackendPrefix(effectiveBackend, bottle: bottle)
+
+        // The MetalFX placeholder serves the bottle's games, and only D3DMetal
+        // answers it. A launcher's own launch says nothing about them, so it is
+        // keyed on what they resolve to: keyed on the launcher's DXVK, every
+        // Steam start took away the placeholder its games need (#276).
+        let gamesBackend = bottle.settings.graphicsBackend == .recommended
+            ? recommendedBackend : bottle.settings.graphicsBackend
+        applyMetalFX(bottle: bottle, backend: steeredLauncher == nil ? effectiveBackend : gamesBackend)
+
         // Enable DXVK if needed: effective backend, the legacy program-level
         // flag (honored only without a backend override, mirroring
-        // applyProgramOverrides), or launcher auto-enable.
+        // applyProgramOverrides), or launcher auto-enable. A launcher that only
+        // carries a game's plan still runs, and its helpers keep restarting, on
+        // DXVK: its files stay in place, and are copied after a DXMT plan's, so
+        // the launcher keeps working when the two share a file.
         let legacyProgramDXVK = programOverrides?.graphicsBackend == nil && programOverrides?.dxvk == true
-        let shouldEnableDXVK = effectiveBackend == .dxvk || legacyProgramDXVK ||
-            (bottle.settings.autoEnableDXVK &&
-                bottle.settings.detectedLauncher?.requiresDXVK == true)
-
-        // Backends only ever add their own files, so a switch used to leave the
-        // previous backend's natives behind: DXVK ships no dxgi, so a bottle
-        // moved from DXMT to DXVK kept DXMT's native dxgi and loaded it under
-        // DXVK's `dxgi=n,b` override — measured as a working D3D11 device that
-        // then failed the first swapchain mode switch. Restore Wine's builtin
-        // for every translation DLL the chosen backend will not install itself.
-        try restoreUnmanagedTranslationDLLs(bottle: bottle, for: effectiveBackend, enablingDXVK: shouldEnableDXVK)
-
-        try prepareBackendPrefix(effectiveBackend, bottle: bottle)
+        let shouldEnableDXVK = deploysDXVK(
+            effectiveBackend: effectiveBackend, legacyProgramDXVK: legacyProgramDXVK,
+            launcherCarriesDescendantPlan: overridesApplyToDescendants && launcher != nil,
+            autoEnableDXVK: bottle.settings.autoEnableDXVK, detectedLauncher: bottle.settings.detectedLauncher
+        )
 
         if shouldEnableDXVK {
             try enableDXVK(bottle: bottle)
         }
 
-        // Build the Wine environment with program overrides flowing through the programUser layer
-        var wineEnvironment = constructWineEnvironment(
-            for: bottle, environment: environment, programOverrides: programOverrides,
-            programSettings: programSettings, gameProfileEnvironment: gameProfileEnvironment
+        var wineEnvironment = launchEnvironment(
+            for: url, bottle: bottle, backend: effectiveBackend, environment: environment,
+            programOverrides: programOverrides, programSettings: programSettings, callerProfile: gameProfileEnvironment,
+            descendantExecutables: overridesApplyToDescendants ? descendantExecutables : nil,
+            recommendedBackend: recommendedBackend, builtinD3D12IsD3DMetal: builtinD3D12IsD3DMetal
         )
 
         try await applyDLLOverrides(
             for: url, bottle: bottle,
             wineEnvironment: &wineEnvironment,
             applyToDescendants: overridesApplyToDescendants,
+            descendantExecutables: descendantExecutables,
+            descendantLaunchers: descendantLaunchers,
+            recommendedBackend: recommendedBackend,
+            builtinD3D12IsD3DMetal: builtinD3D12IsD3DMetal,
             writer: overrideWriter
         )
 
-        // DXVK's pipeline state cache defaults to a file next to the
-        // executable — inside the bottle, so deleting the bottle deletes the
-        // cache and the next install recompiles every shader it had already
-        // seen. The Metal-side caches (d3dm/dxmt) already live outside the
-        // bottle keyed by executable name; park DXVK's cache the same way.
-        // Gated on shouldEnableDXVK, not the effective backend: launcher
-        // auto-enable and the legacy per-program flag also render through
-        // DXVK. A user-provided DXVK_STATE_CACHE_PATH wins.
-        if shouldEnableDXVK, wineEnvironment["DXVK_STATE_CACHE_PATH"] == nil {
-            if let cachePath = dxvkStateCacheWindowsPath(forProgram: url, bottle: bottle) {
-                wineEnvironment["DXVK_STATE_CACHE_PATH"] = cachePath
+        let arguments = await launchArguments(
+            for: url, args: args, programOverrides: programOverrides, bottle: bottle, query: virtualDesktopQuery
+        )
+        return PreparedLaunch(environment: wineEnvironment, arguments: arguments)
+    }
+
+    /// The environment a launch runs with: `constructWineEnvironment` with the
+    /// game's stored GameDB profile, plus the executable DXMT's Metal capture
+    /// needs named.
+    ///
+    /// - Parameters:
+    ///   - url: The executable being launched.
+    ///   - bottle: The bottle it runs in.
+    ///   - backend: The launch's effective graphics backend.
+    ///   - environment: The program's own environment variables.
+    ///   - programOverrides: The program's setting overrides.
+    ///   - programSettings: The program's settings.
+    ///   - callerProfile: The caller's GameDB profile environment (a Steam launch
+    ///     plan's), which wins over a profile stored in the bottle settings.
+    ///   - descendantExecutables: The game's executables when the launch only
+    ///     carries their plan, or `nil` when `url` is what renders.
+    ///   - recommendedBackend: What `.recommended` resolves to for the bottle.
+    ///   - builtinD3D12IsD3DMetal: Whether the runtime's builtin `d3d12` is D3DMetal's.
+    @MainActor
+    static func launchEnvironment(
+        for url: URL, bottle: Bottle, backend: GraphicsBackend,
+        environment: [String: String] = [:],
+        programOverrides: ProgramOverrides? = nil, programSettings: ProgramSettings? = nil,
+        callerProfile: [String: String] = [:],
+        descendantExecutables: [String]? = nil,
+        recommendedBackend: GraphicsBackend? = nil,
+        builtinD3D12IsD3DMetal: Bool = GPTKImporter.isDeployed()
+    ) -> [String: String] {
+        // A game configuration applied before the game was in the bottle keeps
+        // its variables in the bottle settings, scoped to the game's executables.
+        // The caller's profile (a Steam launch plan) wins where both set one.
+        let gameProfileEnvironment = bottle.settings.gameConfigProfile(launching: url, caller: callerProfile)
+
+        // Program overrides flow through the programUser layer.
+        var wineEnvironment = constructWineEnvironment(
+            for: bottle, environment: environment, programOverrides: programOverrides,
+            programSettings: programSettings, gameProfileEnvironment: gameProfileEnvironment,
+            recommendedBackend: recommendedBackend, builtinD3D12IsD3DMetal: builtinD3D12IsD3DMetal
+        )
+        nameDXMTCaptureExecutable(
+            in: &wineEnvironment, backend: backend, metalTrace: bottle.settings.metalTrace,
+            url: url, descendantExecutables: descendantExecutables
+        )
+        return wineEnvironment
+    }
+
+    /// Names the executable for DXMT's Metal capture, which DXMT ignores the
+    /// capture switch without.
+    ///
+    /// Only when the launch runs on DXMT with Metal trace on, and never over a
+    /// value the user set in the program's environment.
+    static func nameDXMTCaptureExecutable(
+        in environment: inout [String: String], backend: GraphicsBackend, metalTrace: Bool,
+        url: URL, descendantExecutables: [String]?
+    ) {
+        guard backend == .dxmt, metalTrace, environment["DXMT_CAPTURE_EXECUTABLE"] == nil,
+              let executable = dxmtCaptureExecutable(for: url, descendantExecutables: descendantExecutables)
+        else { return }
+        environment["DXMT_CAPTURE_EXECUTABLE"] = executable
+    }
+
+    /// The name DXMT's `DXMT_CAPTURE_EXECUTABLE` has to hold for a launch's
+    /// Metal capture to happen: the executable that renders, without `.exe`.
+    ///
+    /// DXMT captures only when the variable equals the name of the executable
+    /// it is loaded into. On `steam.exe -applaunch` that is the game, not the
+    /// launcher. The game's executables come from a scan of its install folder
+    /// in no particular order, with a crash handler or uninstaller among them,
+    /// so one is named only when it is the only candidate left once those are
+    /// set aside; otherwise naming the wrong one would capture nothing, and
+    /// nothing is named.
+    ///
+    /// Even then it reaches the game only when this `-applaunch` brings up
+    /// the Steam client itself: a running client starts the game with its own
+    /// environment. Metal trace under DXMT is dependable on a direct launch.
+    ///
+    /// - Parameters:
+    ///   - url: The executable being launched.
+    ///   - descendantExecutables: The game's executables when the launch only
+    ///     carries their plan, or `nil` when `url` is what renders.
+    /// - Returns: The name to set, or `nil` when no single executable is known.
+    static func dxmtCaptureExecutable(for url: URL, descendantExecutables: [String]?) -> String? {
+        let name: String?
+        if let descendantExecutables {
+            var seen = Set<String>()
+            let candidates = descendantExecutables.filter {
+                !$0.isEmpty && !isAuxiliaryExecutable($0) && seen.insert($0.lowercased()).inserted
             }
+            name = candidates.count == 1 ? candidates.first : nil
+        } else {
+            name = url.lastPathComponent
         }
-
-        // DXMT ignores MTL_CAPTURE_ENABLED unless DXMT_CAPTURE_EXECUTABLE equals
-        // the executable's name without ".exe" (dxmt_capture.cpp). A
-        // user-provided value wins.
-        if effectiveBackend == .dxmt, bottle.settings.metalTrace,
-           wineEnvironment["DXMT_CAPTURE_EXECUTABLE"] == nil {
-            wineEnvironment["DXMT_CAPTURE_EXECUTABLE"] = url.deletingPathExtension().lastPathComponent
-        }
-
-        return PreparedLaunch(
-            environment: wineEnvironment,
-            arguments: launchArguments(for: url, args: args, programOverrides: programOverrides)
-        )
+        guard let name, !name.isEmpty else { return nil }
+        return name.lowercased().hasSuffix(".exe") ? String(name.dropLast(4)) : name
     }
 
-    /// The `wine64` arguments for a launch, with an optional per-program virtual desktop.
+    /// Whether an executable in a game's folder is one that never renders the
+    /// game: a crash handler or reporter, an uninstaller, a redistributable or
+    /// prerequisite setup, or a launcher.
+    static func isAuxiliaryExecutable(_ name: String) -> Bool {
+        let lowercased = name.lowercased()
+        let markers = ["crashhandler", "crashreport", "redist", "prereq", "setup", "launcher", "cefsubprocess"]
+        return lowercased.hasPrefix("unins") || markers.contains { lowercased.contains($0) }
+    }
+
+    /// The `wine64` arguments for a launch, honoring a program's virtual desktop override.
+    ///
+    /// `explorer /desktop=<name>` starts the program on the named desktop. A
+    /// program set to On gets its own virtual desktop at its resolution. `root`
+    /// is Wine's name for a desktop with no virtual desktop (Wine 9 and later),
+    /// so a program set to Off runs outside the bottle's virtual desktop, even
+    /// while the bottle is running; its child processes inherit that desktop.
+    /// Off only takes the `root` route when the bottle's virtual desktop is on,
+    /// so on a bottle without one the program launches exactly as it would with
+    /// no override, on the same desktop as the bottle's other programs. Whether
+    /// it is on comes from the registry, which is what Wine reads; the bottle's
+    /// setting only mirrors it, and is only refreshed when its Display section
+    /// is shown, so it is the fallback when the registry cannot be read.
+    ///
+    /// The explorer command is itself run through `start`: explorer stays up
+    /// until the last program on its desktop quits, and `start` returns once it
+    /// has started explorer, the way it returns once it has started a program.
+    /// Run directly, the launch would last the whole session. `start /unix`
+    /// stays inside the explorer command: explorer would otherwise start the
+    /// program in Wine's working directory rather than the program's own folder.
+    @MainActor
     private static func launchArguments(
-        for url: URL, args: [String], programOverrides: ProgramOverrides?
-    ) -> [String] {
-        guard let overrides = programOverrides,
-              let vdEnabled = overrides.virtualDesktopEnabled, vdEnabled
-        else {
-            return ["start", "/unix", url.path(percentEncoded: false)] + args
+        for url: URL, args: [String], programOverrides: ProgramOverrides?, bottle: Bottle,
+        query virtualDesktopQuery: VirtualDesktopQuery
+    ) async -> [String] {
+        let start = ["start", "/unix", url.path(percentEncoded: false)] + args
+        guard let overrides = programOverrides, let enabled = overrides.virtualDesktopEnabled else {
+            return start
         }
-        let resolution = Self.resolveVirtualDesktopResolution(from: overrides)
-        let desktopName = url.lastPathComponent.replacingOccurrences(of: " ", with: "_")
-        return [
-            "explorer", "/desktop=\(desktopName),\(resolution)",
-            url.path(percentEncoded: false)
-        ] + args
+        if enabled {
+            let resolution = Self.resolveVirtualDesktopResolution(from: overrides)
+            let desktopName = url.lastPathComponent.replacingOccurrences(of: " ", with: "_")
+            return ["start", "explorer", "/desktop=\(desktopName),\(resolution)"] + start
+        }
+        let bottleHasVirtualDesktop = await (try? virtualDesktopQuery(bottle))
+            ?? bottle.settings.virtualDesktopEnabled
+        return bottleHasVirtualDesktop ? ["start", "explorer", "/desktop=root"] + start : start
     }
 
-    /// Windows-visible path to a program's DXVK state cache, outside any bottle.
-    ///
-    /// The directory lives under the user's Caches directory keyed by
-    /// executable name plus the executable's file size, so it survives bottle
-    /// deletion the way the d3dm/dxmt shader caches do without two different
-    /// games that happen to share a filename ("Game.exe") sharing a cache.
-    /// The size is stable across a reinstall of the same build and changes
-    /// with a game update — at which point a fresh cache is correct anyway.
-    ///
-    /// The consumer is DXVK — a Windows-side DLL — which resolves a bare
-    /// `/Users/...` path against the current drive, so the value must be
-    /// spelled through the prefix's `z:` drive (Wine's standard mapping of
-    /// the Unix root). Returns `nil` when the directory cannot be created or
-    /// the bottle has no `z:` mapping — DXVK then falls back to its default
-    /// next-to-the-executable location, which is what shipped before.
-    static func dxvkStateCacheWindowsPath(forProgram programURL: URL, bottle: Bottle) -> String? {
-        guard let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else {
-            return nil
-        }
-        let zDrive = bottle.url.appending(path: "dosdevices").appending(path: "z:")
-        guard FileManager.default.fileExists(atPath: zDrive.path(percentEncoded: false)) else {
-            return nil
-        }
-        var key = programURL.lastPathComponent
-        let attributes = try? FileManager.default.attributesOfItem(
-            atPath: programURL.path(percentEncoded: false)
-        )
-        if let size = attributes?[.size] as? Int64 {
-            key += "-\(size)"
-        }
-        let dir = caches.appending(path: "dxvk-state").appending(path: key)
-        do {
-            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        } catch {
-            return nil
-        }
-        return "Z:" + dir.path(percentEncoded: false)
-    }
+    /// Whether a bottle's virtual desktop is on: ``isVirtualDesktopEnabled(bottle:)``
+    /// outside of tests.
+    typealias VirtualDesktopQuery = @MainActor (_ bottle: Bottle) async throws -> Bool
 
     /// Resolves the virtual desktop resolution string from per-program overrides.
     ///
-    /// - Parameter overrides: The program overrides containing display settings.
+    /// Match Display reads the display the same way the bottle's Display
+    /// section does (``ResolutionPreset/resolutionString(customWidth:customHeight:displaySize:)``).
+    ///
+    /// - Parameters:
+    ///   - overrides: The program overrides containing display settings.
+    ///   - displaySize: Reads the display size for Match Display. Defaults to the main display.
     /// - Returns: A resolution string like `"1920x1080"`.
-    private static func resolveVirtualDesktopResolution(from overrides: ProgramOverrides) -> String {
-        let preset = overrides.resolutionPreset ?? .r1920x1080
-        if let dims = preset.dimensions {
-            return "\(dims.width)x\(dims.height)"
-        }
-        if preset == .custom {
-            let width = overrides.customResolutionWidth ?? 1_920
-            let height = overrides.customResolutionHeight ?? 1_080
-            return "\(width)x\(height)"
-        }
-        // matchDisplay fallback
-        return "1920x1080"
+    static func resolveVirtualDesktopResolution(
+        from overrides: ProgramOverrides,
+        displaySize: () -> (width: Int, height: Int)? = MainDisplay.pixelSize
+    ) -> String {
+        let fallback = ResolutionPreset.fallbackResolution
+        return (overrides.resolutionPreset ?? .r1920x1080).resolutionString(
+            customWidth: overrides.customResolutionWidth ?? fallback.width,
+            customHeight: overrides.customResolutionHeight ?? fallback.height,
+            displaySize: displaySize
+        )
     }
 
     /// Generates a shell command string for running a Windows program.
@@ -667,18 +846,23 @@ public class Wine {
         return cmd
     }
 
-    /// Drain a process output stream, returning its stdout and stderr joined
-    private static func collectOutput(_ stream: AsyncStream<ProcessOutput>) async -> String {
-        var result = ""
-        for await output in stream {
+    /// Run a `wineserver` command with the given arguments and return the output result
+    @MainActor
+    private static func runWineserver(_ args: [String], bottle: Bottle) async throws -> String {
+        var result: [ProcessOutput] = []
+
+        for await output in try Self.runWineserverProcess(args: args, bottle: bottle, environment: [:]) {
+            result.append(output)
+        }
+
+        return result.compactMap { output -> String? in
             switch output {
             case .started, .terminated:
-                break
+                nil
             case let .message(message), let .error(message):
-                result += message
+                message
             }
-        }
-        return result
+        }.joined()
     }
 
     /// Runs a Wine command and returns the collected output as a string.
@@ -698,18 +882,77 @@ public class Wine {
     @discardableResult
     @MainActor
     public static func runWine(
-        _ args: [String], bottle: Bottle?, environment: [String: String] = [:], createsLogFile: Bool = true
+        _ args: [String], bottle: Bottle?, environment: [String: String] = [:]
     ) async throws -> String {
         if let bottle {
-            return try await collectOutput(runWineProcess(
-                args: args, bottle: bottle, environment: environment, createsLogFile: createsLogFile
-            ))
+            try await runWineWithBottle(args, bottle: bottle, environment: environment)
+        } else {
+            try await runWineWithoutBottle(args, environment: environment)
         }
+    }
+
+    /// Run a `wine` command with the given arguments and a bottle context
+    ///
+    /// - Parameters:
+    ///   - createsLogFile: `false` for polls whose output is parsed rather
+    ///     than read, such as `tasklist.exe`: a log file per poll buries the launch
+    ///     logs people are asked to attach.
+    ///   - isHelper: Whether the run is recorded in ``WineHelperActivity``, so the
+    ///     wineserver it brings up does not read as orphaned.
+    @discardableResult
+    @MainActor
+    static func runWineWithBottle(
+        _ args: [String], bottle: Bottle, environment: [String: String] = [:], createsLogFile: Bool = true,
+        isHelper: Bool = true
+    ) async throws -> String {
+        let bottleURL = bottle.url
+        if isHelper {
+            WineHelperActivity.shared.begin(bottleURL: bottleURL)
+        }
+        defer {
+            if isHelper {
+                WineHelperActivity.shared.end(bottleURL: bottleURL)
+            }
+        }
+        var result: [String] = []
+        let fileHandle = try createsLogFile ? makeFileHandle() : nil
+        fileHandle?.writeApplicationInfo()
+        fileHandle?.writeInfo(for: bottle)
+        WineUserProfile.reconcile(bottleURL: bottle.url)
+        let wineEnvironment = constructWineEnvironment(for: bottle, environment: environment)
+
+        for await output in try runWineProcess(args: args, environment: wineEnvironment, fileHandle: fileHandle) {
+            switch output {
+            case .started, .terminated:
+                break
+            case let .message(message), let .error(message):
+                result.append(message)
+            }
+        }
+
+        return result.joined()
+    }
+
+    /// Run a `wine` command without a bottle context (e.g., for --version queries)
+    @discardableResult
+    @MainActor
+    private static func runWineWithoutBottle(
+        _ args: [String], environment: [String: String] = [:]
+    ) async throws -> String {
+        var result: [String] = []
         let fileHandle = try makeFileHandle()
         fileHandle.writeApplicationInfo()
-        return try await collectOutput(
-            runProcess(args: args, environment: environment, executableURL: wineBinary, fileHandle: fileHandle)
-        )
+
+        for await output in try runWineProcess(args: args, environment: environment, fileHandle: fileHandle) {
+            switch output {
+            case .started, .terminated:
+                break
+            case let .message(message), let .error(message):
+                result.append(message)
+            }
+        }
+
+        return result.joined()
     }
 
     /// Returns the version string of the installed Wine binary.
@@ -731,7 +974,7 @@ public class Wine {
     /// - Throws: An error if Wine cannot be executed.
     @MainActor
     public static func wineVersion() async throws -> String {
-        var output = try await runWine(["--version"], bottle: nil)
+        var output = try await runWineWithoutBottle(["--version"])
         output.replace("wine-", with: "")
 
         // Deal with WineCX version names
@@ -739,6 +982,12 @@ public class Wine {
             return String(output.prefix(upTo: index))
         }
         return output.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// Whether `url` is a Windows batch script (`.bat` or `.cmd`, any case),
+    /// which runs through ``runBatchFile(url:bottle:)`` rather than as a program.
+    public static func isBatchFile(_ url: URL) -> Bool {
+        ["bat", "cmd"].contains(url.pathExtension.lowercased())
     }
 
     /// Executes a Windows batch file (.bat or .cmd) within a bottle.
@@ -754,7 +1003,12 @@ public class Wine {
     @discardableResult
     @MainActor
     public static func runBatchFile(url: URL, bottle: Bottle) async throws -> String {
-        try await runWine(["cmd", "/c", url.path(percentEncoded: false)], bottle: bottle)
+        // A script can start a launcher too, so it gets the aliases a program launch gets.
+        await syncCJKFontReplacements(bottle: bottle)
+        await syncAudioRegistry(bottle: bottle)
+        // Whatever it starts runs under the bottle's wineserver, which is then Whisky's doing.
+        noteUserLaunch(in: bottle)
+        return try await runWine(["cmd", "/c", url.path(percentEncoded: false)], bottle: bottle)
     }
 
     /// Terminates all Wine processes running in a bottle.
@@ -770,19 +1024,12 @@ public class Wine {
     /// - Note: This is intentionally non-blocking. Errors are logged but not propagated.
     @MainActor
     public static func killBottle(bottle: Bottle) {
-        startKill(bottle: bottle)
-    }
-
-    @MainActor
-    @discardableResult
-    private static func startKill(bottle: Bottle) -> Process? {
-        let process = makeWineserverProcess("-k", environment: constructWineEnvironment(for: bottle))
-        do {
-            try process.run()
-            return process
-        } catch {
-            Logger.wineKit.error("Failed to kill bottle '\(bottle.settings.name)': \(error.localizedDescription)")
-            return nil
+        Task {
+            do {
+                _ = try await runWineserver(["-k"], bottle: bottle)
+            } catch {
+                Logger.wineKit.error("Failed to kill bottle '\(bottle.settings.name)': \(error.localizedDescription)")
+            }
         }
     }
 
@@ -793,9 +1040,20 @@ public class Wine {
     /// asynchronous ``killBottle(bottle:)`` left every Wine process alive
     /// on quit whatever the kill-on-quit setting said.
     @MainActor
-    public static func killBottleAndWait(bottle: Bottle) {
-        let timeout: TimeInterval = 5
-        guard let process = startKill(bottle: bottle) else { return }
+    public static func killBottleAndWait(bottle: Bottle, timeout: TimeInterval = 5) {
+        let process = Process()
+        process.executableURL = wineserverBinary
+        process.arguments = ["-k"]
+        process.currentDirectoryURL = wineserverBinary.deletingLastPathComponent()
+        process.environment = constructWineEnvironment(for: bottle, environment: [:])
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+        do {
+            try process.run()
+        } catch {
+            Logger.wineKit.error("Failed to kill bottle '\(bottle.settings.name)': \(error.localizedDescription)")
+            return
+        }
         let deadline = Date().addingTimeInterval(timeout)
         while process.isRunning, Date() < deadline {
             Thread.sleep(forTimeInterval: 0.05)
@@ -805,9 +1063,8 @@ public class Wine {
     /// Installs DXVK libraries into a bottle's Windows system directories.
     ///
     /// DXVK translates DirectX 9/10/11 calls to Vulkan, often providing better
-    /// performance than Wine's built-in DirectX implementation. This method installs
-    /// the DXVK DLL files into the bottle's system32 and syswow64 directories,
-    /// rewriting only those whose contents differ.
+    /// performance than Wine's built-in DirectX implementation. This method copies
+    /// the DXVK DLL files to the bottle's system32 and syswow64 directories.
     ///
     /// - Parameter bottle: The ``Bottle`` to install DXVK into.
     /// - Throws: An error if the DLL files cannot be copied.
@@ -816,114 +1073,130 @@ public class Wine {
     ///   when DXVK is enabled in the bottle settings.
     @MainActor
     public static func enableDXVK(bottle: Bottle) throws {
-        let fileManager = FileManager.default
-        let windowsDir = bottle.url.appending(path: "drive_c").appending(path: "windows")
-        for (arch, systemDir) in [("x64", "system32"), ("x32", "syswow64")] {
-            let source = dxvkFolder.appending(path: arch)
-            let destination = windowsDir.appending(path: systemDir)
-            guard fileManager.fileExists(atPath: destination.path(percentEncoded: false)) else { continue }
-            let names = (try? fileManager.contentsOfDirectory(atPath: source.path(percentEncoded: false))) ?? []
-            for name in names where name.hasSuffix(".dll") {
-                try fileManager.installFileIfContentDiffers(
-                    at: destination.appending(path: name), from: source.appending(path: name)
-                )
-            }
-        }
-    }
-
-    /// Every DLL a translation backend may install natively into a prefix.
-    ///
-    /// The union across backends, so a restore can neutralize whichever one ran
-    /// last without knowing which that was.
-    static let translationPrefixDLLNames = [
-        "d3d9.dll", "d3d10core.dll", "d3d11.dll", "d3d12.dll", "dxgi.dll", "winemetal.dll"
-    ]
-
-    /// The prefix files `backend` installs itself, and so must not be restored
-    /// out from under it.
-    ///
-    /// DXVK's set is read from the payload rather than hardcoded: the runtime
-    /// carries whichever files its base build shipped, and that set has changed
-    /// across runtimes.
-    static func prefixDLLNames(installedBy backend: GraphicsBackend) -> Set<String> {
-        switch backend {
-        case .dxvk:
-            let payload = dxvkFolder.appending(path: "x64")
-            let names = (try? FileManager.default.contentsOfDirectory(atPath: payload.path(percentEncoded: false)))
-            return Set((names ?? []).filter { $0.hasSuffix(".dll") })
-        case .dxmt:
-            return Set(dxmtPrefixDLLs)
-        case .d3dMetal, .wined3d, .recommended:
-            return []
-        }
-    }
-
-    /// Restores Wine's builtin PE for each translation DLL `backend` does not
-    /// install itself, clearing whatever a previously selected backend left in
-    /// the prefix.
-    ///
-    /// With the GPTK payload deployed, the 64-bit builtin dxgi is Apple's
-    /// forwarder, which DXVK's `d3d11` cannot pair with. A launch that will
-    /// enable DXVK gets Wine's own dxgi from the store's `originals/` instead,
-    /// marker-stripped so `dxgi=n,b` loads it as native. Only system32: GPTK
-    /// forwards the 64-bit builtins only, so syswow64's is still Wine's own.
-    static func restoreUnmanagedTranslationDLLs(
-        bottle: Bottle, for backend: GraphicsBackend, enablingDXVK: Bool
-    ) throws {
-        try restoreUnmanagedTranslationDLLs(
-            prefixRoot: bottle.url,
-            wineLibRoot: WhiskyWineInstaller.libraryFolder.appending(path: "Wine").appending(path: "lib"),
-            keeping: prefixDLLNames(installedBy: backend),
-            nativeDXGI: enablingDXVK && GPTKImporter.isDeployed()
-                ? GPTKImporter.storeFolder.appending(path: "originals").appending(path: "dxgi.dll")
-                : nil
+        try FileManager.default.replaceDLLs(
+            in: bottle.url.appending(path: "drive_c").appending(path: "windows").appending(path: "system32"),
+            withContentsIn: Wine.dxvkFolder.appending(path: "x64")
         )
+        try FileManager.default.replaceDLLs(
+            in: bottle.url.appending(path: "drive_c").appending(path: "windows").appending(path: "syswow64"),
+            withContentsIn: Wine.dxvkFolder.appending(path: "x32")
+        )
+        reconcileDXGIForDXVK(prefixRoot: bottle.url)
     }
 
-    /// Performs the restore against explicit roots, so it can be tested against
-    /// temporary directories (mirrors the ``enableDXMT(payloadRoot:prefixRoot:)`` seam).
-    /// `nativeDXGI`, when it exists, is installed marker-stripped as system32's
-    /// dxgi in place of the builtin.
-    static func restoreUnmanagedTranslationDLLs(
-        prefixRoot: URL, wineLibRoot: URL, keeping managed: Set<String>, nativeDXGI: URL? = nil
-    ) throws {
-        let fileManager = FileManager.default
-        let windows = prefixRoot.appending(path: "drive_c").appending(path: "windows")
-        let system32 = windows.appending(path: "system32")
-        let builtins = wineLibRoot.appending(path: "wine")
-        let pairs = [
-            (system32, builtins.appending(path: "x86_64-windows")),
-            (windows.appending(path: "syswow64"), builtins.appending(path: "i386-windows"))
-        ]
+    /// Reconciles the prefix's `dxgi.dll` with the GPTK payload state, keyed on
+    /// whether that payload is deployed.
+    ///
+    /// DXVK-macOS ships no `dxgi.dll`, so ``enableDXVK(bottle:)`` never
+    /// overwrites one and whatever the prefix already holds stays behind the
+    /// `n,b` override. Which copy is correct depends entirely on what the
+    /// builtin is right now:
+    ///
+    /// - Payload deployed: the builtin is Apple's D3DMetal forwarder, which
+    ///   cannot pair with DXVK's `d3d11`. The prefix needs Wine's own clean
+    ///   dxgi from the store, marker-stripped so the loader takes it as a true
+    ///   native PE.
+    /// - Payload absent: the builtin is Wine's own, which is the pairing DXVK
+    ///   is written against, so any native copy in the prefix is residue and
+    ///   must go.
+    ///
+    /// The store outlives an engine install but the deployed payload does not,
+    /// so a populated `originals/` alone does not mean the forwarder is in
+    /// place. Keying on the payload rather than the store is what makes the
+    /// stale-store case (originals from a previous engine, payload gone) take
+    /// the removal path instead of deploying a dxgi the current runtime never
+    /// shipped.
+    ///
+    /// The deployed branch still sweeps `syswow64`: GPTK forwards only the
+    /// 64-bit builtin, so the 32-bit one is wine's own and DXMT residue there
+    /// is just as wrong as without the payload. The sweep is scoped to
+    /// `syswow64` on purpose; the stripped system32 copy is native by design,
+    /// and a both-arch sweep would delete it on every launch.
+    static func reconcileDXGIForDXVK(
+        prefixRoot: URL,
+        gptkOriginalsDXGI: URL = GPTKImporter.storeFolder
+            .appending(path: "originals").appending(path: "dxgi.dll"),
+        gptkPayloadIsDeployed: Bool = GPTKImporter.isDeployed(),
+        libraryFolder: URL = WhiskyWineInstaller.libraryFolder
+    ) {
+        guard gptkPayloadIsDeployed else {
+            removeStaleNativeDXGI(prefixRoot: prefixRoot, libraryFolder: libraryFolder)
+            return
+        }
+        removeStaleNativeDXGI(prefixRoot: prefixRoot, libraryFolder: libraryFolder, directories: ["syswow64"])
+        deployCleanDXGI(prefixRoot: prefixRoot, from: gptkOriginalsDXGI)
+    }
 
-        for (prefixDir, builtinDir) in pairs {
-            guard fileManager.fileExists(atPath: prefixDir.path(percentEncoded: false)) else { continue }
-            for name in translationPrefixDLLNames where !managed.contains(name) {
-                if let nativeDXGI, name == "dxgi.dll", prefixDir == system32,
-                   fileManager.fileExists(atPath: nativeDXGI.path(percentEncoded: false)) {
-                    let target = prefixDir.appending(path: name)
-                    // Runs on every DXVK launch; an identical stripped copy stays put.
-                    if !isStrippedCopy(target, of: nativeDXGI) {
-                        try fileManager.installFile(at: target, from: nativeDXGI)
-                        try stripBuiltinMarker(at: target)
-                    }
-                    continue
-                }
-                let builtin = builtinDir.appending(path: name)
-                // A runtime that ships no builtin for this name (winemetal on a
-                // pre-DXMT runtime) leaves the prefix alone rather than deleting
-                // a file it cannot put back.
-                guard fileManager.fileExists(atPath: builtin.path(percentEncoded: false)) else { continue }
-                _ = try fileManager.installFileIfContentDiffers(
-                    at: prefixDir.appending(path: name), from: builtin
+    /// Removes a native `dxgi.dll` the prefix must not keep under DXVK.
+    ///
+    /// DXVK-macOS ships no `dxgi.dll`, so ``enableDXVK(bottle:)`` never
+    /// overwrites one. After a bottle has launched under DXMT, its system
+    /// directories hold DXMT's *native* dxgi, and a DXVK launch then pairs
+    /// DXVK's `d3d11` with DXMT's `dxgi` under the `n,b` override. That mix
+    /// cannot create window swapchains: Chromium clients fail with
+    /// `DXGI_ERROR_UNSUPPORTED` and run with no window at all. Removing the
+    /// leftover lets the `,b` half of the override load the builtin, which is
+    /// the pairing DXVK is written against.
+    ///
+    /// Both arches are swept, because a DXMT launch writes both and a 32-bit
+    /// title otherwise keeps the bad pairing. A builtin-marked file is never
+    /// touched: that is wine's own fake DLL, exactly what DXVK expects to
+    /// defer to, and leaving it in place is what keeps this off the
+    /// per-launch prefix-mutation path.
+    ///
+    /// Whether removal is the right answer at all is decided by
+    /// ``reconcileDXGIForDXVK(prefixRoot:gptkOriginalsDXGI:gptkPayloadIsDeployed:libraryFolder:)``,
+    /// which owns the payload predicate and picks the `directories` to sweep.
+    static func removeStaleNativeDXGI(
+        prefixRoot: URL,
+        libraryFolder: URL = WhiskyWineInstaller.libraryFolder,
+        directories: Set<String> = ["system32", "syswow64"]
+    ) {
+        let fileManager = FileManager.default
+        let builtinDirs = ["system32": "x86_64-windows", "syswow64": "i386-windows"]
+        for (dir, arch) in builtinDirs where directories.contains(dir) {
+            let dxgi = prefixRoot.appending(path: "drive_c").appending(path: "windows")
+                .appending(path: dir).appending(path: "dxgi.dll")
+            guard fileManager.fileExists(atPath: dxgi.path(percentEncoded: false)),
+                  (try? isNativePE(dxgi)) == true
+            else { continue }
+            do {
+                try fileManager.removeItem(at: dxgi)
+                Logger.wineKit.info("Removed stale native dxgi.dll from \(dir, privacy: .public)")
+            } catch {
+                Logger.wineKit.warning(
+                    "Could not remove stale native dxgi.dll: \(error.localizedDescription, privacy: .public)"
+                )
+                continue
+            }
+            // The removal must not leave the slot empty. Wine's loader only reaches a
+            // builtin through its system32 placeholder (ntdll/loader.c
+            // find_builtin_without_file refuses every non-16-bit DLL that has no
+            // file), so with nothing here `LoadLibrary("dxgi.dll")` fails outright
+            // and Chromium's GPU process cannot bring up D3D11. wineboot would
+            // reinstall the placeholder on the next prefix update, but a runtime
+            // whose wine.inf matches the prefix stamp never runs one. Put back the
+            // runtime's own marked copy, which is what wineboot installs.
+            let builtin = libraryFolder.appending(path: "Wine").appending(path: "lib")
+                .appending(path: "wine").appending(path: arch).appending(path: "dxgi.dll")
+            guard fileManager.fileExists(atPath: builtin.path(percentEncoded: false)) else {
+                Logger.wineKit.warning("No builtin dxgi.dll to restore into \(dir, privacy: .public)")
+                continue
+            }
+            do {
+                try fileManager.copyItem(at: builtin, to: dxgi)
+                Logger.wineKit.info("Restored builtin dxgi.dll placeholder into \(dir, privacy: .public)")
+            } catch {
+                Logger.wineKit.warning(
+                    "Could not restore builtin dxgi.dll: \(error.localizedDescription, privacy: .public)"
                 )
             }
         }
     }
 
-    /// Overwrites the "Wine builtin DLL" marker at offset 0x40 of a PE file
-    /// with a plain DOS stub, so the loader treats the file as native.
+    /// Strips the "Wine builtin DLL" marker at offset 0x40 from a PE file.
     private static func stripBuiltinMarker(at fileURL: URL) throws {
+        guard FileManager.default.fileExists(atPath: fileURL.path(percentEncoded: false)) else { return }
         let handle = try FileHandle(forUpdating: fileURL)
         defer { try? handle.close() }
         let dosCode: [UInt8] = [
@@ -934,9 +1207,38 @@ public class Wine {
         try handle.write(contentsOf: Data(dosCode))
     }
 
-    /// Whether `deployed` is already the stripped copy of `original`: a native
-    /// PE that matches it byte for byte outside the 16-byte marker window at
-    /// 0x40, the only bytes ``stripBuiltinMarker(at:)`` rewrites.
+    /// Deploys Wine's backed-up clean `dxgi.dll` into the prefix, with the
+    /// builtin marker stripped so the loader accepts it as a true native PE.
+    ///
+    /// Only `system32` is written: GPTK deploys forwarders into
+    /// `wine/x86_64-windows` only, so the 32-bit builtin is still Wine's own
+    /// and the stored 64-bit original has no business in `syswow64`.
+    ///
+    /// This runs on every DXVK launch, so a prefix that already holds the
+    /// stripped original is left untouched rather than copied and patched
+    /// again.
+    static func deployCleanDXGI(prefixRoot: URL, from gptkOriginalsDXGI: URL) {
+        let fileManager = FileManager.default
+        guard fileManager.fileExists(atPath: gptkOriginalsDXGI.path(percentEncoded: false)) else { return }
+
+        let sys32DXGI = prefixRoot.appending(path: "drive_c").appending(path: "windows")
+            .appending(path: "system32").appending(path: "dxgi.dll")
+        if isStrippedCopy(sys32DXGI, of: gptkOriginalsDXGI) {
+            return
+        }
+        do {
+            try fileManager.installFile(at: sys32DXGI, from: gptkOriginalsDXGI)
+            try stripBuiltinMarker(at: sys32DXGI)
+        } catch {
+            Logger.wineKit.warning(
+                "Could not deploy clean dxgi.dll into prefix: \(error.localizedDescription, privacy: .public)"
+            )
+        }
+    }
+
+    /// Whether `deployed` is already what ``deployCleanDXGI(prefixRoot:from:)``
+    /// would write: a native PE that matches `original` byte for byte outside
+    /// the 16-byte marker window at 0x40, the only bytes the strip rewrites.
     private static func isStrippedCopy(_ deployed: URL, of original: URL) -> Bool {
         guard FileManager.default.fileExists(atPath: deployed.path(percentEncoded: false)),
               (try? isNativePE(deployed)) == true,
@@ -975,7 +1277,7 @@ public class Wine {
     /// import resolves to the runtime's `winemetal.dll` builtin in `lib/wine`.
     /// The NVIDIA extras (nvapi64/nvngx) in the payload are deliberately not
     /// deployed — DXMT's vendor spoofing is out of scope.
-    static let dxmtPrefixDLLs = dxmtNativeTrio + ["winemetal.dll"]
+    private static let dxmtPrefixDLLs = dxmtNativeTrio + ["winemetal.dll"]
 
     /// Whether the installed runtime carries a DXMT payload that can actually be
     /// activated per-bottle: present **and** the *native* variant. A
@@ -1029,8 +1331,6 @@ public class Wine {
         case .d3dMetal, .dxvk, .wined3d, .recommended:
             break
         }
-
-        applyMetalFX(bottle: bottle, backend: backend)
     }
 
     /// Opts a bottle in or out of D3DMetal's DLSS-to-MetalFX path, per
@@ -1052,7 +1352,8 @@ public class Wine {
     ///
     /// - Parameters:
     ///   - bottle: The ``Bottle`` whose opt-in state to apply.
-    ///   - backend: The backend this launch resolved to.
+    ///   - backend: The backend the games this launch concerns resolve to: the
+    ///     program's own, or the bottle's games' when a launcher is started.
     ///   - libraryFolder: The runtime tree holding the bridge.
     ///
     /// - Note: Called by `runProgram` for every launch, in both directions, so
@@ -1065,9 +1366,7 @@ public class Wine {
         libraryFolder: URL = WhiskyWineInstaller.libraryFolder
     ) {
         if backend == .d3dMetal, bottle.settings.metalFX {
-            GPTKImporter.seedPlaceholder(
-                named: GPTKBridge.metalFX.installedName, inBottle: bottle.url, fromLibraryFolder: libraryFolder
-            )
+            GPTKImporter.seedMetalFXBridgePlaceholder(inBottle: bottle.url, fromLibraryFolder: libraryFolder)
             seedNGXModelConfig(inBottle: bottle.url)
         } else {
             GPTKImporter.clearMetalFXBridgePlaceholder(inBottle: bottle.url)
@@ -1197,11 +1496,41 @@ extension Wine {
         return try await runWine(["wineboot", "--init"], bottle: bottle)
     }
 
-    /// Checks if an environment variable key is a valid POSIX shell identifier
-    /// (`[A-Za-z_][A-Za-z0-9_]*`, ASCII only), preventing shell injection through keys.
+    /// Checks if an environment variable key is a valid POSIX shell identifier.
+    ///
+    /// Valid names must start with an ASCII letter or underscore, followed by
+    /// any combination of ASCII letters, digits, or underscores.
+    /// This prevents shell injection through malicious environment variable keys.
+    ///
+    /// - Note: Uses explicit ASCII checks rather than Swift's Unicode-aware
+    ///   `isLetter`/`isNumber` methods, since POSIX shells only accept ASCII
+    ///   identifiers (`[A-Za-z_][A-Za-z0-9_]*`).
+    ///
+    /// - Parameter key: The environment variable name to validate.
+    /// - Returns: `true` if the key is safe to use in shell commands.
     static func isValidEnvKey(_ key: String) -> Bool {
-        key.wholeMatch(of: /[A-Za-z_][A-Za-z0-9_]*/) != nil
+        guard let first = key.first else { return false }
+        guard isAsciiLetter(first) || first == "_" else { return false }
+        return key.allSatisfy { isAsciiLetter($0) || isAsciiDigit($0) || $0 == "_" }
     }
+
+    /// Checks if a character is an ASCII letter (A-Z, a-z).
+    static func isAsciiLetter(_ char: Character) -> Bool {
+        guard let ascii = char.asciiValue else { return false }
+        return (ascii >= 65 && ascii <= 90) || (ascii >= 97 && ascii <= 122) // A-Z or a-z
+    }
+
+    /// Checks if a character is an ASCII digit (0-9).
+    static func isAsciiDigit(_ char: Character) -> Bool {
+        guard let ascii = char.asciiValue else { return false }
+        return ascii >= 48 && ascii <= 57 // 0-9
+    }
+}
+
+/// Errors that can occur during Wine interface operations.
+enum WineInterfaceError: Error {
+    /// The response from Wine was invalid or could not be parsed.
+    case invalidResponse
 }
 
 // MARK: - Logging Support
@@ -1217,10 +1546,26 @@ public extension Wine {
     /// Policy: cap total disk usage of Whisky's log directory at 200 MiB.
     static let maxLogsFolderBytes: Int64 = 200 * 1_024 * 1_024
 
-    /// Marker appended once when file logging begins truncation.
+    /// How much of the start of a log, the launch header and the early output
+    /// after it, survives when the log reaches ``maxLogFileBytes``.
+    static let logHeadBytes = 256 * 1_024
+
+    /// How much of the newest output a log keeps after its truncation marker
+    /// when it reaches ``maxLogFileBytes``. More than crash classification reads
+    /// of a log's tail.
+    static let logTailBytes = 1_024 * 1_024
+
+    /// Marker written between a log's head and its newest output once the log
+    /// has reached its cap.
     ///
-    /// - Important: This marker is written at most once per log file and counts toward `maxLogFileBytes`.
-    static let logTruncationMarker = "\n[Whisky] Log truncated: reached 20 MiB cap; further output discarded.\n"
+    /// The line after it counts the log's truncations, so a reader following the log can
+    /// tell one from the next (``WineLogFollower``).
+    ///
+    /// - Important: A truncated log holds this marker exactly once: each truncation cuts the
+    ///   file back to its head, which ends before the marker. It counts toward `maxLogFileBytes`.
+    static let logTruncationMarker =
+        "\n[Whisky] Log truncated: output between the start of the log and the lines below "
+            + "was dropped to keep the log under 20 MiB.\n"
 
     /// The URL to the directory where Wine process logs are stored.
     ///
@@ -1230,48 +1575,41 @@ public extension Wine {
         for: .libraryDirectory, in: .userDomainMask
     )[0].appending(path: "Logs").appending(path: Bundle.whiskyBundleIdentifier)
 
-    /// A regular `.log` file in a logs folder, dated by its last modification.
-    internal struct LogFile {
-        let url: URL
-        let size: Int64
-        let date: Date
-    }
-
-    /// The regular, non-hidden `.log` files in `folder`, in directory order.
-    internal static func logFiles(in folder: URL) throws -> [LogFile] {
-        let keys: [URLResourceKey] = [
-            .isRegularFileKey,
-            .contentModificationDateKey,
-            .creationDateKey,
-            .fileSizeKey
-        ]
-        let urls = try FileManager.default.contentsOfDirectory(
-            at: folder,
-            includingPropertiesForKeys: keys,
-            options: [.skipsHiddenFiles]
-        )
-
-        var files: [LogFile] = []
-        files.reserveCapacity(urls.count)
-
-        for url in urls {
-            guard url.pathExtension.lowercased() == "log" else { continue }
-            let values = try url.resourceValues(forKeys: Set(keys))
-            guard values.isRegularFile == true else { continue }
-            let size = Int64(values.fileSize ?? 0)
-            let date = values.contentModificationDate ?? values.creationDate ?? .distantPast
-            files.append(LogFile(url: url, size: size, date: date))
-        }
-        return files
-    }
-
     /// Enforces log retention policy by deleting the oldest `.log` files until total size is under the limit.
     ///
     /// - Important: This method only operates on the provided folder and only deletes regular files with a `.log`
     ///   extension. It is intentionally best-effort: errors are logged but do not throw.
     static func enforceLogRetention(in folder: URL, maxTotalBytes: Int64) {
         do {
-            var files = try logFiles(in: folder)
+            let keys: [URLResourceKey] = [
+                .isRegularFileKey,
+                .contentModificationDateKey,
+                .creationDateKey,
+                .fileSizeKey
+            ]
+            let urls = try FileManager.default.contentsOfDirectory(
+                at: folder,
+                includingPropertiesForKeys: keys,
+                options: [.skipsHiddenFiles]
+            )
+
+            struct LogFile {
+                let url: URL
+                let size: Int64
+                let date: Date
+            }
+
+            var files: [LogFile] = []
+            files.reserveCapacity(urls.count)
+
+            for url in urls {
+                guard url.pathExtension.lowercased() == "log" else { continue }
+                let values = try url.resourceValues(forKeys: Set(keys))
+                guard values.isRegularFile == true else { continue }
+                let size = Int64(values.fileSize ?? 0)
+                let date = values.contentModificationDate ?? values.creationDate ?? .distantPast
+                files.append(LogFile(url: url, size: size, date: date))
+            }
 
             var total: Int64 = files.reduce(0) { $0 + $1.size }
             guard total > maxTotalBytes else { return }
@@ -1346,7 +1684,9 @@ public extension Wine {
     /// - Returns: A tuple of the open `FileHandle` and its log file `URL`.
     /// - Throws: An error if the log directory or file cannot be created.
     internal static func makeLogFile(in folder: URL, date: Date) throws -> (FileHandle, URL) {
-        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        if !FileManager.default.fileExists(atPath: folder.path) {
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        }
 
         // Enforce retention before creating a new log file.
         // This is best-effort and only impacts Whisky's own log directory.
@@ -1367,15 +1707,23 @@ public extension Wine {
     private static let maxLogNameAttempts = 100
 
     /// Creates a file at `url` and opens it for writing, or returns `nil` when
-    /// something already exists there. `.withoutOverwriting` makes the check and
-    /// the creation one step (`O_EXCL`), so two writers can never share a path.
+    /// something already exists there. `O_EXCL` makes the check and the creation
+    /// one step, so two writers can never end up sharing a path.
     private static func createNewFile(at url: URL) throws -> FileHandle? {
-        do {
-            try Data().write(to: url, options: .withoutOverwriting)
-        } catch let error as CocoaError where error.code == .fileWriteFileExists {
-            return nil
+        let (descriptor, error) = url.withUnsafeFileSystemRepresentation { path -> (Int32, Int32) in
+            guard let path else {
+                return (-1, EINVAL)
+            }
+            let descriptor = open(path, O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0o644)
+            return (descriptor, descriptor < 0 ? errno : 0)
         }
-        return try FileHandle(forWritingTo: url)
+        if descriptor >= 0 {
+            return FileHandle(fileDescriptor: descriptor, closeOnDealloc: true)
+        }
+        guard error == EEXIST else {
+            throw POSIXError(POSIXErrorCode(rawValue: error) ?? .EIO)
+        }
+        return nil
     }
 
     /// Classifies the output from a Wine process run for crash patterns.
@@ -1387,17 +1735,21 @@ public extension Wine {
     ///
     /// - Parameters:
     ///   - logFileURL: URL to the Wine log file to analyze.
-    ///   - exitCode: The Wine process exit code.
+    ///   - exitCode: The Wine process exit code, or `nil` when no process has reported one.
+    ///   - classifier: Optional pre-configured classifier. If `nil`, creates one
+    ///     with default patterns.
     /// - Returns: A ``CrashDiagnosis`` if the log was readable, or `nil` on failure.
     static func classifyLastRun(
         logFileURL: URL,
-        exitCode: Int32
+        exitCode: Int32?,
+        classifier: CrashClassifier? = nil
     ) async -> CrashDiagnosis? {
         await Task.detached(priority: .utility) {
             guard let logText = try? classificationWindow(of: logFileURL), !logText.isEmpty else {
                 return nil
             }
-            return CrashClassifier().classify(log: logText, exitCode: exitCode)
+            let resolvedClassifier = classifier ?? CrashClassifier()
+            return resolvedClassifier.classify(log: logText, exitCode: exitCode)
         }.value
     }
 

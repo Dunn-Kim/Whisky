@@ -18,7 +18,6 @@
 
 import AppKit
 import Foundation
-import os.log
 
 /// Supported terminal applications for running Wine commands.
 ///
@@ -77,43 +76,15 @@ public enum TerminalApp: String, CaseIterable, Identifiable {
     /// The user's preferred terminal application.
     /// Falls back to Terminal.app if the preferred app is not installed.
     public static var preferred: TerminalApp {
-        let rawValue = UserDefaults.standard.string(forKey: "preferredTerminal") ?? "terminal"
-        let preferred = TerminalApp(rawValue: rawValue) ?? .terminal
-        // Fall back to Terminal if preferred is not installed
-        return preferred.isInstalled ? preferred : .terminal
-    }
-
-    /// Has the preferred terminal `source` `script`, written to a temp `.sh`
-    /// the caller deletes. Throws when the script can't be written; an
-    /// AppleScript failure is shown as the run-error alert naming `subject`.
-    @discardableResult
-    @MainActor
-    public static func runScript(_ script: String, namePrefix: String, subject: String) async throws -> URL {
-        let scriptURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent("\(namePrefix)-\(UUID().uuidString).sh")
-        try script.write(to: scriptURL, atomically: true, encoding: .utf8)
-        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: scriptURL.path)
-
-        var error: NSDictionary?
-        NSAppleScript(source: preferred.generateAppleScript(for: scriptURL.path))?.executeAndReturnError(&error)
-        if let error {
-            Logger.wineKit.error("Failed to run terminal script \(error)")
-            if let description = error["NSAppleScriptErrorMessage"] as? String {
-                showError(" \(subject): " + description)
-            }
+        get {
+            let rawValue = UserDefaults.standard.string(forKey: "preferredTerminal") ?? "terminal"
+            let preferred = TerminalApp(rawValue: rawValue) ?? .terminal
+            // Fall back to Terminal if preferred is not installed
+            return preferred.isInstalled ? preferred : .terminal
         }
-        return scriptURL
-    }
-
-    /// The critical "failed to open" alert, `detail` appended to the standard text.
-    @MainActor
-    public static func showError(_ detail: String) {
-        let alert = NSAlert()
-        alert.messageText = String(localized: "alert.message")
-        alert.informativeText = String(localized: "alert.info") + detail
-        alert.alertStyle = .critical
-        alert.addButton(withTitle: String(localized: "button.ok"))
-        alert.runModal()
+        set {
+            UserDefaults.standard.set(newValue.rawValue, forKey: "preferredTerminal")
+        }
     }
 
     /// Generates an AppleScript to run the given script file in this terminal.
@@ -148,6 +119,69 @@ public enum TerminalApp: String, CaseIterable, Identifiable {
             // Warp doesn't support AppleScript's `do script` or `write text` commands.
             // Instead, we use `open -a Warp` with the script file, which Warp will execute
             // if the file has executable permissions (.sh extension and chmod +x).
+            return """
+            tell application "Warp"
+                activate
+            end tell
+            do shell script "open -a Warp \\"\(escapedPath)\\""
+            """
+        }
+    }
+
+    /// Generates an AppleScript to run a command directly in a terminal window.
+    ///
+    /// - Note: This method is deprecated. Prefer writing commands to a temporary script file
+    ///   and using ``generateAppleScript(for:)`` instead, which provides consistent behavior
+    ///   across all terminal applications and proper temp file cleanup.
+    ///
+    /// For Warp, this method creates a temporary script file since Warp doesn't support
+    /// AppleScript's `do script` command. However, the temp file is never cleaned up when
+    /// using this method directly.
+    ///
+    /// - Parameter command: The shell command to execute.
+    /// - Returns: The AppleScript source code, or `nil` if script file creation failed (Warp only).
+    @available(*, deprecated, message: "Use generateAppleScript(for:) with a temp script file instead")
+    public func generateDirectCommandScript(command: String) -> String? {
+        switch self {
+        case .terminal:
+            let escaped = command.replacingOccurrences(of: "\\", with: "\\\\\\\\")
+                .replacingOccurrences(of: "\"", with: "\\\\\\\"")
+            return """
+            tell application "Terminal"
+            activate
+            do script "\(escaped)"
+            end tell
+            """
+
+        case .iterm:
+            let escaped = command.replacingOccurrences(of: "\\", with: "\\\\\\\\")
+                .replacingOccurrences(of: "\"", with: "\\\\\\\"")
+            return """
+            tell application "iTerm"
+                activate
+                create window with default profile
+                tell current session of current window
+                    write text "\(escaped)"
+                end tell
+            end tell
+            """
+
+        case .warp:
+            // Warp requires a script file since it doesn't support do script
+            let scriptURL = FileManager.default.temporaryDirectory
+                .appendingPathComponent("whisky-env-\(UUID().uuidString).sh")
+            let unescaped = command.replacingOccurrences(of: "\\\"", with: "\"")
+            let content = "#!/bin/bash\n\(unescaped)\n"
+
+            do {
+                try content.write(to: scriptURL, atomically: true, encoding: .utf8)
+                try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: scriptURL.path)
+            } catch {
+                return nil
+            }
+
+            let escapedPath = scriptURL.path.replacingOccurrences(of: "\\", with: "\\\\")
+                .replacingOccurrences(of: "\"", with: "\\\"")
             return """
             tell application "Warp"
                 activate

@@ -28,9 +28,21 @@ import Foundation
 public struct RegistryValueCheck: TroubleshootingCheck {
     public let checkId = "registry.value_check"
 
+    public init() {}
+
+    public let signature: CheckSignature? = CheckSignature(
+        acceptedParams: ["expected"], requiredParams: ["key", "valueName"],
+        outcomes: [.pass, .fail, .unknown]
+    )
+
     public func run(params: [String: String], context: CheckContext) async -> CheckResult {
         guard let key = params["key"], let valueName = params["valueName"] else {
-            return .error("Missing 'key' or 'valueName' parameter")
+            return CheckResult(
+                outcome: .error,
+                evidence: [:],
+                summary: "Missing 'key' or 'valueName' parameter",
+                confidence: nil
+            )
         }
 
         // Parse the registry file directly from the bottle prefix
@@ -83,5 +95,34 @@ public struct RegistryValueCheck: TroubleshootingCheck {
             summary: "\(valueName) = \(currentValue)",
             confidence: .high
         )
+    }
+
+    /// The summary of a result from this check in the user's language.
+    ///
+    /// ``CheckResult/summary`` stays in English because it is written to
+    /// history and escalation exports; this rebuilds the on-screen text from
+    /// the result's outcome and evidence. Summaries with no words in them
+    /// (`name = value`) and the flow-authoring error for missing parameters
+    /// have no localized form.
+    ///
+    /// - Parameter result: A result produced by ``run(params:context:)``.
+    /// - Returns: The localized summary, or `nil` to show ``CheckResult/summary``.
+    public static func localizedSummary(for result: CheckResult) -> String? {
+        guard let key = result.evidence["key"], let valueName = result.evidence["valueName"] else {
+            return nil
+        }
+        switch result.outcome {
+        case .unknown:
+            return String(localized: "troubleshooting.check.registry.notFound \(key) \(valueName)")
+        case .fail:
+            guard let currentValue = result.evidence["currentValue"],
+                  let expected = result.evidence["expected"]
+            else {
+                return nil
+            }
+            return String(localized: "troubleshooting.check.value.mismatch \(valueName) \(currentValue) \(expected)")
+        case .pass, .alreadyConfigured, .error:
+            return nil
+        }
     }
 }

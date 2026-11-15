@@ -24,7 +24,8 @@ import Foundation
 /// methods for loading from a URL or from the default bundled resource.
 public enum GameDBLoader {
     /// The top-level container for ``GameDB.json``.
-    private struct GameDBFile: Decodable {
+    private struct GameDBFile: Codable {
+        let version: Int
         let entries: [GameDBEntry]
     }
 
@@ -44,8 +45,23 @@ public enum GameDBLoader {
     /// Loads the default bundled game database.
     ///
     /// Returns an empty array if the resource is missing or cannot be
-    /// decoded. In debug builds, either failure asserts.
+    /// decoded. In debug builds, a missing resource triggers a fatal error.
     public static func loadDefaults() -> [GameDBEntry] {
-        Bundle.module.decodeJSONResource("GameDB", with: loadEntries) ?? []
+        guard let url = Bundle.module.url(forResource: "GameDB", withExtension: "json") else {
+            #if DEBUG
+            fatalError("Missing resource: GameDB.json in Bundle.module")
+            #else
+            return []
+            #endif
+        }
+        do {
+            return try loadEntries(from: url)
+        } catch {
+            #if DEBUG
+            fatalError("Failed to load GameDB: \(error)")
+            #else
+            return []
+            #endif
+        }
     }
 }

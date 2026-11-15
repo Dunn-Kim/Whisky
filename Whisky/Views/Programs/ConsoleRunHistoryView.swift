@@ -26,9 +26,11 @@ import WhiskyKit
 /// or clean up old logs.
 struct ConsoleRunHistoryView: View {
     let program: Program
+    let bottle: Bottle
     @Binding var selectedRunId: UUID?
 
     @State private var history = RunLogHistory()
+    @State private var refreshTimer: Timer?
 
     var body: some View {
         Group {
@@ -39,12 +41,8 @@ struct ConsoleRunHistoryView: View {
             }
         }
         .onAppear { loadHistory() }
-        .task {
-            while true {
-                guard await (try? Task.sleep(for: .seconds(2))) != nil else { return }
-                loadHistory()
-            }
-        }
+        .onDisappear { stopRefreshTimer() }
+        .task { startRefreshTimer() }
     }
 
     // MARK: - Empty State
@@ -90,7 +88,42 @@ struct ConsoleRunHistoryView: View {
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 8)
 
-            runRow(entry, isLast: true)
+            Button {
+                selectedRunId = entry.id
+            } label: {
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(entry.programName)
+                            .font(.headline)
+                        Text(entry.startTime, style: .date)
+                            + Text(" ")
+                            + Text(entry.startTime, style: .time)
+                    }
+
+                    Spacer()
+
+                    if entry.isRunning {
+                        runningBadge
+                    } else {
+                        exitCodeBadge(entry.exitCode)
+                    }
+
+                    if let duration = entry.duration {
+                        durationLabel(duration)
+                    }
+
+                    Image(systemName: "chevron.right")
+                        .foregroundStyle(.tertiary)
+                }
+                .padding(8)
+                .background(
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(selectedRunId == entry.id
+                            ? Color.accentColor.opacity(0.15)
+                            : Color.clear)
+                )
+            }
+            .buttonStyle(.plain)
 
             if !entry.isRunning, let exitCode = entry.exitCode {
                 exitedFooter(exitCode: exitCode)
@@ -111,12 +144,44 @@ struct ConsoleRunHistoryView: View {
                 .padding(.top, 8)
 
             ForEach(previousEntries) { entry in
-                runRow(entry, isLast: false)
-                    .contextMenu {
-                        Button("console.deleteRun", role: .destructive) {
-                            deleteEntry(entry)
+                Button {
+                    selectedRunId = entry.id
+                } label: {
+                    HStack {
+                        Text(entry.startTime, style: .date)
+                            + Text(" ")
+                            + Text(entry.startTime, style: .time)
+
+                        Spacer()
+
+                        if entry.isRunning {
+                            runningBadge
+                        } else {
+                            exitCodeBadge(entry.exitCode)
                         }
+
+                        if let duration = entry.duration {
+                            durationLabel(duration)
+                        }
+
+                        Image(systemName: "chevron.right")
+                            .foregroundStyle(.tertiary)
                     }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(selectedRunId == entry.id
+                                ? Color.accentColor.opacity(0.15)
+                                : Color.clear)
+                    )
+                }
+                .buttonStyle(.plain)
+                .contextMenu {
+                    Button("console.deleteRun", role: .destructive) {
+                        deleteEntry(entry)
+                    }
+                }
             }
         }
     }
@@ -161,73 +226,65 @@ struct ConsoleRunHistoryView: View {
         .padding(.vertical, 8)
     }
 
-    // MARK: - Shared Views
+    // MARK: - Shared Badge Views
 
-    /// One selectable run: the last run also names the program and is a little roomier.
-    private func runRow(_ entry: RunLogEntry, isLast: Bool) -> some View {
-        let startTime = Text(entry.startTime, style: .date) + Text(" ") + Text(entry.startTime, style: .time)
-        return Button {
-            selectedRunId = entry.id
-        } label: {
-            HStack {
-                if isLast {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(entry.programName)
-                            .font(.headline)
-                        startTime
-                    }
-                } else {
-                    startTime
-                }
-
-                Spacer()
-
-                if entry.isRunning {
-                    ConsoleLogView.runningBadge("console.running")
-                } else if let exitCode = entry.exitCode {
-                    ConsoleLogView.exitCodeBadge(exitCode)
-                }
-
-                if let duration = entry.duration {
-                    durationLabel(duration)
-                }
-
-                Image(systemName: "chevron.right")
-                    .foregroundStyle(.tertiary)
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, isLast ? 8 : 4)
-            .background(
-                RoundedRectangle(cornerRadius: isLast ? 6 : 4)
-                    .fill(selectedRunId == entry.id ? Color.accentColor.opacity(0.15) : Color.clear)
-            )
+    private var runningBadge: some View {
+        HStack(spacing: 4) {
+            Circle()
+                .fill(.green)
+                .frame(width: 6, height: 6)
+                .modifier(PulseAnimationModifier())
+            Text("console.running")
+                .font(.caption)
+                .foregroundStyle(.green)
         }
-        .buttonStyle(.plain)
+    }
+
+    private func exitCodeBadge(_ exitCode: Int32?) -> some View {
+        Group {
+            if let code = exitCode {
+                Text("console.exitCode \(Int(code))")
+                    .font(.caption)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(code == 0 ? Color.green.opacity(0.2) : Color.red.opacity(0.2))
+                    )
+                    .foregroundStyle(code == 0 ? .green : .red)
+            }
+        }
     }
 
     private func durationLabel(_ duration: TimeInterval) -> some View {
-        Text(ConsoleLogView.formattedDuration(duration))
+        Text(formattedDuration(duration))
             .font(.caption)
             .foregroundStyle(.secondary)
     }
 
     private func exitedFooter(exitCode: Int32) -> some View {
-        Text("console.exited \(exitCode)")
+        Text("console.exited \(Int(exitCode))")
             .font(.caption2)
             .foregroundStyle(exitCode == 0 ? .green : .red)
+    }
+
+    // MARK: - Duration Formatting
+
+    private func formattedDuration(_ interval: TimeInterval) -> String {
+        RunDurationFormatting.string(from: interval)
     }
 
     // MARK: - Data Operations
 
     private func loadHistory() {
-        history = RunLogStore.load(for: program.name, in: program.bottle.url)
+        history = RunLogStore.load(for: program.name, in: bottle.url)
     }
 
     private func deleteEntry(_ entry: RunLogEntry) {
         if let removed = history.deleteEntry(id: entry.id) {
             let logURL = Wine.logsFolder.appending(path: removed.logFileName)
             try? FileManager.default.removeItem(at: logURL)
-            RunLogStore.save(history, for: program.name, in: program.bottle.url)
+            RunLogStore.save(history, for: program.name, in: bottle.url)
         }
         if selectedRunId == entry.id {
             selectedRunId = nil
@@ -240,6 +297,69 @@ struct ConsoleRunHistoryView: View {
             let logURL = Wine.logsFolder.appending(path: entry.logFileName)
             try? FileManager.default.removeItem(at: logURL)
         }
-        RunLogStore.save(history, for: program.name, in: program.bottle.url)
+        RunLogStore.save(history, for: program.name, in: bottle.url)
+    }
+
+    // MARK: - Refresh Timer
+
+    private func startRefreshTimer() {
+        stopRefreshTimer()
+        refreshTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { _ in
+            Task { @MainActor in
+                loadHistory()
+            }
+        }
+    }
+
+    private func stopRefreshTimer() {
+        refreshTimer?.invalidate()
+        refreshTimer = nil
+    }
+}
+
+// MARK: - Pulse Animation Modifier
+
+/// A simple pulse animation modifier for the "Running" indicator dot.
+private struct PulseAnimationModifier: ViewModifier {
+    @State private var isPulsing = false
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(isPulsing ? 0.4 : 1.0)
+            .animation(
+                .easeInOut(duration: 0.8).repeatForever(autoreverses: true),
+                value: isPulsing
+            )
+            .onAppear { isPulsing = true }
+    }
+}
+
+/// Run durations in abbreviated units, worded for the user's locale.
+/// Shared by the console's run header and the run history list.
+enum RunDurationFormatting {
+    /// Hours and minutes ("1h 5m" in English).
+    private static let hoursMinutesFormatter: DateComponentsFormatter = {
+        let formatter = DateComponentsFormatter()
+        formatter.allowedUnits = [.hour, .minute]
+        formatter.unitsStyle = .abbreviated
+        return formatter
+    }()
+
+    /// Minutes and seconds ("5m 3s" in English).
+    private static let minutesSecondsFormatter: DateComponentsFormatter = {
+        let formatter = DateComponentsFormatter()
+        formatter.allowedUnits = [.minute, .second]
+        formatter.unitsStyle = .abbreviated
+        return formatter
+    }()
+
+    static func string(from interval: TimeInterval) -> String {
+        let totalSeconds = max(Int(interval), 0)
+        if totalSeconds >= 3_600 {
+            // Drop the seconds rather than let the formatter round them into the minutes.
+            let wholeMinutes = TimeInterval(totalSeconds / 60 * 60)
+            return hoursMinutesFormatter.string(from: wholeMinutes) ?? ""
+        }
+        return minutesSecondsFormatter.string(from: TimeInterval(totalSeconds)) ?? ""
     }
 }

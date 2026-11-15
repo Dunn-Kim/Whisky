@@ -22,8 +22,15 @@ import XCTest
 final class RunLogTests: XCTestCase {
     var tempDir: URL!
 
-    override func setUpWithError() throws {
-        tempDir = try makeTempDir()
+    override func setUp() {
+        super.setUp()
+        tempDir = FileManager.default.temporaryDirectory.appending(path: "runlog_\(UUID().uuidString)")
+        try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+    }
+
+    override func tearDown() {
+        try? FileManager.default.removeItem(at: tempDir)
+        super.tearDown()
     }
 
     // MARK: - RunLogEntry Tests
@@ -175,12 +182,28 @@ final class RunLogTests: XCTestCase {
         XCTAssertEqual(history.entries.count, 1)
     }
 
+    func testLogFileURLsResolvesRelativePaths() {
+        var history = RunLogHistory()
+        let entry1 = RunLogEntry(programName: "game.exe", logFileName: "2025-01-01.log")
+        let entry2 = RunLogEntry(programName: "game.exe", logFileName: "2025-01-02.log")
+        history.append(entry1)
+        history.append(entry2)
+
+        let logsFolder = URL(filePath: "/tmp/logs")
+        let urls = history.logFileURLs(in: logsFolder)
+
+        XCTAssertEqual(urls.count, 2)
+        XCTAssertTrue(urls[0].path().contains("2025-01-01.log"))
+        XCTAssertTrue(urls[1].path().contains("2025-01-02.log"))
+    }
+
     // MARK: - Codable Round-Trip Tests
 
     func testRunLogEntryCodableRoundTrip() throws {
         var entry = RunLogEntry(programName: "test.exe", logFileName: "2025-01-01T00:00:00Z.log")
         entry.endTime = entry.startTime.addingTimeInterval(300)
         entry.exitCode = 0
+        entry.activeWineDebugPreset = "verbose"
         entry.hasWineDebugOutput = true
 
         let encoder = PropertyListEncoder()
@@ -192,6 +215,7 @@ final class RunLogTests: XCTestCase {
         XCTAssertEqual(decoded.programName, entry.programName)
         XCTAssertEqual(decoded.logFileName, entry.logFileName)
         XCTAssertEqual(decoded.exitCode, entry.exitCode)
+        XCTAssertEqual(decoded.activeWineDebugPreset, entry.activeWineDebugPreset)
         XCTAssertEqual(decoded.hasWineDebugOutput, entry.hasWineDebugOutput)
         // Plist encoding rounds Date to whole seconds
         XCTAssertEqual(decoded.startTime.timeIntervalSince1970, entry.startTime.timeIntervalSince1970, accuracy: 1.0)
@@ -252,5 +276,26 @@ final class RunLogTests: XCTestCase {
         XCTAssertEqual(loaded.entries.count, 1)
         XCTAssertEqual(loaded.entries[0].id, entry.id)
         XCTAssertEqual(loaded.entries[0].programName, "game.exe")
+    }
+
+    func testTotalLogSizeCalculation() throws {
+        let logsDir = tempDir.appending(path: "logs")
+        try FileManager.default.createDirectory(at: logsDir, withIntermediateDirectories: true)
+
+        // Create some fake log files
+        let data100 = Data(repeating: 0x41, count: 100)
+        let data200 = Data(repeating: 0x42, count: 200)
+        try data100.write(to: logsDir.appending(path: "run1.log"))
+        try data200.write(to: logsDir.appending(path: "run2.log"))
+        // Non-log file should be excluded
+        try data100.write(to: logsDir.appending(path: "readme.txt"))
+
+        let size = RunLogStore.totalLogSize(in: logsDir)
+        XCTAssertEqual(size, 300)
+    }
+
+    func testTotalLogSizeReturnsZeroForNonexistentFolder() {
+        let size = RunLogStore.totalLogSize(in: tempDir.appending(path: "nonexistent"))
+        XCTAssertEqual(size, 0)
     }
 }

@@ -16,6 +16,7 @@
 //  If not, see https://www.gnu.org/licenses/.
 //
 
+import AppKit
 import SwiftUI
 import WhiskyKit
 
@@ -25,14 +26,10 @@ struct ProgramMenuView: View {
 
     var body: some View {
         Button("button.run", systemImage: "play") {
-            // Program-list and pin launches historically skipped launcher
-            // detection; only FileOpenView and the bottle Run button had it.
-            LauncherFixes.detectAndApply(from: program.url, for: program.bottle)
-            program.launchFromUI { result in
-                if case let .launchFailed(_, error) = result {
-                    TerminalApp.showError(" \(program.url.lastPathComponent): \(error)")
-                }
-            }
+            Telemetry.capture(.firstProgramLaunchAttempted)
+            // Launcher detection and the clipboard policy run in the shared
+            // launch path, as they do for every other Run and Play.
+            program.run()
         }
         .labelStyle(.titleAndIcon)
         Section("program.settings") {

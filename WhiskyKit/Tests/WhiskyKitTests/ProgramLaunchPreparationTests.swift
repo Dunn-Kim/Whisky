@@ -21,13 +21,19 @@ import Testing
 @testable import WhiskyKit
 
 /// Captures what a launch would write to the prefix registry, in place of the
-/// `reg import` that needs Wine.
+/// `reg import`s that need Wine.
 @MainActor
 private final class RegistryRecorder {
     private(set) var writes: [[(scope: Wine.DLLOverrideScope, overrides: String)]] = []
+    /// The `.reg` documents imported besides the DLL overrides, such as the font aliases.
+    private(set) var imports: [String] = []
 
     var writer: Wine.DLLOverrideWriter {
         { _, scopes in self.writes.append(scopes) }
+    }
+
+    var importer: Wine.RegistryImporter {
+        { document, _ in self.imports.append(document) }
     }
 
     /// The overrides the only write gave `scope`, parsed; `nil` when there was
@@ -88,11 +94,31 @@ final class ProgramLaunchPreparationTests {
         return program
     }
 
+    /// Gives `bottle` the user hive `cjkfonts` leaves: the Microsoft aliases
+    /// its fake verbs write, and none of the Noto ones. With `collection`, the
+    /// Source Han Sans collection they point at is installed too.
+    private func addCJKFonts(to bottle: Bottle, collection: Bool) throws {
+        let fonts = bottle.url.appending(path: "drive_c/windows/Fonts")
+        try FileManager.default.createDirectory(at: fonts, withIntermediateDirectories: true)
+        if collection {
+            try Data().write(to: fonts.appending(path: CJKFontReplacements.collectionFile))
+        }
+        let userReg = #"""
+        WINE REGISTRY Version 2
+
+        [Software\\Wine\\Fonts\\Replacements] 1788028200
+        "Meiryo"="Source Han Sans"
+        "SimSun"="Source Han Sans SC"
+
+        """#
+        try userReg.write(to: bottle.url.appending(path: "user.reg"), atomically: true, encoding: .utf8)
+    }
+
     /// Runs `launch`'s printed command through `sh` in a terminal that exports
     /// `inherited`, with a stub standing in for `wine64` that prints the
     /// environment it was started with. The shell is waited on off the main
     /// actor: blocking it here would stall every other main-actor test for the
-    /// duration.
+    /// duration, and the Steam orchestrator tests run on sub-second budgets.
     private func environmentOfPrintedCommand(
         for launch: Wine.PreparedLaunch, inherited: [String: String]
     ) async throws -> [String: String] {
@@ -163,6 +189,60 @@ final class ProgramLaunchPreparationTests {
         #expect(launch.environment["WINEDEBUG"] == WineDebugPreset.dllLoad.winedebugValue)
     }
 
+    @Test("Every run mode adds the CJK font aliases a bottle with Source Han Sans is missing")
+    func launchAddsCJKFontAliases() async throws {
+        let bottle = try makeBottle()
+        try addCJKFonts(to: bottle, collection: true)
+        let program = try Program(url: makeExecutable("Games/Game.exe", in: bottle), bottle: bottle)
+        let recorder = RegistryRecorder()
+
+        // The preparation `WhiskyCmd run --command` prints, not only the one a launch runs.
+        _ = try await program.prepareLaunch(args: [], overrideWriter: recorder.writer, importer: recorder.importer)
+
+        // One import, holding all four Noto aliases: the hive has only the Microsoft ones.
+        #expect(recorder.imports == [CJKFontReplacements.registryDocument(for: CJKFontReplacements.replacements)])
+    }
+
+    @Test("No run mode imports Noto aliases into a bottle without Source Han Sans, only the Korean fallback")
+    func launchWithoutSourceHanSansImportsOnlyTheKoreanFallback() async throws {
+        let bottle = try makeBottle()
+        try addCJKFonts(to: bottle, collection: false)
+        let program = try Program(url: makeExecutable("Games/Game.exe", in: bottle), bottle: bottle)
+        let recorder = RegistryRecorder()
+
+        _ = try await program.prepareLaunch(args: [], overrideWriter: recorder.writer, importer: recorder.importer)
+
+        // Every Mac has Apple SD Gothic Neo; the check keeps the test honest on one that does not.
+        let expected = KoreanFontFallback.isInstalledOnHost
+            ? [CJKFontReplacements.registryDocument(for: KoreanFontFallback.replacements)]
+            : []
+        #expect(recorder.imports == expected)
+    }
+
+    @Test("A launch without a Program adds the font aliases before it reads a bottle setting")
+    func launchAddsCJKFontAliasesBeforeReadingSettings() async throws {
+        let bottle = try makeBottle()
+        try addCJKFonts(to: bottle, collection: true)
+        let game = try makeExecutable("Games/Game.exe", in: bottle)
+        let recorder = RegistryRecorder()
+        // The real import runs Wine for seconds, time enough to switch the bottle's backend.
+        let importer: Wine.RegistryImporter = { document, target in
+            try await recorder.importer(document, target)
+            target.settings.graphicsBackend = .wined3d
+        }
+
+        // What the public `runProgram` prepares, for the Run button, the library and Steam.
+        let launch = try await Wine.prepareProgramLaunch(
+            at: game, bottle: bottle, overrideWriter: recorder.writer, importer: importer
+        )
+
+        #expect(recorder.imports == [CJKFontReplacements.registryDocument(for: CJKFontReplacements.replacements)])
+        // The whole launch is wined3d's: none of it is the DXVK the bottle had before the import.
+        #expect(launch.environment["WINED3DMETAL"] == "0")
+        #expect(recorder.overrides(for: .bottle)?["d2d1"] == "n,b")
+        #expect(recorder.overrides(for: .bottle)?["d3d11"] == nil)
+    }
+
     @Test("A printed command runs the prepared launch")
     func printedCommandRunsThePreparedLaunch() async throws {
         let bottle = try makeBottle()
@@ -181,39 +261,28 @@ final class ProgramLaunchPreparationTests {
         ))
     }
 
-    @Test("Overrides meant for a descendant stay in the environment and off the launcher's entry")
-    func descendantOverridesStayInTheEnvironment() async throws {
+    @Test("Overrides meant for a descendant go to its own entry, off the launcher's and the environment")
+    func descendantOverridesGoToTheDescendantsEntry() async throws {
         let bottle = try makeBottle()
         let steam = try makeExecutable("Program Files (x86)/Steam/steam.exe", in: bottle)
         let recorder = RegistryRecorder()
+        var plan = ProgramOverrides()
+        plan.dllOverrides = [DLLOverrideEntry(dllName: "xinput1_3", mode: .native)]
 
         let launch = try await Wine.prepareProgramLaunch(
-            at: steam, args: ["-applaunch", "1174180"], bottle: bottle,
-            overridesApplyToDescendants: true, overrideWriter: recorder.writer
+            at: steam, args: ["-applaunch", "1174180"], bottle: bottle, programOverrides: plan,
+            overridesApplyToDescendants: true, descendantExecutables: ["RDR2.exe"],
+            overrideWriter: recorder.writer
         )
 
-        #expect(launch.environment["WINEDLLOVERRIDES"] != nil)
+        // A client this invocation starts would inherit the variable.
+        #expect(launch.environment["WINEDLLOVERRIDES"] == nil)
+        #expect(recorder.overrides(for: .program("RDR2.exe"))?["xinput1_3"] == "n")
         #expect(launch.arguments == ["start", "/unix", steam.path(percentEncoded: false), "-applaunch", "1174180"])
-        #expect(recorder.overrides(for: .program("steam.exe")) == nil)
+        // The launcher keeps its own set; the game's plan is not in it.
+        #expect(recorder.overrides(for: .program("steam.exe"))?["d3d11"] == "n,b")
+        #expect(recorder.overrides(for: .program("steam.exe"))?["xinput1_3"] == nil)
         #expect(recorder.overrides(for: .program("steamwebhelper.exe"))?["nvapi64"] == "")
-    }
-
-    @Test("A program set to a virtual desktop is prepared to run in one")
-    func virtualDesktopArguments() async throws {
-        let bottle = try makeBottle()
-        let program = try Program(url: makeExecutable("Games/My Game.exe", in: bottle), bottle: bottle)
-        var overrides = ProgramOverrides()
-        overrides.virtualDesktopEnabled = true
-        overrides.resolutionPreset = .r1280x720
-
-        let launch = try await Wine.prepareProgramLaunch(
-            at: program.url, args: ["-x"], bottle: bottle, programOverrides: overrides,
-            overrideWriter: RegistryRecorder().writer
-        )
-
-        #expect(launch.arguments == [
-            "explorer", "/desktop=My_Game.exe,1280x720", program.url.path(percentEncoded: false), "-x"
-        ])
     }
 
     @Test("A prepared launch prints exactly as prepared, without rebuilding its environment")

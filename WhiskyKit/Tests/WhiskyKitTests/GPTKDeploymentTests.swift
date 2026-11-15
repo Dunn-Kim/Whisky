@@ -185,16 +185,20 @@ struct GPTKDeploymentTests {
     // MARK: - Runtime capability flag
 
     @Test("gptkCapable decodes when present and stays nil when absent")
-    func gptkCapableDecoding() {
-        #expect(WhiskyWineVersion(version: .init(4, 0, 0), gptkCapable: true).gptkCapable == true)
-        #expect(WhiskyWineVersion(version: .init(3, 1, 1)).gptkCapable == nil)
-    }
+    func gptkCapableDecoding() throws {
+        let capable = WhiskyWineVersion(
+            version: .init(4, 0, 0), gptkCapable: true
+        )
+        let encoder = PropertyListEncoder()
+        let decoded = try PropertyListDecoder().decode(
+            WhiskyWineVersion.self, from: encoder.encode(capable)
+        )
+        #expect(decoded.gptkCapable == true)
 
-    @Test("msyncCapable decodes when present and stays nil when absent")
-    func msyncCapableDecoding() {
-        #expect(WhiskyWineVersion(version: .init(4, 0, 0), msyncCapable: true).msyncCapable == true)
-
-        // Every runtime to date, 3.1.1 included, omits the key.
-        #expect(WhiskyWineVersion(version: .init(3, 1, 1)).msyncCapable == nil)
+        let legacy = WhiskyWineVersion(version: .init(3, 1, 1))
+        let decodedLegacy = try PropertyListDecoder().decode(
+            WhiskyWineVersion.self, from: encoder.encode(legacy)
+        )
+        #expect(decodedLegacy.gptkCapable == nil)
     }
 }

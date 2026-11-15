@@ -215,4 +215,115 @@ struct SteamLauncherTests {
             try SteamLauncher.resolveGame(appId: 1_245_620, in: [named], routing: routing)
         }
     }
+
+    // MARK: - Bringing the client up before -applaunch (#276)
+
+    @Test("A running client is not started again")
+    @MainActor func runningClientIsNotStarted() async {
+        var starts = 0
+
+        let running = await SteamLauncher.startClientIfNeeded(
+            isRunning: { true }, start: { starts += 1 }, hasStarted: { false },
+            timeout: .seconds(5), pollInterval: .milliseconds(10)
+        )
+
+        #expect(running)
+        #expect(starts == 0)
+    }
+
+    @Test("A cold client is started on its own and waited for before the game is handed over")
+    @MainActor func coldClientIsStartedAndAwaited() async {
+        var starts = 0
+        var bottleChecks = 0
+        var polls = 0
+
+        let running = await SteamLauncher.startClientIfNeeded(
+            isRunning: {
+                bottleChecks += 1
+                return false
+            },
+            start: { starts += 1 },
+            hasStarted: {
+                polls += 1
+                // Comes up on the third look after the start.
+                return starts > 0 && polls >= 3
+            },
+            timeout: .seconds(30), pollInterval: .milliseconds(10)
+        )
+
+        #expect(running)
+        #expect(starts == 1)
+        // The bottle is asked once; the wait only looks at the cheap check.
+        #expect(bottleChecks == 1)
+        #expect(polls == 3)
+    }
+
+    @Test("A client that never comes up stops the wait after the timeout")
+    @MainActor func clientThatNeverComesUpTimesOut() async {
+        var starts = 0
+
+        let running = await SteamLauncher.startClientIfNeeded(
+            isRunning: { false }, start: { starts += 1 }, hasStarted: { false },
+            timeout: .milliseconds(50), pollInterval: .milliseconds(10)
+        )
+
+        #expect(!running)
+        #expect(starts == 1)
+    }
+
+    @Test("Steam's host processes are found by their Windows image")
+    func steamPIDsComeFromTheHostListing() {
+        let listing = """
+          101 /Users/me/Libraries/Wine/bin/wineserver
+          202 C:\\windows\\system32\\winedevice.exe
+          303 C:\\Program Files (x86)\\Steam\\steam.exe
+          404 C:\\Program Files (x86)\\Steam\\bin\\cef\\cef.win7x64\\steamwebhelper.exe
+          505 C:\\Program Files (x86)\\Steam\\STEAM.EXE
+        """
+
+        #expect(SteamLauncher.steamPIDs(inProcessListing: listing) == [303, 505])
+    }
+}
+
+@Suite("Steam launch output")
+struct SteamLaunchOutputTests {
+    private func makeResult(_ completion: ProcessOutputCompletion) -> Wine.ProgramRunResult {
+        Wine.ProgramRunResult(
+            exitCode: 0, logFileURL: URL(filePath: "/tmp/launch.log"), runLogEntryId: UUID(),
+            outputCompletion: completion
+        )
+    }
+
+    @Test("A launch that started the client waits for the client's output too")
+    func launchWaitsForTheClientItStarted() async throws {
+        let launchOutput = ProcessOutputCompletion()
+        let clientOutput = ProcessOutputCompletion()
+        let client = Task<Wine.ProgramRunResult, any Error> { makeResult(clientOutput) }
+        let launch = makeResult(launchOutput)
+
+        let result = launch.includingOutput(of: client)
+        #expect(result.logFileURL == launch.logFileURL)
+        #expect(result.runLogEntryId == launch.runLogEntryId)
+
+        launchOutput.complete()
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(!result.outputCompletion.isComplete, "the client's output is still open")
+
+        clientOutput.complete()
+        await result.outputCompletion.wait()
+        #expect(result.outputCompletion.isComplete)
+    }
+
+    @Test("A launch that started no client, or one that failed, waits only for its own output")
+    func launchWithoutAClientWaitsForItsOwnOutput() async {
+        let launchOutput = ProcessOutputCompletion()
+        let launch = makeResult(launchOutput)
+        #expect(launch.includingOutput(of: nil).outputCompletion === launchOutput)
+
+        let failed = Task<Wine.ProgramRunResult, any Error> { throw CancellationError() }
+        let result = launch.includingOutput(of: failed)
+        launchOutput.complete()
+        await result.outputCompletion.wait()
+        #expect(result.outputCompletion.isComplete)
+    }
 }

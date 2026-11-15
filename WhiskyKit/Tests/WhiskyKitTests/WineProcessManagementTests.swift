@@ -24,33 +24,16 @@ final class WineProcessManagementTests: XCTestCase {
     /// report false — whether wineserver spawns and exits nonzero (runtime
     /// installed) or the spawn itself fails (no runtime, e.g. CI).
     @MainActor
-    func testWineserverProbeReturnsFalseForBottleWithoutServer() async throws {
-        let tempDir = try makeTempDir()
+    func testWineserverProbeReturnsFalseForBottleWithoutServer() async {
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
 
         let bottle = Bottle(bottleUrl: tempDir, inFlight: false, isAvailable: true)
 
         let running = await Wine.isWineserverRunning(for: bottle)
 
         XCTAssertFalse(running)
-    }
-
-    /// The startup sweep kills wineservers that predate the session, so a bottle
-    /// the user launched into within its 2 s delay must read as started.
-    @MainActor
-    func testWineWorkIsRecordedPerBottleFromTheFirstSpawn() throws {
-        let (bottle, logsFolder) = try makeBottleWithoutRuntime()
-        let other = Bottle(
-            bottleUrl: bottle.url.deletingLastPathComponent().appending(path: "other"),
-            inFlight: false, isAvailable: true
-        )
-        XCTAssertFalse(Wine.hasStartedWork(in: bottle))
-
-        Wine.$logsFolderOverride.withValue(logsFolder) {
-            _ = try? Wine.runWineProcess(args: ["--version"], bottle: bottle)
-        }
-
-        XCTAssertTrue(Wine.hasStartedWork(in: bottle))
-        XCTAssertFalse(Wine.hasStartedWork(in: other))
     }
 
     /// The Processes page lists processes every few seconds, and a log file per

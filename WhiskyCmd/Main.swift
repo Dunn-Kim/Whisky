@@ -27,27 +27,15 @@ import WhiskyKit
 /// creation. Prints the message to stderr and exits 1. Exit 64 with the
 /// usage block stays reserved for malformed invocations.
 struct DomainError: LocalizedError {
-    let errorDescription: String?
+    private let message: String
 
     init(_ message: String) {
-        errorDescription = message
+        self.message = message
     }
-}
 
-/// The bottle named `name`; a ``DomainError`` when there is none.
-@MainActor
-private func loadBottle(named name: String) throws -> Bottle {
-    var bottlesList = BottleData()
-    guard let bottle = bottlesList.loadBottles().first(where: { $0.settings.name == name }) else {
-        throw DomainError("A bottle with that name doesn't exist.")
+    var errorDescription: String? {
+        message
     }
-    return bottle
-}
-
-/// Prints `payload` as pretty-printed JSON with sorted keys.
-private func printJSON(_ payload: Any) throws {
-    let data = try JSONSerialization.data(withJSONObject: payload, options: [.prettyPrinted, .sortedKeys])
-    print(String(bytes: data, encoding: .utf8) ?? "")
 }
 
 @main
@@ -65,6 +53,7 @@ struct Whisky: AsyncParsableCommand {
             List.self,
             Create.self,
             Add.self,
+//                      Export.self,
             Delete.self,
             Remove.self,
             Run.self,
@@ -72,6 +61,8 @@ struct Whisky: AsyncParsableCommand {
             Launch.self,
             Shortcut.self,
             Shellenv.self
+            /* Install.self,
+             Uninstall.self */
         ]
     )
 }
@@ -123,6 +114,8 @@ extension Whisky {
                     atPath: bottleURL.path(percentEncoded: false),
                     withIntermediateDirectories: true
                 )
+                // So the app's first scan of the bottle pins its first install.
+                try? HandledShortcuts.startRecord(in: bottleURL)
                 let bottle = Bottle(bottleUrl: bottleURL, inFlight: true)
                 bottle.settings.windowsVersion = .win10
                 bottle.settings.name = trimmed
@@ -139,15 +132,49 @@ extension Whisky {
     struct Add: ParsableCommand {
         static let configuration = CommandConfiguration(abstract: "Add an existing bottle.")
 
-        @Argument var path: String
+        @Argument(help: "The bottle's directory (the folder holding its Metadata.plist).")
+        var path: String
 
         mutating func run() throws {
-            // Should be sanitised
-            let bottleURL = URL(filePath: path)
-            let settings = try BottleSettings.decode(from: bottleURL)
+            let bottleURL = BottleData.bottleURL(
+                forPath: path,
+                currentDirectory: FileManager.default.currentDirectoryPath
+            )
+            let shownPath = bottleURL.path(percentEncoded: false)
+            // Read-only: a path that is not a bottle is refused, never turned into one.
+            let settings: BottleSettings
+            do {
+                settings = try BottleData.existingBottleSettings(at: bottleURL)
+            } catch let error as ExistingBottleError {
+                throw DomainError(Self.message(for: error, path: shownPath))
+            }
+
             var bottlesList = BottleData()
-            bottlesList.paths.append(bottleURL)
+            guard bottlesList.registerBottlePath(bottleURL) else {
+                throw DomainError("Couldn't save the bottle list, so \"\(settings.name)\" was not added.")
+            }
             print("Bottle \"\(settings.name)\" added.")
+        }
+
+        private static func message(for error: ExistingBottleError, path: String) -> String {
+            switch error {
+            case .notFound:
+                "Nothing exists at \(path)."
+            case .notADirectory:
+                "\(path) is a file, not a bottle directory."
+            case .missingMetadata:
+                "\(path) is not a Whisky bottle: it has no Metadata.plist."
+            case .unreadableMetadata:
+                "\(path) is not a Whisky bottle: its Metadata.plist could not be read."
+            }
+        }
+    }
+
+    struct Export: ParsableCommand {
+        static let configuration = CommandConfiguration(abstract: "Export an existing bottle.")
+
+        mutating func run() throws {
+//            print("Create a bottle")
         }
     }
 
@@ -163,18 +190,21 @@ extension Whisky {
 
             // Should ask for confirmation
             let bottleToRemove = bottles.first(where: { $0.settings.name == name })
-            if let bottleToRemove {
-                bottlesList.paths.removeAll(where: { $0 == bottleToRemove.url })
-                do {
-                    try FileManager.default.removeItem(at: bottleToRemove.url)
-                    GameRouting().removeRoutes(toBottle: bottleToRemove.url)
-                    print("Deleted \"\(name)\".")
-                } catch {
-                    print(error)
-                }
-            } else {
+            guard let bottleToRemove else {
                 throw DomainError("No bottle called \"\(name)\" found.")
             }
+            // Delete first and unregister only on success: a bottle whose
+            // folder is still on disk stays in the list instead of vanishing
+            // from Whisky while its files remain.
+            do {
+                try FileManager.default.removeItem(at: bottleToRemove.url)
+            } catch {
+                // Exits 1 (ExitCode.failure) with the reason on stderr.
+                throw DomainError("Couldn't delete \"\(name)\": \(error.localizedDescription)")
+            }
+            bottlesList.paths.removeAll(where: { $0 == bottleToRemove.url })
+            GameRouting().removeRoutes(toBottle: bottleToRemove.url)
+            print("Deleted \"\(name)\".")
         }
     }
 
@@ -257,7 +287,12 @@ extension Whisky {
                 args.remove(at: terminator)
             }
 
-            let bottle = try loadBottle(named: bottleName)
+            var bottlesList = BottleData()
+            let bottles = bottlesList.loadBottles()
+
+            guard let bottle = bottles.first(where: { $0.settings.name == bottleName }) else {
+                throw DomainError("A bottle with that name doesn't exist.")
+            }
 
             let url = URL(fileURLWithPath: Self.resolveExecutablePath(path, in: bottle))
             let program = Program(url: url, bottle: bottle)
@@ -312,8 +347,12 @@ extension Whisky {
 
                 if tailLog {
                     // After launch confirmation, tail the log file
-                    try await tailLogFile(at: result.logFileURL)
+                    try await tailLogFile(at: result.logFileURL, until: result.outputCompletion)
                 }
+                // The launch returns once `wine start` has handed the program
+                // over. Stay until the program's output has closed: this process
+                // reads it into the log, and exiting would cut the log short.
+                await result.outputCompletion.wait()
 
                 if result.exitCode != 0 {
                     throw ExitCode(result.exitCode)
@@ -343,6 +382,9 @@ extension Whisky {
                     FileHandle.standardError.write(Data(line.utf8))
                 }
             }
+            // The output goes on after `wine start` exits, until the program
+            // and everything else it started have exited.
+            await result.outputCompletion.wait()
 
             FileHandle.standardError.write(Data("Exited with code \(result.exitCode)\n".utf8))
 
@@ -351,34 +393,27 @@ extension Whisky {
             }
         }
 
-        /// Tails a log file, printing new lines as they appear until the Wine process exits.
+        /// Tails a log file, printing new lines as they appear until the run's output has closed.
         @MainActor
-        private func tailLogFile(at logFileURL: URL) async throws {
+        private func tailLogFile(at logFileURL: URL, until outputCompletion: ProcessOutputCompletion) async throws {
             guard FileManager.default.fileExists(atPath: logFileURL.path(percentEncoded: false)) else {
                 return
             }
 
-            guard let handle = try? FileHandle(forReadingFrom: logFileURL) else { return }
-            defer { try? handle.close() }
+            // Only what is written from now on. A truncation of the log makes the
+            // follower go on from its marker, which repeats some lines but drops none.
+            var follower = WineLogFollower(logFileURL: logFileURL, start: .end)
 
-            // Seek to end to only show new content
-            _ = try? handle.seekToEnd()
-
-            // Poll for new data until interrupted
-            // This is a simple polling approach; exits after 5 seconds of no new data
-            var idleCount = 0
-            let maxIdleIterations = 50 // 50 * 100ms = 5 seconds of no new data
-
-            while idleCount < maxIdleIterations {
-                let data = handle.availableData
-                if data.isEmpty {
-                    idleCount += 1
-                    try await Task.sleep(for: .milliseconds(100))
+            while true {
+                // Read before the last read, so output written before the close is printed.
+                let outputClosed = outputCompletion.isComplete
+                let data = (try? follower.read().data) ?? Data()
+                if !data.isEmpty {
+                    FileHandle.standardOutput.write(data)
+                } else if outputClosed {
+                    return
                 } else {
-                    idleCount = 0
-                    if let text = String(data: data, encoding: .utf8) {
-                        FileHandle.standardOutput.write(Data(text.utf8))
-                    }
+                    try await Task.sleep(for: .milliseconds(100))
                 }
             }
         }
@@ -406,9 +441,15 @@ extension Whisky {
 
         @MainActor
         mutating func run() async throws {
-            let bottle = try loadBottle(named: bottleName)
+            var bottlesList = BottleData()
+            let bottles = bottlesList.loadBottles()
+
+            guard let bottle = bottles.first(where: { $0.settings.name == bottleName }) else {
+                throw DomainError("A bottle with that name doesn't exist.")
+            }
 
             let url = URL(fileURLWithPath: exePath)
+            let program = Program(url: url, bottle: bottle)
 
             // Determine shortcut name: --name option or program name sans extension
             let shortcutName = name ?? url.deletingPathExtension().lastPathComponent
@@ -422,7 +463,9 @@ extension Whisky {
             }
 
             // Ensure output directory exists
-            try FileManager.default.createDirectory(at: outputDir, withIntermediateDirectories: true)
+            if !FileManager.default.fileExists(atPath: outputDir.path(percentEncoded: false)) {
+                try FileManager.default.createDirectory(at: outputDir, withIntermediateDirectories: true)
+            }
 
             let appURL = outputDir.appending(path: "\(shortcutName).app")
 
@@ -438,10 +481,8 @@ extension Whisky {
                 }
             }
 
-            // Generate launch script and create the bundle
-            let target = ShortcutCreator.liveTarget(for: url, bottle: bottle)
-            let launchScript = ShortcutCreator.liveLaunchScript(for: target)
-            try ShortcutCreator.createShortcutBundle(at: appURL, launchScript: launchScript)
+            // Generate the launch script and create the bundle with the program's icon
+            try ShortcutCreator.createShortcut(for: program, at: appURL, name: shortcutName)
 
             print("Created \(appURL.path(percentEncoded: false))")
         }
@@ -454,11 +495,30 @@ extension Whisky {
 
         @MainActor
         mutating func run() async throws {
-            let bottle = try loadBottle(named: bottleName)
+            var bottlesList = BottleData()
+            let bottles = bottlesList.loadBottles()
+
+            guard let bottle = bottles.first(where: { $0.settings.name == bottleName }) else {
+                throw DomainError("A bottle with that name doesn't exist.")
+            }
 
             let envCmd = Wine.generateTerminalEnvironmentCommand(bottle: bottle)
             print(envCmd)
         }
+    }
+
+    struct Install: ParsableCommand {
+        static let configuration = CommandConfiguration(abstract: "Install WhiskyWine.")
+
+        mutating func run() throws {}
+    }
+
+    struct Uninstall: ParsableCommand {
+        static let configuration = CommandConfiguration(abstract: "Uninstall WhiskyWine.")
+
+        @Flag(name: [.long, .short], help: "Uninstall WhiskyWine") var whiskyWine = false
+
+        mutating func run() throws {}
     }
 }
 
@@ -476,7 +536,12 @@ extension Whisky {
 
         @MainActor
         mutating func run() async throws {
-            let bottle = try loadBottle(named: bottleName)
+            var bottlesList = BottleData()
+            let bottles = bottlesList.loadBottles()
+
+            guard let bottle = bottles.first(where: { $0.settings.name == bottleName }) else {
+                throw DomainError("A bottle with that name doesn't exist.")
+            }
 
             let games = SteamLibrary.enumerate(bottleURL: bottle.url)
 
@@ -488,7 +553,10 @@ extension Whisky {
                         "installPath": game.installURL.path(percentEncoded: false)
                     ]
                 }
-                try printJSON(payload)
+                let data = try JSONSerialization.data(
+                    withJSONObject: payload, options: [.prettyPrinted, .sortedKeys]
+                )
+                print(String(bytes: data, encoding: .utf8) ?? "")
                 return
             }
 
@@ -513,9 +581,9 @@ extension Whisky {
 
             The game is launched through the bottle's Steam client, which starts \
             first if it isn't running. The command confirms once Wine is running \
-            the client, then waits for that invocation to finish: a few seconds \
-            when the client was already running, the whole session when this \
-            launch started it.
+            the client, then stays until the output of what it started has \
+            closed, so their logs are complete: a few seconds when the client was \
+            already running, the whole session when this launch started it.
             """
         )
 
@@ -530,18 +598,24 @@ extension Whisky {
 
         @MainActor
         mutating func run() async throws {
+            var bottlesList = BottleData()
+            let bottles = bottlesList.loadBottles()
+
             let target: Bottle
             if let bottleName = bottle {
-                target = try loadBottle(named: bottleName)
+                guard let named = bottles.first(where: { $0.settings.name == bottleName }) else {
+                    throw DomainError("A bottle with that name doesn't exist.")
+                }
+                target = named
             } else {
-                var bottlesList = BottleData()
-                target = try SteamLauncher.resolveBottle(appId: appId, in: bottlesList.loadBottles())
+                target = try SteamLauncher.resolveBottle(appId: appId, in: bottles)
             }
 
             // The launch happens inside the returned task. Returning before it
             // finishes ended the process while the task was still preparing the
             // bottle, so Steam never started. Confirm once Wine is running the
-            // client, then wait for that invocation the way `run` waits.
+            // client, then wait for its output the way `run` waits: this
+            // process reads it into the logs, and exiting would cut them short.
             let appId = self.appId
             let json = self.json
             let bottleName = target.settings.name
@@ -551,6 +625,9 @@ extension Whisky {
                 }
             }
             let result = try await launch.value
+            // Covers the client too when this launch started it, and is only
+            // complete once the run log entries are marked finished.
+            await result.outputCompletion.wait()
 
             if result.exitCode != 0 {
                 // The confirmation is out already, so say why this still fails.
@@ -561,12 +638,21 @@ extension Whisky {
         }
 
         /// Prints that the game was handed to the bottle's Steam client.
+        @MainActor
         private static func printConfirmation(appId: Int, bottleName: String, json: Bool) {
             guard json else {
                 print("Launched \(appId) in \(bottleName)")
                 return
             }
-            try? printJSON(["appId": String(appId), "bottle": bottleName, "status": "launched"])
+            let payload = [
+                "appId": String(appId),
+                "bottle": bottleName,
+                "status": "launched"
+            ]
+            let data = try? JSONSerialization.data(
+                withJSONObject: payload, options: [.prettyPrinted, .sortedKeys]
+            )
+            print(data.flatMap { String(bytes: $0, encoding: .utf8) } ?? "")
         }
     }
 }

@@ -22,31 +22,49 @@ import XCTest
 @MainActor
 final class StabilityDiagnosticsTests: XCTestCase {
     func testReportGenerationWithMissingLogsFolder() async throws {
-        let bottleURL = try makeTempDir()
+        let bottleURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: bottleURL, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: bottleURL) }
 
         let bottle = Bottle(bottleUrl: bottleURL, inFlight: false, isAvailable: true)
 
         let missingLogsFolder = bottleURL.appendingPathComponent("does-not-exist")
-        let report = await StabilityDiagnostics.generateDiagnosticReport(for: bottle, logsFolder: missingLogsFolder)
+        let config = StabilityDiagnostics.Configuration(
+            bundle: Bundle(for: StabilityDiagnosticsTests.self),
+            logsFolder: missingLogsFolder,
+            now: { Date(timeIntervalSince1970: 0) }
+        )
+
+        let report = await StabilityDiagnostics.generateDiagnosticReport(for: bottle, config: config)
         XCTAssertTrue(report.contains("Whisky Stability Diagnostics Report"))
         XCTAssertTrue(report.contains("[LOGS]"))
         XCTAssertTrue(report.contains("Logs Folder Status: Not found"))
     }
 
     func testReportGenerationWithEmptyLogsFolder() async throws {
-        let bottleURL = try makeTempDir()
+        let bottleURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: bottleURL, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: bottleURL) }
 
         let bottle = Bottle(bottleUrl: bottleURL, inFlight: false, isAvailable: true)
 
         let logsFolder = bottleURL.appendingPathComponent("logs")
         try FileManager.default.createDirectory(at: logsFolder, withIntermediateDirectories: true)
 
-        let report = await StabilityDiagnostics.generateDiagnosticReport(for: bottle, logsFolder: logsFolder)
+        let config = StabilityDiagnostics.Configuration(
+            bundle: Bundle(for: StabilityDiagnosticsTests.self),
+            logsFolder: logsFolder,
+            now: Date.init
+        )
+
+        let report = await StabilityDiagnostics.generateDiagnosticReport(for: bottle, config: config)
         XCTAssertTrue(report.contains("Log Files: None found"))
     }
 
     func testTailHandlesInvalidUTF8() throws {
-        let tempURL = try makeTempDir()
+        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: tempURL, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempURL) }
 
         let logURL = tempURL.appendingPathComponent("invalid.log")
 
@@ -59,7 +77,9 @@ final class StabilityDiagnosticsTests: XCTestCase {
     }
 
     func testTailKeepsLastLinesBounded() throws {
-        let tempURL = try makeTempDir()
+        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: tempURL, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempURL) }
 
         let logURL = tempURL.appendingPathComponent("many-lines.log")
 
@@ -75,17 +95,90 @@ final class StabilityDiagnosticsTests: XCTestCase {
     }
 
     func testReportIncludesArchitectureLine() async throws {
-        let bottleURL = try makeTempDir()
+        let bottleURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: bottleURL, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: bottleURL) }
 
         let bottle = Bottle(bottleUrl: bottleURL, inFlight: false, isAvailable: true)
-        let report = await StabilityDiagnostics.generateDiagnosticReport(
-            for: bottle, logsFolder: bottleURL.appendingPathComponent("does-not-exist")
+        let config = StabilityDiagnostics.Configuration(
+            bundle: Bundle(for: StabilityDiagnosticsTests.self),
+            logsFolder: bottleURL.appendingPathComponent("does-not-exist"),
+            now: Date.init
         )
+
+        let report = await StabilityDiagnostics.generateDiagnosticReport(for: bottle, config: config)
 
         #if arch(arm64)
         XCTAssertTrue(report.contains("Architecture: Apple Silicon (arm64)"))
         #else
         XCTAssertTrue(report.contains("Architecture: Intel (x86_64)"))
         #endif
+    }
+
+    /// A Rockstar bottle on Recommended gets DXVK for its launcher launches, as
+    /// the launcher summary says; the report must not call DXVK disabled.
+    func testReportShowsLauncherDXVKFromTheLaunchCondition() async throws {
+        let bottleURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: bottleURL, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: bottleURL) }
+
+        let bottle = Bottle(bottleUrl: bottleURL, inFlight: false, isAvailable: true)
+        bottle.settings.graphicsBackend = .recommended
+        bottle.settings.autoEnableDXVK = false
+        bottle.settings.detectedLauncher = .rockstar
+
+        let report = await StabilityDiagnostics.generateDiagnosticReport(
+            for: bottle,
+            config: Self.config(for: bottleURL)
+        )
+
+        XCTAssertTrue(report.contains("Graphics Backend: recommended"))
+        XCTAssertTrue(report.contains("DXVK for Launcher Launches: ✅ Enabled"))
+        XCTAssertFalse(report.contains("DXVK: ❌ Disabled"))
+    }
+
+    func testReportShowsLauncherDXVKDisabledWhenTheLaunchSkipsIt() async throws {
+        let bottleURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: bottleURL, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: bottleURL) }
+
+        let bottle = Bottle(bottleUrl: bottleURL, inFlight: false, isAvailable: true)
+        bottle.settings.graphicsBackend = .d3dMetal
+        bottle.settings.autoEnableDXVK = false
+        bottle.settings.detectedLauncher = .rockstar
+
+        let report = await StabilityDiagnostics.generateDiagnosticReport(
+            for: bottle,
+            config: Self.config(for: bottleURL)
+        )
+
+        XCTAssertTrue(report.contains("Graphics Backend: d3dMetal"))
+        XCTAssertTrue(report.contains("DXVK for Launcher Launches: ❌ Disabled"))
+    }
+
+    func testReportOmitsLauncherDXVKWithoutADetectedLauncher() async throws {
+        let bottleURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: bottleURL, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: bottleURL) }
+
+        let bottle = Bottle(bottleUrl: bottleURL, inFlight: false, isAvailable: true)
+        bottle.settings.graphicsBackend = .dxvk
+
+        let report = await StabilityDiagnostics.generateDiagnosticReport(
+            for: bottle,
+            config: Self.config(for: bottleURL)
+        )
+
+        XCTAssertTrue(report.contains("Graphics Backend: dxvk"))
+        XCTAssertTrue(report.contains("Detected Launcher: None"))
+        XCTAssertFalse(report.contains("DXVK for Launcher Launches"))
+    }
+
+    private static func config(for bottleURL: URL) -> StabilityDiagnostics.Configuration {
+        StabilityDiagnostics.Configuration(
+            bundle: Bundle(for: StabilityDiagnosticsTests.self),
+            logsFolder: bottleURL.appendingPathComponent("does-not-exist"),
+            now: Date.init
+        )
     }
 }

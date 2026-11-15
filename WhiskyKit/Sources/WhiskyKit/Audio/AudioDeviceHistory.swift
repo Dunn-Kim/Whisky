@@ -24,7 +24,7 @@ import Foundation
 /// deduplication. Matches the ``DiagnosisHistory`` pattern from Phase 5.
 ///
 /// Not isolated to any actor -- this is a pure data container.
-public final class AudioDeviceHistory: @unchecked Sendable {
+public final class AudioDeviceHistory: Codable, @unchecked Sendable {
     /// Maximum number of events retained.
     public let maxEvents: Int
 
@@ -45,24 +45,32 @@ public final class AudioDeviceHistory: @unchecked Sendable {
 
     /// Appends a new event, applying deduplication and FIFO eviction.
     ///
-    /// If an existing event with the same device name occurred within the
-    /// last 30 seconds, the new event is silently dropped.
+    /// If an existing event with the same device name and event type occurred
+    /// within the last 30 seconds, the new event is silently dropped.
     ///
     /// - Parameter event: The change event to record.
     public func append(_ event: AudioDeviceChangeEvent) {
         let dominated = events.contains { existing in
             existing.deviceName == event.deviceName
+                && existing.eventType == event.eventType
                 && event.timestamp.timeIntervalSince(existing.timestamp) < Self.deduplicationWindow
         }
 
         guard !dominated else { return }
 
         events.append(event)
-        events = Array(events.suffix(maxEvents))
+        while events.count > maxEvents {
+            events.removeFirst()
+        }
     }
 
     /// Removes all events from the history.
     public func clear() {
         events.removeAll()
+    }
+
+    /// Returns a copy of the current events for export or display.
+    public func export() -> [AudioDeviceChangeEvent] {
+        events
     }
 }

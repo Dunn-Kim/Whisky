@@ -43,15 +43,15 @@ public enum Architecture: Hashable {
     /// Unknown or unsupported architecture.
     case unknown
 
-    /// Returns a human-readable string representation of the architecture.
+    /// Returns a localized, human-readable string representation of the architecture.
     ///
     /// - Returns: "32-bit", "64-bit", or `nil` for unknown architectures.
     public func toString() -> String? {
         switch self {
         case .x32:
-            "32-bit"
+            String(localized: "program.architecture.x32", defaultValue: "32-bit")
         case .x64:
-            "64-bit"
+            String(localized: "program.architecture.x64", defaultValue: "64-bit")
         default:
             nil
         }
@@ -95,6 +95,7 @@ public enum Architecture: Hashable {
 /// - ``sections``
 ///
 /// ### Resources
+/// - ``rsrc``
 /// - ``bestIcon()``
 ///
 /// ## See Also
@@ -111,6 +112,16 @@ public struct PEFile: Hashable, Equatable, Sendable {
     public let optionalHeader: OptionalHeader?
     /// The section table containing headers for each section.
     public let sections: [Section]
+
+    /// Creates a PEFile from an optional URL.
+    ///
+    /// - Parameter url: The URL to the PE file, or `nil`.
+    /// - Returns: A parsed `PEFile`, or `nil` if the URL was `nil`.
+    /// - Throws: ``PEError`` if the file is not a valid PE executable.
+    public init?(url: URL?) throws {
+        guard let url else { return nil }
+        try self.init(url: url)
+    }
 
     /// Creates a PEFile by parsing the executable at the given URL.
     ///
@@ -192,35 +203,16 @@ public struct PEFile: Hashable, Equatable, Sendable {
         }
     }
 
-    /// Decodes one RT_ICON resource entry. The resource is a bare DIB (header size 40) or a PNG.
-    /// ImageIO decodes a DIB only inside an .ico container, so a one-entry ICONDIR +
-    /// ICONDIRENTRY is prepended (dimensions 0: the DIB header carries them).
-    private func icon(for entry: ResourceDataEntry, handle: FileHandle) -> NSImage? {
-        let fileName = url.lastPathComponent
-        guard let offset = entry.resolveRVA(sections: sections) else {
-            logger.notice("Skipping icon entry with unresolvable RVA in \(fileName, privacy: .public)")
+    /// The Resource Directory Table
+    public var rsrc: ResourceDirectoryTable? {
+        guard let handle = try? FileHandle(forReadingFrom: url) else {
             return nil
         }
-        do {
-            try handle.seek(toOffset: UInt64(offset))
-            guard var iconData = try handle.read(upToCount: Int(entry.size)) else { return nil }
-            if iconData.count >= 4, iconData.prefix(4).withUnsafeBytes({ $0.loadUnaligned(as: UInt32.self) }) == 40 {
-                var header = Data([0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0])
-                withUnsafeBytes(of: UInt32(iconData.count).littleEndian) { header.append(contentsOf: $0) }
-                withUnsafeBytes(of: UInt32(22).littleEndian) { header.append(contentsOf: $0) }
-                iconData = header + iconData
-            }
-            if let rep = NSBitmapImageRep(data: iconData) {
-                let image = NSImage(size: rep.size)
-                image.addRepresentation(rep)
-                return image
-            }
-            logger.notice("Skipping undecodable icon data in \(fileName, privacy: .public)")
-        } catch {
-            let reason = error.localizedDescription
-            logger.error("Failed to read icon data in \(fileName, privacy: .public): \(reason, privacy: .public)")
+        defer {
+            try? handle.close()
         }
-        return nil
+
+        return rsrc(handle: handle)
     }
 
     /// The best icon for this executable
@@ -234,8 +226,49 @@ public struct PEFile: Hashable, Equatable, Sendable {
         }
 
         guard let rsrc = rsrc(handle: handle, types: [.icon]) else { return nil }
+        // `url` is in scope here, so attach the file's display name to icon-parse
+        // logs for triage. Numeric offsets and the error description are marked
+        // `.public` (none are PII) so they aren't redacted in os_log output.
+        let fileName = url.lastPathComponent
         let icons = rsrc.allEntries
-            .compactMap { icon(for: $0, handle: handle) }
+            .compactMap { entry -> NSImage? in
+                guard let offset = entry.resolveRVA(sections: sections) else {
+                    logger.notice("Skipping icon entry with unresolvable RVA in \(fileName, privacy: .public)")
+                    return nil
+                }
+                let bitmapInfo = BitmapInfoHeader(handle: handle, offset: UInt64(offset))
+                if bitmapInfo.size != 40 {
+                    do {
+                        try handle.seek(toOffset: UInt64(offset))
+                        if let iconData = try handle.read(upToCount: Int(entry.size)) {
+                            if let rep = NSBitmapImageRep(data: iconData) {
+                                let image = NSImage(size: rep.size)
+                                image.addRepresentation(rep)
+                                return image
+                            }
+                            logger.notice("Skipping undecodable icon data in \(fileName, privacy: .public)")
+                        }
+                    } catch {
+                        let reason = error.localizedDescription
+                        logger.error(
+                            "Failed to read icon data in \(fileName, privacy: .public): \(reason, privacy: .public)"
+                        )
+                    }
+                } else if bitmapInfo.colorFormat != .unknown {
+                    // Widen before adding: `offset` is derived from file-controlled
+                    // fields and can be near UInt32.max, so a 32-bit sum can trap.
+                    let image = bitmapInfo.renderBitmap(
+                        handle: handle,
+                        offset: UInt64(offset) + UInt64(bitmapInfo.size)
+                    )
+                    if image == nil {
+                        logger.notice("Rejecting icon bitmap with malformed header in \(fileName, privacy: .public)")
+                    }
+                    return image
+                }
+
+                return nil
+            }
             .filter(\.isValid)
 
         if !icons.isEmpty {

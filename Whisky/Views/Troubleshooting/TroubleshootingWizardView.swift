@@ -28,23 +28,26 @@ struct TroubleshootingWizardView: View {
     let bottle: Bottle
     let program: Program?
     let entryContext: EntryContext
-    /// Skips the symptom picker for entry points that already know the category.
-    var startingCategory: SymptomCategory?
 
     @StateObject private var engine: TroubleshootingFlowEngine
     @Environment(\.dismiss) private var dismiss
 
     @State private var showResumeOverlay: Bool = false
     @State private var resumeSession: TroubleshootingSession?
-    @State private var stalenessChanges: [String] = []
+    @State private var stalenessChanges: [StalenessChange] = []
+    @State private var showConfirmationSubSheet: Bool = false
+    /// Set until the first preflight snapshot is in: no check may run, and
+    /// no symptom be picked, on a session without one.
+    @State private var isCollectingPreflight: Bool = true
+    /// The snapshot taken on open, which a resumed session continues with.
+    @State private var currentPreflight: PreflightData?
 
     private let sessionStore = TroubleshootingSessionStore()
 
-    init(bottle: Bottle, program: Program?, entryContext: EntryContext, startingCategory: SymptomCategory? = nil) {
+    init(bottle: Bottle, program: Program?, entryContext: EntryContext) {
         self.bottle = bottle
         self.program = program
         self.entryContext = entryContext
-        self.startingCategory = startingCategory
 
         let store = TroubleshootingSessionStore()
         let engine = TroubleshootingFlowEngine(
@@ -70,7 +73,7 @@ struct TroubleshootingWizardView: View {
             }
         }
         .frame(minWidth: 700, minHeight: 500)
-        .onAppear(perform: onAppear)
+        .task { await onAppear() }
     }
 }
 
@@ -106,7 +109,7 @@ extension TroubleshootingWizardView {
                 Button("troubleshooting.back") { engine.goBack() }
                     .disabled(engine.session.stepHistory.count <= 1)
                 Button("troubleshooting.wizard.skip") { engine.skipStep() }
-                    .disabled(engine.currentNode == nil)
+                    .disabled(!engine.canSkip)
                 if engine.canContinue {
                     Button("troubleshooting.wizard.continue") { engine.continueStep() }
                         .keyboardShortcut(.defaultAction)
@@ -133,14 +136,30 @@ extension TroubleshootingWizardView {
 
 extension TroubleshootingWizardView {
     private var stepArea: some View {
-        ScrollView {
-            stepContent
-                .padding(20)
+        VStack(spacing: 0) {
+            if engine.pathChanged {
+                BranchExplanationView(reason: engine.pathChangeReason) {
+                    engine.pathChanged = false
+                }
+            }
+            ScrollView {
+                stepContent
+                    .padding(20)
+            }
         }
     }
 
     @ViewBuilder
     private var stepContent: some View {
+        if isCollectingPreflight {
+            checksPlaceholder
+        } else {
+            phaseContent
+        }
+    }
+
+    @ViewBuilder
+    private var phaseContent: some View {
         switch engine.session.phase {
         case .symptom:
             SymptomPickerView(engine: engine)
@@ -166,6 +185,10 @@ extension TroubleshootingWizardView {
                     bottle: bottle,
                     program: program
                 )
+                // Each fix step gets its own card state: an install still
+                // running on a step the user skipped must not leave the
+                // next fix's card spinning.
+                .id(node.id)
             }
         case .verify:
             FixVerifyView(engine: engine, bottle: bottle, program: program)
@@ -205,12 +228,13 @@ extension TroubleshootingWizardView {
                     Text("troubleshooting.resolved.changesApplied")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
-                    ForEach(engine.session.fixAttempts, id: \.fixId) { attempt in
+                    // A fix tried more than once has a row per attempt.
+                    ForEach(Array(engine.session.fixAttempts.enumerated()), id: \.offset) { _, attempt in
                         HStack(spacing: 6) {
-                            Image(systemName: attempt.result.sfSymbol)
+                            Image(systemName: resultIcon(for: attempt.result))
                                 .font(.caption)
-                                .foregroundStyle(attempt.result.color)
-                            Text(attempt.fixId)
+                                .foregroundStyle(resultColor(for: attempt.result))
+                            Text(attempt.localizedFixName)
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -226,59 +250,72 @@ extension TroubleshootingWizardView {
         .frame(maxWidth: .infinity)
         .padding(.vertical, 40)
     }
+
+    private func resultIcon(for result: FixResult) -> String {
+        switch result {
+        case .verified: "checkmark.circle.fill"
+        case .applied: "checkmark.circle"
+        case .failed: "xmark.circle"
+        case .undone: "arrow.uturn.backward.circle"
+        case .pending: "clock"
+        }
+    }
+
+    private func resultColor(for result: FixResult) -> Color {
+        switch result {
+        case .verified: .green
+        case .applied: .blue
+        case .failed: .red
+        case .undone: .orange
+        case .pending: .gray
+        }
+    }
 }
 
 // MARK: - Lifecycle
 
 extension TroubleshootingWizardView {
-    private func onAppear() {
+    private func onAppear() async {
         // Configure session with bottle/program context
         engine.session.bottleURL = entryContext.bottleURL
         engine.session.programURL = entryContext.programURL
+        // Fixes and relaunches change what the snapshot describes; the
+        // engine takes a new one before the next check after them.
+        engine.preflightProvider = { [bottle, program, entryContext] in
+            await PreflightCollector.collect(
+                bottle: bottle, program: program, programURL: entryContext.programURL
+            )
+        }
+
+        let preflight = await collectPreflight()
+        currentPreflight = preflight
+        isCollectingPreflight = false
 
         // Check for existing active session
         if let existingSession = sessionStore.loadActiveSession(for: entryContext.bottleURL) {
-            let currentPreflight = collectPreflight()
             stalenessChanges = sessionStore.checkStaleness(
                 session: existingSession,
-                currentPreflight: currentPreflight
+                currentPreflight: preflight
             )
             resumeSession = existingSession
             showResumeOverlay = true
         } else {
-            // Collect preflight and populate session
-            let preflight = collectPreflight()
             engine.session.preflightSnapshot = preflight
-            if let startingCategory {
-                engine.selectCategory(startingCategory)
-            } else {
-                engine.start(from: entryContext)
-            }
+            engine.start(from: entryContext)
         }
     }
 
-    /// What the checks read: the crash-log, audio-device and launcher checks have
-    /// nothing to go on without these, and answer unknown or fail every time.
-    private func collectPreflight() -> PreflightData {
-        let lastRun = program.flatMap { RunLogStore.load(for: $0.name, in: bottle.url).entries.last }
-        let device = AudioDeviceMonitor().defaultOutputDevice()
-        let launcher = entryContext.programURL.flatMap(LauncherType.detect(from:)) ?? bottle.settings.detectedLauncher
-        return PreflightData(
-            bottleURL: entryContext.bottleURL,
-            bottleName: bottle.settings.name,
-            programURL: entryContext.programURL,
-            programName: program?.name,
-            launcherType: launcher?.rawValue,
-            recentLogURL: lastRun.map { Wine.logsFolder.appending(path: $0.logFileName) },
-            lastExitCode: lastRun?.exitCode,
-            audioDeviceName: device?.name,
-            audioTransportType: device?.transportType.displayName,
-            graphicsBackend: bottle.settings.graphicsBackend.rawValue
-        )
+    private func collectPreflight() async -> PreflightData {
+        await PreflightCollector.collect(bottle: bottle, program: program, programURL: entryContext.programURL)
     }
 
     private func resumeSession(session: TroubleshootingSession) {
         engine.session = session
+        // The resumed checks run against the bottle as it is now; the resume
+        // screen has shown what changed since.
+        if let currentPreflight {
+            engine.session.preflightSnapshot = currentPreflight
+        }
         if let nodeId = session.currentNodeId {
             engine.navigateToNode(nodeId)
         }
@@ -288,9 +325,6 @@ extension TroubleshootingWizardView {
     private func startOver() {
         sessionStore.deleteActiveSession(for: entryContext.bottleURL)
         engine.startOver()
-        if let startingCategory {
-            engine.selectCategory(startingCategory)
-        }
         showResumeOverlay = false
     }
 
@@ -298,5 +332,45 @@ extension TroubleshootingWizardView {
         sessionStore.deleteActiveSession(for: entryContext.bottleURL)
         showResumeOverlay = false
         dismiss()
+    }
+}
+
+// MARK: - Fix Attempt Display
+
+extension FixResult {
+    /// The result in the user's language. Exports and issue drafts keep
+    /// ``rawValue`` so they read the same in every language.
+    var localizedName: String {
+        switch self {
+        case .pending: String(localized: "troubleshooting.fixResult.pending")
+        case .applied: String(localized: "troubleshooting.fixResult.applied")
+        case .verified: String(localized: "troubleshooting.fixResult.verified")
+        case .failed: String(localized: "troubleshooting.fixResult.failed")
+        case .undone: String(localized: "troubleshooting.fixResult.undone")
+        }
+    }
+}
+
+extension FixAttempt {
+    /// A readable name for the attempted fix in the user's language.
+    ///
+    /// Falls back to the raw ``fixId`` for an id with no catalog entry.
+    /// Exports and issue drafts keep ``fixId``.
+    var localizedFixName: String {
+        switch fixId {
+        case "switch-backend": String(localized: "troubleshooting.fixName.switchBackend")
+        case "enable-dxvk-async": String(localized: "troubleshooting.fixName.enableDxvkAsync")
+        case "set-audio-driver": String(localized: "troubleshooting.fixName.setAudioDriver")
+        case "set-buffer-size": String(localized: "troubleshooting.fixName.setBufferSize")
+        case "enable-esync": String(localized: "troubleshooting.fixName.enableEsync")
+        case "enable-controller-compat": String(localized: "troubleshooting.fixName.enableControllerCompat")
+        case "install-winetricks-verb": String(localized: "troubleshooting.fixName.installWinetricksVerb")
+        case "run-enhanced-diagnostics": String(localized: "troubleshooting.fixName.runEnhancedDiagnostics")
+        case "set-registry-value": String(localized: "troubleshooting.fixName.setRegistryValue")
+        case "apply-launcher-fixes": String(localized: "troubleshooting.fixName.applyLauncherFixes")
+        case "apply-game-config": String(localized: "troubleshooting.fixName.applyGameConfig")
+        case "restart-wineserver": String(localized: "troubleshooting.fixName.restartWineserver")
+        default: fixId
+        }
     }
 }

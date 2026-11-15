@@ -30,27 +30,27 @@ struct ProgressRailView: View {
     private let railPhases: [RailPhase] = [
         RailPhase(
             phase: .symptom,
-            title: "Symptom",
+            title: "troubleshooting.rail.symptom",
             sfSymbol: "questionmark.circle"
         ),
         RailPhase(
             phase: .checks,
-            title: "Checks",
+            title: "troubleshooting.rail.checks",
             sfSymbol: "magnifyingglass.circle"
         ),
         RailPhase(
             phase: .fix,
-            title: "Fix",
+            title: "troubleshooting.rail.fix",
             sfSymbol: "wrench.and.screwdriver"
         ),
         RailPhase(
             phase: .verify,
-            title: "Verify",
+            title: "troubleshooting.rail.verify",
             sfSymbol: "checkmark.circle"
         ),
         RailPhase(
             phase: .export,
-            title: "Export",
+            title: "troubleshooting.rail.export",
             sfSymbol: "square.and.arrow.up.circle"
         )
     ]
@@ -83,6 +83,7 @@ extension ProgressRailView {
                 .font(.subheadline)
                 .fontWeight(state == .active ? .semibold : .regular)
                 .foregroundStyle(textColor(for: state))
+                .strikethrough(state == .superseded, color: .secondary.opacity(0.5))
         }
         .padding(.vertical, 4)
     }
@@ -102,6 +103,10 @@ extension ProgressRailView {
             Image(systemName: railPhase.sfSymbol)
                 .foregroundStyle(.secondary)
                 .font(.body)
+        case .superseded:
+            Image(systemName: railPhase.sfSymbol)
+                .foregroundStyle(.secondary.opacity(0.4))
+                .font(.body)
         }
     }
 
@@ -110,6 +115,7 @@ extension ProgressRailView {
         case .completed: .primary
         case .active: .accentColor
         case .upcoming: .secondary
+        case .superseded: .secondary.opacity(0.4)
         }
     }
 }
@@ -133,6 +139,7 @@ extension ProgressRailView {
         case completed
         case active
         case upcoming
+        case superseded
     }
 
     private func phaseState(for phase: TroubleshootingSession.SessionPhase) -> PhaseState {
@@ -146,7 +153,11 @@ extension ProgressRailView {
         }
 
         if phaseOrder < currentOrder {
-            return .completed
+            // Check if superseded by branch changes
+            let hasSupersededSteps = session.stepHistory.contains { step in
+                step.phase == phase && step.isSuperseded
+            }
+            return hasSupersededSteps ? .superseded : .completed
         } else if phaseOrder == currentOrder {
             return .active
         } else {
@@ -171,7 +182,7 @@ extension ProgressRailView {
 extension ProgressRailView {
     struct RailPhase {
         let phase: TroubleshootingSession.SessionPhase
-        let title: String
+        let title: LocalizedStringKey
         let sfSymbol: String
     }
 }

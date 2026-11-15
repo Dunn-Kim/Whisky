@@ -25,18 +25,19 @@ import XCTest
 /// and Back are disabled and Close is the only way out.
 @MainActor
 final class TroubleshootingFlowEngineEntryTests: XCTestCase {
-    private lazy var bottleURL = makeBottleDirectory()
-    private lazy var programURL = bottleURL.appending(path: "drive_c/Game/Game.exe")
+    private let bottleURL = URL(filePath: "/tmp/engine-entry-test-bottle")
+    private let programURL = URL(filePath: "/tmp/engine-entry-test-bottle/drive_c/Game/Game.exe")
 
     /// Does what the wizard does on appear when there is no session to
     /// resume: binds the session to the entry point, takes the preflight
     /// snapshot, then starts.
-    private func startEngine(from context: EntryContext) -> TroubleshootingFlowEngine {
+    private func startEngine(from context: EntryContext) -> (TroubleshootingFlowEngine, SpySessionStore) {
+        let store = SpySessionStore()
         let engine = TroubleshootingFlowEngine(
             flowDefinitions: FlowLoader.loadAllFlows(),
             fragments: FlowLoader.loadFragments(),
             checkRegistry: CheckRegistry(),
-            sessionStore: TroubleshootingSessionStore()
+            sessionStore: store
         )
         engine.session.bottleURL = context.bottleURL
         engine.session.programURL = context.programURL
@@ -44,10 +45,12 @@ final class TroubleshootingFlowEngineEntryTests: XCTestCase {
             bottleURL: context.bottleURL,
             bottleName: "Entry Test",
             programURL: context.programURL,
+            isWineserverRunning: false,
+            processCount: 0,
             graphicsBackend: "dxvk"
         )
         engine.start(from: context)
-        return engine
+        return (engine, store)
     }
 
     private func assertHasSomethingToShow(
@@ -64,15 +67,15 @@ final class TroubleshootingFlowEngineEntryTests: XCTestCase {
     }
 
     func testProgramEntryStartsAtSymptomSelection() {
-        let engine = startEngine(from: .program(programURL: programURL, bottleURL: bottleURL))
+        let (engine, store) = startEngine(from: .program(programURL: programURL, bottleURL: bottleURL))
 
         assertHasSomethingToShow(engine)
         XCTAssertEqual(engine.session.phase, .symptom)
-        XCTAssertNil(TroubleshootingSessionStore().loadActiveSession(for: bottleURL))
+        XCTAssertEqual(store.saveCount, 0)
     }
 
     func testLaunchFailureEntryStartsTheLaunchCrashFlow() {
-        let engine = startEngine(from: .launchFailure(
+        let (engine, _) = startEngine(from: .launchFailure(
             programURL: programURL,
             bottleURL: bottleURL,
             evidence: ["crashCategory": "unknown"]
@@ -86,13 +89,13 @@ final class TroubleshootingFlowEngineEntryTests: XCTestCase {
     /// Bottle Configuration's Start Guided Troubleshooting. It has no
     /// program and no evidence, so there is no symptom to assume.
     func testBottleDiagnosticsEntryStartsAtSymptomSelection() {
-        let engine = startEngine(from: .bottleDiagnostics(bottleURL: bottleURL))
+        let (engine, store) = startEngine(from: .bottleDiagnostics(bottleURL: bottleURL))
 
         assertHasSomethingToShow(engine)
         XCTAssertEqual(engine.session.phase, .symptom)
         XCTAssertFalse(engine.isRunningCheck)
         // Opening the wizard and closing it again leaves nothing to resume.
-        XCTAssertNil(TroubleshootingSessionStore().loadActiveSession(for: bottleURL))
+        XCTAssertEqual(store.saveCount, 0)
     }
 
     func testHelpMenuEntryStartsAtSymptomSelection() {
@@ -101,11 +104,11 @@ final class TroubleshootingFlowEngineEntryTests: XCTestCase {
             .helpMenu(bottleURL: bottleURL, programURL: programURL)
         ]
         for context in contexts {
-            let engine = startEngine(from: context)
+            let (engine, store) = startEngine(from: context)
 
             assertHasSomethingToShow(engine)
             XCTAssertEqual(engine.session.phase, .symptom)
-            XCTAssertNil(TroubleshootingSessionStore().loadActiveSession(for: bottleURL))
+            XCTAssertEqual(store.saveCount, 0)
         }
     }
 }

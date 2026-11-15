@@ -34,7 +34,7 @@ final class TroubleshootingSessionTests: XCTestCase {
         tempDir = nil
     }
 
-    private func makeNode(id: String, phase: TroubleshootingSession.SessionPhase = .checks) -> FlowStepNode {
+    private func makeNode(id: String, phase: FlowPhase = .checks) -> FlowStepNode {
         FlowStepNode(id: id, type: .check, phase: phase, title: "Node \(id)")
     }
 
@@ -62,6 +62,27 @@ final class TroubleshootingSessionTests: XCTestCase {
         XCTAssertEqual(session.checkResults["a"]?.outcome, .fail)
         XCTAssertEqual(session.stepHistory[0].checkResult?.outcome, .fail)
         XCTAssertNil(session.stepHistory[1].checkResult)
+    }
+
+    func testFailedFixCountCountsOnlyFailures() {
+        var session = TroubleshootingSession()
+        for (index, result) in [FixResult.failed, .applied, .failed, .verified].enumerated() {
+            session.recordFixAttempt(FixAttempt(
+                fixId: "fix.\(index)", timestamp: Date(), beforeValue: nil, afterValue: nil, result: result
+            ))
+        }
+
+        XCTAssertEqual(session.failedFixCount, 2)
+    }
+
+    func testRecordBranchKeepsDecisionOrder() {
+        var session = TroubleshootingSession()
+
+        session.recordBranch(from: "a", targetNodeId: "b", reason: "pass")
+        session.recordBranch(from: "b", targetNodeId: "c")
+
+        XCTAssertEqual(session.branchDecisions.map(\.fromNodeId), ["a", "b"])
+        XCTAssertEqual(session.branchDecisions.first?.reason, "pass")
     }
 
     func testSessionCodableRoundTrip() throws {

@@ -96,28 +96,59 @@ public final class Program: ObservableObject, Equatable, Hashable, Identifiable 
     /// Changes to settings are automatically persisted to disk.
     /// These settings can override bottle-level defaults for locale
     /// and environment variables.
+    ///
+    /// A change also reaches every other live ``Program`` for the same
+    /// executable. Launch paths build their own when the bottle's list has no
+    /// entry yet (the Library, the Dock and the menu bar), and settings are
+    /// saved whole, so a copy that missed a change would write its stale
+    /// fields back over it on its next save.
     @Published public var settings: ProgramSettings {
-        didSet { saveSettings() }
+        didSet {
+            guard !isAdoptingSettings else { return }
+            saveSettings()
+            shareSettings()
+        }
     }
+
+    /// Set while this copy takes on settings another copy saved, which are
+    /// already on disk.
+    private var isAdoptingSettings = false
+
+    /// A program held without keeping it alive.
+    private struct LiveCopy {
+        weak var program: Program?
+    }
+
+    /// The live programs, by settings file.
+    private static var liveCopies: [URL: [LiveCopy]] = [:]
 
     /// Whether this program is pinned for quick access.
     ///
     /// Setting this property automatically updates the bottle's pin list.
     /// Pinned programs appear in a separate section of the UI.
     ///
-    /// Setting `true` on a program the bottle already pins is a no-op: pins are
-    /// keyed by URL (the same identity the load-time cleanup in ``Bottle`` uses),
-    /// so the pin list is not modified and Metadata.plist is not rewritten.
+    /// Setting `true` on a program the bottle already pins does not add a second
+    /// pin: pins are keyed by URL (the same identity the load-time cleanup in
+    /// ``Bottle`` uses). Setting `false` records the unpin in
+    /// ``BottleSettings/unpinnedPrograms`` so the Start Menu scan leaves the
+    /// program alone, and pinning again clears that record.
     @Published public var pinned: Bool {
         didSet {
             if pinned {
+                // Cleared before the already-pinned check: a program can be both
+                // pinned and recorded as unpinned when its pin was re-added by
+                // hand, and the record must not outlive a deliberate pin. Checked
+                // first because any mutating call saves Metadata.plist.
+                if bottle.settings.isUnpinned(url) {
+                    bottle.settings.clearUnpin(url)
+                }
                 guard !bottle.settings.pins.contains(where: { $0.url == url }) else { return }
                 bottle.settings.pins.append(PinnedProgram(
                     name: name.replacingOccurrences(of: ".exe", with: ""),
                     url: url
                 ))
             } else {
-                bottle.settings.pins.removeAll(where: { $0.url == url })
+                bottle.settings.unpin(url)
             }
         }
     }
@@ -193,21 +224,21 @@ public final class Program: ObservableObject, Equatable, Hashable, Identifiable 
         return (identityURL, legacyURL)
     }
 
-    /// An executable's persisted settings, read without materializing a
-    /// ``Program``: a missing settings plist yields `nil` where the
-    /// initializer would write a default plist to disk.
+    /// The overrides an executable's persisted settings carry, read without
+    /// materializing a ``Program``: a missing settings plist yields `nil`
+    /// where the initializer would write a default plist to disk.
     ///
     /// A legacy filename-keyed plist is read in place; migrating it to the
     /// identity-keyed name stays with the initializer, as does quarantining
-    /// an unreadable plist (an unreadable plist reads as `nil` here).
-    public nonisolated static func persistedSettings(for url: URL, bottleURL: URL) -> ProgramSettings? {
+    /// an unreadable plist (an unreadable plist reads as no overrides here).
+    nonisolated static func persistedOverrides(for url: URL, bottleURL: URL) -> ProgramOverrides? {
         let locations = settingsLocations(for: url, bottleURL: bottleURL, legacyName: url.lastPathComponent)
         let settingsURL = FileManager.default.fileExists(atPath: locations.identity.path(percentEncoded: false))
             ? locations.identity
             : locations.legacy
 
         do {
-            return try ProgramSettings.decodeIfPresent(from: settingsURL)
+            return try ProgramSettings.decodeIfPresent(from: settingsURL)?.overrides
         } catch {
             Logger.wineKit.error(
                 """
@@ -255,23 +286,22 @@ public final class Program: ObservableObject, Equatable, Hashable, Identifiable 
 
         let settingsUrl = Self.settingsURL(for: url, in: bottle, legacyName: name)
         self.settingsURL = settingsUrl
-        self.settings = Self.loadSettings(from: settingsUrl, name: name)
 
-        self.peFile = peFile
-    }
-
-    /// Loads the settings at `settingsUrl`, falling back to defaults when they cannot be read.
-    private static func loadSettings(from settingsUrl: URL, name: String) -> ProgramSettings {
         do {
-            return try ProgramSettings.decode(from: settingsUrl)
+            self.settings = try ProgramSettings.decode(from: settingsUrl)
         } catch {
             Logger.wineKit.error(
                 "Failed to load settings for `\(name)`: \(String(describing: error), privacy: .public)"
             )
             // Preserve the unreadable file before the next save overwrites it with defaults.
             BottleSettings.quarantineCorruptedFile(at: settingsUrl)
-            return ProgramSettings()
+            self.settings = ProgramSettings()
         }
+
+        self.peFile = peFile
+        let key = settingsUrl.standardizedFileURL
+        Self.liveCopies[key] = Self.liveCopies[key, default: []].filter { $0.program != nil }
+            + [LiveCopy(program: self)]
     }
 
     /// Generates the environment variables for running this program.
@@ -295,6 +325,19 @@ public final class Program: ObservableObject, Equatable, Hashable, Identifiable 
             try settings.encode(to: settingsURL)
         } catch {
             Logger.wineKit.error("Failed to save settings for `\(self.name)`: \(error)")
+        }
+    }
+
+    /// Hands this copy's settings to every other live copy of the program.
+    private func shareSettings() {
+        let key = settingsURL.standardizedFileURL
+        let copies = Self.liveCopies[key, default: []].filter { $0.program != nil }
+        Self.liveCopies[key] = copies.isEmpty ? nil : copies
+        for copy in copies {
+            guard let other = copy.program, other !== self else { continue }
+            other.isAdoptingSettings = true
+            other.settings = settings
+            other.isAdoptingSettings = false
         }
     }
 

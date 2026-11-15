@@ -18,11 +18,12 @@
 
 import Foundation
 
-/// A snapshot of bottle settings captured before applying a game configuration.
+/// A snapshot of bottle and program settings captured before applying a game configuration.
 ///
 /// Used for the undo/revert flow: the snapshot stores serialized plist data for
-/// ``BottleSettings``, enabling exact restoration. Winetricks
-/// verbs are recorded for informational display only (they are not reversible).
+/// ``BottleSettings``, enabling exact restoration, and the program environment
+/// variables the apply replaced. Winetricks verbs are recorded for informational
+/// display only (they are not reversible).
 ///
 /// ## Storage
 ///
@@ -44,6 +45,22 @@ public struct GameConfigSnapshot: Codable, Sendable, Equatable {
     /// Serialized ``BottleSettings`` plist data from before the apply.
     public var bottleSettingsData: Data?
 
+    /// Map of program URL string to serialized program settings data.
+    ///
+    /// Each key is the string representation of the program's URL. Each value
+    /// is the PropertyList-encoded settings data for that program. Earlier
+    /// versions recorded it; a revert does not restore it, because it would
+    /// overwrite program settings changed after the apply. See
+    /// ``programEnvironments`` for what a revert puts back.
+    public var programSettingsData: [String: Data]?
+
+    /// The environment variables the apply wrote into each program, keyed by
+    /// the string representation of the program's URL.
+    ///
+    /// A revert puts back only these variables, leaving the rest of the
+    /// program's settings as they are.
+    public var programEnvironments: [String: GameConfigProgramEnvironment]?
+
     /// Winetricks verbs installed during this apply (informational, non-reversible).
     ///
     /// These are recorded so the revert UI can note "Settings reverted;
@@ -57,10 +74,38 @@ public struct GameConfigSnapshot: Codable, Sendable, Equatable {
     public var appliedVariantId: String
 
     /// When the snapshot was created.
-    public var timestamp: Date = .init()
+    public var timestamp: Date
 
     /// The filename used for snapshot storage within the bottle directory.
     private static let snapshotFileName = "GameConfigSnapshot.plist"
+
+    /// Creates a new game configuration snapshot.
+    ///
+    /// - Parameters:
+    ///   - bottleSettingsData: Serialized bottle settings from before apply.
+    ///   - programSettingsData: Map of program URL to serialized settings.
+    ///   - programEnvironments: Map of program URL to the environment variables the apply set.
+    ///   - installedVerbs: Winetricks verbs installed during this apply.
+    ///   - appliedEntryId: The game database entry ID that was applied.
+    ///   - appliedVariantId: The variant ID that was applied.
+    ///   - timestamp: When the snapshot was created.
+    public init(
+        bottleSettingsData: Data? = nil,
+        programSettingsData: [String: Data]? = nil,
+        programEnvironments: [String: GameConfigProgramEnvironment]? = nil,
+        installedVerbs: [String]? = nil,
+        appliedEntryId: String,
+        appliedVariantId: String,
+        timestamp: Date = Date()
+    ) {
+        self.bottleSettingsData = bottleSettingsData
+        self.programSettingsData = programSettingsData
+        self.programEnvironments = programEnvironments
+        self.installedVerbs = installedVerbs
+        self.appliedEntryId = appliedEntryId
+        self.appliedVariantId = appliedVariantId
+        self.timestamp = timestamp
+    }
 
     /// Saves a snapshot to the bottle directory.
     ///

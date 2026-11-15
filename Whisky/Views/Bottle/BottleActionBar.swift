@@ -24,8 +24,8 @@ import WhiskyKit
 struct BottleActionBar: View {
     @ObservedObject var bottle: Bottle
     @Binding var showWinetricksSheet: Bool
+    @Binding var programLoading: Bool
     @Binding var toast: ToastData?
-    @State private var programLoading: Bool = false
     /// Called after a launch so the caller can refresh what it keeps in step
     /// with the prefix, the start menu among it.
     let onLaunch: () async -> Void
@@ -76,15 +76,71 @@ struct BottleActionBar: View {
                 panel.allowsMultipleSelection = false
                 panel.canChooseDirectories = false
                 panel.canChooseFiles = true
-                panel.allowedContentTypes = UTType.windowsRunnables
+                panel.allowedContentTypes = [
+                    UTType.exe,
+                    UTType(exportedAs: "com.microsoft.msi-installer"),
+                    UTType(exportedAs: "com.microsoft.bat"),
+                    UTType(exportedAs: "com.microsoft.msix-package"),
+                    UTType(exportedAs: "com.microsoft.appx-package"),
+                    UTType(exportedAs: "com.microsoft.windows-internet-shortcut")
+                ]
                 panel.directoryURL = bottle.url.appending(path: "drive_c")
                 panel.begin { result in
                     programLoading = true
-                    Task(priority: .userInitiated) { @MainActor in
-                        if result == .OK, let url = panel.urls.first {
-                            toast = await bottle.run(fileAt: url).toastData
+                    Task(priority: .userInitiated) {
+                        if result == .OK {
+                            if let url = panel.urls.first {
+                                do {
+                                    // Auto-detect launcher and apply fixes if compatibility mode enabled
+                                    // This completes synchronously on MainActor, ensuring settings are
+                                    // persisted before Wine.runProgram() reads them
+                                    LauncherFixes.detectAndApply(from: url, for: bottle)
+                                    // After detection: in Automatic mode the policy
+                                    // depends on the launcher.
+                                    let clipboard = bottle.performClipboardCheck()
+                                    if case let .autoCleared(contentType, sizeBytes) = clipboard {
+                                        toast = .clipboardCleared(contentType: contentType, sizeBytes: sizeBytes)
+                                    }
+
+                                    Telemetry.capture(.firstProgramLaunchAttempted)
+                                    if Wine.isBatchFile(url) {
+                                        try await Wine.runBatchFile(url: url, bottle: bottle)
+                                    } else {
+                                        try await Wine.runProgram(at: url, bottle: bottle)
+                                    }
+                                    await MainActor.run {
+                                        withAnimation {
+                                            toast = ToastData(
+                                                message: String(
+                                                    localized: "status.launched \(url.lastPathComponent)"
+                                                ),
+                                                style: .success
+                                            )
+                                        }
+                                    }
+                                } catch {
+                                    let errDesc = error.localizedDescription
+                                    await MainActor.run {
+                                        withAnimation {
+                                            toast = ToastData(
+                                                message: String(
+                                                    localized: "status.launchFailed \(errDesc)"
+                                                ),
+                                                style: .error,
+                                                autoDismiss: false
+                                            )
+                                        }
+                                    }
+                                }
+                                await MainActor.run {
+                                    programLoading = false
+                                }
+                            }
+                        } else {
+                            await MainActor.run {
+                                programLoading = false
+                            }
                         }
-                        programLoading = false
                         await onLaunch()
                     }
                 }
@@ -124,16 +180,4 @@ private extension View {
             }
         }
     }
-}
-
-extension UTType {
-    /// The Windows files the Run and pin pickers accept.
-    static let windowsRunnables: [UTType] = [
-        .exe,
-        UTType(exportedAs: "com.microsoft.msi-installer"),
-        UTType(exportedAs: "com.microsoft.bat"),
-        UTType(exportedAs: "com.microsoft.msix-package"),
-        UTType(exportedAs: "com.microsoft.appx-package"),
-        UTType(exportedAs: "com.microsoft.windows-internet-shortcut")
-    ]
 }

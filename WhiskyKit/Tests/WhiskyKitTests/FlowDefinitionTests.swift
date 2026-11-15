@@ -25,6 +25,8 @@ final class FlowDefinitionTests: XCTestCase {
     func testDecodesMinimalFlow() throws {
         let json = """
         {
+            "version": 1,
+            "categoryId": "graphics",
             "entryNodeId": "start",
             "nodes": {
                 "start": {
@@ -40,6 +42,8 @@ final class FlowDefinitionTests: XCTestCase {
         """
         let flow = try JSONDecoder().decode(FlowDefinition.self, from: Data(json.utf8))
 
+        XCTAssertEqual(flow.version, 1)
+        XCTAssertEqual(flow.categoryId, "graphics")
         XCTAssertEqual(flow.entryNodeId, "start")
         let node = try XCTUnwrap(flow.nodes["start"])
         XCTAssertEqual(node.type, .check)
@@ -50,10 +54,11 @@ final class FlowDefinitionTests: XCTestCase {
         // Absent optionals decode to nil rather than failing the parent decode
         XCTAssertNil(node.title)
         XCTAssertNil(node.fixId)
+        XCTAssertNil(node.fixPreview)
         XCTAssertNil(node.fragmentRef)
     }
 
-    func testDecodesFixNode() throws {
+    func testDecodesFixNodeWithPreview() throws {
         let json = """
         {
             "id": "fix-backend",
@@ -61,14 +66,27 @@ final class FlowDefinitionTests: XCTestCase {
             "phase": "fix",
             "title": "Switch to DXVK",
             "fixId": "graphics.set_backend_dxvk",
-            "requiresConfirmation": false
+            "isReversible": true,
+            "requiresConfirmation": false,
+            "fixPreview": {
+                "settingName": "Graphics Backend",
+                "currentValueKey": "current",
+                "newValue": "dxvk",
+                "scope": "bottle"
+            }
         }
         """
         let node = try JSONDecoder().decode(FlowStepNode.self, from: Data(json.utf8))
 
         XCTAssertEqual(node.type, .fix)
         XCTAssertEqual(node.fixId, "graphics.set_backend_dxvk")
+        XCTAssertEqual(node.isReversible, true)
         XCTAssertEqual(node.requiresConfirmation, false)
+        let preview = try XCTUnwrap(node.fixPreview)
+        XCTAssertEqual(preview.settingName, "Graphics Backend")
+        XCTAssertEqual(preview.currentValueKey, "current")
+        XCTAssertEqual(preview.newValue, "dxvk")
+        XCTAssertEqual(preview.scope, "bottle")
     }
 
     func testUnknownNodeTypeFailsDecode() {
@@ -106,11 +124,24 @@ final class FlowDefinitionTests: XCTestCase {
         XCTAssertEqual(CheckOutcome.error.rawValue, "error")
     }
 
+    // MARK: - Phase mapping
+
+    func testSessionPhaseFromFlowPhaseCoversAllCases() {
+        XCTAssertEqual(TroubleshootingSession.SessionPhase(flowPhase: .symptom), .symptom)
+        XCTAssertEqual(TroubleshootingSession.SessionPhase(flowPhase: .checks), .checks)
+        XCTAssertEqual(TroubleshootingSession.SessionPhase(flowPhase: .fix), .fix)
+        XCTAssertEqual(TroubleshootingSession.SessionPhase(flowPhase: .verify), .verify)
+        XCTAssertEqual(TroubleshootingSession.SessionPhase(flowPhase: .export), .export)
+    }
+
     // MARK: - SymptomCategory
 
-    func testEveryCategoryHasAFlowResourceName() {
+    func testEveryCategoryHasAJSONFlowFileName() {
         for category in SymptomCategory.allCases {
-            XCTAssertFalse(category.flowResourceName.isEmpty, "\(category) needs a flow resource name")
+            XCTAssertTrue(
+                category.flowFileName.hasSuffix(".json"),
+                "\(category) flow file name should end in .json"
+            )
             XCTAssertFalse(category.displayTitle.isEmpty)
         }
     }

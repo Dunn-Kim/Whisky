@@ -1,4 +1,5 @@
 {
+  "version": 1,
   "entries": [
     {
       "id": "aoe2-de",
@@ -44,7 +45,8 @@
             "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -109,7 +111,8 @@
             "dxvkAsync": false,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -173,7 +176,8 @@
             "dxvkAsync": false,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -234,7 +238,8 @@
             "dxvkAsync": true,
             "enhancedSync": "esync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [
@@ -304,7 +309,8 @@
             "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -375,7 +381,8 @@
             "dxvkAsync": false,
             "enhancedSync": "esync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -458,7 +465,8 @@
             "dxvkAsync": false,
             "enhancedSync": "none",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -493,6 +501,79 @@
         "author": "Whisky Community",
         "lastUpdated": "2025-11-10T00:00:00Z",
         "referenceURL": null
+      }
+    },
+    {
+      "id": "beamng-drive",
+      "title": "BeamNG.drive",
+      "aliases": [
+        "BeamNG"
+      ],
+      "subtitle": "BeamNG GmbH",
+      "store": "steam",
+      "steamAppId": 284160,
+      "rating": "unverified",
+      "exeNames": [
+        "BeamNG.drive.x64.exe"
+      ],
+      "pathPatterns": [
+        "beamng.drive"
+      ],
+      "antiCheat": null,
+      "constraints": {
+        "cpuArchitectures": [
+          "arm64"
+        ],
+        "minMacOSVersion": "15.0.0",
+        "minWineVersion": "11.0"
+      },
+      "variants": [
+        {
+          "id": "d3dmetal",
+          "label": "D3DMetal",
+          "isDefault": true,
+          "whenToUse": "Recommended configuration",
+          "rationale": [
+            "BeamNG.drive 0.40 picks DirectX 12 on its own, which D3DMetal runs",
+            "With GPU-driven drawing, GPU upload heaps, bindless resources and indirect constants on, it was reported to crash on D3DMetal while loading or right after the main menu appears",
+            "The -nogfx launch arguments turn those DirectX 12 features off"
+          ],
+          "settings": {
+            "graphicsBackend": "d3dMetal",
+            "dxvk": false,
+            "dxvkAsync": false,
+            "enhancedSync": "msync",
+            "shaderCacheEnabled": true,
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
+          },
+          "environmentVariables": {},
+          "dllOverrides": [],
+          "winetricksVerbs": [],
+          "launchArguments": [
+            "-nogfxgpudriven",
+            "-nogfxgpuupload",
+            "-nogfxbindless",
+            "-nogfxbindlesscbv",
+            "-nogfxindirectconstants"
+          ]
+        }
+      ],
+      "notes": [
+        "Untested on Whisky's runtime: the launch arguments come from a report on a different Wine build"
+      ],
+      "knownIssues": [
+        {
+          "description": "Play inside Steam starts the game without Whisky's launch arguments",
+          "severity": "major",
+          "workaround": "Start BeamNG.drive from Whisky's Library, or add -nogfxgpudriven -nogfxgpuupload -nogfxbindless -nogfxbindlesscbv -nogfxindirectconstants to its launch options in Steam"
+        }
+      ],
+      "provenance": {
+        "source": "community-reference",
+        "author": "rolling7ho",
+        "lastUpdated": "2026-10-25T00:00:00Z",
+        "referenceURL": "https://store.steampowered.com/app/284160/BeamNGdrive/"
       }
     },
     {
@@ -535,7 +616,8 @@
             "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": true
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -601,7 +683,8 @@
             "dxvkAsync": false,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -671,7 +754,8 @@
             "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -740,7 +824,8 @@
             "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -807,7 +892,8 @@
             "dxvkAsync": true,
             "enhancedSync": "esync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -889,7 +975,8 @@
             "dxvkAsync": false,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -958,7 +1045,8 @@
             "dxvkAsync": false,
             "enhancedSync": "esync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {
             "D3DM_SUPPORT_DXR": "0"
@@ -990,7 +1078,8 @@
             "dxvkAsync": false,
             "enhancedSync": "esync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -1072,7 +1161,8 @@
             "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -1144,7 +1234,8 @@
             "dxvkAsync": false,
             "enhancedSync": "esync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -1219,7 +1310,8 @@
             "dxvkAsync": false,
             "enhancedSync": "esync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -1295,7 +1387,8 @@
             "dxvkAsync": false,
             "enhancedSync": "none",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -1370,7 +1463,8 @@
             "dxvkAsync": false,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -1453,7 +1547,8 @@
             "dxvkAsync": false,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -1524,7 +1619,8 @@
             "dxvkAsync": false,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -1599,7 +1695,8 @@
             "dxvkAsync": false,
             "enhancedSync": "esync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {
             "D3DM_SUPPORT_DXR": "0"
@@ -1681,7 +1778,8 @@
             "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": true
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -1748,7 +1846,8 @@
             "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [
@@ -1816,7 +1915,8 @@
             "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -1873,7 +1973,8 @@
             "dxvkAsync": false,
             "enhancedSync": "none",
             "shaderCacheEnabled": false,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -1944,7 +2045,8 @@
             "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -2012,7 +2114,8 @@
             "dxvkAsync": false,
             "enhancedSync": "esync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -2090,7 +2193,8 @@
             "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -2158,7 +2262,8 @@
             "dxvkAsync": false,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {
             "PULSE_LATENCY_MSEC": "60"
@@ -2234,7 +2339,8 @@
             "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -2300,7 +2406,8 @@
             "dxvkAsync": false,
             "enhancedSync": "esync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -2374,7 +2481,8 @@
             "dxvkAsync": false,
             "enhancedSync": "esync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {
             "D3DM_SUPPORT_DXR": "0"
@@ -2452,7 +2560,8 @@
             "dxvkAsync": false,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -2520,7 +2629,8 @@
             "dxvkAsync": false,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -2586,7 +2696,8 @@
             "dxvkAsync": false,
             "enhancedSync": "esync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -2666,7 +2777,8 @@
             "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -2731,7 +2843,8 @@
             "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -2796,7 +2909,8 @@
             "dxvkAsync": false,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -2863,7 +2977,8 @@
             "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -2935,7 +3050,8 @@
             "dxvkAsync": false,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -2990,16 +3106,18 @@
           "isDefault": true,
           "whenToUse": "Community-tested configuration",
           "rationale": [
-            "MT Framework engine \u2014 cutscene freezes from missing Media Foundation",
-            "mf winetrick + DXVK addresses Iceborne ending cutscene hang"
+            "MT Framework engine; cutscene freezes come from missing Media Foundation",
+            "The mf winetrick addresses the Iceborne ending cutscene hang",
+            "DirectX 11 and 12 (PCGamingWiki); the earlier DXVK recommendation was about the cutscene fix, not a DirectX 11 path, so the game uses the recommended backend and d3d12 stays loadable"
           ],
           "settings": {
-            "graphicsBackend": "dxvk",
-            "dxvk": true,
-            "dxvkAsync": true,
+            "graphicsBackend": "recommended",
+            "dxvk": false,
+            "dxvkAsync": false,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -3065,7 +3183,8 @@
             "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -3134,7 +3253,8 @@
             "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -3204,7 +3324,8 @@
             "dxvkAsync": false,
             "enhancedSync": "none",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -3277,7 +3398,8 @@
             "dxvkAsync": false,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -3344,7 +3466,8 @@
             "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -3410,7 +3533,8 @@
             "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -3466,16 +3590,18 @@
           "isDefault": true,
           "whenToUse": "Community-tested configuration",
           "rationale": [
-            "UE4 title where Win10 mode regression in newer Wine builds \u2014 Win11 + DXVK is stable path",
-            "Performance regression is upstream Wine bug; recommended settings sidestep it"
+            "UE4 title with a Windows 10 mode regression in newer Wine builds; Windows 11 mode is the stable path",
+            "Performance regression is an upstream Wine bug; recommended settings sidestep it",
+            "DirectX 11 and 12 (PCGamingWiki); the earlier DXVK recommendation was about the Wine version regression, not a DirectX 11 path, so the game uses the recommended backend and d3d12 stays loadable"
           ],
           "settings": {
-            "graphicsBackend": "dxvk",
-            "dxvk": true,
-            "dxvkAsync": true,
+            "graphicsBackend": "recommended",
+            "dxvk": false,
+            "dxvkAsync": false,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -3531,16 +3657,18 @@
           "isDefault": true,
           "whenToUse": "Community-tested configuration",
           "rationale": [
-            "UE4 shooter where pink/black artifacts indicate shader cache invalidation",
-            "DXVK with async cache + persistent shader cache resolves intermittent corruption"
+            "UE shooter where pink/black artifacts indicate shader cache invalidation",
+            "Persistent shader cache resolves the intermittent corruption",
+            "DirectX 11 and 12 (PCGamingWiki); the earlier DXVK recommendation was about shader cache corruption, not a DirectX 11 path, so the game uses the recommended backend and d3d12 stays loadable"
           ],
           "settings": {
-            "graphicsBackend": "dxvk",
-            "dxvk": true,
-            "dxvkAsync": true,
+            "graphicsBackend": "recommended",
+            "dxvk": false,
+            "dxvkAsync": false,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -3598,17 +3726,21 @@
           "rationale": [
             "Rockstar Games Launcher is required and has compatibility problems",
             "DXVK is required for the launcher but the game itself fails to start",
-            "DRM verification frequently times out or fails"
+            "DRM verification frequently times out or fails",
+            "The launcher gets DXVK through its own per-executable overrides; the game is DirectX 12 or Vulkan only and stays on the recommended backend (D3DMetal with the GPTK payload), since DXVK's preset turns d3d12 off beside it"
           ],
           "settings": {
-            "graphicsBackend": "dxvk",
-            "dxvk": true,
-            "dxvkAsync": true,
+            "graphicsBackend": "recommended",
+            "dxvk": false,
+            "dxvkAsync": false,
             "enhancedSync": "esync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
-          "environmentVariables": {},
+          "environmentVariables": {
+            "WINE_LARGE_ADDRESS_AWARE": "1"
+          },
           "dllOverrides": [],
           "winetricksVerbs": [
             "vcrun2022"
@@ -3643,6 +3775,80 @@
         "author": "Whisky Team",
         "lastUpdated": "2025-12-01T00:00:00Z",
         "referenceURL": null
+      }
+    },
+    {
+      "id": "screw-drivers",
+      "title": "Screw Drivers",
+      "aliases": [],
+      "subtitle": "Creactstudios / Headup",
+      "store": "steam",
+      "steamAppId": 1279510,
+      "rating": "playable",
+      "exeNames": [
+        "Screw Drivers.exe"
+      ],
+      "pathPatterns": [
+        "screw drivers"
+      ],
+      "antiCheat": null,
+      "constraints": {
+        "cpuArchitectures": [
+          "arm64"
+        ],
+        "minMacOSVersion": "15.0.0",
+        "minWineVersion": "11.0"
+      },
+      "variants": [
+        {
+          "id": "dxvk",
+          "label": "DXVK",
+          "isDefault": true,
+          "whenToUse": "Recommended configuration",
+          "rationale": [
+            "Direct3D 11 (Unity 6); reaches the main menu reliably on DXVK",
+            "In a 60-second sample at the main menu on an M1 Max, DXVK used about a third of the CPU DXMT did"
+          ],
+          "settings": {
+            "graphicsBackend": "dxvk",
+            "dxvk": true,
+            "dxvkAsync": true,
+            "enhancedSync": "msync",
+            "shaderCacheEnabled": true,
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
+          },
+          "environmentVariables": {},
+          "dllOverrides": [],
+          "winetricksVerbs": [],
+          "testedWith": {
+            "lastTestedAt": "2026-09-05T00:00:00Z",
+            "macOSVersion": "26.5.2",
+            "wineVersion": "11.0",
+            "cpuArchitecture": "arm64"
+          }
+        }
+      ],
+      "notes": [
+        "Tested at a 1728x1117 render on a 3456x2234 display"
+      ],
+      "knownIssues": [
+        {
+          "description": "Rendering at the full resolution of a 3456x2234 display is too slow on an M1 Max",
+          "severity": "major",
+          "workaround": "Play at 1728x1117, half the display's resolution"
+        },
+        {
+          "description": "Vehicle physics and map loading are slower than expected",
+          "severity": "major",
+          "workaround": "None known yet"
+        }
+      ],
+      "provenance": {
+        "source": "community-reference",
+        "author": "EwoudVV",
+        "lastUpdated": "2026-09-05T00:00:00Z",
+        "referenceURL": "https://github.com/EwoudVV/OpenBottle/blob/main/docs/benchmarks/screw-drivers-2026-09-05.md"
       }
     },
     {
@@ -3687,7 +3893,8 @@
             "dxvkAsync": false,
             "enhancedSync": "esync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -3751,16 +3958,18 @@
           "isDefault": true,
           "whenToUse": "Community-tested configuration",
           "rationale": [
-            "UE4 voxel-destruction shooter that broke on Sequoia \u2014 compat mode + DXVK restores",
-            "Worked previously, regressed on macOS 15 beta \u2014 fits Sequoia compat fix pattern"
+            "UE4 voxel-destruction shooter that broke on Sequoia; compat mode restores it",
+            "Worked previously and regressed on the macOS 15 beta, which fits the Sequoia compat fix pattern",
+            "DirectX 11 and 12 (PCGamingWiki); the earlier DXVK recommendation was about the Sequoia regression, not a DirectX 11 path, so the game uses the recommended backend and d3d12 stays loadable"
           ],
           "settings": {
-            "graphicsBackend": "dxvk",
-            "dxvk": true,
-            "dxvkAsync": true,
+            "graphicsBackend": "recommended",
+            "dxvk": false,
+            "dxvkAsync": false,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": true
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -3825,7 +4034,8 @@
             "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": true
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -3847,6 +4057,111 @@
         "author": "Whisky Community",
         "lastUpdated": "2026-04-30T00:00:00Z",
         "referenceURL": "https://github.com/whisky-app/whisky/issues/1235"
+      }
+    },
+    {
+      "id": "solarpunk",
+      "title": "Solarpunk",
+      "aliases": [
+        "SolarpunkSteam"
+      ],
+      "subtitle": "Cyberwave / rokaplay",
+      "store": "steam",
+      "steamAppId": 1805110,
+      "rating": "works",
+      "exeNames": [
+        "Solarpunk.exe",
+        "SolarpunkSteam-Win64-Shipping.exe"
+      ],
+      "pathPatterns": [
+        "solarpunk"
+      ],
+      "antiCheat": null,
+      "constraints": {
+        "cpuArchitectures": [
+          "arm64"
+        ],
+        "minMacOSVersion": "15.0.0",
+        "minWineVersion": "11.0"
+      },
+      "variants": [
+        {
+          "id": "dxmt-vc-runtime",
+          "label": "DXMT + VC++ runtime",
+          "isDefault": true,
+          "whenToUse": "Recommended configuration",
+          "rationale": [
+            "Unreal Engine 5.7 bootstrap stub (Solarpunk.exe) checks the FileVersion of system32 msvcp140_2.dll and refuses to start without the VC++ 2015-2022 runtime",
+            "vcrun2022 installs the real runtime; Wine pre-creates the VC Runtimes registry key, so Steam's own redist step skips the install",
+            "Native-then-builtin overrides make Wine report the installed DLL's version instead of its builtin's 14.42; they live in the bottle settings because each launch's override sync replaces the registry key winetricks writes",
+            "DXMT leaves d3d12 unavailable, so the game falls back to D3D11 on its own, with no -dx11 argument"
+          ],
+          "settings": {
+            "graphicsBackend": "dxmt",
+            "dxvk": false,
+            "dxvkAsync": false,
+            "enhancedSync": "msync",
+            "shaderCacheEnabled": true,
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
+          },
+          "environmentVariables": {},
+          "dllOverrides": [
+            {
+              "dllName": "msvcp140",
+              "mode": "n,b"
+            },
+            {
+              "dllName": "msvcp140_1",
+              "mode": "n,b"
+            },
+            {
+              "dllName": "msvcp140_2",
+              "mode": "n,b"
+            },
+            {
+              "dllName": "vcruntime140",
+              "mode": "n,b"
+            },
+            {
+              "dllName": "vcruntime140_1",
+              "mode": "n,b"
+            }
+          ],
+          "winetricksVerbs": [
+            "vcrun2022"
+          ],
+          "testedWith": {
+            "lastTestedAt": "2026-10-09T00:00:00Z",
+            "macOSVersion": "27.0.0",
+            "wineVersion": "11.0",
+            "whiskyVersion": "3.7.0",
+            "cpuArchitecture": "arm64"
+          }
+        }
+      ],
+      "notes": [
+        "Tested on an M5 MacBook Air (24 GB): about 109 fps uncapped on Low; CPU-bound under Rosetta",
+        "Native resolution, exclusive fullscreen (macOS Game Mode activates), Medium preset and in-game VSync give a locked 60 on a 60 Hz panel",
+        "The Medium preset enables TSR upscaling; Low turns it off, and anti-aliasing has no separate in-game setting"
+      ],
+      "knownIssues": [
+        {
+          "description": "Quitting shows a \"UE Fatal Error!\" dialog: an access violation in ntdll while unloading the Steam API, after the engine has shut down and saved",
+          "severity": "minor",
+          "workaround": "Click OK; nothing is lost"
+        },
+        {
+          "description": "Brief one-off hitches while DXMT compiles shaders for new areas",
+          "severity": "minor",
+          "workaround": "They fade as the shader cache fills"
+        }
+      ],
+      "provenance": {
+        "source": "community-reference",
+        "author": "arcataroger",
+        "lastUpdated": "2026-10-09T00:00:00Z",
+        "referenceURL": "https://github.com/frankea/Whisky/issues/306"
       }
     },
     {
@@ -3891,7 +4206,8 @@
             "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -3959,7 +4275,8 @@
             "dxvkAsync": false,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -4032,7 +4349,8 @@
             "dxvkAsync": false,
             "enhancedSync": "esync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -4108,7 +4426,8 @@
             "dxvkAsync": false,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -4173,7 +4492,8 @@
             "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -4237,7 +4557,8 @@
             "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -4304,7 +4625,8 @@
             "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -4373,7 +4695,8 @@
             "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -4439,7 +4762,8 @@
             "dxvkAsync": false,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -4469,7 +4793,11 @@
     {
       "id": "binding-of-isaac-rebirth",
       "title": "The Binding of Isaac: Rebirth",
-      "aliases": [],
+      "aliases": [
+        "Repentance",
+        "Repentance+",
+        "Afterbirth"
+      ],
       "subtitle": "Nicalis",
       "store": "steam",
       "steamAppId": 250900,
@@ -4497,16 +4825,14 @@
           "isDefault": true,
           "whenToUse": "Community-tested configuration",
           "rationale": [
-            "DX9 sprite-based 2D engine works better via wineD3D than DXVK d3d9 on Apple Silicon",
-            "Repentance/Repentance+ DLC scripting depends on stable d3d9 path"
+            "Renders through OpenGL: opengl32 goes through Wine's macOS driver to Apple's OpenGL, so the graphics backend setting does not affect it, and this configuration leaves it unchanged"
           ],
           "settings": {
-            "graphicsBackend": "wined3d",
-            "dxvk": false,
             "dxvkAsync": false,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -4522,7 +4848,13 @@
         }
       ],
       "notes": [],
-      "knownIssues": [],
+      "knownIssues": [
+        {
+          "description": "Some post-process effects render black: the stage transition pixelation, the Retro Vision pill and the Mirror World in Downpour and Dross",
+          "severity": "minor",
+          "workaround": "None known yet; tracked in frankea/Whisky#200"
+        }
+      ],
       "provenance": {
         "source": "community-reference",
         "author": "Whisky Community",
@@ -4573,7 +4905,8 @@
             "dxvkAsync": false,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -4601,7 +4934,8 @@
             "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {
             "DXVK_ASYNC": "1"
@@ -4676,7 +5010,8 @@
             "dxvkAsync": false,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -4742,7 +5077,8 @@
             "dxvkAsync": false,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -4771,7 +5107,8 @@
             "dxvkAsync": false,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -4848,7 +5185,8 @@
             "dxvkAsync": false,
             "enhancedSync": "esync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -4924,7 +5262,8 @@
             "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -4991,7 +5330,8 @@
             "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -5060,7 +5400,8 @@
             "dxvkAsync": true,
             "enhancedSync": "esync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -5142,7 +5483,8 @@
             "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -5215,7 +5557,8 @@
             "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -5278,7 +5621,8 @@
             "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [
@@ -5348,7 +5692,8 @@
             "dxvkAsync": true,
             "enhancedSync": "esync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -5370,6 +5715,72 @@
         "author": "Whisky Community",
         "lastUpdated": "2026-04-30T00:00:00Z",
         "referenceURL": "https://github.com/whisky-app/whisky/issues/1124"
+      }
+    },
+    {
+      "id": "trine-4",
+      "title": "Trine 4: The Nightmare Prince",
+      "aliases": [
+        "Trine 4"
+      ],
+      "subtitle": "Frozenbyte / Modus Games",
+      "store": "steam",
+      "steamAppId": 690640,
+      "rating": "works",
+      "exeNames": [
+        "trine4_game.exe"
+      ],
+      "pathPatterns": [
+        "trine 4 the nightmare prince"
+      ],
+      "antiCheat": null,
+      "constraints": {
+        "cpuArchitectures": [
+          "arm64"
+        ],
+        "minMacOSVersion": "15.0.0",
+        "minWineVersion": "10.0"
+      },
+      "variants": [
+        {
+          "id": "dxmt",
+          "label": "DXMT",
+          "isDefault": true,
+          "whenToUse": "Recommended configuration",
+          "rationale": [
+            "Direct3D 11; on D3DMetal the game freezes on its first loading screen",
+            "DXMT gets past it and holds 120 fps without crashing",
+            "Only the backend changes; every other setting stays as the bottle has it"
+          ],
+          "settings": {
+            "graphicsBackend": "dxmt"
+          },
+          "environmentVariables": {},
+          "dllOverrides": [],
+          "winetricksVerbs": [],
+          "testedWith": {
+            "lastTestedAt": "2026-10-16T00:00:00Z",
+            "macOSVersion": "27.0.1",
+            "wineVersion": "10.0",
+            "cpuArchitecture": "arm64"
+          }
+        }
+      ],
+      "notes": [
+        "Steam starts trine4.exe, the launcher; the game itself is trine4_game.exe"
+      ],
+      "knownIssues": [
+        {
+          "description": "Freezes on the first loading screen on D3DMetal",
+          "severity": "major",
+          "workaround": "Use the DXMT configuration"
+        }
+      ],
+      "provenance": {
+        "source": "community-reference",
+        "author": "furknataman",
+        "lastUpdated": "2026-10-16T00:00:00Z",
+        "referenceURL": "https://github.com/furknataman/Kadeh/commit/12c7612db4c5e2c84f06a0ab23c15adcaabd0df4"
       }
     },
     {
@@ -5412,7 +5823,8 @@
             "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -5478,7 +5890,8 @@
             "dxvkAsync": false,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -5540,7 +5953,8 @@
             "dxvkAsync": false,
             "enhancedSync": "none",
             "shaderCacheEnabled": false,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -5604,9 +6018,10 @@
           "isDefault": true,
           "whenToUse": "Recommended community-tested configuration",
           "rationale": [
-            "White CEF launcher pane is a known IE/font fallback issue with the Evolution Engine launcher",
-            "DXVK avoids the D3DMetal CEF rendering bug",
-            "corefonts supplies Times/Arial that the launcher's HTML expects"
+            "The launcher's embedded Chromium (CEF) paints from a separate GPU process into a window the launcher owns, which Wine's macOS driver does not show: the page runs and takes clicks but stays white. --in-process-gpu keeps that painting in the launcher's own process (WineHQ bugs 56463 and 58543)",
+            "DXVK avoids the D3DMetal CEF rendering bug; these settings also reach Launcher.exe, so the launcher draws on DXVK",
+            "DirectX 11 and 12, selectable in the launcher (PCGamingWiki); on DXVK, play in DirectX 11 mode",
+            "corefonts supplies the Verdana and Arial that the launcher's stylesheet falls back to"
           ],
           "settings": {
             "graphicsBackend": "dxvk",
@@ -5614,7 +6029,8 @@
             "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -5622,20 +6038,29 @@
             "vcrun2019",
             "corefonts"
           ],
+          "launchArguments": [
+            "--in-process-gpu"
+          ],
           "testedWith": {
-            "lastTestedAt": "2026-04-30T00:00:00Z",
-            "macOSVersion": "15.4.0",
-            "wineVersion": "10.0",
+            "lastTestedAt": "2026-10-23T00:00:00Z",
+            "macOSVersion": "27.0.1",
+            "wineVersion": "11.0",
             "cpuArchitecture": "arm64"
           }
         }
       ],
       "notes": [],
-      "knownIssues": [],
+      "knownIssues": [
+        {
+          "description": "Play inside Steam starts the launcher without Whisky's launch arguments, so its page stays white",
+          "severity": "major",
+          "workaround": "Start Warframe from Whisky's Library, or add --in-process-gpu to its launch options in Steam"
+        }
+      ],
       "provenance": {
         "source": "community-reference",
         "author": "Whisky Community",
-        "lastUpdated": "2026-04-30T00:00:00Z",
+        "lastUpdated": "2026-10-23T00:00:00Z",
         "referenceURL": "https://github.com/whisky-app/whisky/issues/524"
       }
     },
@@ -5683,7 +6108,8 @@
             "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [
@@ -5760,7 +6186,8 @@
             "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -5824,7 +6251,8 @@
             "dxvkAsync": false,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -5885,7 +6313,8 @@
             "dxvkAsync": false,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false
+            "avxEnabled": false,
+            "sequoiaCompatMode": false
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -5907,77 +6336,6 @@
         "author": "Whisky Community",
         "lastUpdated": "2026-04-30T00:00:00Z",
         "referenceURL": "https://github.com/whisky-app/whisky/issues/1119"
-      }
-    },
-    {
-      "id": "mecharashi",
-      "title": "Mecharashi",
-      "aliases": [],
-      "subtitle": "ZFGame Browser client",
-      "store": "other",
-      "rating": "unverified",
-      "exeNames": [
-        "Mecharashi.exe",
-        "ZFGameBrowser.exe"
-      ],
-      "pathPatterns": [
-        "mecharashi/client",
-        "mecharashi"
-      ],
-      "antiCheat": null,
-      "constraints": {
-        "cpuArchitectures": [
-          "arm64"
-        ],
-        "minMacOSVersion": "14.0.0"
-      },
-      "variants": [
-        {
-          "id": "dxmt-capped",
-          "label": "DXMT, in-game frame cap",
-          "isDefault": true,
-          "whenToUse": "Apple Silicon. Set the client's own FPS option to 60",
-          "rationale": [
-            "Unity IL2CPP client ported from a mobile build. Its own FPS option does cap the frame rate, lobby included; with neither it nor a backend cap set, it renders as fast as the GPU allows",
-            "The cap is left to the client, not DXMT. DXMT's preferredMaxFrameRate holds each frame on screen for a minimum time, which rounds to the refresh of whichever display the window is on and only paces evenly at a divisor of it (60 is not one of 75 Hz). The client's limiter waits on the CPU, so it gives 60 on any display the window lands on",
-            "DXMT translates this client's D3D11 straight to Metal. D3DMetal (GPTK 4.0b2) faults while creating the D3D11 device on the 3.1.1 runtime, and DXVK reaches Metal through MoltenVK at a bundled 1.10.3",
-            "The locale is deliberately not overridden: the client and its launcher render CJK text"
-          ],
-          "settings": {
-            "graphicsBackend": "dxmt",
-            "enhancedSync": "msync",
-            "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "frameRateLimit": "unlimited"
-          },
-          "environmentVariables": {},
-          "dllOverrides": [],
-          "winetricksVerbs": []
-        }
-      ],
-      "notes": [
-        "Measured on an M5 Pro, macOS 27.0.1, DXMT 0.80, a 75 Hz external display, in-game FPS 60 and no backend cap: about 59 fps in the lobby, dipping to about 48 in battle. One machine and one session, so there is no testedWith block yet and the rating stays unverified.",
-        "Metal HUD over one session on the same machine: GPU time is about 2.5 ms a frame at 1366x768, so rendering is not what heats the machine; the CPU side (x86-64 translation and the client itself) is the likelier cause. At 60 fps on the 75 Hz display, three frames in four stay up one refresh (13.3 ms) and the fourth two (26.7 ms): 60 on average, but uneven. Setting the display to 60 Hz while playing gives even pacing with the same in-game cap.",
-        "The launcher, ZFGameBrowser.exe, is Chromium-based and never paints on D3DMetal. It is detected as a launcher now, so on the Recommended backend it resolves to DXVK on its own. Launcher auto-detection with Auto-enable DXVK on switches the whole bottle to DXVK; to keep the game on DXMT alongside the launcher, pin DXVK on ZFGameBrowser.exe with a per-program override instead.",
-        "This is a mobile-origin client. Its own graphics menu tops out well below what the Mac can draw, so lowering in-game settings does little for heat. The FPS option is what moves it. Leave ray tracing and DLSS off: ray tracing needs D3D12 and DLSS needs an NVIDIA GPU, so neither can work through DXMT.",
-        "A fixed 1366x768 window is set per program, not here: the database cannot carry launch arguments. Give Mecharashi.exe the arguments -screen-fullscreen 0 -screen-width 1366 -screen-height 768; the client area is then 1366x768 with the title bar outside it."
-      ],
-      "knownIssues": [
-        {
-          "description": "The machine runs hot. With no frame cap the GPU sits at its maximum clock even in the lobby, where the client has almost nothing to draw.",
-          "severity": "major",
-          "workaround": "Set the in-game FPS option to 60 and leave the backend frame cap off. A DXMT cap that does not divide the display's refresh rate paces unevenly or rounds down."
-        },
-        {
-          "description": "The launcher window opens and stays blank on D3DMetal.",
-          "severity": "major",
-          "workaround": "Let launcher detection resolve it to DXVK, or set the backend to DXVK for ZFGameBrowser.exe."
-        }
-      ],
-      "provenance": {
-        "source": "community-reference",
-        "author": "Whisky Community",
-        "lastUpdated": "2026-08-24T00:00:00Z"
       }
     }
   ]

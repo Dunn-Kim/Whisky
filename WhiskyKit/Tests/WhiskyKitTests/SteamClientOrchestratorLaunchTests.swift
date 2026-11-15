@@ -44,22 +44,159 @@ struct SteamClientOrchestratorLaunchTests {
         let (bottle, games) = try Fixture.makeBottle()
         let driver = FakeSteamClientDriver(script: [[]])
         let orchestrator = SteamClientOrchestrator(bottle: bottle, driver: driver, timing: Fixture.patient)
-        var launchingAtLaunch = false
+        var phaseAtLaunch: SteamClientOrchestrator.Phase?
         driver.onStartClient = { driver.script = [["steam.exe"]] }
         driver.onLaunchGame = { game in
-            launchingAtLaunch = orchestrator.launchingAppIds.contains(game.appId)
+            phaseAtLaunch = orchestrator.phases[game.appId]
             driver.script = [["steam.exe", "game1.exe"]]
         }
 
         orchestrator.launch(games[0])
-        #expect(orchestrator.launchingAppIds.contains(games[0].appId))
+        #expect(orchestrator.phases[games[0].appId] == .startingClient)
         await Fixture.awaitIdle(orchestrator)
 
         #expect(orchestrator.launchError == nil)
         #expect(driver.startClientCalls == 1)
         #expect(driver.fixesCalls == 1)
         #expect(driver.launched == [games[0].appId])
-        #expect(launchingAtLaunch)
+        #expect(phaseAtLaunch == .launching)
+        #expect(driver.readyCalls == 1)
+    }
+
+    @Test("Waiting for a client it started lists the bottle once, after steam.exe appears")
+    func clientWaitStaysOnHostDuringBoot() async throws {
+        let (bottle, games) = try Fixture.makeBottle()
+        let driver = FakeSteamClientDriver(script: [[]])
+        let orchestrator = SteamClientOrchestrator(bottle: bottle, driver: driver, timing: Fixture.patient)
+        var listsAtStart = 0
+        var listsAtLaunch = 0
+        driver.onStartClient = {
+            listsAtStart = driver.listCalls
+            // Booting: Wine is up on the host, the client not yet.
+            driver.hostOverride = ["wineboot.exe", "services.exe"]
+            Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(50))
+                driver.hostOverride = nil
+                driver.script = [["steam.exe"]]
+            }
+        }
+        driver.onLaunchGame = { _ in
+            listsAtLaunch = driver.listCalls
+            driver.script = [["steam.exe", "game1.exe"]]
+        }
+
+        orchestrator.launch(games[0])
+        await Fixture.awaitIdle(orchestrator)
+
+        #expect(orchestrator.launchError == nil)
+        #expect(driver.launched == [games[0].appId])
+        #expect(listsAtLaunch == listsAtStart + 1)
+    }
+
+    @Test("Another bottle's steam.exe doesn't end the wait for this bottle's client")
+    func otherBottlesClientIsNotThisOne() async throws {
+        let (bottle, games) = try Fixture.makeBottle()
+        let driver = FakeSteamClientDriver(script: [[]])
+        // The host has a steam.exe from the start; this bottle never does.
+        driver.hostOverride = ["steam.exe"]
+        let orchestrator = SteamClientOrchestrator(bottle: bottle, driver: driver, timing: Fixture.fast)
+
+        orchestrator.launch(games[0])
+        await Fixture.awaitIdle(orchestrator)
+
+        #expect(orchestrator.launchError == SteamOrchestratorError.clientTimeout.errorDescription)
+        #expect(driver.startClientCalls == 1)
+        #expect(driver.launched.isEmpty)
+        // Only the running check before the start: that client was already
+        // up, so the wait never had a new one to ask the bottle about.
+        #expect(driver.listCalls == 1)
+    }
+
+    @Test("With Steam running in another bottle, the wait lists this bottle once")
+    func otherBottlesClientKeepsWaitOnHost() async throws {
+        let (bottle, games) = try Fixture.makeBottle()
+        let driver = FakeSteamClientDriver(script: [[]])
+        // Another bottle's client is up before Play; this one's comes later.
+        driver.hostOverride = ["steam.exe"]
+        driver.hostSteamPIDOverride = [7]
+        let orchestrator = SteamClientOrchestrator(bottle: bottle, driver: driver, timing: Fixture.patient)
+        var listsAtStart = 0
+        var listsAtLaunch = 0
+        driver.onStartClient = {
+            listsAtStart = driver.listCalls
+            Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(50))
+                driver.hostSteamPIDOverride = [7, 8]
+                driver.script = [["steam.exe"]]
+            }
+        }
+        driver.onLaunchGame = { _ in
+            listsAtLaunch = driver.listCalls
+            driver.script = [["steam.exe", "game1.exe"]]
+        }
+
+        orchestrator.launch(games[0])
+        await Fixture.awaitIdle(orchestrator)
+
+        #expect(orchestrator.launchError == nil)
+        #expect(driver.launched == [games[0].appId])
+        #expect(listsAtLaunch == listsAtStart + 1)
+    }
+
+    @Test("A bottle list that misses the new client is read again until it shows up")
+    func clientWaitRetriesAfterAMissedList() async throws {
+        let (bottle, games) = try Fixture.makeBottle()
+        let driver = FakeSteamClientDriver(script: [[]])
+        let orchestrator = SteamClientOrchestrator(bottle: bottle, driver: driver, timing: Fixture.patient)
+        driver.onStartClient = {
+            // The host sees the client before the bottle's list does: the
+            // first two reads after it appears still come back without it.
+            driver.hostOverride = ["steam.exe"]
+            driver.script = [[], [], ["steam.exe"]]
+        }
+        driver.onLaunchGame = { _ in
+            driver.script = [["steam.exe", "game1.exe"]]
+        }
+
+        orchestrator.launch(games[0])
+        await Fixture.awaitIdle(orchestrator)
+
+        #expect(orchestrator.launchError == nil)
+        #expect(driver.launched == [games[0].appId])
+    }
+
+    @Test("A new client that exits before the bottle lists it stops the bottle reads")
+    func clientWaitStopsReadingWhenTheNewClientExits() async throws {
+        let (bottle, games) = try Fixture.makeBottle()
+        let driver = FakeSteamClientDriver(script: [[]])
+        // Long enough for the reads below even on a loaded runner.
+        var timing = Fixture.fast
+        timing.clientReadyTimeout = 3
+        let orchestrator = SteamClientOrchestrator(bottle: bottle, driver: driver, timing: timing)
+        var listsAtExit: Int?
+        driver.onStartClient = {
+            let listsAtStart = driver.listCalls
+            driver.hostOverride = ["steam.exe"]
+            Task { @MainActor in
+                // A second read shows the wait is retrying; then the client goes.
+                let giveUp = Date(timeIntervalSinceNow: 3)
+                while driver.listCalls < listsAtStart + 2, Date() < giveUp {
+                    try? await Task.sleep(for: .milliseconds(1))
+                }
+                guard driver.listCalls >= listsAtStart + 2 else { return }
+                driver.hostOverride = ["services.exe"]
+                listsAtExit = driver.listCalls
+            }
+        }
+
+        orchestrator.launch(games[0])
+        await Fixture.awaitIdle(orchestrator)
+
+        #expect(orchestrator.launchError == SteamOrchestratorError.clientTimeout.errorDescription)
+        let exit = try #require(listsAtExit)
+        // At most the read already under way when the client went.
+        #expect(driver.listCalls <= exit + 1)
+        #expect(driver.launched.isEmpty)
     }
 
     @Test("Concurrent launches share one client startup")
@@ -79,6 +216,7 @@ struct SteamClientOrchestratorLaunchTests {
         await Fixture.awaitIdle(orchestrator)
 
         #expect(driver.startClientCalls == 1)
+        #expect(driver.readyCalls == 1)
         #expect(Set(driver.launched) == Set(games.map(\.appId)))
         #expect(orchestrator.launchError == nil)
     }
@@ -108,6 +246,7 @@ struct SteamClientOrchestratorLaunchTests {
         #expect(orchestrator.launchError == SteamOrchestratorError.clientTimeout.errorDescription)
         #expect(driver.startClientCalls == 1)
         #expect(driver.launched.isEmpty)
+        #expect(driver.readyCalls == 0)
     }
 
     @Test("The game never appearing is reported as a launch timeout")
@@ -147,6 +286,7 @@ struct SteamClientOrchestratorLaunchTests {
 
         #expect(driver.startClientCalls == 0)
         #expect(driver.fixesCalls == 0)
+        #expect(driver.readyCalls == 1)
         #expect(driver.launched == [games[0].appId])
     }
 
