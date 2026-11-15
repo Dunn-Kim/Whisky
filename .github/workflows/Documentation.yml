@@ -77,6 +77,9 @@ jobs:
   deploy:
     name: Deploy to GitHub Pages
     needs: build-docs
+    # Only where the Pages site lives: a fork has no Pages site, so the
+    # deployment request fails with 404. The docs still build there.
+    if: github.repository == 'frankea/Whisky'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
