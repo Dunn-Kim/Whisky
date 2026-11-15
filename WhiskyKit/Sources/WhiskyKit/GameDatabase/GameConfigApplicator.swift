@@ -30,6 +30,7 @@ public struct ConfigChange: Sendable, Equatable {
         case graphicsBackend
         case dxvk
         case dxvkAsync
+        case frameRateLimit
         case enhancedSync
         case shaderCache
         case avx
@@ -293,8 +294,9 @@ public enum GameConfigApplicator {
 
         if let frameRateLimit = settings.frameRateLimit, frameRateLimit != bottle.settings.frameRateLimit {
             changes.append(ConfigChange(
-                category: "Graphics",
-                settingName: "Frame Rate Limit",
+                kind: .frameRateLimit,
+                category: graphics,
+                settingName: String(localized: "config.frameRateLimit"),
                 currentValue: bottle.settings.frameRateLimit.label,
                 newValue: frameRateLimit.label
             ))
