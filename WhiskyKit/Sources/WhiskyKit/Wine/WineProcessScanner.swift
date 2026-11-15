@@ -67,8 +67,10 @@ public enum WineProcessScanner {
             let length = proc_pidpath(pid, &pathBuffer, UInt32(pathBuffer.count))
             // 0 or negative: the process died mid-scan or is not inspectable; skip.
             guard length > 0 else { continue }
-            let path = pathBuffer.withUnsafeBufferPointer { String(cString: $0.baseAddress!) }
-            guard path.hasPrefix(wineRootPrefix), !path.hasSuffix("/wineserver") else { continue }
+            let bytes = pathBuffer.prefix(Int(length)).map { UInt8(bitPattern: $0) }
+            guard let path = String(bytes: bytes, encoding: .utf8),
+                  path.hasPrefix(wineRootPrefix), !path.hasSuffix("/wineserver")
+            else { continue }
             result.insert(pid)
         }
         return result

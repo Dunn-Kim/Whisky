@@ -97,16 +97,13 @@ public extension LauncherType {
             return .paradox
         }
 
-        // ZFGame Browser detection
-        // Matters for more than presets: an undetected Chromium launcher
-        // resolves to D3DMetal, where its window comes up and never paints.
-        if filename.contains("zfgamebrowser") ||
-            filename.contains("zfgame") ||
-            path.contains("/zfgame/") ||
-            path.contains("\\zfgame\\") {
-            return .zfGame
-        }
+        return isZFGame(filename: filename, path: path) ? .zfGame : nil
+    }
 
-        return nil
+    /// ZFGame Browser detection. Matters for more than presets: an undetected
+    /// Chromium launcher resolves to D3DMetal, where its window comes up and
+    /// never paints.
+    private static func isZFGame(filename: String, path: String) -> Bool {
+        filename.contains("zfgame") || path.contains("/zfgame/") || path.contains("\\zfgame\\")
     }
 }

@@ -292,15 +292,7 @@ public enum GameConfigApplicator {
             ))
         }
 
-        if let frameRateLimit = settings.frameRateLimit, frameRateLimit != bottle.settings.frameRateLimit {
-            changes.append(ConfigChange(
-                kind: .frameRateLimit,
-                category: graphics,
-                settingName: String(localized: "config.frameRateLimit"),
-                currentValue: bottle.settings.frameRateLimit.label,
-                newValue: frameRateLimit.label
-            ))
-        }
+        changes += frameRateLimitChanges(settings: settings, bottle: bottle, category: graphics)
 
         // Performance settings
         if let enhancedSync = settings.enhancedSync, enhancedSync != bottle.settings.enhancedSync {
@@ -374,6 +366,21 @@ public enum GameConfigApplicator {
         changes += winetricksChanges(variant: variant, installedVerbs: installedVerbs)
 
         return changes
+    }
+
+    /// The frame rate cap a variant would change, as a preview row.
+    @MainActor
+    private static func frameRateLimitChanges(
+        settings: GameConfigVariantSettings, bottle: Bottle, category: String
+    ) -> [ConfigChange] {
+        guard let limit = settings.frameRateLimit, limit != bottle.settings.frameRateLimit else { return [] }
+        return [ConfigChange(
+            kind: .frameRateLimit,
+            category: category,
+            settingName: String(localized: "config.frameRateLimit"),
+            currentValue: bottle.settings.frameRateLimit.label,
+            newValue: limit.label
+        )]
     }
 
     // swiftlint:enable function_body_length
