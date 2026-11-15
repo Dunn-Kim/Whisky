@@ -325,9 +325,6 @@ extension TroubleshootingWizardView {
     private func startOver() {
         sessionStore.deleteActiveSession(for: entryContext.bottleURL)
         engine.startOver()
-        if let startingCategory {
-            engine.selectCategory(startingCategory)
-        }
         showResumeOverlay = false
     }
 
