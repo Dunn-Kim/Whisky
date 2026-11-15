@@ -980,8 +980,6 @@ public struct BottleSettings: Codable, Equatable {
             for entry in DLLOverrideResolver.dxmtPreset(builtinD3D12IsD3DMetal: builtinD3D12IsD3DMetal) {
                 managedDLLOverrides.append((entry: entry, source: .dxmt))
             }
-            // Its own variable rather than a DXMT_CONFIG key, so it cannot clobber
-            // the frame rate cap that DXMT_CONFIG carries.
             if dxmtMetalFXUpscale {
                 builder.set(
                     "DXMT_METALFX_SPATIAL_SWAPCHAIN", "1", layer: .bottleManaged,

@@ -350,15 +350,12 @@ private extension GraphicsConfigSection {
                     Text(limit.label).tag(limit)
                 }
             }
-            if resolvedBackend.supportsFrameRateLimit {
-                Text("config.frameRateLimit.info")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            } else {
-                Text("config.frameRateLimit.unsupported")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
+            Text(
+                resolvedBackend.supportsFrameRateLimit
+                    ? "config.frameRateLimit.info" as LocalizedStringKey : "config.frameRateLimit.unsupported"
+            )
+            .font(.caption)
+            .foregroundStyle(.secondary)
         }
     }
 

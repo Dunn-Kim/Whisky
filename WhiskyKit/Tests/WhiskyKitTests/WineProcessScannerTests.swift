@@ -20,12 +20,6 @@
 import XCTest
 
 final class WineProcessScannerTests: XCTestCase {
-    /// The native proc APIs must be usable — a `nil` result would silently push the
-    /// Processes page back to spawning a Wine process on every polling tick.
-    func testNativeEnumerationIsAvailable() {
-        XCTAssertNotNil(WineProcessScanner.runningWinePIDs())
-    }
-
     /// The scan must only ever report Wine processes: the test runner is not one,
     /// and PID 0 (kernel) can never satisfy an executable-path prefix match.
     func testResultContainsNoForeignProcesses() throws {

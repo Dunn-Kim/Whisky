@@ -93,31 +93,21 @@ public extension GraphicsBackend {
         }
     }
 
-    /// Every variable any backend may use to cap the frame rate.
-    ///
-    /// A program-level override has to clear the bottle's cap before applying
-    /// its own, including the variable belonging to a *different* backend when
-    /// the program also overrides which backend is used.
-    static var allFrameRateLimitKeys: [String] {
-        ["DXVK_FRAME_RATE", "DXMT_CONFIG"]
-    }
-
     /// Environment entries that cap presentation at `fps` for this backend.
     ///
-    /// - Parameter fps: The cap in frames per second. Values below 1 are ignored.
+    /// - Parameter fps: The cap in frames per second.
     /// - Returns: The variables to set, or an empty dictionary when this backend
     ///   has no limiter.
     func frameRateLimitEnvironment(fps: Int) -> [String: String] {
-        guard fps > 0 else { return [:] }
         switch self {
         case .dxvk:
             // DXVK's own limiter; also settable as `dxgi.maxFrameRate` in dxvk.conf.
-            return ["DXVK_FRAME_RATE": String(fps)]
+            ["DXVK_FRAME_RATE": String(fps)]
         case .dxmt:
             // DXMT reads a DXVK-style `key=value` list from DXMT_CONFIG.
-            return ["DXMT_CONFIG": "d3d11.preferredMaxFrameRate=\(fps)"]
+            ["DXMT_CONFIG": "d3d11.preferredMaxFrameRate=\(fps)"]
         case .recommended, .d3dMetal, .wined3d:
-            return [:]
+            [:]
         }
     }
 }

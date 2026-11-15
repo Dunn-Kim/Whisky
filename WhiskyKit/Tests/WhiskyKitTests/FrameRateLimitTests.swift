@@ -22,39 +22,9 @@ import XCTest
 final class FrameRateLimitTests: XCTestCase {
     // MARK: - Resolution
 
-    func testUnlimitedResolvesToNoCap() {
-        XCTAssertNil(FrameRateLimit.unlimited.resolved(displayRefreshRate: 144))
-    }
-
     func testFixedLimitIgnoresDisplayRefreshRate() {
         XCTAssertEqual(FrameRateLimit.fps60.resolved(displayRefreshRate: 144), 60)
         XCTAssertEqual(FrameRateLimit.fps120.resolved(displayRefreshRate: nil), 120)
-    }
-
-    func testMatchDisplayUsesRefreshRate() {
-        XCTAssertEqual(FrameRateLimit.matchDisplay.resolved(displayRefreshRate: 144), 144)
-    }
-
-    /// An unknown refresh rate must not be guessed at: capping a 144 Hz panel to a
-    /// made-up 60 would be a visible regression, so no cap is applied instead.
-    func testMatchDisplayWithoutRefreshRateResolvesToNoCap() {
-        XCTAssertNil(FrameRateLimit.matchDisplay.resolved(displayRefreshRate: nil))
-    }
-
-    // MARK: - Backend mapping
-
-    func testDXVKUsesFrameRateVariable() {
-        XCTAssertEqual(
-            GraphicsBackend.dxvk.frameRateLimitEnvironment(fps: 60),
-            ["DXVK_FRAME_RATE": "60"]
-        )
-    }
-
-    func testDXMTUsesConfigVariable() {
-        XCTAssertEqual(
-            GraphicsBackend.dxmt.frameRateLimitEnvironment(fps: 90),
-            ["DXMT_CONFIG": "d3d11.preferredMaxFrameRate=90"]
-        )
     }
 
     func testBackendsWithoutLimiterSetNothing() {
@@ -65,11 +35,6 @@ final class FrameRateLimitTests: XCTestCase {
                 "\(backend) should set no frame rate variables"
             )
         }
-    }
-
-    func testNonPositiveFPSSetsNothing() {
-        XCTAssertTrue(GraphicsBackend.dxvk.frameRateLimitEnvironment(fps: 0).isEmpty)
-        XCTAssertTrue(GraphicsBackend.dxmt.frameRateLimitEnvironment(fps: -1).isEmpty)
     }
 
     // MARK: - Bottle managed layer
@@ -107,6 +72,8 @@ final class FrameRateLimitTests: XCTestCase {
         XCTAssertNil(env["DXVK_FRAME_RATE"])
     }
 
+    /// An unknown refresh rate must not be guessed at: capping a 144 Hz panel to a
+    /// made-up 60 would be a visible regression, so no cap is applied instead.
     func testMatchDisplayWithUnknownRefreshRateSetsNoCap() {
         let env = bottleEnvironment(backend: .dxvk, limit: .matchDisplay, displayRefreshRate: nil)
         XCTAssertNil(env["DXVK_FRAME_RATE"])

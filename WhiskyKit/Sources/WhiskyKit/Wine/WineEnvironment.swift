@@ -456,15 +456,12 @@ extension Wine {
         // a different variable, so switching backend at program level would
         // otherwise leave the bottle's cap set on the wrong one.
         if overrides.graphicsBackend != nil || overrides.frameRateLimit != nil {
-            let effectiveBackend: GraphicsBackend = {
-                let chosen = overrides.graphicsBackend ?? bottleBackend
-                return chosen == .recommended ? recommendedBackend ?? GraphicsBackendResolver.resolve() : chosen
-            }()
-            let limit = overrides.frameRateLimit ?? bottleFrameRateLimit
-            let fps = limit.resolved(displayRefreshRate: displayRefreshRate)
-            for key in GraphicsBackend.allFrameRateLimitKeys where key != "DXMT_CONFIG" {
-                builder.remove(key, layer: .programUser)
-            }
+            let chosen = overrides.graphicsBackend ?? bottleBackend
+            let effectiveBackend = chosen == .recommended
+                ? recommendedBackend ?? GraphicsBackendResolver.resolve() : chosen
+            let fps = (overrides.frameRateLimit ?? bottleFrameRateLimit)
+                .resolved(displayRefreshRate: displayRefreshRate)
+            builder.remove("DXVK_FRAME_RATE", layer: .programUser)
             if effectiveBackend == .dxmt {
                 // The cap is one entry of DXMT_CONFIG, so it is merged, not set: a
                 // DXMT_CONFIG from the program's environment keeps its other

@@ -6350,7 +6350,6 @@
         "ZFGameBrowser.exe"
       ],
       "pathPatterns": [
-        "mecharashi/client",
         "mecharashi"
       ],
       "antiCheat": null,

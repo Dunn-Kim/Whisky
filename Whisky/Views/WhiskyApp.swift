@@ -64,7 +64,7 @@ struct WhiskyApp: App {
     init() {
         // Never started: this fork takes upstream changes by hand, and Sparkle's
         // feed is upstream's appcast, so an accepted update would replace the
-        // fork build. Unstarted, the Check for Updates item stays disabled.
+        // fork build. The Check for Updates menu item is gone with it.
         updaterController = SPUStandardUpdaterController(
             startingUpdater: false,
             updaterDelegate: nil,
@@ -206,9 +206,6 @@ struct WhiskyApp: App {
         }
         .handlesExternalEvents(matching: ["*"])
         .commands {
-            CommandGroup(after: .appInfo) {
-                SparkleView(updater: updaterController.updater)
-            }
             CommandGroup(before: .systemServices) {
                 Divider()
                 Button("open.setup") {
