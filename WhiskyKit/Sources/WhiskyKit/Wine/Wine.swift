@@ -93,21 +93,6 @@ public class Wine {
     /// URL to the `wineserver` binary for Wine server management.
     private static let wineserverBinary: URL = WhiskyWineInstaller.binFolder.appending(path: "wineserver")
 
-    private static let bottlesStartedThisSession = OSAllocatedUnfairLock(initialState: Set<URL>())
-
-    /// Whether this process has started any Wine work in the bottle since it launched.
-    ///
-    /// A wineserver in a bottle where this is false predates the app session,
-    /// so it is a leftover; one in a bottle where it is true may belong to a
-    /// program the user just started.
-    public static func hasStartedWork(in bottle: Bottle) -> Bool {
-        bottlesStartedThisSession.withLock { $0.contains(bottle.url.standardizedFileURL) }
-    }
-
-    static func recordStartedWork(in bottle: Bottle) {
-        bottlesStartedThisSession.withLock { _ = $0.insert(bottle.url.standardizedFileURL) }
-    }
-
     /// Run a process on a executable file given by the `executableURL`
     private static func runProcess(
         name: String? = nil, args: [String], environment: [String: String], executableURL: URL, directory: URL? = nil,
@@ -172,7 +157,6 @@ public class Wine {
     public static func runWineProcess(
         name: String? = nil, args: [String], bottle: Bottle, environment: [String: String] = [:]
     ) throws -> AsyncStream<ProcessOutput> {
-        recordStartedWork(in: bottle)
         let fileHandle = try makeFileHandle()
         fileHandle.writeApplicationInfo()
         fileHandle.writeInfo(for: bottle)
@@ -362,7 +346,6 @@ public class Wine {
             }
         }
 
-        recordStartedWork(in: bottle)
         let launch = try await prepare()
 
         // Opened after preparation, not before: the registry imports during

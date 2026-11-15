@@ -458,7 +458,7 @@ extension Wine {
         if overrides.graphicsBackend != nil || overrides.frameRateLimit != nil {
             let effectiveBackend: GraphicsBackend = {
                 let chosen = overrides.graphicsBackend ?? bottleBackend
-                return chosen == .recommended ? GraphicsBackendResolver.resolve() : chosen
+                return chosen == .recommended ? recommendedBackend ?? GraphicsBackendResolver.resolve() : chosen
             }()
             let limit = overrides.frameRateLimit ?? bottleFrameRateLimit
             let fps = limit.resolved(displayRefreshRate: displayRefreshRate)

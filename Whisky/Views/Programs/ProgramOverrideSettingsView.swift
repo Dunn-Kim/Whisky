@@ -727,6 +727,7 @@ struct ProgramOverrideSettingsView: View {
                     program.settings.overrides?.dxvk = nil
                     program.settings.overrides?.dxvkAsync = nil
                     program.settings.overrides?.dxvkHud = nil
+                    program.settings.overrides?.frameRateLimit = nil
                     program.settings.overrides?.metal4Enabled = nil
                     program.settings.overrides?.metalHud = nil
                 }
