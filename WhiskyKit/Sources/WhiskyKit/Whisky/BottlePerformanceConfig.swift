@@ -23,11 +23,7 @@ public struct BottlePerformanceConfig: Codable, Equatable {
     var gpuMemoryLimit: Int? // MB, nil means auto
     var disableShaderOptimizations: Bool = false // For debugging FPS issues
     var vcRedistInstalled: Bool = false // Track if VC++ runtime is installed
-    /// Default on: App Nap demotes an occluded Wine process to the efficiency
-    /// cores and coalesces its timers — for a game that is frame pacing ruin.
-    /// Existing bottles keep whatever they have stored (the decode fallback
-    /// stays false so a bottle that never chose is not silently changed).
-    var disableAppNap: Bool = true
+    var disableAppNap: Bool = false // Prevent macOS from throttling Wine processes
 
     public init() {}
 
