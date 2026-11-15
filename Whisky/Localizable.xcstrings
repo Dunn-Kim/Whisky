@@ -58272,6 +58272,23 @@
         }
       }
     },
+    "launcher.fix.reason.zfGameDxvkAsync" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reduces stuttering in the launcher's web view"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reduces stuttering in the launcher's web view"
+          }
+        }
+      }
+    },
     "launcher.fixCategory.compatibility" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -58751,6 +58768,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Improves launcher stability and game compatibility"
+          }
+        }
+      }
+    },
+    "launcher.fixes.description.zfGame" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fixes the blank launcher window caused by D3DMetal"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fixes the blank launcher window caused by D3DMetal"
           }
         }
       }

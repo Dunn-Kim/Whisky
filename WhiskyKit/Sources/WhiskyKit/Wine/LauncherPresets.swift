@@ -355,7 +355,7 @@ public enum LauncherType: String, Codable, CaseIterable, Sendable, Identifiable 
         case .paradox:
             String(localized: "launcher.fixes.description.paradox")
         case .zfGame:
-            "Fixes the blank launcher window caused by D3DMetal"
+            String(localized: "launcher.fixes.description.zfGame")
         }
     }
 }

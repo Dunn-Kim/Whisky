@@ -112,7 +112,7 @@ extension LauncherType {
             [
                 LauncherFixDetail(
                     key: "DXVK_ASYNC", value: "1",
-                    reason: "Reduces stuttering in the launcher's web view",
+                    reason: LauncherFixReason.zfGameDxvkAsync,
                     category: .graphics
                 )
             ]
@@ -135,6 +135,7 @@ private enum LauncherFixReason {
     static let rockstarLocale = "Sets locale for launcher UI rendering"
     static let chromiumLocale = "Fixes Chromium-based launcher locale issues"
     static let ubisoftDxvkAsync = "Improves rendering for Anno 1800 and other Ubisoft games"
+    static let zfGameDxvkAsync = "Reduces stuttering in the launcher's web view"
 }
 
 extension LauncherFixDetail {
@@ -158,6 +159,8 @@ extension LauncherFixDetail {
             String(localized: "launcher.fix.reason.chromiumLocale")
         case LauncherFixReason.ubisoftDxvkAsync:
             String(localized: "launcher.fix.reason.ubisoftDxvkAsync")
+        case LauncherFixReason.zfGameDxvkAsync:
+            String(localized: "launcher.fix.reason.zfGameDxvkAsync")
         default:
             reason
         }
