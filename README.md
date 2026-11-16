@@ -9,6 +9,14 @@
   > upstream issues and adding new functionality. Not affiliated with the original project or
   > getwhisky.app.
 
+  > **This repository is a fork of that fork.** [Dunn-Kim/Whisky](https://github.com/Dunn-Kim/Whisky)
+  > follows [frankea/Whisky](https://github.com/frankea/Whisky) and carries a few changes of its own,
+  > listed under [Fork changes](CHANGELOG.md#fork-changes). Everything else here, this README
+  > included, is upstream's. Builds from this fork don't check for updates and ship without
+  > upstream's telemetry token. If something breaks, check that it also happens on upstream's build
+  > before reporting it there. Not affiliated with frankea/Whisky, the original project or
+  > getwhisky.app.
+
   ![](https://img.shields.io/github/actions/workflow/status/frankea/Whisky/CI.yml?style=for-the-badge&label=CI)
   [![](https://img.shields.io/codecov/c/github/frankea/Whisky?style=for-the-badge&logo=codecov&label=Coverage&flag=whiskykit)](https://codecov.io/gh/frankea/Whisky)
   [![](https://img.shields.io/github/downloads/frankea/Whisky/total?style=for-the-badge&logo=github&label=Downloads)](https://github.com/frankea/Whisky/releases)

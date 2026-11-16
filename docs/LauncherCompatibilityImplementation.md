@@ -75,6 +75,7 @@ The implementation follows a layered architecture with clear separation of conce
 - Battle.net
 - Paradox Launcher
 - RSI Launcher (Star Citizen)
+- ZFGame Browser (this fork)
 
 **Sample Environment Overrides:**
 ```swift

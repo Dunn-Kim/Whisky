@@ -495,6 +495,18 @@ Use `LauncherPatcher.exe` instead of `Launcher.exe`
 
 ---
 
+### ZFGame Browser (this fork)
+The Chromium launcher shell several publishers ship, detected by a `zfgame` executable or folder name.
+
+**Must Have:**
+- ✅ DXVK (the launcher does not paint on D3DMetal). "Use DXVK for Rockstar Games Launcher" also governs it: with the toggle on, Launcher Compatibility Mode switches the bottle to DXVK
+
+**Critical Settings:**
+- `DXVK_ASYNC=1` (less stutter in the launcher's web view)
+- No locale override: these launchers draw a CJK interface, and forcing `en_US` turns its text into boxes
+
+---
+
 ### Chromium apps (3DMark and other front ends)
 Some programs that are not launchers draw their own window with Chromium (CEF or Electron), and that window stays black on D3DMetal and DXMT, while the benchmarks or games they start run fine there.
 

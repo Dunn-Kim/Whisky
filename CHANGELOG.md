@@ -5,6 +5,49 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Fork changes
+
+What [Dunn-Kim/Whisky](https://github.com/Dunn-Kim/Whisky) carries on top of
+[frankea/Whisky](https://github.com/frankea/Whisky). Everything below this
+section is upstream's changelog, unchanged.
+
+### Added
+- A frame rate limit for a bottle and for a program (unlimited, match the
+  display, or 30 to 144 fps), in the Graphics settings and the program's
+  overrides. It applies on DXVK and DXMT, and a Game Configuration can set
+  one.
+- A MetalFX upscaling toggle for bottles on DXMT.
+- A warning under the frame rate limit when the bottle or program runs on
+  DXMT and the display's refresh rate is not a multiple of the limit, where
+  the limit cannot pace evenly (60 on a 75 Hz display, 90 on 120 Hz).
+- ZFGame Browser, the Chromium launcher several publishers ship, is detected
+  as a launcher and gets DXVK.
+- A Game Configuration for Mecharashi.
+
+### Changed
+- The app and the Wine runtime don't check for updates. Sparkle's feed is
+  upstream's, so an update would replace this fork's build; Check for Updates
+  is gone from the menu, and the WhiskyWine update toggle in Settings is off
+  by default.
+- Builds carry no telemetry project token.
+- Games launch at user-interactive quality of service.
+- The Processes page lists Wine processes again only when a native scan sees
+  them change, or every 15 seconds while some are listed, instead of on
+  every tick.
+- The Pages deployment in the documentation workflow runs only in upstream's
+  repository.
+
+### Fixed
+- `DXMT_CONFIG` entries from the bottle, the program and a Game Configuration
+  are merged instead of the last one replacing the others.
+- The clean-up sweep at startup no longer stops a game launched right after
+  Whisky opens.
+- A second launch request for a program that is still launching is ignored
+  instead of starting it twice.
+- The Mecharashi Game Configuration sets `WINE_EXPOSE_STACK_BASE=1`, which a
+  4.8 runtime carrying the stack base patch needs to keep the game's embedded
+  browser from crashing. Other runtimes ignore it.
+
 ## [Unreleased]
 
 ## [3.10.1] - 2026-11-15 (App)
