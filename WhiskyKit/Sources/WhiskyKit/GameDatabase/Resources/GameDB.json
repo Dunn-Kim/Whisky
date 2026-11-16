@@ -6369,7 +6369,8 @@
             "Unity IL2CPP client ported from a mobile build. Its own FPS option does cap the frame rate, lobby included; with neither it nor a backend cap set, it renders as fast as the GPU allows",
             "The cap is left to the client, not DXMT. DXMT's preferredMaxFrameRate holds each frame on screen for a minimum time, which rounds to the refresh of whichever display the window is on and only paces evenly at a divisor of it (60 is not one of 75 Hz). The client's limiter waits on the CPU, so it gives 60 on any display the window lands on",
             "DXMT translates this client's D3D11 straight to Metal. D3DMetal (GPTK 4.0b2) faults while creating the D3D11 device on the 3.1.1 runtime, and DXVK reaches Metal through MoltenVK at a bundled 1.10.3",
-            "The locale is deliberately not overridden: the client and its launcher render CJK text"
+            "The locale is deliberately not overridden: the client and its launcher render CJK text",
+            "WINE_EXPOSE_STACK_BASE=1 is for the CrossOver-based 4.8 runtimes, where PE code runs with %gs on the pthread TSD and gs:0x8 holds macOS's errno pointer, not the stack base. The embedded browser (ZFGameBrowser.exe, CEF on Chromium 74) reads the stack base straight off gs:0x8, takes every thread for the main thread and crashes its renderer in a loop. A runtime carrying the stack base patch honours the variable; the stock 4.8.3 runtime and 3.1.1 ignore it, and 3.1.1 does not need it"
           ],
           "settings": {
             "graphicsBackend": "dxmt",
@@ -6378,7 +6379,9 @@
             "avxEnabled": false,
             "frameRateLimit": "unlimited"
           },
-          "environmentVariables": {},
+          "environmentVariables": {
+            "WINE_EXPOSE_STACK_BASE": "1"
+          },
           "dllOverrides": [],
           "winetricksVerbs": []
         }
