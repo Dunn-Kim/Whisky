@@ -27,6 +27,21 @@ final class FrameRateLimitTests: XCTestCase {
         XCTAssertEqual(FrameRateLimit.fps120.resolved(displayRefreshRate: nil), 120)
     }
 
+    func testLimitPacesEvenlyOnlyOnAMultipleOfIt() {
+        XCTAssertTrue(FrameRateLimit.fps60.pacesEvenly(displayRefreshRate: 120))
+        XCTAssertTrue(FrameRateLimit.fps30.pacesEvenly(displayRefreshRate: 60))
+        XCTAssertTrue(FrameRateLimit.matchDisplay.pacesEvenly(displayRefreshRate: 75))
+        XCTAssertFalse(FrameRateLimit.fps60.pacesEvenly(displayRefreshRate: 75))
+        XCTAssertFalse(FrameRateLimit.fps90.pacesEvenly(displayRefreshRate: 120))
+        XCTAssertFalse(FrameRateLimit.fps144.pacesEvenly(displayRefreshRate: 120))
+    }
+
+    func testNoCapOrUnknownRefreshRateCountsAsEven() {
+        XCTAssertTrue(FrameRateLimit.unlimited.pacesEvenly(displayRefreshRate: 75))
+        XCTAssertTrue(FrameRateLimit.fps60.pacesEvenly(displayRefreshRate: nil))
+        XCTAssertTrue(FrameRateLimit.matchDisplay.pacesEvenly(displayRefreshRate: nil))
+    }
+
     func testBackendsWithoutLimiterSetNothing() {
         for backend in [GraphicsBackend.d3dMetal, .wined3d, .recommended] {
             XCTAssertFalse(backend.supportsFrameRateLimit, "\(backend) should report no limiter")

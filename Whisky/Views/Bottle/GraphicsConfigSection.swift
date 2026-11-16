@@ -21,6 +21,7 @@ import Metal
 import SwiftUI
 import WhiskyKit
 
+// swiftlint:disable:next type_body_length
 struct GraphicsConfigSection: View {
     @ObservedObject var bottle: Bottle
     @AppStorage("graphicsAdvancedMode") private var advancedMode: Bool = false
@@ -360,6 +361,13 @@ private extension GraphicsConfigSection {
             )
             .font(.caption)
             .foregroundStyle(.secondary)
+            if resolvedBackend == .dxmt, !bottle.settings.frameRateLimit.pacesEvenly(
+                displayRefreshRate: FrameRateLimit.mainDisplayRefreshRate()
+            ) {
+                Text("config.frameRateLimit.uneven")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            }
         }
     }
 

@@ -332,6 +332,13 @@ struct ProgramOverrideSettingsView: View {
                             Text(limit.label).tag(limit)
                         }
                     }
+                    if resolvedOverriddenBackend == .dxmt, !frameRateLimitBinding.wrappedValue.pacesEvenly(
+                        displayRefreshRate: FrameRateLimit.mainDisplayRefreshRate()
+                    ) {
+                        Text("config.frameRateLimit.uneven")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                    }
                 }
 
                 // Resolved, so a program on Recommended that runs DXVK does

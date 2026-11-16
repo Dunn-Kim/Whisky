@@ -77,6 +77,19 @@ public enum FrameRateLimit: Int, Codable, CaseIterable, Equatable, Sendable {
             rawValue
         }
     }
+
+    /// Whether this limit paces evenly on a display refreshing at `displayRefreshRate`.
+    ///
+    /// DXMT paces by holding each frame on screen for a minimum time, so a
+    /// limit only holds when the refresh rate is a multiple of it: 60 on a
+    /// 75 Hz display alternates between one and two refreshes a frame, and 90
+    /// on 120 Hz runs at 60. No cap, or an unknown refresh rate, counts as even.
+    public func pacesEvenly(displayRefreshRate: Int?) -> Bool {
+        guard let fps = resolved(displayRefreshRate: displayRefreshRate),
+              let displayRefreshRate
+        else { return true }
+        return displayRefreshRate % fps == 0
+    }
 }
 
 public extension GraphicsBackend {

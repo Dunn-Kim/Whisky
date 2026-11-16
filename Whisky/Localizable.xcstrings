@@ -34741,19 +34741,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Frames rendered past the display's refresh rate are discarded before they are shown. Capping cuts GPU power draw and heat with no visible difference."
+            "value" : "Frames rendered past the display's refresh rate are discarded before they are shown, so capping cuts GPU power draw and heat."
           }
         },
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Frames rendered past the display's refresh rate are discarded before they are shown. Capping cuts GPU power draw and heat with no visible difference."
+            "value" : "Frames rendered past the display's refresh rate are discarded before they are shown, so capping cuts GPU power draw and heat."
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "디스플레이 주사율을 넘겨 렌더링한 프레임은 화면에 표시되기 전에 버려집니다. 제한을 걸면 화면 차이 없이 GPU 전력과 발열이 줄어듭니다."
+            "value" : "디스플레이 주사율을 넘겨 렌더링한 프레임은 화면에 표시되기 전에 버려지므로, 제한을 걸면 GPU 전력과 발열이 줄어듭니다."
           }
         }
       }
@@ -34776,6 +34776,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "디스플레이 주사율에 맞춤"
+          }
+        }
+      }
+    },
+    "config.frameRateLimit.uneven" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "On DXMT a limit holds only when the display's refresh rate is a multiple of it. With this one, frames alternate between two durations or run at a lower rate."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "On DXMT a limit holds only when the display's refresh rate is a multiple of it. With this one, frames alternate between two durations or run at a lower rate."
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "DXMT에서는 디스플레이 주사율이 제한값의 배수일 때만 제한이 고르게 걸립니다. 지금 값에서는 프레임 길이가 두 가지로 번갈아 나오거나 더 낮은 프레임률로 동작합니다."
           }
         }
       }
