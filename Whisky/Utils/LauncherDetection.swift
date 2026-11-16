@@ -140,7 +140,7 @@ enum LauncherDetection {
                 warnings.append(.battleNetLocale)
             }
 
-        case .ubisoft, .paradox, .zfGame:
+        case .ubisoft, .paradox, .zfGame, .rsiLauncher:
             break
         }
 

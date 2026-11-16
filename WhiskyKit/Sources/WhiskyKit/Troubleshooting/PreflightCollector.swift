@@ -110,7 +110,7 @@ public enum PreflightCollector {
         _ inputs: Inputs,
         logsFolder: URL,
         audioDevice: () -> AudioDeviceInfo? = { AudioDeviceMonitor().defaultOutputDevice() },
-        recommendedBackend: (LauncherType?) -> GraphicsBackend = { GraphicsBackendResolver.resolve(for: $0) }
+        recommendedBackend: (DXVKSteering?) -> BackendResolution = { GraphicsBackendResolver.resolution(for: $0) }
     ) -> PreflightData {
         var programOverride = inputs.programBackendOverride
         if inputs.readsPersistedOverride, let programURL = inputs.programURL {
@@ -146,6 +146,7 @@ public enum PreflightCollector {
             audioSampleRate: device?.sampleRate,
             graphicsBackend: backends.effective.rawValue,
             bottleGraphicsBackend: backends.bottle.rawValue,
+            graphicsBackendReason: backends.reason?.exportName,
             collectedAt: Date()
         )
     }
@@ -155,20 +156,32 @@ public enum PreflightCollector {
     ///
     /// Mirrors the launch: the program's override wins over the bottle's
     /// setting, and Recommended resolves for what is launched, which steers
-    /// a launcher to DXVK.
+    /// a launcher, a Chromium front end, or an Electron or NW.js app to DXVK.
+    /// Reads the executable's files the way a launch does. The reason is the
+    /// Recommended pick's, and `nil` for an explicit choice.
     static func resolvedBackends(
         bottle: GraphicsBackend,
         programOverride: GraphicsBackend?,
         programURL: URL?,
-        recommended: (LauncherType?) -> GraphicsBackend
-    ) -> (effective: GraphicsBackend, bottle: GraphicsBackend) {
-        let bottleResolved = bottle == .recommended ? recommended(nil) : bottle
+        recommended: (DXVKSteering?) -> BackendResolution
+    ) -> ResolvedBackends {
+        let bottleResolved = bottle == .recommended ? recommended(nil).backend : bottle
         let choice = programOverride ?? bottle
         guard choice == .recommended else {
-            return (choice, bottleResolved)
+            return ResolvedBackends(effective: choice, bottle: bottleResolved, reason: nil)
         }
-        let launcher = programURL.flatMap { LauncherType.detect(from: $0) }
-        return (recommended(launcher), bottleResolved)
+        let resolution = recommended(programURL.flatMap { DXVKSteering.inspect(executable: $0) })
+        return ResolvedBackends(effective: resolution.backend, bottle: bottleResolved, reason: resolution.reason)
+    }
+
+    /// What ``resolvedBackends(bottle:programOverride:programURL:recommended:)`` finds.
+    struct ResolvedBackends {
+        /// What a launch of the program runs on.
+        let effective: GraphicsBackend
+        /// What the bottle's other programs run on.
+        let bottle: GraphicsBackend
+        /// Why Recommended picked `effective`; `nil` for an explicit choice.
+        let reason: RecommendedReason?
     }
 
     /// The most recent run in the bottle's run history: the program's when
@@ -218,6 +231,7 @@ extension PreflightData {
             audioSampleRate: audioSampleRate,
             graphicsBackend: graphicsBackend,
             bottleGraphicsBackend: bottleGraphicsBackend,
+            graphicsBackendReason: graphicsBackendReason,
             collectedAt: collectedAt
         )
     }

@@ -369,8 +369,11 @@ final class LauncherDetectionTests: XCTestCase {
             ("C:/Epic Games/EpicGamesLauncher.exe", .epicGames),
             ("C:/Ubisoft/UbisoftConnect.exe", .ubisoft),
             ("C:/Battle.net/Battle.net.exe", .battleNet),
-            ("C:/Paradox/Paradox Launcher.exe", .paradox)
+            ("C:/Paradox/Paradox Launcher.exe", .paradox),
+            ("C:/Program Files/Roberts Space Industries/RSI Launcher/RSI Launcher.exe", .rsiLauncher),
+            ("C:/Program Files/Mecharashi/ZFGameBrowser.exe", .zfGame)
         ]
+        XCTAssertEqual(Set(testPaths.map(\.1)), Set(LauncherType.allCases), "Every launcher has a row")
 
         for (path, expectedLauncher) in testPaths {
             let url = URL(fileURLWithPath: path)

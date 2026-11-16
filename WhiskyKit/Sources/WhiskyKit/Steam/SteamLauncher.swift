@@ -90,18 +90,18 @@ public enum SteamLauncher {
         }
 
         if record {
-            GameRouting().record(appId: appId, bottleURL: bottle.url)
+            let now = Date()
+            GameRouting().record(appId: appId, bottleURL: bottle.url, at: now)
+            RecordedLaunch(bottleURL: bottle.url, target: .steam(appID: appId), date: now).post()
         }
 
         let installURL = installURL ?? SteamLibrary.enumerate(bottleURL: bottle.url)
             .first { $0.appId == appId }?.installURL
-        let plan = LaunchResolver.plan(
-            steamAppId: appId,
-            userOverrides: installURL.flatMap { userOverrides(forInstallURL: $0, bottle: bottle) },
-            appliedConfiguration: GameConfigSnapshot.load(from: bottle.url)
-        )
+        // One scan for both uses: it runs on the main actor.
+        let scan = installURL.map { SteamLibrary.scanExecutables(under: $0) }
+        let plan = launchPlan(appId: appId, scan: scan, bottle: bottle)
+        let request = appLaunchRequest(appId: appId, scan: scan, plan: plan)
         let steamExe = steamRoot.appending(path: "steam.exe")
-        let gameExecutables = gameExecutables(installURL: installURL, plan: plan)
 
         return Task {
             try await Wine.prepareBottlePrefix(bottle: bottle)
@@ -114,19 +114,7 @@ public enum SteamLauncher {
                     hasStarted: { await !hostSteamPIDs().subtracting(running).isEmpty }
                 )
             }
-            let result = try await Wine.runProgram(
-                at: steamExe, args: ["-applaunch", String(appId)] + plan.launchArguments, bottle: bottle,
-                programOverrides: plan.overrides,
-                gameProfileEnvironment: plan.gameProfileEnvironment,
-                // The plan is the game's; steam.exe is only the vehicle. It goes
-                // into the game executables' own entries, so it reaches the game
-                // whichever process starts it, and the client keeps DXVK even
-                // when this invocation is what brings it up.
-                overridesApplyToDescendants: true,
-                descendantExecutables: gameExecutables,
-                descendantLaunchers: plan.startsLaunchers,
-                onOutput: onOutput
-            )
+            let result = try await Wine.runProgram(at: steamExe, bottle: bottle, request: request, onOutput: onOutput)
             return result.includingOutput(of: clientRun)
         }
     }
@@ -150,10 +138,21 @@ public enum SteamLauncher {
 
     /// The executable names a game launch scopes the game's plan to: what the
     /// install folder holds, then what the GameDB lists, each name once.
+    ///
+    /// A Chromium host below the first folder level and a front end from the
+    /// ``ChromiumFrontEnd`` table are not among them: they keep their own
+    /// settings (see ``SteamExecutableScan/ownSettingsExecutables``).
     static func gameExecutables(installURL: URL?, plan: LaunchPlan) -> [String] {
-        let found = installURL.map { SteamLibrary.executableURLs(under: $0).map(\.lastPathComponent) } ?? []
+        gameExecutables(
+            scanned: installURL.map { SteamLibrary.scanExecutables(under: $0).planExecutables } ?? [], plan: plan
+        )
+    }
+
+    /// ``gameExecutables(installURL:plan:)`` from an install folder's scan.
+    static func gameExecutables(scanned: [URL], plan: LaunchPlan) -> [String] {
         var seen = Set<String>()
-        return (found + plan.gameExecutables).filter { seen.insert($0.lowercased()).inserted }
+        let names = scanned.map(\.lastPathComponent) + plan.gameExecutables
+        return names.filter { seen.insert($0.lowercased()).inserted }
     }
 
     /// Starts the client when it isn't running, then waits until it is.
@@ -243,15 +242,26 @@ public enum SteamLauncher {
     /// writes settings plists for the executables that don't win. Only an
     /// executable with persisted overrides can win, so skipping the default
     /// plists changes nothing for the winner.
+    ///
+    /// A Chromium host below the first folder level, or a front end from the
+    /// ``ChromiumFrontEnd`` table, never wins: what the user set on a front end
+    /// such as 3DMark's is for the front end, not for the workloads it starts.
+    /// The launch writes it into the host's own entry.
     @MainActor
     static func userOverrides(forInstallURL installURL: URL, bottle: Bottle) -> ProgramOverrides? {
+        userOverrides(forExecutables: SteamLibrary.scanExecutables(under: installURL).planExecutables, bottle: bottle)
+    }
+
+    /// ``userOverrides(forInstallURL:bottle:)`` from an install folder's scan.
+    @MainActor
+    static func userOverrides(forExecutables executables: [URL], bottle: Bottle) -> ProgramOverrides? {
         let scanned = Dictionary(
             bottle.programs.compactMap { program in
                 program.settings.overrides.map { (program.url.standardizedFileURL, $0) }
             },
             uniquingKeysWith: { first, _ in first }
         )
-        let candidates = SteamLibrary.executableURLs(under: installURL).map { url in
+        let candidates = executables.map { url in
             // Falls back to a plist read for executables the bottle scan has
             // not reached, so Play works before the Programs tab is opened.
             let overrides = scanned[url.standardizedFileURL]
