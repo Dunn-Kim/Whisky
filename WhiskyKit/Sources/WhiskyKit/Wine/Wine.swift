@@ -557,7 +557,11 @@ public class Wine {
         let arguments = await launchArguments(
             for: url, args: args, programOverrides: programOverrides, bottle: bottle, query: virtualDesktopQuery
         )
-        return PreparedLaunch(environment: wineEnvironment, arguments: arguments)
+        // The launch's own environment wins, so a program can still name another icon.
+        let dockIcon = await dockIconEnvironment(icon: IconCache.shared.icon(for: url), for: url)
+        return PreparedLaunch(
+            environment: wineEnvironment.merging(dockIcon) { current, _ in current }, arguments: arguments
+        )
     }
 
     /// The concrete backend a launch runs on: an explicit choice as is, and

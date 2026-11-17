@@ -102,6 +102,21 @@ final class ShortcutBundleIconTests: XCTestCase {
         XCTAssertGreaterThan(CGImageSourceGetCount(source), 0)
     }
 
+    func testDockIconIsWrittenAndNamedForItsProgram() throws {
+        let program = URL(fileURLWithPath: "/bottle/drive_c/Games/My Game/Game.exe")
+        let environment = try Wine.dockIconEnvironment(icon: makeIcon(), for: program, folder: tempDir)
+
+        let path = try XCTUnwrap(environment["WINE_APP_ICON_PATH"])
+        XCTAssertTrue(path.hasPrefix(tempDir.path(percentEncoded: false)))
+        XCTAssertNotNil(NSImage(contentsOfFile: path), "the runtime loads this file as the Dock icon")
+        XCTAssertEqual(environment["WINE_APP_IDENTITY_EXE"], "Game.exe")
+    }
+
+    func testProgramWithoutIconGetsNoDockIcon() {
+        let program = URL(fileURLWithPath: "/bottle/drive_c/tool.exe")
+        XCTAssertEqual(Wine.dockIconEnvironment(icon: nil, for: program, folder: tempDir), [:])
+    }
+
     func testBundleWithoutIconHasNoIconEntry() throws {
         let written = try ShortcutCreator.createShortcutBundle(at: appURL, launchScript: "echo hi", name: "Game")
 

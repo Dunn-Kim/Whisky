@@ -44,6 +44,9 @@ section is upstream's changelog, unchanged.
   Whisky opens.
 - A second launch request for a program that is still launching is ignored
   instead of starting it twice.
+- A program shows its own icon in the Dock on the 4.8 runtimes. Some
+  programs stayed on macOS's generic executable icon there; Whisky now hands
+  the runtime the icon as a file.
 - The Mecharashi Game Configuration sets `WINE_EXPOSE_STACK_BASE=1`, which a
   4.8 runtime carrying the stack base patch needs to keep the game's embedded
   browser from crashing. Other runtimes ignore it.

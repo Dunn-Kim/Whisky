@@ -16,6 +16,8 @@
 //  If not, see https://www.gnu.org/licenses/.
 //
 
+import AppKit
+import CryptoKit
 import Foundation
 
 extension Wine {
@@ -108,5 +110,33 @@ extension Wine {
             overrideWriter: overrideWriter, importer: importer,
             dxvkFolder: dxvkFolder, dxmtFolder: dxmtFolder
         )
+    }
+
+    /// The program's icon as a file, for runtimes that take the Dock icon from the host.
+    ///
+    /// The 4.8 runtimes read `WINE_APP_ICON_PATH`. Without it some programs
+    /// stay on macOS's generic executable icon although their `.exe` carries
+    /// one (Mecharashi, a Unity game, does). `WINE_APP_IDENTITY_EXE` keeps the
+    /// icon off the other programs the launch starts. Older runtimes ignore both.
+    ///
+    /// - Parameters:
+    ///   - icon: The program's icon, or `nil` when it has none.
+    ///   - url: The program's executable.
+    ///   - folder: Where the icon file is written. The system clears the
+    ///     default, and every launch writes the file again.
+    /// - Returns: The variables to add, or none without an icon.
+    static func dockIconEnvironment(
+        icon: NSImage?, for url: URL,
+        folder: URL = FileManager.default.temporaryDirectory.appending(path: "WhiskyDockIcons")
+    ) -> [String: String] {
+        guard let icon else { return [:] }
+        let name = SHA256.hash(data: Data(url.path(percentEncoded: false).utf8))
+            .prefix(8).map { String(format: "%02x", $0) }.joined()
+        let file = folder.appending(path: name).appendingPathExtension("icns")
+        guard ShortcutIcon.write(icon, to: file) else { return [:] }
+        return [
+            "WINE_APP_ICON_PATH": file.path(percentEncoded: false),
+            "WINE_APP_IDENTITY_EXE": url.lastPathComponent
+        ]
     }
 }
