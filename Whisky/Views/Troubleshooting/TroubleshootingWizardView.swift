@@ -361,7 +361,7 @@ extension FixAttempt {
         case "switch-backend": String(localized: "troubleshooting.fixName.switchBackend")
         case "set-audio-driver": String(localized: "troubleshooting.fixName.setAudioDriver")
         case "set-buffer-size": String(localized: "troubleshooting.fixName.setBufferSize")
-        case "enable-esync": String(localized: "troubleshooting.fixName.enableEsync")
+        case "enable-msync": String(localized: "troubleshooting.fixName.enableEsync")
         case "enable-controller-compat": String(localized: "troubleshooting.fixName.enableControllerCompat")
         case "install-winetricks-verb": String(localized: "troubleshooting.fixName.installWinetricksVerb")
         case "run-enhanced-diagnostics": String(localized: "troubleshooting.fixName.runEnhancedDiagnostics")

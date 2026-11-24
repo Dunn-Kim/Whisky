@@ -247,7 +247,7 @@ final class TroubleshootingFixLifecycleTests: XCTestCase {
         XCTAssertTrue(FixApplicator.canUndo(enhanced, hasProgram: true))
 
         XCTAssertTrue(FixApplicator.canUndo(
-            FixAttempt(fixId: "enable-esync", beforeValue: "none"),
+            FixAttempt(fixId: "enable-msync", beforeValue: "none"),
             hasProgram: false
         ))
         XCTAssertFalse(FixApplicator.canUndo(FixAttempt(fixId: "install-winetricks-verb"), hasProgram: true))

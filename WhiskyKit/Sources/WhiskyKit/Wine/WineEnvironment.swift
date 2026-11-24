@@ -67,7 +67,6 @@ extension Wine {
 
         // Layer 2: Platform -- macOS compatibility fixes
         // Apply fixes from the MacOSCompatibilityFixes registry with reason strings.
-        // applyMacOSCompatibilityFixes() is still called for the conditional WINEESYNC logic.
         for fix in MacOSCompatibilityFixes.activeFixes() {
             builder.set(fix.key, fix.value, layer: .platform, reason: fix.reason)
         }
@@ -77,15 +76,6 @@ extension Wine {
             builder.set(
                 "TZ", TimeZone.current.identifier, layer: .platform,
                 reason: "Host timezone forwarding"
-            )
-        }
-        // Handle conditional WINEESYNC (depends on existing environment state)
-        var platformConditional: [String: String] = [:]
-        applyMacOSCompatibilityFixes(to: &platformConditional)
-        if let esync = platformConditional["WINEESYNC"] {
-            builder.set(
-                "WINEESYNC", esync, layer: .platform,
-                reason: "Fallback sync mode for macOS 15.4+ (esync/msync not otherwise set)"
             )
         }
 
@@ -207,23 +197,7 @@ extension Wine {
     ) {
         // Enhanced sync override
         if let enhancedSync = overrides.enhancedSync {
-            switch enhancedSync {
-            case .none:
-                if MacOSVersion.current < .sequoia15_4 {
-                    builder.remove("WINEESYNC", layer: .programUser)
-                    builder.remove("WINEMSYNC", layer: .programUser)
-                } else {
-                    // On 15.4+ ESYNC is required for stability
-                    builder.set("WINEESYNC", "1", layer: .programUser)
-                    builder.remove("WINEMSYNC", layer: .programUser)
-                }
-            case .esync:
-                builder.set("WINEESYNC", "1", layer: .programUser)
-                builder.remove("WINEMSYNC", layer: .programUser)
-            case .msync:
-                builder.set("WINEMSYNC", "1", layer: .programUser)
-                builder.set("WINEESYNC", "1", layer: .programUser)
-            }
+            builder.set("WINEMSYNC", enhancedSync == .msync ? "1" : "0", layer: .programUser)
         }
 
         // Metal HUD override. The bottle value lands in the bottleManaged layer
@@ -307,6 +281,23 @@ extension Wine {
         }
     }
 
+    /// Where FEX keeps the x86 code it has translated, so later runs skip most JIT work:
+    /// `~/Library/Application Support/{bundle-identifier}/FEXCache/`.
+    public static let fexCacheFolder = WhiskyWineInstaller.applicationFolder.appending(path: "FEXCache")
+
+    /// Creates the folder FEX writes its code cache to (`FEX_DISKCACHEPATH`) before
+    /// Wine starts. Failing to create it is logged: the program still runs, only
+    /// without a cache.
+    static func ensureFEXCacheFolder() {
+        do {
+            try FileManager.default.createDirectory(
+                at: fexCacheFolder, withIntermediateDirectories: true
+            )
+        } catch {
+            envLogger.error("Could not create the FEX cache folder: \(error.localizedDescription)")
+        }
+    }
+
     /// Logs a safe launch summary at info level.
     ///
     /// Only logs the bottle name, active layers, and whitelisted non-sensitive keys.
@@ -332,7 +323,7 @@ extension Wine {
 
         // Non-sensitive keys allowed in the launch summary
         let allowedKeys = [
-            "WINEESYNC", "WINEMSYNC", "MTL_HUD_ENABLED"
+            "WINEMSYNC", "MTL_HUD_ENABLED"
         ]
         let safeEntries = allowedKeys.compactMap { key -> String? in
             guard let value = environment[key] else { return nil }

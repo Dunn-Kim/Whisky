@@ -156,6 +156,7 @@ public class Wine {
         fileHandle.writeInfo(for: bottle)
 
         WineUserProfile.reconcile(bottleURL: bottle.url)
+        ensureFEXCacheFolder()
         let wineEnvironment = constructWineEnvironment(for: bottle, environment: environment)
 
         return try runProcess(
@@ -474,6 +475,7 @@ public class Wine {
         // The profile has to resolve under whichever name this runtime uses
         // before anything in the bottle starts, or the app boots into an empty one.
         WineUserProfile.reconcile(bottleURL: bottle.url)
+        ensureFEXCacheFolder()
 
         var wineEnvironment = launchEnvironment(
             for: url, bottle: bottle, backend: effectiveBackend, environment: environment,
@@ -759,6 +761,7 @@ public class Wine {
         // Escape args and environment values to prevent shell injection from user-editable settings
         let escapedArgs = preEscaped ? args : args.esc
         WineUserProfile.reconcile(bottleURL: bottle.url)
+        ensureFEXCacheFolder()
         let wineEnv = constructWineEnvironment(for: bottle, environment: environment)
         return shellCommand(
             "\(wineBinary.esc) start /unix \(url.esc) \(escapedArgs)", environment: wineEnv
@@ -827,7 +830,8 @@ public class Wine {
     /// - Returns: A multi-line string of shell export commands and aliases.
     @MainActor
     public static func generateTerminalEnvironmentCommand(bottle: Bottle) -> String {
-        generateTerminalEnvironmentCommand(
+        ensureFEXCacheFolder()
+        return generateTerminalEnvironmentCommand(
             binFolder: WhiskyWineInstaller.binFolder,
             environment: constructWineEnvironment(for: bottle)
         )
@@ -946,6 +950,7 @@ public class Wine {
         fileHandle?.writeApplicationInfo()
         fileHandle?.writeInfo(for: bottle)
         WineUserProfile.reconcile(bottleURL: bottle.url)
+        ensureFEXCacheFolder()
         let wineEnvironment = constructWineEnvironment(for: bottle, environment: environment)
 
         for await output in try runWineProcess(args: args, environment: wineEnvironment, fileHandle: fileHandle) {

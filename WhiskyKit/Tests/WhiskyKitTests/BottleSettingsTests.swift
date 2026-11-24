@@ -37,7 +37,6 @@ final class BottleSettingsTests: XCTestCase {
         XCTAssertFalse(settings.metalHud)
         XCTAssertFalse(settings.metalTrace)
         XCTAssertEqual(settings.graphicsBackend, .recommended)
-        XCTAssertFalse(settings.avxEnabled)
         XCTAssertFalse(settings.metalValidation)
         XCTAssertTrue(settings.sequoiaCompatMode)
         XCTAssertTrue(settings.shaderCacheEnabled)
@@ -54,8 +53,7 @@ final class BottleSettingsTests: XCTestCase {
         settings.windowsVersion = .win11
         settings.graphicsBackend = .wined3d
         settings.metalHud = true
-        settings.enhancedSync = .esync
-        settings.avxEnabled = true
+        settings.enhancedSync = .none
 
         // Encode to PropertyList
         let encoder = PropertyListEncoder()
@@ -71,8 +69,7 @@ final class BottleSettingsTests: XCTestCase {
         XCTAssertEqual(decoded.windowsVersion, .win11)
         XCTAssertEqual(decoded.graphicsBackend, .wined3d)
         XCTAssertTrue(decoded.metalHud)
-        XCTAssertEqual(decoded.enhancedSync, .esync)
-        XCTAssertTrue(decoded.avxEnabled)
+        XCTAssertEqual(decoded.enhancedSync, .none)
     }
 
     func testBottleSettingsJSONEncodingDecoding() throws {
@@ -122,7 +119,7 @@ final class BottleSettingsTests: XCTestCase {
     // MARK: - EnhancedSync Tests
 
     func testEnhancedSyncEncodingDecoding() throws {
-        let values: [EnhancedSync] = [.none, .esync, .msync]
+        let values: [EnhancedSync] = [.none, .msync]
 
         for value in values {
             let encoder = JSONEncoder()
@@ -177,7 +174,6 @@ final class BottleSettingsTests: XCTestCase {
         XCTAssertEqual(config.wineVersion, SemanticVersion(7, 7, 0))
         XCTAssertEqual(config.windowsVersion, .win10)
         XCTAssertEqual(config.enhancedSync, .msync)
-        XCTAssertFalse(config.avxEnabled)
     }
 
     // MARK: - BottleMetalConfig Tests

@@ -276,16 +276,15 @@ final class TroubleshootingPreflightTests: XCTestCase {
 
     // MARK: - Enhanced sync fix
 
-    func testEnhancedSyncPreviewKeepsAnEnabledModeAndTurnsOnMSync() throws {
+    func testEnhancedSyncPreviewTurnsOnMSync() throws {
         let expected: [EnhancedSync: String] = [
             .none: String(localized: "config.enhancedSync.msync"),
-            .esync: String(localized: "config.enhancedSync.esync"),
             .msync: String(localized: "config.enhancedSync.msync")
         ]
         for (mode, newValue) in expected {
             bottle.settings.enhancedSync = mode
             let preview = try XCTUnwrap(FixApplicator.preview(
-                fixId: "enable-esync", params: [:], bottle: bottle, program: nil
+                fixId: "enable-msync", params: [:], bottle: bottle, program: nil
             ))
             XCTAssertEqual(preview.newValue, newValue, "\(mode)")
         }

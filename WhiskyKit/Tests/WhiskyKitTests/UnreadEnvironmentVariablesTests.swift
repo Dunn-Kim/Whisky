@@ -42,7 +42,10 @@ private let unreadVariables = [
     "GPU_DEVICE_ID",
     "GPU_DESCRIPTION",
     "GPU_MEMORY_SIZE",
-    "D3DM_SHADER_MODEL"
+    "D3DM_SHADER_MODEL",
+    "ROSETTA_ADVERTISE_AVX",
+    "WINEESYNC",
+    "WINEFSYNC"
 ]
 
 final class UnreadEnvironmentVariablesTests: XCTestCase {
@@ -50,7 +53,7 @@ final class UnreadEnvironmentVariablesTests: XCTestCase {
         let keys = Set(MacOSCompatibilityFixes.allFixes.map(\.key))
         XCTAssertEqual(
             keys,
-            ["STEAM_DISABLE_CEF_SANDBOX", "CEF_DISABLE_SANDBOX", "MTL_DEBUG_LAYER", "WINEFSYNC", "STEAM_RUNTIME"]
+            ["STEAM_DISABLE_CEF_SANDBOX", "CEF_DISABLE_SANDBOX", "MTL_DEBUG_LAYER", "STEAM_RUNTIME"]
         )
     }
 
@@ -71,7 +74,7 @@ final class UnreadEnvironmentVariablesTests: XCTestCase {
             }
             // The read platform fixes are still there.
             XCTAssertEqual(env["CEF_DISABLE_SANDBOX"], "1")
-            XCTAssertEqual(env["WINEFSYNC"], "0")
+            XCTAssertEqual(env["MTL_DEBUG_LAYER"], "0")
         }
     }
 

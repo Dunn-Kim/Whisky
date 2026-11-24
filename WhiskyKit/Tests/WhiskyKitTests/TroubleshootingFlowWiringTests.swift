@@ -134,7 +134,7 @@ final class TroubleshootingFlowWiringTests: XCTestCase {
             "game.config_available": .pass
         ])
         // Two earlier fixes that landed and did not help.
-        for fixId in ["enable-esync", "enable-controller-compat"] {
+        for fixId in ["enable-msync", "enable-controller-compat"] {
             var earlier = FixAttempt(fixId: fixId, result: .failed)
             earlier.wasApplied = true
             engine.session.fixAttempts.append(earlier)

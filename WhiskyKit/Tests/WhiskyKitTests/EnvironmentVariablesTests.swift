@@ -59,17 +59,6 @@ final class EnvironmentVariablesTests: XCTestCase {
 
     // MARK: - Enhanced Sync Environment Variables
 
-    func testEnvironmentVariablesWithESyncOnly() {
-        var settings = BottleSettings()
-        settings.enhancedSync = .esync
-
-        var env: [String: String] = [:]
-        settings.environmentVariables(wineEnv: &env)
-
-        XCTAssertEqual(env["WINEESYNC"], "1")
-        XCTAssertNil(env["WINEMSYNC"])
-    }
-
     func testEnvironmentVariablesWithMSync() {
         var settings = BottleSettings()
         settings.enhancedSync = .msync
@@ -77,10 +66,9 @@ final class EnvironmentVariablesTests: XCTestCase {
         var env: [String: String] = [:]
         settings.environmentVariables(wineEnv: &env)
 
-        // When MSync is enabled, both WINEMSYNC and WINEESYNC must be set.
-        // This is required for D3DM compatibility - values are hardcoded in lid3dshared.dylib
+        // The runtime has no esync, so only WINEMSYNC is written.
         XCTAssertEqual(env["WINEMSYNC"], "1")
-        XCTAssertEqual(env["WINEESYNC"], "1")
+        XCTAssertNil(env["WINEESYNC"])
     }
 
     func testEnvironmentVariablesWithNoEnhancedSync() {
@@ -90,13 +78,8 @@ final class EnvironmentVariablesTests: XCTestCase {
         var env: [String: String] = [:]
         settings.environmentVariables(wineEnv: &env)
 
-        if MacOSVersion.current >= .sequoia15_4 {
-            XCTAssertEqual(env["WINEESYNC"], "1")
-            XCTAssertNil(env["WINEMSYNC"])
-        } else {
-            XCTAssertNil(env["WINEESYNC"])
-            XCTAssertNil(env["WINEMSYNC"])
-        }
+        XCTAssertEqual(env["WINEMSYNC"], "0")
+        XCTAssertNil(env["WINEESYNC"])
     }
 
     // MARK: - Metal Environment Variables
@@ -134,14 +117,17 @@ final class EnvironmentVariablesTests: XCTestCase {
 
     // MARK: - Other Environment Variables
 
-    func testEnvironmentVariablesWithAVX() {
-        var settings = BottleSettings()
-        settings.avxEnabled = true
-
+    func testFEXKeepsItsTranslatedCodeInTheApplicationFolder() {
         var env: [String: String] = [:]
-        settings.environmentVariables(wineEnv: &env)
+        BottleSettings().environmentVariables(wineEnv: &env)
 
-        XCTAssertEqual(env["ROSETTA_ADVERTISE_AVX"], "1")
+        XCTAssertEqual(env["FEX_DISKCACHE"], "1")
+        // The trailing slash matters: FEX appends its hash to the value as is.
+        XCTAssertEqual(
+            env["FEX_DISKCACHEPATH"],
+            WhiskyWineInstaller.applicationFolder.path(percentEncoded: false) + "/FEXCache/"
+        )
+        XCTAssertNil(env["ROSETTA_ADVERTISE_AVX"])
     }
 
     // MARK: - Sequoia Compatibility Mode
@@ -161,7 +147,6 @@ final class EnvironmentVariablesTests: XCTestCase {
         // nothing.
         XCTAssertNil(env["MTL_DEBUG_LAYER"])
         XCTAssertNil(env["D3DM_VALIDATION"])
-        XCTAssertNil(env["WINEFSYNC"])
     }
 
     @MainActor
@@ -177,7 +162,8 @@ final class EnvironmentVariablesTests: XCTestCase {
         // D3DM_VALIDATION is no longer one: no runtime reads it.
         XCTAssertEqual(env["MTL_DEBUG_LAYER"], "0")
         XCTAssertNil(env["D3DM_VALIDATION"])
-        XCTAssertEqual(env["WINEFSYNC"], "0")
+        XCTAssertNil(env["WINEFSYNC"], "a Linux variable")
+        XCTAssertNil(env["WINEESYNC"])
     }
 
     @MainActor
@@ -245,18 +231,18 @@ final class EnvironmentVariablesTests: XCTestCase {
     }
 
     func testProgramOverrideEnhancedSyncOverridesBottle() {
-        // Bottle has msync, program overrides to esync
+        // Bottle has msync, program overrides it off
         var builder = EnvironmentBuilder()
+        var dllResolver = DLLOverrideResolver(managed: [], bottleCustom: [], programCustom: [])
         builder.set("WINEMSYNC", "1", layer: .bottleManaged)
-        builder.set("WINEESYNC", "1", layer: .bottleManaged)
 
-        // Program overrides to esync only
-        builder.set("WINEESYNC", "1", layer: .programUser)
-        builder.remove("WINEMSYNC", layer: .programUser)
+        var overrides = ProgramOverrides()
+        overrides.enhancedSync = EnhancedSync.none
+        Wine.applyProgramOverrides(overrides, builder: &builder, dllResolver: &dllResolver)
 
         let (resolved, _) = builder.resolve()
-        XCTAssertEqual(resolved["WINEESYNC"], "1")
-        XCTAssertNil(resolved["WINEMSYNC"]) // Removed by programUser layer
+        XCTAssertEqual(resolved["WINEMSYNC"], "0")
+        XCTAssertNil(resolved["WINEESYNC"])
     }
 
     func testDLLOverridesComposeCorrectly() {

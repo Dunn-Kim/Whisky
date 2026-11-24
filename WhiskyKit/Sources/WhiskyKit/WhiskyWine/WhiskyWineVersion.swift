@@ -42,17 +42,17 @@ public struct WhiskyWineVersion: Codable {
     /// path stays backward-compatible when no hash is advertised).
     public var sha256: String?
 
-    /// Whether this runtime's Wine implements msync and esync.
+    /// Whether this runtime's Wine implements msync.
     ///
-    /// Wine only takes either path when its own `ntdll.so` and `wineserver`
-    /// read `WINEMSYNC` and `WINEESYNC`. In Wine Libraries 3.1.1 (upstream
-    /// Wine 11.0) neither name appears in either binary, so Wine ignores the
-    /// Enhanced Sync setting. Whisky still sets the variables (the enhanced
-    /// sync block of `BottleSettings.populateBottleManagedLayer`).
+    /// Wine only takes the path when its own `ntdll.so` and `wineserver`
+    /// read `WINEMSYNC`. In Wine Libraries 3.1.1 (upstream Wine 11.0) the
+    /// name appears in neither binary, so Wine ignores the Enhanced Sync
+    /// setting. Whisky still sets the variable (the enhanced sync block of
+    /// `BottleSettings.populateBottleManagedLayer`).
     ///
     /// A runtime whose Wine carries the msync patches advertises `true` here.
     /// ``implementsEnhancedSync`` treats an absent key as not implemented. To
-    /// check a build, run `strings` on its `ntdll.so` and `wineserver` and look for `WINEMSYNC` and `WINEESYNC`.
+    /// check a build, run `strings` on its `ntdll.so` and `wineserver` and look for `WINEMSYNC`.
     public var msyncCapable: Bool?
 
     /// Whether the Enhanced Sync setting changes how this runtime's Wine

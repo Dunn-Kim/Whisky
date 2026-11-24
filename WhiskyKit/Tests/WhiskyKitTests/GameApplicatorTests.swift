@@ -51,7 +51,6 @@ final class GameApplicatorTests: XCTestCase {
         graphicsBackend: GraphicsBackend? = nil,
         enhancedSync: EnhancedSync? = nil,
         shaderCacheEnabled: Bool? = nil,
-        avxEnabled: Bool? = nil,
         sequoiaCompatMode: Bool? = nil,
         dllOverrides: [DLLOverrideEntry]? = nil,
         winetricksVerbs: [String]? = nil,
@@ -65,7 +64,6 @@ final class GameApplicatorTests: XCTestCase {
                 graphicsBackend: graphicsBackend,
                 enhancedSync: enhancedSync,
                 shaderCacheEnabled: shaderCacheEnabled,
-                avxEnabled: avxEnabled,
                 sequoiaCompatMode: sequoiaCompatMode
             ),
             environmentVariables: environmentVariables,
@@ -116,13 +114,13 @@ final class GameApplicatorTests: XCTestCase {
         // Verify starting state
         XCTAssertEqual(bottle.settings.graphicsBackend, .recommended)
 
-        let variant = makeTestVariant(graphicsBackend: .wined3d, enhancedSync: .esync)
+        let variant = makeTestVariant(graphicsBackend: .wined3d, enhancedSync: EnhancedSync.none)
         let entry = makeTestEntry(variant: variant)
 
         _ = try GameConfigApplicator.apply(entry: entry, variant: variant, to: bottle)
 
         XCTAssertEqual(bottle.settings.graphicsBackend, .wined3d, "Graphics backend should be changed to WineD3D")
-        XCTAssertEqual(bottle.settings.enhancedSync, .esync, "Enhanced sync should be changed")
+        XCTAssertEqual(bottle.settings.enhancedSync, EnhancedSync.none, "Enhanced sync should be changed")
     }
 
     // MARK: - Test 3: Apply Adds DLL Overrides
@@ -177,7 +175,7 @@ final class GameApplicatorTests: XCTestCase {
         // graphicsBackend default = .recommended, enhancedSync default = .msync, shaderCacheEnabled default = true
         let variant = makeTestVariant(
             graphicsBackend: .wined3d,
-            enhancedSync: .esync,
+            enhancedSync: EnhancedSync.none,
             shaderCacheEnabled: false
         )
         let entry = makeTestEntry(variant: variant)
@@ -252,7 +250,7 @@ final class GameApplicatorTests: XCTestCase {
         // Start with default settings (graphicsBackend = .recommended, enhancedSync = .msync)
         let variant = makeTestVariant(
             graphicsBackend: .wined3d,
-            enhancedSync: .esync,
+            enhancedSync: EnhancedSync.none,
             dllOverrides: [DLLOverrideEntry(dllName: "dxgi", mode: .nativeThenBuiltin)]
         )
 
@@ -267,7 +265,7 @@ final class GameApplicatorTests: XCTestCase {
         // Should have enhanced sync change
         let syncChange = changes.first { $0.kind == .enhancedSync }
         XCTAssertNotNil(syncChange, "Should include enhanced sync change")
-        XCTAssertEqual(syncChange?.newValue, String(localized: "config.enhancedSync.esync"))
+        XCTAssertEqual(syncChange?.newValue, String(localized: "config.enhancedSync.none"))
 
         // Should have DLL override change
         let dllChange = changes.first { $0.kind == .dllOverride && $0.settingName == "dxgi" }
@@ -330,9 +328,8 @@ final class GameApplicatorTests: XCTestCase {
 
         let variant = makeTestVariant(
             graphicsBackend: .wined3d,
-            enhancedSync: .esync,
+            enhancedSync: EnhancedSync.none,
             shaderCacheEnabled: false,
-            avxEnabled: true,
             sequoiaCompatMode: true
         )
         let entry = makeTestEntry(variant: variant)
@@ -340,9 +337,8 @@ final class GameApplicatorTests: XCTestCase {
         _ = try GameConfigApplicator.apply(entry: entry, variant: variant, to: bottle)
 
         XCTAssertEqual(bottle.settings.graphicsBackend, .wined3d)
-        XCTAssertEqual(bottle.settings.enhancedSync, .esync)
+        XCTAssertEqual(bottle.settings.enhancedSync, EnhancedSync.none)
         XCTAssertFalse(bottle.settings.shaderCacheEnabled)
-        XCTAssertTrue(bottle.settings.avxEnabled)
         XCTAssertTrue(bottle.settings.sequoiaCompatMode)
     }
 }

@@ -31,7 +31,6 @@ public struct ConfigChange: Sendable, Equatable {
         case frameRateLimit
         case enhancedSync
         case shaderCache
-        case avx
         case dllOverride
         case environmentVariable
         case winetricksVerb
@@ -283,16 +282,6 @@ public enum GameConfigApplicator {
             ))
         }
 
-        if let avx = settings.avxEnabled, avx != bottle.settings.avxEnabled {
-            changes.append(ConfigChange(
-                kind: .avx,
-                category: performance,
-                settingName: String(localized: "gameConfig.preview.setting.avx"),
-                currentValue: describeEnabled(bottle.settings.avxEnabled),
-                newValue: describeEnabled(avx)
-            ))
-        }
-
         // DLL overrides
         if let overrides = variant.dllOverrides, !overrides.isEmpty {
             let existingNames = Set(bottle.settings.dllOverrides.map(\.dllName))
@@ -373,10 +362,6 @@ public enum GameConfigApplicator {
             bottle.settings.shaderCacheEnabled = shaderCacheEnabled
         }
 
-        if let avxEnabled = settings.avxEnabled {
-            bottle.settings.avxEnabled = avxEnabled
-        }
-
         if let frameRateLimit = settings.frameRateLimit {
             bottle.settings.frameRateLimit = frameRateLimit
         }
@@ -410,8 +395,6 @@ public enum GameConfigApplicator {
         switch sync {
         case .none:
             String(localized: "config.enhancedSync.none")
-        case .esync:
-            String(localized: "config.enhancedSync.esync")
         case .msync:
             String(localized: "config.enhancedSync.msync")
         }

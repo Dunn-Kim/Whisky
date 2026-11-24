@@ -8,16 +8,16 @@
       "type": "check",
       "phase": "checks",
       "title": "Check enhanced sync settings",
-      "description": "Checking whether enhanced sync (esync/msync) is enabled for optimal performance.",
+      "description": "Checking whether enhanced sync (msync) is enabled for optimal performance.",
       "checkId": "setting.value_check",
       "params": {
         "setting": "enhancedSync",
-        "expected": "msync,esync"
+        "expected": "msync"
       },
       "on": {
         "pass": "escalate",
         "already_configured": "escalate",
-        "fail": "fix_enable_esync",
+        "fail": "fix_enable_msync",
         "unknown": "escalate",
         "error": "escalate"
       },
@@ -26,13 +26,13 @@
         "recommendation": "Recommendation"
       }
     },
-    "fix_enable_esync": {
-      "id": "fix_enable_esync",
+    "fix_enable_msync": {
+      "id": "fix_enable_msync",
       "type": "fix",
       "phase": "fix",
       "title": "Enable enhanced sync",
       "description": "Enabling enhanced sync reduces CPU overhead and improves frame pacing. Enable the Metal HUD in Graphics settings to monitor frame times after applying this fix.",
-      "fixId": "enable-esync",
+      "fixId": "enable-msync",
       "isReversible": true,
       "requiresConfirmation": false,
       "on": {

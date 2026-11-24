@@ -149,7 +149,7 @@ final class GameDatabaseTests: XCTestCase {
         XCTAssertEqual(variant.label, "Recommended (Apple Silicon)")
         XCTAssertEqual(variant.isDefault, true)
         XCTAssertEqual(variant.settings.graphicsBackend, .recommended)
-        XCTAssertEqual(variant.settings.enhancedSync, .esync)
+        XCTAssertEqual(variant.settings.enhancedSync, .msync, "esync loads as msync")
         XCTAssertEqual(variant.settings.shaderCacheEnabled, true)
         XCTAssertEqual(variant.environmentVariables?["D3DM_SUPPORT_DXR"], "0")
         XCTAssertEqual(variant.winetricksVerbs, ["vcrun2022"])
@@ -214,7 +214,6 @@ final class GameDatabaseTests: XCTestCase {
         XCTAssertNil(settings.graphicsBackend)
         XCTAssertNil(settings.enhancedSync)
         XCTAssertNil(settings.shaderCacheEnabled)
-        XCTAssertNil(settings.avxEnabled)
         XCTAssertNil(settings.sequoiaCompatMode)
         XCTAssertNil(settings.frameRateLimit)
     }
@@ -278,6 +277,7 @@ final class GameDatabaseTests: XCTestCase {
 
         XCTAssertEqual(try decode(#"{"enhancedSync": "none"}"#), EnhancedSync.none)
         XCTAssertEqual(try decode(#"{"enhancedSync": "msync"}"#), .msync)
+        XCTAssertEqual(try decode(#"{"enhancedSync": "esync"}"#), .msync)
         XCTAssertNil(try decode(#"{"enhancedSync": "fsync"}"#))
     }
 

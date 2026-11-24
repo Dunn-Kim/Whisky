@@ -108,7 +108,6 @@ struct WineConfigSection: View {
             VStack(alignment: .leading, spacing: 2) {
                 Picker("config.enhancedSync", selection: $bottle.settings.enhancedSync) {
                     Text("config.enhancedSync.none").tag(EnhancedSync.none)
-                    Text("config.enhancedSync.esync").tag(EnhancedSync.esync)
                     Text("config.enhancedSync.msync").tag(EnhancedSync.msync)
                 }
                 Text("config.enhancedSync.description")
@@ -143,21 +142,6 @@ struct WineConfigSection: View {
                         ),
                         presented: $dpiSheetPresented
                     )
-                }
-            }
-            Toggle(isOn: $bottle.settings.avxEnabled) {
-                VStack(alignment: .leading) {
-                    Text("config.avx")
-                    if bottle.settings.avxEnabled {
-                        HStack(alignment: .firstTextBaseline) {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .symbolRenderingMode(.multicolor)
-                                .font(.subheadline)
-                            Text("config.avx.warning")
-                                .fontWeight(.light)
-                                .font(.subheadline)
-                        }
-                    }
                 }
             }
         }

@@ -267,7 +267,7 @@ public class WhiskyWineInstaller {
         }
     }
 
-    /// Removes the WhiskyWine runtime, the GPTK store, the default bottles
+    /// Removes the WhiskyWine runtime, the FEX code cache, the default bottles
     /// directory in the app container (``BottleData/defaultBottleDir``) and the
     /// bottle registry (``BottleData/bottleEntriesDir``). The caller is
     /// responsible for confirming with the user, since this is destructive and
@@ -280,7 +280,7 @@ public class WhiskyWineInstaller {
     public static func uninstallAll() {
         // Drop the runtime first so partial failures still leave a coherent state.
         uninstall()
-
+        try? FileManager.default.removeItem(at: Wine.fexCacheFolder)
         removeBottleStorage(defaultBottlesDir: BottleData.defaultBottleDir, registryFile: BottleData.bottleEntriesDir)
     }
 

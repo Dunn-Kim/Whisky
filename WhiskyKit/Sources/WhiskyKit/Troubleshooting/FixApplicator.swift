@@ -86,7 +86,7 @@ public struct FixPreview: Sendable {
 /// | `switch-backend` | Graphics backend | Yes |
 /// | `set-audio-driver` | Wine audio driver registry key | Yes |
 /// | `set-buffer-size` | DirectSound buffer size | Yes |
-/// | `enable-esync` | Enhanced sync mode (none to MSync) | Yes |
+/// | `enable-msync` | Enhanced sync mode (none to MSync) | Yes |
 /// | `enable-controller-compat` | Controller compatibility mode | Yes |
 /// | `install-winetricks-verb` | Winetricks verb installation | No |
 /// | `run-enhanced-diagnostics` | Program WINEDEBUG preset | Yes |
@@ -105,7 +105,7 @@ public enum FixApplicator { // swiftlint:disable:this type_body_length
     /// fix card can never render with a dead Apply button.
     public static let knownFixIds: Set<String> = [
         "switch-backend", "set-audio-driver", "set-buffer-size",
-        "enable-esync", "enable-controller-compat",
+        "enable-msync", "enable-controller-compat",
         "install-winetricks-verb", "run-enhanced-diagnostics",
         "restart-wineserver", "set-registry-value", "apply-launcher-fixes",
         "apply-game-config"
@@ -167,12 +167,12 @@ public enum FixApplicator { // swiftlint:disable:this type_body_length
                 isReversible: true
             )
 
-        case "enable-esync":
+        case "enable-msync":
             let current = bottle.settings.enhancedSync
             return FixPreview(
                 settingName: String(localized: "config.enhancedSync"),
                 currentValue: enhancedSyncName(current),
-                newValue: enhancedSyncName(enhancedSyncTarget(from: current)),
+                newValue: enhancedSyncName(.msync),
                 scope: "bottle",
                 isReversible: true
             )
@@ -347,14 +347,13 @@ public enum FixApplicator { // swiftlint:disable:this type_body_length
                 result: .pending
             )
 
-        case "enable-esync":
+        case "enable-msync":
             let current = bottle.settings.enhancedSync
-            let target = enhancedSyncTarget(from: current)
-            bottle.settings.enhancedSync = target
+            bottle.settings.enhancedSync = .msync
             return FixAttempt(
                 fixId: fixId,
                 beforeValue: String(describing: current),
-                afterValue: String(describing: target),
+                afterValue: String(describing: EnhancedSync.msync),
                 result: .applied
             )
 
@@ -531,19 +530,10 @@ public enum FixApplicator { // swiftlint:disable:this type_body_length
             bottle.settings.audioLatencyPreset = preset
             return true
 
-        case "enable-esync":
+        case "enable-msync":
             guard let before = attempt.beforeValue else { return false }
             // Restore the previous enhanced sync mode
-            switch before {
-            case "none":
-                bottle.settings.enhancedSync = .none
-            case "esync":
-                bottle.settings.enhancedSync = .esync
-            case "msync":
-                bottle.settings.enhancedSync = .msync
-            default:
-                bottle.settings.enhancedSync = .none
-            }
+            bottle.settings.enhancedSync = before == "msync" ? .msync : .none
             return true
 
         case "enable-controller-compat":
@@ -606,12 +596,6 @@ public enum FixApplicator { // swiftlint:disable:this type_body_length
         program.settings.overrides = overrides
     }
 
-    /// The enhanced sync mode the fix leaves: an enabled mode stays as it is
-    /// (MSync, the default, is never traded for ESync), and none gets MSync.
-    private static func enhancedSyncTarget(from current: EnhancedSync) -> EnhancedSync {
-        current == .none ? .msync : current
-    }
-
     /// The launcher the launcher fixes are for: the program's own when it is
     /// one, otherwise the launcher the bottle was set up for.
     @MainActor
@@ -626,7 +610,6 @@ public enum FixApplicator { // swiftlint:disable:this type_body_length
     private static func enhancedSyncName(_ mode: EnhancedSync) -> String {
         switch mode {
         case .none: String(localized: "config.enhancedSync.none")
-        case .esync: String(localized: "config.enhancedSync.esync")
         case .msync: String(localized: "config.enhancedSync.msync")
         }
     }

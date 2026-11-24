@@ -29,7 +29,7 @@ import Foundation
 /// ```swift
 /// var overrides = ProgramOverrides()
 /// overrides.graphicsBackend = .wined3d // Force WineD3D for this program
-/// overrides.enhancedSync = .esync // Force ESync for this program
+/// overrides.enhancedSync = .none // Turn msync off for this program
 /// // All other settings inherited from bottle
 /// ```
 public struct ProgramOverrides: Codable, Equatable, Sendable {

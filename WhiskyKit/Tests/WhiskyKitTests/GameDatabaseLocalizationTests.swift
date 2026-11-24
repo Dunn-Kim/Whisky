@@ -148,15 +148,14 @@ final class GameDatabaseLocalizationTests: XCTestCase {
         let bottle = try makeBottle()
         defer { try? FileManager.default.removeItem(at: bottle.url) }
         let current = bottle.settings
-        let wantedSync: EnhancedSync = current.enhancedSync == .esync ? .msync : .esync
+        let wantedSync: EnhancedSync = current.enhancedSync == .msync ? .none : .msync
         let variant = GameConfigVariant(
             id: "all",
             label: "All",
             settings: GameConfigVariantSettings(
                 graphicsBackend: .wined3d,
                 enhancedSync: wantedSync,
-                shaderCacheEnabled: !current.shaderCacheEnabled,
-                avxEnabled: !current.avxEnabled
+                shaderCacheEnabled: !current.shaderCacheEnabled
             ),
             environmentVariables: ["WINE_TEST_FLAG": "1"],
             dllOverrides: [DLLOverrideEntry(dllName: "dxgi", mode: .nativeThenBuiltin)],
@@ -166,7 +165,7 @@ final class GameDatabaseLocalizationTests: XCTestCase {
         let changes = GameConfigApplicator.previewChanges(variant: variant, bottle: bottle)
         let byKind = Dictionary(grouping: changes, by: \.kind)
         let expected: [ConfigChange.Kind] = [
-            .graphicsBackend, .enhancedSync, .shaderCache, .avx, .dllOverride, .environmentVariable, .winetricksVerb
+            .graphicsBackend, .enhancedSync, .shaderCache, .dllOverride, .environmentVariable, .winetricksVerb
         ]
         XCTAssertEqual(Set(byKind.keys), Set(expected))
 
@@ -180,17 +179,17 @@ final class GameDatabaseLocalizationTests: XCTestCase {
         XCTAssertEqual(byKind[.environmentVariable]?.first?.settingName, "WINE_TEST_FLAG")
         XCTAssertEqual(byKind[.environmentVariable]?.first?.newValue, "1")
         XCTAssertEqual(byKind[.winetricksVerb]?.first?.settingName, "vcrun2019")
-        for kind: ConfigChange.Kind in [.graphicsBackend, .enhancedSync, .shaderCache, .avx] {
+        for kind: ConfigChange.Kind in [.graphicsBackend, .enhancedSync, .shaderCache] {
             try assertCatalogKey(XCTUnwrap(byKind[kind]?.first).settingName)
         }
-        for kind: ConfigChange.Kind in [.enhancedSync, .shaderCache, .avx, .winetricksVerb] {
+        for kind: ConfigChange.Kind in [.enhancedSync, .shaderCache, .winetricksVerb] {
             try assertCatalogKey(XCTUnwrap(byKind[kind]?.first).newValue)
         }
 
         let graphics = String(localized: "gameConfig.detail.graphics")
         let performance = String(localized: "gameConfig.detail.performance")
         XCTAssertEqual(byKind[.graphicsBackend]?.first?.category, graphics)
-        XCTAssertEqual(byKind[.avx]?.first?.category, performance)
+        XCTAssertEqual(byKind[.shaderCache]?.first?.category, performance)
         XCTAssertEqual(byKind[.environmentVariable]?.first?.category, String(localized: "program.env"))
         XCTAssertEqual(byKind[.dllOverride]?.first?.currentValue, String(localized: "gameConfig.preview.value.notSet"))
     }
@@ -199,13 +198,13 @@ final class GameDatabaseLocalizationTests: XCTestCase {
     func testOnAndOffAreDifferentKeysAndFollowTheBottleValue() throws {
         let bottle = try makeBottle()
         defer { try? FileManager.default.removeItem(at: bottle.url) }
-        bottle.settings.avxEnabled = false
+        bottle.settings.shaderCacheEnabled = false
 
         let variant = GameConfigVariant(
-            id: "avx", label: "AVX", settings: GameConfigVariantSettings(avxEnabled: true)
+            id: "shader", label: "Shader cache", settings: GameConfigVariantSettings(shaderCacheEnabled: true)
         )
         let change = try XCTUnwrap(GameConfigApplicator.previewChanges(variant: variant, bottle: bottle).first)
-        XCTAssertEqual(change.kind, .avx)
+        XCTAssertEqual(change.kind, .shaderCache)
         XCTAssertEqual(change.currentValue, String(localized: "config.retinaMode.off"))
         XCTAssertEqual(change.newValue, String(localized: "config.retinaMode.on"))
         XCTAssertNotEqual(change.currentValue, change.newValue)
@@ -216,7 +215,7 @@ final class GameDatabaseLocalizationTests: XCTestCase {
         let bottle = try makeBottle()
         defer { try? FileManager.default.removeItem(at: bottle.url) }
         var seen: Set<String> = []
-        for (current, wanted) in [(EnhancedSync.none, EnhancedSync.esync), (.esync, .msync), (.msync, .none)] {
+        for (current, wanted) in [(EnhancedSync.none, EnhancedSync.msync), (.msync, .none)] {
             bottle.settings.enhancedSync = current
             let variant = GameConfigVariant(
                 id: "sync", label: "Sync", settings: GameConfigVariantSettings(enhancedSync: wanted)
@@ -227,7 +226,7 @@ final class GameDatabaseLocalizationTests: XCTestCase {
             assertCatalogKey(change.newValue)
             seen.insert(change.currentValue)
         }
-        XCTAssertEqual(seen.count, 3)
+        XCTAssertEqual(seen.count, 2)
     }
 
     @MainActor

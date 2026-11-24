@@ -58,7 +58,7 @@ public extension FixApplicator {
         case "switch-backend":
             guard attempt.beforeValue.flatMap(GraphicsBackend.init(rawValue:)) != nil else { return false }
             return attempt.params?[backendScopeKey] != "program" || hasProgram
-        case "set-audio-driver", "set-buffer-size", "enable-esync", "enable-controller-compat":
+        case "set-audio-driver", "set-buffer-size", "enable-msync", "enable-controller-compat":
             return attempt.beforeValue != nil
         case "run-enhanced-diagnostics":
             return hasProgram

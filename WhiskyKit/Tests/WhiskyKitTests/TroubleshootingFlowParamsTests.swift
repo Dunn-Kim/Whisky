@@ -126,10 +126,10 @@ final class TroubleshootingFlowParamsTests: XCTestCase {
 
     // MARK: - Performance and controller
 
-    func testEnhancedSyncCheckAcceptsMSyncAndESync() async throws {
+    func testEnhancedSyncCheckAcceptsMSync() async throws {
         let params = try params(flow: "performance-stability", node: "check_enhanced_sync")
 
-        for mode in [EnhancedSync.none, .esync, .msync] {
+        for mode in [EnhancedSync.none, .msync] {
             let context = try CheckSummaryFixture.bottle(self) { $0.enhancedSync = mode }
             let result = await SettingValueCheck().run(params: params, context: context)
             XCTAssertEqual(result.outcome, mode == .none ? .fail : .alreadyConfigured, "\(mode)")

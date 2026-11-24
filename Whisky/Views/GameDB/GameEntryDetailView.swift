@@ -455,7 +455,6 @@ extension GameEntryDetailView {
         if let enhancedSync = settings.enhancedSync {
             let syncName = switch enhancedSync {
             case .none: String(localized: "config.enhancedSync.none")
-            case .esync: String(localized: "config.enhancedSync.esync")
             case .msync: String(localized: "config.enhancedSync.msync")
             }
             items.append(SettingDisplay(name: String(localized: "config.enhancedSync"), value: syncName))
@@ -465,9 +464,6 @@ extension GameEntryDetailView {
                 name: String(localized: "config.shaderCache"),
                 value: enabledLabel(shaderCache)
             ))
-        }
-        if let avx = settings.avxEnabled {
-            items.append(SettingDisplay(name: String(localized: "config.avx"), value: enabledLabel(avx)))
         }
         return items
     }

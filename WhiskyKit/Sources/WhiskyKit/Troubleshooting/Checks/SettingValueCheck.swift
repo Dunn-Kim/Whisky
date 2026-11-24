@@ -22,7 +22,7 @@ import Foundation
 ///
 /// Reads the setting named in `params["setting"]` from the bottle's
 /// ``BottleSettings`` and compares against `params["expected"]`, a value or
-/// a comma-separated list of the values that are fine (`"msync,esync"`).
+/// a comma-separated list of the values that are fine (`"none,msync"`).
 /// Supports common settings like `enhancedSync`, `graphicsBackend`,
 /// `windowsVersion`, `metalHud`.
 public struct SettingValueCheck: TroubleshootingCheck {
@@ -125,8 +125,6 @@ public struct SettingValueCheck: TroubleshootingCheck {
             settings.sequoiaCompatMode ? "true" : "false"
         case "shaderCacheEnabled":
             settings.shaderCacheEnabled ? "true" : "false"
-        case "avxEnabled":
-            settings.avxEnabled ? "true" : "false"
         case "launcherCompatibilityMode":
             settings.launcherCompatibilityMode ? "true" : "false"
         case "controllerCompatibilityMode":

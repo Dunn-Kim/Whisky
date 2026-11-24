@@ -189,8 +189,6 @@ public struct GameConfigVariantSettings: Codable, Sendable, Equatable {
     public let enhancedSync: EnhancedSync?
     /// Whether shader caching should be enabled.
     public let shaderCacheEnabled: Bool?
-    /// Whether AVX instruction set support should be advertised.
-    public let avxEnabled: Bool?
     /// Whether macOS Sequoia compatibility mode should be enabled.
     public let sequoiaCompatMode: Bool?
     /// The frame rate cap to apply.
@@ -205,32 +203,31 @@ public struct GameConfigVariantSettings: Codable, Sendable, Equatable {
         graphicsBackend: GraphicsBackend? = nil,
         enhancedSync: EnhancedSync? = nil,
         shaderCacheEnabled: Bool? = nil,
-        avxEnabled: Bool? = nil,
         sequoiaCompatMode: Bool? = nil,
         frameRateLimit: FrameRateLimit? = nil
     ) {
         self.graphicsBackend = graphicsBackend
         self.enhancedSync = enhancedSync
         self.shaderCacheEnabled = shaderCacheEnabled
-        self.avxEnabled = avxEnabled
         self.sequoiaCompatMode = sequoiaCompatMode
         self.frameRateLimit = frameRateLimit
     }
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        // The database still carries `dxvk`, `dxvkAsync` and `"graphicsBackend": "dxvk"`
+        // The database still carries `dxvk`, `dxvkAsync`, `avxEnabled` and `"graphicsBackend": "dxvk"`
         // entries: the keys are ignored and the backend value decodes as `.recommended`.
         self.graphicsBackend = (try? container.decodeIfPresent(GraphicsBackend.self, forKey: .graphicsBackend)) ?? nil
         // EnhancedSync uses Swift's auto-synthesized Codable (keyed enum, not String raw value).
         // The JSON database uses plain strings ("none", "esync", "msync") for readability,
-        // so we try String first and fall back to the native Codable format.
+        // so we try String first and fall back to the native Codable format. "esync" is
+        // msync: no runtime implements esync.
         if let syncString = try container.decodeIfPresent(String.self, forKey: .enhancedSync) {
             switch syncString {
             // Spelled out: on this Optional a bare `.none` is nil, which means
             // "leave the bottle's sync alone" rather than sync off.
             case "none": self.enhancedSync = EnhancedSync.none
-            case "esync": self.enhancedSync = .esync
+            case "esync": self.enhancedSync = .msync
             case "msync": self.enhancedSync = .msync
             default: self.enhancedSync = nil
             }
@@ -238,7 +235,6 @@ public struct GameConfigVariantSettings: Codable, Sendable, Equatable {
             self.enhancedSync = try container.decodeIfPresent(EnhancedSync.self, forKey: .enhancedSync)
         }
         self.shaderCacheEnabled = try container.decodeIfPresent(Bool.self, forKey: .shaderCacheEnabled)
-        self.avxEnabled = try container.decodeIfPresent(Bool.self, forKey: .avxEnabled)
         self.sequoiaCompatMode = try container.decodeIfPresent(Bool.self, forKey: .sequoiaCompatMode)
         // FrameRateLimit accepts either its integer raw value (60) or a readable
         // string ("60", "unlimited", "matchDisplay"), since the database is

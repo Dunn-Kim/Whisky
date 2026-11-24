@@ -45,8 +45,26 @@ public enum WinVersion: String, CaseIterable, Codable, Sendable {
     }
 }
 
+/// The runtime implements msync and runs it by default; `none` turns it off.
+///
+/// Stored as the synthesized form (`{"msync": {}}`). Older versions also had `esync`,
+/// which no runtime implements: it, and anything unknown, loads as the default, `msync`.
 public enum EnhancedSync: Codable, Equatable, Sendable {
-    case none, esync, msync
+    case none, msync
+
+    private enum CodingKeys: String, CodingKey {
+        case none, msync
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try? decoder.container(keyedBy: CodingKeys.self)
+        self = container?.contains(.none) == true ? .none : .msync
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        _ = container.nestedContainer(keyedBy: CodingKeys.self, forKey: self == .none ? .none : .msync)
+    }
 }
 
 public struct BottleWineConfig: Codable, Equatable {
@@ -54,7 +72,6 @@ public struct BottleWineConfig: Codable, Equatable {
     var wineVersion: SemanticVersion = Self.defaultWineVersion
     var windowsVersion: WinVersion = .win10
     var enhancedSync: EnhancedSync = .msync
-    var avxEnabled: Bool = false
 
     public init() {}
 
@@ -64,6 +81,5 @@ public struct BottleWineConfig: Codable, Equatable {
             .defaultWineVersion
         self.windowsVersion = container.decodeLenientIfPresent(WinVersion.self, forKey: .windowsVersion) ?? .win10
         self.enhancedSync = try container.decodeIfPresent(EnhancedSync.self, forKey: .enhancedSync) ?? .msync
-        self.avxEnabled = try container.decodeIfPresent(Bool.self, forKey: .avxEnabled) ?? false
     }
 }

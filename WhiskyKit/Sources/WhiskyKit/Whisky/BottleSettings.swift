@@ -97,7 +97,7 @@ public struct BottleInfo: Codable, Equatable {
 ///
 /// Settings are organized into logical groups:
 /// - **Info**: Name, pins, and blocklist
-/// - **Wine Config**: Windows version, AVX, enhanced sync
+/// - **Wine Config**: Windows version, enhanced sync
 /// - **Metal Config**: Metal HUD, validation
 /// - **Performance Config**: Shader cache, App Nap, VC++ runtime tracking
 ///
@@ -120,7 +120,6 @@ public struct BottleInfo: Codable, Equatable {
 /// ### Wine Configuration
 /// - ``windowsVersion``
 /// - ``wineVersion``
-/// - ``avxEnabled``
 /// - ``enhancedSync``
 ///
 /// ### Graphics Settings
@@ -256,15 +255,6 @@ public struct BottleSettings: Codable, Equatable {
         set { wineConfig.windowsVersion = newValue }
     }
 
-    /// Whether AVX instruction set support is advertised to programs.
-    ///
-    /// Enable this via Rosetta 2 for programs that require AVX instructions.
-    /// Only applicable on Apple Silicon Macs.
-    public var avxEnabled: Bool {
-        get { wineConfig.avxEnabled }
-        set { wineConfig.avxEnabled = newValue }
-    }
-
     /// The list of pinned programs for quick access.
     public var pins: [PinnedProgram] {
         get { info.pins }
@@ -292,8 +282,8 @@ public struct BottleSettings: Codable, Equatable {
 
     /// The synchronization mode for Wine.
     ///
-    /// Enhanced sync modes (ESync/MSync) can improve performance for some applications
-    /// by using more efficient synchronization primitives.
+    /// MSync can improve performance for some applications by using more efficient
+    /// synchronization primitives. The runtime runs it by default; `none` turns it off.
     public var enhancedSync: EnhancedSync {
         get { wineConfig.enhancedSync }
         set { wineConfig.enhancedSync = newValue }
@@ -760,8 +750,6 @@ public struct BottleSettings: Codable, Equatable {
 
     // MARK: - EnvironmentBuilder Layer Populators
 
-    // swiftlint:disable cyclomatic_complexity
-
     /// Populates the ``EnvironmentLayer/bottleManaged`` layer with settings-derived env vars.
     ///
     /// This method replaces the direct dict mutation in the deprecated ``environmentVariables(wineEnv:)``.
@@ -806,27 +794,15 @@ public struct BottleSettings: Codable, Equatable {
         }
 
         // Enhanced sync mode
-        switch enhancedSync {
-        case .none:
-            // On macOS 15.4+, WINEESYNC is required for stability
-            if MacOSVersion.current < .sequoia15_4 {
-                builder.remove("WINEESYNC", layer: .bottleManaged)
-                builder.remove("WINEMSYNC", layer: .bottleManaged)
-            } else {
-                // Ensure a stable default on newer macOS versions:
-                // enable ESYNC and clear any conflicting MSYNC setting.
-                builder.set("WINEESYNC", "1", layer: .bottleManaged)
-                builder.remove("WINEMSYNC", layer: .bottleManaged)
-            }
-        case .esync:
-            builder.set("WINEESYNC", "1", layer: .bottleManaged)
-        case .msync:
-            builder.set("WINEMSYNC", "1", layer: .bottleManaged)
-            // D3DM detects ESYNC and changes behaviour accordingly
-            // so we have to lie to it so that it doesn't break
-            // under MSYNC. Values hardcoded in lid3dshared.dylib
-            builder.set("WINEESYNC", "1", layer: .bottleManaged)
-        }
+        builder.set("WINEMSYNC", enhancedSync == .msync ? "1" : "0", layer: .bottleManaged)
+
+        // FEX keeps its translated code on disk, so later runs skip most JIT work.
+        // The path ends in a slash because FEX appends its hash to it as is.
+        builder.set("FEX_DISKCACHE", "1", layer: .bottleManaged)
+        builder.set(
+            "FEX_DISKCACHEPATH", Wine.fexCacheFolder.path(percentEncoded: false) + "/",
+            layer: .bottleManaged
+        )
 
         if metalHud {
             builder.set("MTL_HUD_ENABLED", "1", layer: .bottleManaged)
@@ -841,28 +817,21 @@ public struct BottleSettings: Codable, Equatable {
             builder.set("METAL_CAPTURE_ENABLED", "1", layer: .bottleManaged)
         }
 
-        if avxEnabled {
-            builder.set("ROSETTA_ADVERTISE_AVX", "1", layer: .bottleManaged)
-        }
-
         // Metal validation - useful for debugging but can impact performance
         if metalValidation {
             builder.set("MTL_DEBUG_LAYER", "1", layer: .bottleManaged)
         }
 
         // The old sequoiaCompatMode block is gone: of the three values it set,
-        // MTL_DEBUG_LAYER and WINEFSYNC are platform-layer fixes on every
-        // supported macOS and the third value is read by no runtime, so the
-        // toggle's off position changed nothing and its on position only hid
-        // the provenance.
+        // MTL_DEBUG_LAYER is a platform-layer fix on every supported macOS and
+        // the others are read by no runtime, so the toggle's off position
+        // changed nothing and its on position only hid the provenance.
 
         // Shader cache control: DXMT skips its cache only for "0".
         if !shaderCacheEnabled {
             builder.set("DXMT_SHADER_CACHE", "0", layer: .bottleManaged)
         }
     }
-
-    // swiftlint:enable cyclomatic_complexity
 
     /// Populates the ``EnvironmentLayer/launcherManaged`` layer with launcher compatibility fixes.
     ///
@@ -986,13 +955,6 @@ public struct BottleSettings: Codable, Equatable {
 
         // Resolve and merge
         let (resolved, _) = builder.resolve()
-
-        // Handle explicit key removals that the builder encoded as nil entries.
-        // Since resolve() omits removed keys, we must also remove them from the caller's dict.
-        if enhancedSync == .none, MacOSVersion.current < .sequoia15_4 {
-            wineEnv.removeValue(forKey: "WINEESYNC")
-            wineEnv.removeValue(forKey: "WINEMSYNC")
-        }
 
         // Merge resolved values into caller's dict (new values overwrite existing)
         wineEnv.merge(resolved) { _, new in new }

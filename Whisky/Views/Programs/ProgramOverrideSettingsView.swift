@@ -383,7 +383,6 @@ struct ProgramOverrideSettingsView: View {
             if hasSyncOverride {
                 Picker("config.enhancedSync", selection: enhancedSyncBinding) {
                     Text("config.enhancedSync.none").tag(EnhancedSync.none)
-                    Text("config.enhancedSync.esync").tag(EnhancedSync.esync)
                     Text("config.enhancedSync.msync").tag(EnhancedSync.msync)
                 }
                 if !runtimeImplementsEnhancedSync {
@@ -933,7 +932,6 @@ struct ProgramOverrideSettingsView: View {
     private func syncDescription(_ sync: EnhancedSync) -> String {
         switch sync {
         case .none: String(localized: "config.enhancedSync.none")
-        case .esync: String(localized: "config.enhancedSync.esync")
         case .msync: String(localized: "config.enhancedSync.msync")
         }
     }

@@ -110,7 +110,7 @@ final class FixApplicatorLocalizationTests: XCTestCase {
     func testBottleSettingNamesAreCatalogKeys() throws {
         let fixIds = [
             "switch-backend", "set-audio-driver", "set-buffer-size",
-            "enable-esync", "enable-controller-compat", "install-winetricks-verb",
+            "enable-msync", "enable-controller-compat", "install-winetricks-verb",
             "set-registry-value", "apply-launcher-fixes"
         ]
         var names: Set<String> = []
@@ -140,11 +140,11 @@ final class FixApplicatorLocalizationTests: XCTestCase {
 
     // MARK: - Enhanced sync
 
-    func testEsyncPreviewNamesEachModeWithItsOwnKey() throws {
+    func testMSyncPreviewNamesEachModeWithItsOwnKey() throws {
         var currentValues: [String] = []
-        for mode in [EnhancedSync.none, .esync, .msync] {
+        for mode in [EnhancedSync.none, .msync] {
             bottle.settings.enhancedSync = mode
-            let fix = try preview("enable-esync")
+            let fix = try preview("enable-msync")
             assertCatalogKey(fix.currentValue)
             assertCatalogKey(fix.newValue)
             currentValues.append(fix.currentValue)
@@ -152,16 +152,15 @@ final class FixApplicatorLocalizationTests: XCTestCase {
 
         XCTAssertEqual(currentValues, [
             String(localized: "config.enhancedSync.none"),
-            String(localized: "config.enhancedSync.esync"),
             String(localized: "config.enhancedSync.msync")
         ])
-        XCTAssertEqual(Set(currentValues).count, 3)
+        XCTAssertEqual(Set(currentValues).count, 2)
     }
 
-    func testEsyncApplyStillRecordsTheRawMode() {
+    func testMSyncApplyStillRecordsTheRawMode() {
         bottle.settings.enhancedSync = .msync
 
-        let attempt = FixApplicator.apply(fixId: "enable-esync", params: [:], bottle: bottle, program: nil)
+        let attempt = FixApplicator.apply(fixId: "enable-msync", params: [:], bottle: bottle, program: nil)
 
         XCTAssertEqual(attempt.beforeValue, "msync")
         XCTAssertEqual(attempt.afterValue, "msync")
@@ -323,7 +322,6 @@ final class FixApplicatorLocalizationTests: XCTestCase {
         }
         if let enhancedSync = settings.enhancedSync { bottle.settings.enhancedSync = enhancedSync }
         if let shaderCache = settings.shaderCacheEnabled { bottle.settings.shaderCacheEnabled = shaderCache }
-        if let avx = settings.avxEnabled { bottle.settings.avxEnabled = avx }
         XCTAssertTrue(GameConfigApplicator.previewChanges(variant: variant, bottle: bottle).isEmpty)
         let program = try makeProgram("Celeste/Celeste.exe")
 

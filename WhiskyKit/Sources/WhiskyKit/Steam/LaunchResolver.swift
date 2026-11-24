@@ -121,9 +121,9 @@ public enum LaunchResolver {
 
     /// Fills GameDB variant settings into every field the user left unset.
     ///
-    /// Bottle-level variant settings (`avxEnabled`, `sequoiaCompatMode`) and
-    /// `winetricksVerbs` are not mapped: the first two have no per-program
-    /// equivalent and verbs are an install-time action, not launch config.
+    /// Bottle-level variant settings (`sequoiaCompatMode`) and `winetricksVerbs`
+    /// are not mapped: the first has no per-program equivalent and verbs are an
+    /// install-time action, not launch config.
     ///
     /// The user's own backend is left as chosen.
     static func merge(

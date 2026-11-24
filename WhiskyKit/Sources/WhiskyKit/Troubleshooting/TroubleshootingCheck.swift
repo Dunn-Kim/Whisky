@@ -99,7 +99,7 @@ public struct CheckSignature: Sendable, Equatable {
 }
 
 extension String {
-    /// The entries of a comma-separated flow param (`"msync,esync"`), trimmed,
+    /// The entries of a comma-separated flow param (`"none,msync"`), trimmed,
     /// with empty entries dropped.
     var flowParamList: [String] {
         split(separator: ",")

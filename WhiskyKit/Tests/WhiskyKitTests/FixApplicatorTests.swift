@@ -94,25 +94,23 @@ final class FixApplicatorTests: XCTestCase {
         XCTAssertEqual(attempt.afterValue, "recommended")
     }
 
-    func testApplyEnableEsyncTurnsOnMSync() {
+    func testApplyEnableMSyncTurnsOnMSync() {
         bottle.settings.enhancedSync = .none
 
-        let attempt = FixApplicator.apply(fixId: "enable-esync", params: [:], bottle: bottle, program: nil)
+        let attempt = FixApplicator.apply(fixId: "enable-msync", params: [:], bottle: bottle, program: nil)
 
         XCTAssertEqual(bottle.settings.enhancedSync, .msync)
         XCTAssertEqual(attempt.afterValue, "msync")
         XCTAssertEqual(attempt.result, .applied)
     }
 
-    func testApplyEnableEsyncNeverDowngradesAnEnabledMode() {
-        for mode in [EnhancedSync.msync, .esync] {
-            bottle.settings.enhancedSync = mode
+    func testApplyEnableMSyncLeavesAnEnabledModeAlone() {
+        bottle.settings.enhancedSync = .msync
 
-            let attempt = FixApplicator.apply(fixId: "enable-esync", params: [:], bottle: bottle, program: nil)
+        let attempt = FixApplicator.apply(fixId: "enable-msync", params: [:], bottle: bottle, program: nil)
 
-            XCTAssertEqual(bottle.settings.enhancedSync, mode)
-            XCTAssertEqual(attempt.beforeValue, attempt.afterValue)
-        }
+        XCTAssertEqual(bottle.settings.enhancedSync, .msync)
+        XCTAssertEqual(attempt.beforeValue, attempt.afterValue)
     }
 
     func testApplyRegistryBackedFixesStayPendingForVerification() {
@@ -145,9 +143,9 @@ final class FixApplicatorTests: XCTestCase {
         XCTAssertEqual(bottle.settings.graphicsBackend, .wined3d)
     }
 
-    func testUndoEsyncRestoresPriorMode() {
+    func testUndoMSyncRestoresPriorMode() {
         bottle.settings.enhancedSync = .none
-        let attempt = FixApplicator.apply(fixId: "enable-esync", params: [:], bottle: bottle, program: nil)
+        let attempt = FixApplicator.apply(fixId: "enable-msync", params: [:], bottle: bottle, program: nil)
         XCTAssertEqual(bottle.settings.enhancedSync, .msync)
 
         XCTAssertTrue(FixApplicator.undo(attempt: attempt, bottle: bottle, program: nil))

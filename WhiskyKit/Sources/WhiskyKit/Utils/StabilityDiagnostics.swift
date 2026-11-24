@@ -127,8 +127,7 @@ public enum StabilityDiagnostics {
 
         summary += "--- Sync/Performance ---\n"
         summary += "Enhanced Sync: \(bottle.settings.enhancedSync)\n"
-        summary += "Shader Cache: \(bottle.settings.shaderCacheEnabled ? "✅ Enabled" : "❌ Disabled")\n"
-        summary += "AVX Enabled: \(bottle.settings.avxEnabled ? "✅ Yes" : "❌ No")\n\n"
+        summary += "Shader Cache: \(bottle.settings.shaderCacheEnabled ? "✅ Enabled" : "❌ Disabled")\n\n"
 
         summary += "--- Launcher Compatibility ---\n"
         let launcherCompatibilityStatus = bottle.settings.launcherCompatibilityMode ? "✅ Enabled" : "❌ Disabled"

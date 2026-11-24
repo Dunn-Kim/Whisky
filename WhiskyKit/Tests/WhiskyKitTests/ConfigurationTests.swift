@@ -31,7 +31,7 @@ final class BottleWineConfigDecodingTests: XCTestCase {
         let plist: [String: Any] = [
             "wineVersion": createVersionDict(major: 8, minor: 0, patch: 1),
             "windowsVersion": "win11",
-            "enhancedSync": ["esync": [:]],
+            "enhancedSync": ["none": [:]],
             "avxEnabled": true
         ]
 
@@ -40,15 +40,23 @@ final class BottleWineConfigDecodingTests: XCTestCase {
 
         XCTAssertEqual(config.wineVersion, SemanticVersion(8, 0, 1))
         XCTAssertEqual(config.windowsVersion, .win11)
-        XCTAssertEqual(config.enhancedSync, .esync)
-        XCTAssertTrue(config.avxEnabled)
+        XCTAssertEqual(config.enhancedSync, .none)
+    }
+
+    func testDecodeEsyncAndUnknownSyncAsMSync() throws {
+        for sync: [String: Any] in [["esync": [:]], ["fsync": [:]], [:]] {
+            let plist: [String: Any] = ["enhancedSync": sync]
+            let data = try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0)
+            let config = try PropertyListDecoder().decode(BottleWineConfig.self, from: data)
+
+            XCTAssertEqual(config.enhancedSync, .msync, "\(sync)")
+        }
     }
 
     func testDecodeWithMissingWineVersionUsesDefault() throws {
         let plist: [String: Any] = [
             "windowsVersion": "win10",
-            "enhancedSync": ["msync": [:]],
-            "avxEnabled": false
+            "enhancedSync": ["msync": [:]]
         ]
 
         let data = try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0)
@@ -60,8 +68,7 @@ final class BottleWineConfigDecodingTests: XCTestCase {
     func testDecodeWithMissingWindowsVersionUsesDefault() throws {
         let plist: [String: Any] = [
             "wineVersion": createVersionDict(major: 8, minor: 0, patch: 0),
-            "enhancedSync": ["msync": [:]],
-            "avxEnabled": false
+            "enhancedSync": ["msync": [:]]
         ]
 
         let data = try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0)
@@ -73,8 +80,7 @@ final class BottleWineConfigDecodingTests: XCTestCase {
     func testDecodeWithMissingEnhancedSyncUsesDefault() throws {
         let plist: [String: Any] = [
             "wineVersion": createVersionDict(major: 8, minor: 0, patch: 0),
-            "windowsVersion": "win10",
-            "avxEnabled": false
+            "windowsVersion": "win10"
         ]
 
         let data = try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0)
@@ -83,17 +89,17 @@ final class BottleWineConfigDecodingTests: XCTestCase {
         XCTAssertEqual(config.enhancedSync, .msync)
     }
 
-    func testDecodeWithMissingAVXEnabledUsesDefault() throws {
+    func testDecodeIgnoresTheRemovedAVXKey() throws {
         let plist: [String: Any] = [
-            "wineVersion": createVersionDict(major: 8, minor: 0, patch: 0),
-            "windowsVersion": "win10",
-            "enhancedSync": ["msync": [:]]
+            "windowsVersion": "win11",
+            "enhancedSync": ["msync": [:]],
+            "avxEnabled": true
         ]
 
         let data = try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0)
         let config = try PropertyListDecoder().decode(BottleWineConfig.self, from: data)
 
-        XCTAssertFalse(config.avxEnabled)
+        XCTAssertEqual(config.windowsVersion, .win11)
     }
 
     func testDecodeEmptyPlistUsesAllDefaults() throws {
@@ -105,7 +111,6 @@ final class BottleWineConfigDecodingTests: XCTestCase {
         XCTAssertEqual(config.wineVersion, SemanticVersion(7, 7, 0))
         XCTAssertEqual(config.windowsVersion, .win10)
         XCTAssertEqual(config.enhancedSync, .msync)
-        XCTAssertFalse(config.avxEnabled)
     }
 }
 
@@ -128,8 +133,7 @@ final class BottleWineConfigRoundTripTests: XCTestCase {
         var original = BottleWineConfig()
         original.wineVersion = SemanticVersion(9, 0, 0)
         original.windowsVersion = .win11
-        original.enhancedSync = .esync
-        original.avxEnabled = true
+        original.enhancedSync = .none
 
         let encoder = PropertyListEncoder()
         encoder.outputFormat = .xml
@@ -139,8 +143,7 @@ final class BottleWineConfigRoundTripTests: XCTestCase {
 
         XCTAssertEqual(decoded.wineVersion, SemanticVersion(9, 0, 0))
         XCTAssertEqual(decoded.windowsVersion, .win11)
-        XCTAssertEqual(decoded.enhancedSync, .esync)
-        XCTAssertTrue(decoded.avxEnabled)
+        XCTAssertEqual(decoded.enhancedSync, .none)
     }
 
     func testRoundTripWithAllWindowsVersions() throws {
@@ -159,7 +162,7 @@ final class BottleWineConfigRoundTripTests: XCTestCase {
     }
 
     func testRoundTripWithAllEnhancedSyncValues() throws {
-        let syncValues: [EnhancedSync] = [.none, .esync, .msync]
+        let syncValues: [EnhancedSync] = [.none, .msync]
 
         for syncValue in syncValues {
             var config = BottleWineConfig()
@@ -230,11 +233,8 @@ final class WinVersionCodableTests: XCTestCase {
 final class EnhancedSyncDetailedTests: XCTestCase {
     func testEnhancedSyncEquality() {
         XCTAssertEqual(EnhancedSync.none, EnhancedSync.none)
-        XCTAssertEqual(EnhancedSync.esync, EnhancedSync.esync)
         XCTAssertEqual(EnhancedSync.msync, EnhancedSync.msync)
 
-        XCTAssertNotEqual(EnhancedSync.none, EnhancedSync.esync)
-        XCTAssertNotEqual(EnhancedSync.esync, EnhancedSync.msync)
         XCTAssertNotEqual(EnhancedSync.none, EnhancedSync.msync)
     }
 
@@ -243,7 +243,7 @@ final class EnhancedSyncDetailedTests: XCTestCase {
             let sync: EnhancedSync
         }
 
-        let values: [EnhancedSync] = [.none, .esync, .msync]
+        let values: [EnhancedSync] = [.none, .msync]
 
         for value in values {
             let original = Container(sync: value)
@@ -295,17 +295,7 @@ final class BottleWineConfigEqualityTests: XCTestCase {
         var config2 = BottleWineConfig()
 
         config1.enhancedSync = .msync
-        config2.enhancedSync = .esync
-
-        XCTAssertNotEqual(config1, config2)
-    }
-
-    func testDifferentAVXEnabledAreNotEqual() {
-        var config1 = BottleWineConfig()
-        var config2 = BottleWineConfig()
-
-        config1.avxEnabled = false
-        config2.avxEnabled = true
+        config2.enhancedSync = .none
 
         XCTAssertNotEqual(config1, config2)
     }
