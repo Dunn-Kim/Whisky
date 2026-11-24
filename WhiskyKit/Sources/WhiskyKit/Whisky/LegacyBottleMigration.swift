@@ -119,7 +119,15 @@ public extension LegacyBottleImport {
 
     private static func mergeEntry(_ source: URL, into destination: URL) throws {
         let fileManager = FileManager.default
-        guard let existing = itemType(at: destination) else {
+        var existing = itemType(at: destination)
+        // A fresh prefix links the profile's Desktop, Documents and the like to the Mac's
+        // own folders, where the source bottle has real ones. Replace the link (removeItem
+        // never follows it), so the source's files land in the bottle, not in the Mac's folders.
+        if existing == .typeSymbolicLink, itemType(at: source) == .typeDirectory {
+            try fileManager.removeItem(at: destination)
+            existing = nil
+        }
+        guard let existing else {
             try fileManager.createDirectory(
                 at: destination.deletingLastPathComponent(), withIntermediateDirectories: true
             )

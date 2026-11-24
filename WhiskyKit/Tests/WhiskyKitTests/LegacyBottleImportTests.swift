@@ -259,6 +259,31 @@ final class LegacyBottleImportTests: XCTestCase {
         XCTAssertEqual(try fileManager.destinationOfSymbolicLink(atPath: link), "new.dll")
     }
 
+    func testMergeDriveCReplacesAProfileLinkWithTheSourceFolder() throws {
+        let fileManager = FileManager.default
+        let source = root.appending(path: "src_c")
+        let destination = root.appending(path: "dst_c")
+        let macDesktop = root.appending(path: "MacDesktop")
+        let sourceDesktop = source.appending(path: "users/me/Desktop")
+        try fileManager.createDirectory(at: sourceDesktop, withIntermediateDirectories: true)
+        try Data("game".utf8).write(to: sourceDesktop.appending(path: "Game.lnk"))
+        try fileManager.createDirectory(at: macDesktop, withIntermediateDirectories: true)
+        try fileManager.createDirectory(
+            at: destination.appending(path: "users/me"), withIntermediateDirectories: true
+        )
+        try fileManager.createSymbolicLink(
+            atPath: destination.appending(path: "users/me/Desktop").path, withDestinationPath: macDesktop.path
+        )
+
+        try LegacyBottleImport.mergeDriveC(from: source, to: destination)
+
+        let desktop = destination.appending(path: "users/me/Desktop")
+        let type = try fileManager.attributesOfItem(atPath: desktop.path)[.type] as? FileAttributeType
+        XCTAssertEqual(type, .typeDirectory)
+        XCTAssertTrue(fileManager.fileExists(atPath: desktop.appending(path: "Game.lnk").path))
+        XCTAssertEqual(try fileManager.contentsOfDirectory(atPath: macDesktop.path), [])
+    }
+
     func testMergeDriveCCreatesFontsWhenDestinationHasNoWindows() throws {
         let fileManager = FileManager.default
         let source = root.appending(path: "src_c")
