@@ -1,0 +1,15 @@
+// Code signing for builds of this branch.
+//
+// A clone signs locally (ad hoc), so it builds and runs on any Mac without an
+// Apple developer account. To sign with your own team instead, create
+// Signing.local.xcconfig next to this file (git ignores it), for example:
+//
+//     DEVELOPMENT_TEAM = <your team ID>
+//     CODE_SIGN_IDENTITY = Apple Development
+//
+// Team IDs, certificates and provisioning profiles stay out of the repository.
+
+CODE_SIGN_IDENTITY = -
+DEVELOPMENT_TEAM =
+
+#include? "Signing.local.xcconfig"
