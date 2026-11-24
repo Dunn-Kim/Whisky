@@ -27,4 +27,23 @@ final class WineProcessScannerTests: XCTestCase {
         XCTAssertFalse(pids.contains(ProcessInfo.processInfo.processIdentifier))
         XCTAssertFalse(pids.contains(0))
     }
+
+    /// A root matches the processes whose executable lies under it, and nothing else.
+    func testRootScopesTheScan() throws {
+        var buffer = [CChar](repeating: 0, count: 4 * Int(MAXPATHLEN))
+        let length = proc_pidpath(getpid(), &buffer, UInt32(buffer.count))
+        XCTAssertGreaterThan(length, 0)
+        let ownFolder = URL(fileURLWithPath: String(cString: buffer)).deletingLastPathComponent().path + "/"
+
+        let own = try XCTUnwrap(WineProcessScanner.runningPIDs(under: ownFolder, includingServer: true))
+        XCTAssertTrue(own.contains(getpid()))
+        let none = try XCTUnwrap(WineProcessScanner.runningPIDs(under: "/no-such-\(UUID())/", includingServer: true))
+        XCTAssertTrue(none.isEmpty)
+    }
+
+    /// A source app with neither its app nor a Wine process running can be copied from.
+    func testSourceAppWithNothingRunningIsNotRunning() {
+        let app = LegacyBottleImport.SourceApp(bundleIdentifier: "test.whisky.\(UUID())", displayName: "Test")
+        XCTAssertFalse(LegacyBottleImport.isRunning(app))
+    }
 }

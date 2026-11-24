@@ -57,7 +57,7 @@ enum BottleCreationError: LocalizedError, Equatable {
         case let .sourceAppRunning(app):
             String(
                 localized: "bottle.migration.error.sourceRunning",
-                defaultValue: "\(app) is running. Quit it, then try again."
+                defaultValue: "\(app) or a program it started is running. Quit them, then try again."
             )
         }
     }

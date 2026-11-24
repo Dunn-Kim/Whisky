@@ -50,6 +50,13 @@ public enum LegacyBottleImport {
                 .appending(path: "Containers")
                 .appending(path: bundleIdentifier)
         }
+
+        /// The app's Wine folder, ending in a separator: every Wine process it starts runs from there.
+        var wineRoot: String {
+            WhiskyWineInstaller.applicationFolder.deletingLastPathComponent()
+                .appending(path: bundleIdentifier).appending(path: "Libraries").appending(path: "Wine")
+                .path(percentEncoded: false) + "/"
+        }
     }
 
     /// The apps bottles are copied from, the Rosetta build of this fork first.
@@ -70,10 +77,15 @@ public enum LegacyBottleImport {
         apps.contains { FileManager.default.fileExists(atPath: $0.container.path(percentEncoded: false)) }
     }
 
-    /// Whether `app` is running. Its files, above all its registry, aren't consistent
-    /// while its wineserver writes them, so its bottles aren't copied until it quits.
+    /// Whether `app`, or a Wine process it started, is running. Its files, above all its
+    /// registry, aren't consistent while its wineserver writes them, so its bottles aren't
+    /// copied until both have quit. Wine processes outlive the app when its kill-on-quit is off.
     public static func isRunning(_ app: SourceApp) -> Bool {
-        !NSRunningApplication.runningApplications(withBundleIdentifier: app.bundleIdentifier).isEmpty
+        guard NSRunningApplication.runningApplications(withBundleIdentifier: app.bundleIdentifier).isEmpty else {
+            return true
+        }
+        // Unknown counts as running: copying a bottle mid-write is worse than asking again.
+        return WineProcessScanner.runningPIDs(under: app.wineRoot, includingServer: true).map { !$0.isEmpty } ?? true
     }
 
     /// An importable bottle of a source app, with the display name read from its settings.

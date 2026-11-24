@@ -101,7 +101,10 @@ struct MigrateBottlesSheet: View {
                                 .foregroundStyle(.secondary)
                             if row.sourceRunning {
                                 Text(
-                                    "Quit \(row.bottle.app.displayName) first: its files change while it runs."
+                                    """
+                                    Quit \(row.bottle.app.displayName) and the programs it started first: \
+                                    their files change while they run.
+                                    """
                                 )
                                 .font(.caption)
                                 .foregroundStyle(.orange)
@@ -145,7 +148,8 @@ struct MigrateBottlesSheet: View {
         guard !didLoad else { return }
         didLoad = true
         rows = LegacyBottleImport
-            .importableBottles(existingPaths: bottleVM.bottlesList.paths)
+            // `bottles`, not the registry: a bottle still being copied is registered only when it finishes.
+            .importableBottles(existingPaths: bottleVM.bottles.map(\.url))
             .map {
                 let running = LegacyBottleImport.isRunning($0.app)
                 return Row(bottle: $0, isSelected: !running, sourceRunning: running)
