@@ -42,11 +42,9 @@ WhiskyKit is designed as a reusable framework that can be integrated into other 
 
 - ``BottleWineConfig``
 - ``BottleMetalConfig``
-- ``BottleDXVKConfig``
 - ``BottlePerformanceConfig``
 - ``WinVersion``
 - ``EnhancedSync``
-- ``DXVKHUD``
 
 ### PE File Parsing
 

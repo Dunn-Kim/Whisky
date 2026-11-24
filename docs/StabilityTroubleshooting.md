@@ -57,7 +57,7 @@ Please include:
 - **macOS version** (e.g., 15.2 / 15.4.1)
 - **Whisky version** and **WhiskyWine version**
 - **Game/app** and distribution (Steam/GOG/etc.)
-- **Bottle settings toggles**: Sequoia compat, DXVK, DXR, Enhanced Sync
+- **Bottle settings toggles**: Sequoia compat, Enhanced Sync
 - **Steps to reproduce** (smallest possible)
 - **Expected vs actual**
 - Attach **Stability Diagnostics report** (if available) and any relevant logs

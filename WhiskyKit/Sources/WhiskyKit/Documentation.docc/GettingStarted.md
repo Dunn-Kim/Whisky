@@ -136,10 +136,9 @@ import WhiskyKit
 
 @MainActor
 func configurePerformance(bottle: Bottle) {
-    // Enable DXVK for better DirectX performance
-    bottle.settings.dxvk = true
-    bottle.settings.dxvkAsync = true
-    
+    // Run on DXMT instead of the runtime's default choice
+    bottle.settings.graphicsBackend = .dxmt
+
     // Enable Metal HUD for debugging
     bottle.settings.metalHud = true
 }

@@ -9,7 +9,7 @@ WhiskyKit is organized into several logical layers, each responsible for a speci
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                    Application Layer                         │
-│                 (Whisky.app, WhiskyCmd)                      │
+│               (WhiskyNative.app, WhiskyCmd)                  │
 ├─────────────────────────────────────────────────────────────┤
 │                      WhiskyKit                               │
 │  ┌─────────────┐  ┌──────────────┐  ┌───────────────────┐  │
@@ -38,7 +38,6 @@ The bottle management layer handles the lifecycle of Wine prefixes:
 | ``BottleSettings`` | Stores configuration for a bottle |
 | ``BottleWineConfig`` | Wine-specific settings (Windows version, sync mode) |
 | ``BottleMetalConfig`` | Metal and graphics settings |
-| ``BottleDXVKConfig`` | DXVK configuration for DirectX translation |
 | ``BottlePerformanceConfig`` | Performance optimization settings |
 
 Each bottle is stored as a directory containing:
@@ -63,7 +62,7 @@ The ``Wine`` class provides the interface to the Wine runtime:
 - **Process Management**: Start and monitor Wine processes
 - **Environment Setup**: Configure environment variables for DirectX, Metal, and performance
 - **Logging**: Capture output and errors from Wine processes
-- **DXVK Integration**: Install and enable DXVK for Direct3D-to-Vulkan translation
+- **Graphics Backend**: Pass the bottle's backend (DXMT or WineD3D) to the runtime as `WINE_COMPATDB` rules
 
 Key execution flow:
 
@@ -72,8 +71,8 @@ runProgram(url, bottle)
        │
        ▼
 ┌──────────────────┐
-│ Enable DXVK if   │
-│ configured       │
+│ Pick the graphics│
+│ backend rules    │
 └────────┬─────────┘
          │
          ▼
@@ -138,7 +137,7 @@ func runGame() async throws {
 Settings are automatically persisted when modified:
 
 ```
-bottle.settings.dxvk = true
+bottle.settings.metalHud = true
        │
        ▼
 ┌──────────────────┐
@@ -161,7 +160,7 @@ bottle.settings.dxvk = true
 When running a program, WhiskyKit builds a complete environment:
 
 1. Base Wine environment (WINEPREFIX, PATH)
-2. Bottle-level settings (DXVK, Metal, sync mode)
+2. Bottle-level settings (graphics backend, Metal, sync mode)
 3. Program-level settings (locale, custom variables)
 4. User-provided overrides
 

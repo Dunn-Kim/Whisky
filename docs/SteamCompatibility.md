@@ -50,17 +50,12 @@ Steam is the most widely used game launcher in Whisky, but also has the most com
 
 1. **Leave the graphics backend on Recommended:**
    - Steam's own processes (steam.exe, steamwebhelper.exe, steamservice.exe,
-     GameOverlayUI.exe) get DXVK through per-executable overrides, so the
-     client draws on DXVK while the games it starts keep the bottle's backend.
-     With the D3DMetal payload that is D3DMetal, which DirectX 12 games need.
-   - A game started from Whisky's library, `whisky launch` or a whisky:// link
-     gets its own settings (Programs tab and game database) in per-executable
-     overrides for its executables, whichever process starts it.
-   - On a runtime without the D3DMetal payload, Play still switches the bottle
-     to DXVK. Importing GPTK later puts it back on Recommended once, with a
-     note in the bottle's graphics settings, unless you picked DXVK yourself.
-   - Setting the whole bottle to DXVK turns d3d12 off for every game when the
-     payload is deployed; only do it for a bottle whose games all want DXVK.
+     GameOverlayUI.exe) run on WineD3D, because Chromium cannot draw its window
+     on DXMT. The games it starts keep the bottle's backend (DXMT on
+     Recommended).
+   - A game started from WhiskyNative's library, `whisky-native launch` or a
+     `whisky-native://` link gets its own settings (Programs tab and game
+     database), whichever process starts it.
 
 2. **Enable GPU Spoofing:**
    - Config → Launcher Compatibility
@@ -77,7 +72,6 @@ Steam is the most widely used game launcher in Whisky, but also has the most com
    ```
    STEAM_DISABLE_CEF_SANDBOX = 1  ✅ (Wine compatibility)
    STEAM_RUNTIME = 0              ✅ (Wine compatibility)
-   DXVK_ASYNC = 1                 ✅ (UI performance)
    ```
    The Steam preset sets no locale. With Locale Override on **Auto**, no
    `LC_ALL`/`LANG` appears, and Steam and its games get your Mac's language
@@ -197,17 +191,16 @@ Network keepalive timeouts and SSL handshake issues.
 
 #### Solution:
 
-**Enable DXVK:**
-1. Config → DXVK → Toggle ON
-2. Enable "DXVK Async"
-3. Restart Steam
+**Check the graphics backend:**
+1. Config → Graphics → Backend: **Recommended**
+2. Restart Steam
 
 **Adjust DPI (if blurry):**
 1. Config → Wine → DPI Configuration
 2. Try 96 DPI (standard) or 192 DPI (Retina)
 
 **Why This Helps:**
-DXVK provides better GPU acceleration for Steam's UI rendering, reducing stuttering and improving visual quality.
+Steam's UI runs on WineD3D under Recommended. A backend set by hand for the bottle can leave the UI blank or slow.
 
 **Related Issues:**
 - whisky-app/whisky#1256 (Blurry text and stuttering)
@@ -232,7 +225,7 @@ DXVK provides better GPU acceleration for Steam's UI rendering, reducing stutter
    - If not already enabled
 
 3. **Check Graphics Settings:**
-   - Enable DXVK
+   - Backend: Recommended
    - Disable Metal Validation (if enabled)
    - Enable Sequoia Compat Mode (macOS 15+)
 
@@ -315,7 +308,6 @@ For specific games launched through Steam:
 **Status:** Generally works with compatibility mode
 
 **Tips:**
-- Enable DXVK for better performance
 - Use controller before launching Big Picture
 - Exit via Steam menu, not force quit
 
@@ -342,10 +334,9 @@ For specific games launched through Steam:
 
 ### For Best Frame Rates
 
-1. **DXVK Settings:**
-   - DXVK: ON
-   - DXVK Async: ON
-   - DXVK HUD: OFF (unless debugging)
+1. **Graphics Settings:**
+   - Backend: Recommended (DXMT for games)
+   - Frame rate limit: match your display, or a value that divides its refresh rate
 
 2. **Shader Cache:**
    - Enable shader cache (after first run)
@@ -376,7 +367,7 @@ Before reporting Steam issues, verify:
 
 - [ ] Launcher Compatibility Mode enabled
 - [ ] Locale Override on Auto (or the language you want Steam in)
-- [ ] DXVK enabled
+- [ ] Graphics backend on Recommended
 - [ ] Sequoia Compat Mode (macOS 15+)
 - [ ] Generated diagnostic report
 - [ ] Checked configuration warnings
@@ -405,7 +396,7 @@ Before reporting Steam issues, verify:
 - ⚠️ VR - not supported via Wine
 
 ### Games That Work Best:
-- ✅ DirectX 9/10/11 games (via DXVK)
+- ✅ DirectX 9/10/11 games (through DXMT or WineD3D)
 - ✅ Older games (native DirectX support)
 - ✅ 2D/indie games
 - ⚠️ DirectX 12 games (hit or miss)
@@ -476,7 +467,7 @@ Before reporting Steam issues, verify:
 
 **Configuration:**
 - Launcher Compatibility: Enabled
-- DXVK: Enabled
+- Graphics backend: Recommended
 
 **Steps to Reproduce:**
 1. Queue game download (Cyberpunk 2077, 70GB)
@@ -603,13 +594,11 @@ Mode: Enabled
 Detection: Automatic
 Locale: Auto (your Mac's language and region)
 GPU Spoofing: Enabled (NVIDIA)
-DXVK for Rockstar: Yes
 ```
 
 **Graphics:**
 ```
-Backend: Recommended (Steam itself gets DXVK per executable)
-DXVK HUD: Off (or FPS for monitoring)
+Backend: Recommended (Steam itself runs on WineD3D)
 ```
 
 **Performance:**

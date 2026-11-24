@@ -47,10 +47,21 @@ Whisky provides a clean and easy-to-use graphical wrapper for Wine built in nati
 
 ---
 
+## arm64-native branch (experimental)
+
+This branch builds **WhiskyNative**. It runs Windows programs on an arm64 Wine runtime and the FEX x86 emulator, with no Rosetta 2. Apple ends Rosetta 2 for most apps in macOS 28, and the Rosetta build of Whisky stops working then.
+
+- **Installs next to Whisky.** WhiskyNative has its own bundle ID (`io.github.dunn-kim.WhiskyNative`), its own data, the `whisky-native://` URL scheme and the `whisky-native` command line tool. It shares nothing with the Rosetta build.
+- **Install a runtime.** No arm64 runtime is published yet, so the app cannot download one. Install a local one with `scripts/install-arm64-runtime.sh <runtime folder> <version>`, for example `scripts/install-arm64-runtime.sh ~/Downloads/mach9/wine 0.4.0`. Quit WhiskyNative first.
+- **Move your bottles.** **File → Migrate from the Original Whisky…** copies a bottle from the Rosetta build of Whisky, or from the original Whisky, into a new arm64 bottle. It copies the program files, program settings, user registry keys and fonts. It does not copy Windows dependencies, so reinstall those with winetricks. It never writes to the source bottle, and it refuses to run while the source app is open.
+- **What is gone.** Rosetta 2, GPTK/D3DMetal and DXVK. Whisky no longer copies DLLs into bottles. The graphics backends are Recommended, DXMT and WineD3D. Chromium front ends run on WineD3D.
+- **Visual C++ runtime.** Microsoft's x64 VC++ and UCRT DLLs break the runtime's own arm64 processes. Whisky keeps them out of `system32` and `syswow64` and moves them into the bottle's `VC Runtime` folder before each start. Only Unity games use the Microsoft runtime, and they get it per game.
+- **Known limits.** No runtime is published. The runtime's loader must be signed with Apple's cross-architecture entitlement, or x86 programs do not start. A Unity game has been tested end to end; the branch is experimental and many programs are untested.
+
 ## Key Features
 
-- **Wine 11.19 engine** - Built from CrossOver's sources, and able to run Apple's D3DMetal from the Game Porting Toolkit
-- **DXMT & DXVK Graphics** - DirectX 11 through native Metal translation (DXMT) out of the box, with DXVK over MoltenVK as the universal fallback
+- **arm64 Wine engine** - An arm64 Wine runtime with the FEX x86 emulator, installed with `scripts/install-arm64-runtime.sh`
+- **DXMT & WineD3D Graphics** - DirectX 11 through native Metal translation (DXMT) out of the box, with WineD3D where Chromium needs it
 - **Launcher Compatibility** - Built-in support for Steam, Epic, EA App, Rockstar, Battle.net, and more
 - **Controller Support** - SDL environment variable controls for gamepad detection and mapping issues
 - **Stability Diagnostics** - One-click diagnostic reports for troubleshooting crashes and freezes
@@ -58,68 +69,53 @@ Whisky provides a clean and easy-to-use graphical wrapper for Wine built in nati
 
 ## System Requirements
 
-- **CPU**: Apple Silicon (M-series chips)
+- **CPU**: Apple Silicon (M-series chips). WhiskyNative is arm64 only and does not need Rosetta 2.
 - **OS**: macOS Sequoia 15.0 or later
 
 ## Installation
 
-### Homebrew (recommended)
+There is no release of WhiskyNative yet, so build it from source. The Homebrew cask and the DMGs of [frankea/Whisky](https://github.com/frankea/Whisky) install the Rosetta build, **Whisky.app**, not this one.
 
-```sh
-brew install --cask frankea/whisky/whisky
-```
+1. Clone this branch and build it. [CONTRIBUTING.md](CONTRIBUTING.md#build-environment) has the build steps. The app is `WhiskyNative.app`.
+2. Install an arm64 Wine runtime with `scripts/install-arm64-runtime.sh <runtime folder> <version>`. See [arm64-native branch](#arm64-native-branch-experimental).
+3. Launch WhiskyNative and create a bottle, or copy one from the Rosetta build.
 
-This taps [frankea/homebrew-whisky](https://github.com/frankea/homebrew-whisky) and installs the latest signed/notarized DMG. `brew upgrade --cask` picks up new releases.
+### Copying bottles from Whisky
 
-> The default `brew install --cask whisky` still installs the **archived original** (last release April 2025) and always will until that cask is updated. Use the qualified `frankea/whisky/whisky` form to get this fork.
+WhiskyNative cannot use a bottle of the Rosetta build in place: an x86_64 prefix does not work with the arm64 runtime. Choose **File → Migrate from the Original Whisky…** to copy bottles into new arm64 bottles. It lists the bottles of the Rosetta build of Whisky (`~/Library/Containers/com.franke.Whisky/`) and of the original [whisky-app/whisky](https://github.com/whisky-app/whisky) (`~/Library/Containers/com.isaacmarovitz.Whisky/`). Quit the other app first.
 
-### Manual
-
-1. Download the latest **[Whisky-X.Y.Z.dmg](https://github.com/frankea/Whisky/releases/latest)** (signed and notarized — Gatekeeper-approved).
-2. Open the DMG and drag **Whisky.app** to **/Applications**.
-3. Launch Whisky. On first run it downloads the Wine runtime (~330 MB) and sets up your default bottle.
-
-In-app updates are delivered through Sparkle from `https://frankea.github.io/Whisky/appcast.xml`.
-
-### Migrating from the original Whisky
-
-The original [whisky-app/whisky](https://github.com/whisky-app/whisky) was archived on **April 9, 2025** with a final maintenance notice. If you're running it today, you're on a stale build with no path forward for new fixes. This fork picks up where the upstream left off — version `3.0.1` shipped 54 requirements covering the 10 categories of upstream issue tracking (#40–#50).
-
-To switch:
-
-1. Install this fork: `brew install --cask frankea/whisky/whisky` or follow the manual steps above.
-2. Open it and choose **File → Migrate from the Original Whisky**. It finds the bottles the original app left in `~/Library/Containers/com.isaacmarovitz.Whisky/` and imports the ones you pick. Bottles are referenced **in place** — nothing is moved or copied — so the original app keeps working if you'd like to keep it around.
-3. *(Optional)* Once you're happy, remove the original app: drag **/Applications/Whisky.app** to the Trash, or `brew uninstall --cask whisky` if you installed it via Homebrew. Your bottles stay put.
-
-The original app uses a different bundle identifier (`com.franke.Whisky` here vs. `com.isaacmarovitz.Whisky`), which is why bottles aren't shared automatically. The old **Bottle → Export** / **File → Import Bottle** route still works if you'd rather move bottles by hand or onto another Mac. With no critical bottles, you can skip migration entirely — the new app creates a fresh bottle on first launch.
+The source bottle is only read. The old **Bottle → Export** and **File → Import Bottle** route still works if you would rather move a bottle by hand or to another Mac.
 
 ## Uninstalling
 
-Dragging **Whisky.app** to the Trash (or `brew uninstall --cask frankea/whisky/whisky`) removes the app but leaves the Wine runtime, your bottles, and app data behind — by design, so reinstalling doesn't re-download ~330 MB or lose your bottles.
+Dragging **WhiskyNative.app** to the Trash removes the app but leaves the Wine runtime, your bottles, and app data behind. Reinstalling does not lose your bottles.
 
-> ⚠️ **Back up your bottles first if you want to keep them.** Removing the container below deletes every bottle stored in its default location. Bottles you created in a custom folder live wherever you put them — check **Bottle → Reveal in Finder** before deleting anything.
+> ⚠️ **Back up your bottles first if you want to keep them.** Removing the container below deletes every bottle stored in its default location. Bottles you created in a custom folder live wherever you put them. Check **Bottle → Reveal in Finder** before deleting anything.
 
-To remove Whisky **completely**, delete the app and then these paths (all under `~/Library`):
+To remove WhiskyNative **completely**, delete the app and then these paths (all under `~/Library`):
 
 ```sh
 # 1. The app itself
-rm -rf "/Applications/Whisky.app"          # or: brew uninstall --cask frankea/whisky/whisky
+rm -rf "/Applications/WhiskyNative.app"
 
-# 2. Bottles + bottle list (default bottle location is inside this container)
-rm -rf ~/Library/Containers/com.franke.Whisky
-rm -rf ~/Library/Containers/com.franke.Whisky.WhiskyThumbnail
+# 2. The command line tool link, if you installed it
+sudo rm -f /usr/local/bin/whisky-native
 
-# 3. The Wine runtime (~330 MB) and other app support
-rm -rf ~/Library/Application\ Support/com.franke.Whisky
+# 3. Bottles + bottle list (default bottle location is inside this container)
+rm -rf ~/Library/Containers/io.github.dunn-kim.WhiskyNative
+rm -rf ~/Library/Containers/io.github.dunn-kim.WhiskyNative.WhiskyThumbnail
 
-# 4. Caches, logs, preferences, and saved state
-rm -rf ~/Library/Caches/com.franke.Whisky
-rm -rf ~/Library/Logs/com.franke.Whisky
-rm -rf ~/Library/HTTPStorages/com.franke.Whisky
-rm -f  ~/Library/Preferences/com.franke.Whisky.plist
+# 4. The Wine runtime, the FEX code cache and other app support
+rm -rf ~/Library/Application\ Support/io.github.dunn-kim.WhiskyNative
+
+# 5. Caches, logs, preferences, and saved state
+rm -rf ~/Library/Caches/io.github.dunn-kim.WhiskyNative
+rm -rf ~/Library/Logs/io.github.dunn-kim.WhiskyNative
+rm -rf ~/Library/HTTPStorages/io.github.dunn-kim.WhiskyNative
+rm -f  ~/Library/Preferences/io.github.dunn-kim.WhiskyNative.plist
 ```
 
-If you also installed bottles in a **custom location**, delete those folders too. Migrated bottles that still belong to the original app live under `~/Library/Containers/com.isaacmarovitz.Whisky` and are left untouched by the steps above.
+If you also created bottles in a **custom location**, delete those folders too. The Rosetta build of Whisky keeps its own data under `com.franke.Whisky`, and none of the steps above touch it.
 
 ## Telemetry (opt-in)
 
@@ -168,7 +164,7 @@ code to Crowdin and back.
 
 - **[Support](docs/SUPPORT.md)** - Where to file bugs and what to expect from a single-maintainer fork
 - **[Governance & continuity](docs/GOVERNANCE.md)** - Who maintains this and the honest bus-factor situation
-- **[Runtime dependencies](docs/DEPENDENCIES.md)** - The bundled Wine/DXVK/D3DMetal/DXMT versions and their upstream sources
+- **[Runtime dependencies](docs/DEPENDENCIES.md)** - The Wine runtime this build needs and the tools the app bundles
 
 WhiskyKit, the core framework powering Whisky, has comprehensive API documentation:
 
@@ -179,7 +175,7 @@ WhiskyKit, the core framework powering Whisky, has comprehensive API documentati
 ### Troubleshooting
 
 - **[Launcher Troubleshooting](docs/LauncherTroubleshooting.md)** - Fix issues with Steam, Epic, Battle.net, etc.
-- **[Steam Compatibility Guide](docs/SteamCompatibility.md)** - Detailed guide for Steam on Whisky
+- **[Steam Compatibility Guide](docs/SteamCompatibility.md)** - Detailed guide for Steam on WhiskyNative
 - **[Stability Troubleshooting](docs/StabilityTroubleshooting.md)** - Diagnose crashes, freezes, reboots, and kernel panics
 - **Controller Issues** - Enable "Controller Compatibility Mode" in Bottle Config → Controller & Input
 - **[Game Configurations](https://github.com/frankea/Whisky/blob/main/WhiskyKit/Sources/WhiskyKit/GameDatabase/Resources/GameDB.json)** - 80+ curated per-game compatibility configs, also browsable in-app under Game Configurations
@@ -218,14 +214,14 @@ above.
 Whisky is possible thanks to the magic of several projects:
 
 - [msync](https://github.com/marzent/wine-msync) by marzent
-- [DXVK-macOS](https://github.com/Gcenx/DXVK-macOS) by Gcenx and doitsujin
+- [DXVK-macOS](https://github.com/Gcenx/DXVK-macOS) by Gcenx and doitsujin (the Rosetta build of Whisky)
 - [DXMT](https://github.com/3Shain/dxmt) by 3Shain
 - [MoltenVK](https://github.com/KhronosGroup/MoltenVK) by KhronosGroup
 - [Sparkle](https://github.com/sparkle-project/Sparkle) by sparkle-project
 - [SemanticVersion](https://github.com/SwiftPackageIndex/SemanticVersion) by SwiftPackageIndex
 - [swift-argument-parser](https://github.com/apple/swift-argument-parser) by Apple
 - [CrossOver](https://www.codeweavers.com/crossover) by CodeWeavers and WineHQ
-- D3DMetal by Apple
+- D3DMetal by Apple (the Rosetta build of Whisky)
 
 Special thanks to Gcenx, ohaiibuzzle, Nat Brown, and [Isaac Marovitz](https://github.com/IsaacMarovitz) (original author) for their support and contributions!
 

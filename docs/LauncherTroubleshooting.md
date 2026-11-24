@@ -92,10 +92,9 @@ Stalls usually come from a damaged download cache or a busy content server. Stea
 
 **Solution:**
 
-1. **Enable DXVK (REQUIRED):**
-   - Open bottle → Config → DXVK
-   - Toggle "DXVK" ON
-   - This is **REQUIRED** for Rockstar's logo to render
+1. **Leave the graphics backend on Recommended:**
+   - Open bottle → Config → Graphics
+   - Whisky runs the launcher on WineD3D by itself, which draws the logo screen
 
 2. **Enable Launcher Compatibility:**
    - Config → Launcher Compatibility
@@ -104,14 +103,13 @@ Stalls usually come from a damaged download cache or a busy content server. Stea
 
 3. **Verify Configuration:**
    - Generate diagnostics report
-   - Verify `DXVK: Enabled`
-   - Verify `WINEDLLOVERRIDES=dxgi,d3d9,d3d10core,d3d11=n,b`
+   - Verify the backend is Recommended
 
 **Alternative Workaround:**
 Use `LauncherPatcher.exe` instead of `Launcher.exe` (community workaround)
 
 **Why This Happens:**
-Rockstar's logo screen uses DirectX rendering that requires DXVK translation. Without DXVK, the rendering fails silently and hangs.
+Rockstar's logo screen does not draw on DXMT. Recommended runs the launcher on WineD3D; a backend set by hand can make the rendering fail silently and hang.
 
 **Related Upstream Issues:**
 - whisky-app/whisky#835 (Logo freeze - 47 comments!)
@@ -186,10 +184,9 @@ Epic's Chromium Embedded Framework conflicts with Wine's threading model. Disabl
 
 **Solution:**
 
-1. **Enable DXVK Async:**
-   - Config → DXVK
-   - Enable DXVK
-   - Toggle "DXVK Async" ON
+1. **Check the graphics backend:**
+   - Config → Graphics
+   - Set the backend to Recommended
 
 **Related Upstream Issues:**
 - whisky-app/whisky#1004 (Beta update issues)
@@ -289,7 +286,7 @@ Key sections to check:
 macOS Version: 15.4.1
 Wine Version: 9.0
 Architecture: Apple Silicon (arm64)
-Rosetta 2: ✅ Installed
+Runtime: ✅ arm64 Wine runtime installed
 ```
 
 **Launcher Configuration:**
@@ -312,14 +309,6 @@ Look for:
 ---
 
 ## Configuration Warnings Explained
-
-### ⚠️ "DXVK should be enabled for Steam"
-**Impact:** Steam UI may stutter  
-**Solution:** Enable DXVK in Config → DXVK
-
-### ❌ "DXVK REQUIRED for Rockstar Launcher"
-**Impact:** Logo won't display, launcher unusable  
-**Solution:** Enable DXVK immediately (critical)
 
 ### ❌ "GPU spoofing REQUIRED for EA App"
 **Impact:** Black screen, "GPU not supported"  
@@ -400,7 +389,6 @@ Isolate launcher issues:
 - ✅ Launcher Compatibility Mode
 
 **Recommended:**
-- ✅ DXVK (improves UI performance)
 - ✅ Locale: Auto (your Mac's language and region; the Steam preset sets no locale)
 
 **Critical Settings:**
@@ -410,14 +398,14 @@ Isolate launcher issues:
 
 ### Rockstar Games Launcher
 **Must Have:**
-- ✅ DXVK (REQUIRED - logo won't display without it)
+- ✅ Graphics backend: Recommended (runs the launcher on WineD3D)
 - ✅ Launcher Compatibility Mode
 
 **Recommended:**
 - ✅ Locale: English
 
 **Critical Settings:**
-- DXVK cannot be disabled
+- None beyond Launcher Compatibility Mode
 
 **Alternative:**
 Use `LauncherPatcher.exe` instead of `Launcher.exe`
@@ -456,10 +444,10 @@ Use `LauncherPatcher.exe` instead of `Launcher.exe`
 - ✅ Launcher Compatibility Mode
 
 **Recommended:**
-- ✅ DXVK + DXVK Async
+- ✅ Graphics backend: Recommended
 
 **Critical Settings:**
-- `DXVK_ASYNC=1` (game compatibility)
+- None beyond Launcher Compatibility Mode
 
 ---
 
@@ -469,7 +457,7 @@ Use `LauncherPatcher.exe` instead of `Launcher.exe`
 - ✅ Locale: English
 
 **Recommended:**
-- ✅ DXVK
+- ✅ Graphics backend: Recommended
 
 **Critical Settings:**
 - `CEF_DISABLE_SANDBOX=1` (authentication)
@@ -487,11 +475,11 @@ Use `LauncherPatcher.exe` instead of `Launcher.exe`
 
 ### RSI Launcher (Star Citizen)
 **Must Have:**
-- ✅ Graphics backend: Recommended or DXVK (the launcher's window stays blank white on D3DMetal and DXMT)
+- ✅ Graphics backend: Recommended or WineD3D (the launcher's window stays blank white on DXMT)
 
 **Critical Settings:**
-- None bottle-wide. On Recommended, Whisky runs `RSI Launcher.exe` (and the Chromium processes it starts as the same executable) on DXVK
-- Star Citizen launched from Whisky keeps the bottle's backend. Started from the launcher, it keeps D3DMetal when Game Porting Toolkit is imported; without it, the game runs on DXVK, because the launcher's DXVK files replace DXMT's in the bottle until a game is next launched from Whisky
+- None bottle-wide. On Recommended, Whisky runs `RSI Launcher.exe` (and the Chromium processes it starts as the same executable) on WineD3D
+- Programs the launcher starts keep the default backend (DXMT on Recommended)
 
 ---
 
@@ -499,37 +487,33 @@ Use `LauncherPatcher.exe` instead of `Launcher.exe`
 The Chromium launcher shell several publishers ship, detected by a `zfgame` executable or folder name.
 
 **Must Have:**
-- ✅ DXVK (the launcher does not paint on D3DMetal). "Use DXVK for Rockstar Games Launcher" also governs it: with the toggle on, Launcher Compatibility Mode switches the bottle to DXVK
+- ✅ Graphics backend: Recommended (the launcher does not paint on DXMT, so Whisky runs it on WineD3D)
 - ✅ This fork's Wine runtime (4.8.9 or later). On upstream's 4.8 runtimes `gs:0x8` is not the thread's stack base, and the browser's renderer crashes in a loop ("ZFGameBrowser.exe has encountered a serious problem"); this fork's runtime puts the stack base there for `ZFGameBrowser.exe` whichever program starts it
 
 **Critical Settings:**
-- `DXVK_ASYNC=1` (less stutter in the launcher's web view)
 - No locale override: these launchers draw a CJK interface, and forcing `en_US` turns its text into boxes
 
 ---
 
 ### Chromium apps (3DMark and other front ends)
-Some programs that are not launchers draw their own window with Chromium (CEF or Electron), and that window stays black on D3DMetal and DXMT, while the benchmarks or games they start run fine there.
+Some programs that are not launchers draw their own window with Chromium (CEF or Electron), and that window stays black on DXMT, while the benchmarks or games they start run fine there.
 
 **Must Have:**
-- ✅ Graphics backend: Recommended (the default). Whisky runs a known front end on DXVK by itself
+- ✅ Graphics backend: Recommended (the default). Whisky runs a known front end on WineD3D by itself
 
 **How it works:**
-- Known front ends are listed by executable name: today `3DMark.exe` (3DMark, Steam App 223850). On Recommended, the front end gets DXVK in its own registry entry (`AppDefaults\3DMark.exe`), and its benchmarks keep the bottle's backend, D3DMetal when Game Porting Toolkit is imported
-- This applies when 3DMark is launched from the Programs tab, from the Whisky Library (`-applaunch 223850`), and when Steam's own Play button or a shortcut starts it: any launch in a bottle with 3DMark installed writes its entry ahead of time
-- The program's settings page says why Recommended picked DXVK. An explicit backend on the program, or on the bottle, is never changed. Setting the program itself to Recommended steers it the same way in a bottle set to D3DMetal or DXMT
-- A DXVK override set on `3DMark.exe` stays on the front end and no longer becomes the backend of 3DMark's benchmarks on Steam launches
-- In a bottle without Game Porting Toolkit (DXMT), DXVK and DXMT share system files, so what the front end starts also runs on DXVK until a DXMT program is next started from Whisky
+- Known front ends are listed by executable name: today `3DMark.exe` (3DMark, Steam App 223850). On Recommended, the front end runs on WineD3D by executable name, and the benchmarks it starts keep the default backend (DXMT)
+- The program's settings page says why Recommended picked WineD3D. An explicit backend on the program is never changed
 
 **Electron and NW.js apps:**
-- An Electron app (its folder holds `resources/app.asar` or `resources/app/package.json`, `icudtl.dat`, and a V8 snapshot, and the executable imports `ffmpeg.dll`) or an NW.js app (`nw.dll` and `icudtl.dat` beside it, and the executable imports `nw.dll` or `nw_elf.dll`) runs on DXVK under Recommended, the same way as a known front end. Its settings page names the file that identified it
+- An Electron app (its folder holds `resources/app.asar` or `resources/app/package.json`, `icudtl.dat`, and a V8 snapshot, and the executable imports `ffmpeg.dll`) or an NW.js app (`nw.dll` and `icudtl.dat` beside it, and the executable imports `nw.dll` or `nw_elf.dll`) runs on WineD3D under Recommended, the same way as a known front end. Its settings page names the file that identified it
 - An executable that imports Direct3D, DXGI, Vulkan or OpenGL itself is never matched, nor is anything under `drive_c/windows` or in a folder with more than 2,000 files. The uninstaller and helper programs beside an Electron app keep the bottle's backend
 - A Squirrel install (`Update.exe` beside the app, the app itself in an `app-x.y.z` folder) is matched through the app the stub starts
-- The entry is written when Whisky launches the app, from the Programs tab or with Play in the Whisky Library, and stays in the registry for later starts from elsewhere. Wine keys it on the file name alone, so a generic name such as `Game.exe` also reaches another `Game.exe` started outside Whisky, until Whisky launches that one and writes its own entry
+- The rule is keyed on the executable name alone, so a generic name such as `Game.exe` also matches another `Game.exe`
 
 **Other Chromium apps:**
-- If a program's settings page finds `libcef.dll` beside it, and the program loads `libcef.dll` itself without importing a graphics API, it offers **Use DXVK** for that program only. Whisky never switches such a program by itself: games ship CEF too, for overlays and in-game browsers, and DXVK has no Direct3D 12 on macOS
-- If a program's window stays black and it is a Chromium app, set its graphics backend to DXVK on its settings page, and please report it so it can be added to the list
+- If a program's settings page finds `libcef.dll` beside it, and the program loads `libcef.dll` itself without importing a graphics API, you can set that program's backend to WineD3D on its settings page. Whisky never switches such a program by itself: games ship CEF too, for overlays and in-game browsers
+- If a program's window stays black and it is a Chromium app, set its graphics backend to WineD3D on its settings page, and please report it so it can be added to the list
 
 ---
 
@@ -606,9 +590,8 @@ See [LauncherSecurityNotes.md](LauncherSecurityNotes.md) for detailed security a
 
 ### Performance Optimization
 
-1. **Enable DXVK Async:**
-   - Reduces shader compilation stuttering
-   - Recommended for all launchers
+1. **Keep the graphics backend on Recommended:**
+   - The launchers that need WineD3D get it by themselves
 
 2. **Enable Shader Cache:**
    - Config → Performance

@@ -37,7 +37,7 @@ building and signing it.
 - **Releases depend on one person's availability.** If @frankea is unavailable for a stretch, expect
   no new releases until they're back. Existing installs keep working.
 - **Bug triage is best-effort.** See [`SUPPORT.md`](SUPPORT.md) for what to realistically expect.
-- **The runtime is consumed, not owned.** Whisky bundles Wine/DXVK/D3DMetal/DXMT binaries from upstream
+- **The runtime is consumed, not owned.** Whisky runs a Wine runtime built by upstream
   projects (see [`DEPENDENCIES.md`](DEPENDENCIES.md)). If those upstreams stall,
   Whisky's runtime currency is affected — this fork does not build Wine itself.
 

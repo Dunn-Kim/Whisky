@@ -1,13 +1,8 @@
 # Release Workflow
 
-This document describes how to cut a release of the Whisky app and how to publish a new Wine Libraries archive.
+This document describes how to cut a release of the app.
 
-The fork uses two parallel artifact streams:
-
-- **App releases** (`app-vX.Y.Z`) — `Whisky-X.Y.Z.dmg`, signed and notarized for direct distribution.
-- **Wine Libraries releases** (`vX.Y.Z`) — `Libraries.tar.gz` containing the Wine/DXVK runtime that the app downloads on first launch.
-
-Both live on GitHub Releases. Static metadata (version plist, Sparkle appcast) is served from GitHub Pages, which is **workflow-deployed** through `.github/workflows/Documentation.yml`. The `gh-pages` branch is unused; static files go in `dist/pages/`.
+App releases (`app-vX.Y.Z`) are `Whisky-X.Y.Z.dmg`, signed and notarized for direct distribution, on GitHub Releases. Static metadata (version plist, Sparkle appcast) is served from GitHub Pages, which is **workflow-deployed** through `.github/workflows/Documentation.yml`. The `gh-pages` branch is unused; static files go in `dist/pages/`.
 
 ## One-time setup
 
@@ -203,101 +198,17 @@ the default `GITHUB_TOKEN` cannot push to another repository. If the secret is m
 workflow fails loudly so the drift is visible. You can also re-sync any tag manually via the
 workflow's `workflow_dispatch` input.
 
-## Wine Libraries release
+## Wine runtime
 
-There are two engine lineages, each with its own update feed:
-
-| Feed | Read by | Engine |
-|------|---------|--------|
-| `dist/pages/WhiskyWineVersion-v4.plist` | app 3.10.0 and later | GPTK-capable 4.x engine, built by CI |
-| `dist/pages/WhiskyWineVersion.plist` | apps before 3.10.0 | stock 3.1.1, frozen |
-
-The old feed stays on 3.1.1: the 4.x engine was tested with 3.10.0 and the D3DMetal, DLL override
-and environment fixes it carries, not with older apps. Don't bump it to a 4.x engine.
-
-### GPTK-capable 4.x engine (current)
-
-Built from source by CI on the [frankea/winecx-gptk](https://github.com/frankea/winecx-gptk) mirror
-(upstream: dappermint/winecx-gptk) at Whisky's macOS 15 floor. The CI tarball is the complete
-artifact (DXVK, DXMT, payload interposers and the correct `WhiskyWineVersion.plist` inside), so there
-is no assembly step:
-
-1. Sync the mirror with upstream and rebase the commits Whisky carries on top (don't reset them away):
-   the macOS 15 floor and winebus SDL change in `.github/workflows/build.yml`, and
-   `patches/0001-ntdll-kernelbase-keep-the-fiber-pointer-at-gs-0x20-on-macOS.patch` from
-   dappermint/winecx-gptk#25 (drop it once that lands upstream). Then dispatch the hosted release
-   build: `gh workflow run build.yml -R frankea/winecx-gptk -f opt=release -f runner=hosted`.
-2. Audit the artifact: every binary's `minos` at or below 15.0, no `_pipe2` import, no AppleDouble
-   entries, `winebus.so` without "SDL support not compiled in", `libSDL2-2.0.0.dylib` present, and the
-   build log's patch step applied the fiber patch.
-3. Publish it as a prerelease `vX.Y.Z-beta.N` first and test it (Steam's UI without a GPTK payload,
-   and a DX12 title through D3DMetal). The plist self-stamps the version, so the stable tag must
-   match it exactly.
-4. Promote: `gh release create vX.Y.Z --latest=false --title "Wine Libraries vX.Y.Z (GPTK, Wine N)"
-   Libraries.tar.gz` with the same verified tarball (no rebuild).
-5. Update `dist/pages/WhiskyWineVersion-v4.plist` (version, `gptkCapable`, DXVK and DXMT versions, and
-   the SHA-256 of the exact published asset), the 4.x table in [`DEPENDENCIES.md`](DEPENDENCIES.md),
-   and `WINE_PINNED` in `.github/workflows/RuntimeTrack.yml`.
-6. Commit and push. The Documentation workflow republishes Pages, and apps on 3.10.0 or later prompt to
-   update on their next engine check. Confirm the run succeeded and that
-   `curl -fsS https://frankea.github.io/Whisky/WhiskyWineVersion-v4.plist` serves the new version and
-   digest before relying on it (an app release that needs it, or a smoke test of the update path).
-   Also update the engine facts on the website (`dist/pages/index.html`) and in `README.md`.
-
-**Rolling back.** The feed can't take an engine back: apps only update when the feed's version is
-higher than the installed one, so lowering `WhiskyWineVersion-v4.plist` changes only fresh installs.
-To pull a bad engine, publish a fixed or repacked one with a higher version (for example 4.8.4) and
-point the feed at it.
-
-### Stock 3.x engine (apps before 3.10.0, frozen)
-
-The 3.x runtime is **assembled from upstream binaries, not built from source**; see
-[`DEPENDENCIES.md`](DEPENDENCIES.md) for the authoritative list of components,
-their pinned versions, and where each comes from. Only a security fix should change it:
-
-1. **Assemble `Libraries.tar.gz`** from the pinned upstream binaries. The archive unpacks to a
-   `Libraries/` tree the app expects (`Libraries/Wine/bin/…` is the Wine binary dir per
-   `WhiskyWineInstaller.binFolder`). To reproduce a build:
-   - Download the pinned **Wine** build (Gcenx `macOS_Wine_builds`) and unpack it as `Libraries/Wine/`.
-   - Add the pinned **DXVK-macOS** DLLs and **DXMT** prebuilt release into the runtime per the Gcenx
-     layout.
-   - Place **D3DMetal** as extracted from Apple's Game Porting Toolkit. ⚠️ Redistribution is governed by
-     Apple's GPTK license — confirm terms before publishing.
-   - Record the exact versions you used back into `docs/DEPENDENCIES.md`, and bump the matching
-     `*_PINNED` tags in `.github/workflows/RuntimeTrack.yml` so drift detection stays accurate.
-   - `tar -czf Libraries.tar.gz Libraries/` (mind the `Tar` pipe-drain pitfall noted below).
-2. Tag with the bare version `vX.Y.Z` (no `app-` prefix).
-3. `gh release create vX.Y.Z --title "Wine Libraries vX.Y.Z" Libraries.tar.gz`.
-4. Compute the SHA-256 of the **exact published asset** — the app verifies the download against this
-   and fails closed on a mismatch, so an incorrect value blocks every fresh install:
-   ```sh
-   shasum -a 256 Libraries.tar.gz
-   ```
-5. Update `dist/pages/WhiskyWineVersion.plist` with the version, bundled DXVK version, and the digest
-   from the previous step. Record the same digest in [`DEPENDENCIES.md`](DEPENDENCIES.md):
-   ```xml
-   <dict>
-       <key>version</key>
-       <dict>
-           <key>major</key><integer>X</integer>
-           <key>minor</key><integer>Y</integer>
-           <key>patch</key><integer>Z</integer>
-       </dict>
-       <key>dxvkVersion</key>
-       <string>1.10.3</string>
-       <key>sha256</key>
-       <string>…64-hex-digest…</string>
-   </dict>
-   ```
-6. Commit and push. The Documentation workflow republishes Pages, and apps before 3.10.0 prompt to
-   update on their next Wine version check.
+This build has no published runtime. The engine feed
+(`dist/pages/WhiskyWineVersion-arm64.plist` on the `arm64-native` branch) does not exist yet, so the
+app cannot download one. Install a local arm64 Wine runtime with
+`scripts/install-arm64-runtime.sh <runtime folder> <version>`; see the README. When a runtime is
+published, add the plist to `dist/pages/` and describe the steps here.
 
 ## URLs the app depends on
 
-- `https://frankea.github.io/Whisky/WhiskyWineVersion-v4.plist`: engine version metadata (app 3.10.0 and later)
-- `https://frankea.github.io/Whisky/WhiskyWineVersion.plist`: engine version metadata (apps before 3.10.0, frozen on 3.1.1)
 - `https://frankea.github.io/Whisky/appcast.xml` — Sparkle update feed
-- `https://github.com/frankea/Whisky/releases/download/vX.Y.Z/Libraries.tar.gz` — Wine binary archive
 - `https://github.com/frankea/Whisky/releases/download/app-vX.Y.Z/Whisky-X.Y.Z.dmg` — app DMG
 
 ## Pitfalls
