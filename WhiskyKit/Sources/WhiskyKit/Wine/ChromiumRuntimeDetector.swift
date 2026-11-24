@@ -41,9 +41,7 @@ public enum ChromiumRuntimeKind: String, Sendable, Equatable {
 ///
 /// Every window such an executable opens is drawn by Chromium, games built on
 /// it included, so WineD3D is right for all of them and a false match costs
-/// nothing. CEF is not matched: a game can ship CEF for an overlay, and WineD3D
-/// has no Direct3D 12 on macOS, so CEF only gets a suggestion
-/// (``suggestsCEF(for:)``).
+/// nothing. CEF is not matched: a game can ship CEF for an overlay.
 ///
 /// An executable `E` in folder `F` is an Electron app when `F` holds
 /// `resources/app.asar` (or `resources/app/package.json`), `icudtl.dat`, and
@@ -89,14 +87,6 @@ public enum ChromiumRuntimeDetector {
             cache.store(outcome.steering, for: key)
         }
         return outcome.steering
-    }
-
-    /// Whether to offer WineD3D for a program that ships CEF: `libcef.dll` sits
-    /// beside it, it imports `libcef.dll` itself, and it imports no graphics
-    /// DLL normally. Only feeds a suggestion; nothing is steered by it.
-    public static func suggestsCEF(for url: URL) -> Bool {
-        guard ChromiumFrontEnd.shipsCEF(beside: url), let imports = imports(of: url) else { return false }
-        return imports.allImports.contains("libcef.dll") && drawsOnlyThroughChromium(imports)
     }
 
     // MARK: - Rule

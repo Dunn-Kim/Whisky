@@ -283,29 +283,9 @@ public enum LauncherType: String, Codable, CaseIterable, Sendable, Identifiable 
         }
     }
 
-    /// Executables of this launcher that something else starts, so they never
-    /// go through Whisky's launch path and only get an `AppDefaults` entry if
-    /// one is written ahead of time.
-    ///
-    /// Rockstar's: a Rockstar title bought on Steam (Red Dead Redemption 2's
-    /// `PlayRDR2.exe`) starts the Rockstar Games Launcher and Social Club inside
-    /// the Steam session. `Launcher.exe` needs `d3d12` off: it asks D3D12 for
-    /// graphics information at startup, and with `d3d12` reachable that query
-    /// hangs its shutdown, which keeps the game "running" in Steam
-    /// (#276). Social Club gets the same entry, the layout measured there.
-    public var chainExecutables: [String] {
-        switch self {
-        case .rockstar:
-            ["Launcher.exe", "SocialClubHelper.exe"]
-        case .steam, .epicGames, .eaApp, .battleNet, .ubisoft, .paradox, .zfGame, .rsiLauncher:
-            []
-        }
-    }
-
     /// Steam App IDs of Rockstar titles that start the Rockstar Games Launcher,
-    /// so a Steam launch of one writes Rockstar's ``chainExecutables`` entries
-    /// even before that launcher is installed: the first run installs it and
-    /// starts it in the same session.
+    /// so a Steam launch of one is known to start that launcher: the first run
+    /// installs it and starts it in the same session.
     ///
     /// Red Dead Redemption 2, Grand Theft Auto V (Legacy and Enhanced), L.A.
     /// Noire and its VR Case Files, Max Payne 3, Grand Theft Auto IV, Bully:

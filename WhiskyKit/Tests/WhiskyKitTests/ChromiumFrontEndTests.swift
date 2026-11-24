@@ -94,7 +94,6 @@ struct ChromiumFrontEndTests {
         for row in ChromiumFrontEnd.all {
             #expect(!row.verifiedIn.isEmpty, "\(row.id) has no verification")
             #expect(!row.executables.isEmpty, "\(row.id)")
-            #expect(!row.installLocations.isEmpty, "\(row.id)")
         }
         let names = Self.allNames.map { $0.lowercased() }
         #expect(Set(names).count == names.count, "each name belongs to one row")
@@ -111,7 +110,7 @@ struct ChromiumFrontEndTests {
     @Test("No name is a launcher's, or detects as one")
     func namesDoNotCollideWithLaunchers() {
         let launcherNames = Set(
-            LauncherType.allCases.flatMap { $0.helperExecutables + $0.chainExecutables }.map { $0.lowercased() }
+            LauncherType.allCases.flatMap(\.helperExecutables).map { $0.lowercased() }
                 + ["steam.exe"]
         )
         for name in Self.allNames {

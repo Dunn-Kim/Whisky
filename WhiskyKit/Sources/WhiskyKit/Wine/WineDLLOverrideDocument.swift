@@ -76,9 +76,9 @@ struct DLLOverrideRecord: Codable, Equatable {
 }
 
 extension Wine {
-    /// The DLL names Whisky writes on its own account: `d3d12` (older versions
-    /// turned it off and those entries are still taken back) and the NVIDIA
-    /// bridges launcher helpers get disabled.
+    /// The DLL names older versions of Whisky wrote on their own account: `d3d12`
+    /// turned off, and the NVIDIA bridges launcher helpers got disabled. Nothing
+    /// writes them now, and those entries are still taken back.
     ///
     /// A launch removes these from every key it writes unless it sets them,
     /// whether or not a record says it wrote them.

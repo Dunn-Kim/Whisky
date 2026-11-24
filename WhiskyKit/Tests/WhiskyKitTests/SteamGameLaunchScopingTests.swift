@@ -65,13 +65,13 @@ final class SteamGameLaunchScopingTests {
 
     /// Prepares `steam.exe -applaunch` for RDR2.
     private func prepareGameLaunch(
-        _ bottle: Bottle, plan: ProgramOverrides? = nil, launchers: [LauncherType] = [],
+        _ bottle: Bottle, plan: ProgramOverrides? = nil,
         recorder: ScopeRecorder
     ) async throws -> Wine.PreparedLaunch {
         try await Wine.prepareProgramLaunch(
             at: steam(in: bottle), args: ["-applaunch", "1174180"], bottle: bottle,
             programOverrides: plan, overridesApplyToDescendants: true,
-            descendantExecutables: games, descendantLaunchers: launchers,
+            descendantExecutables: games,
             recommendedBackend: .dxmt,
             overrideWriter: recorder.writer, importer: recorder.importer
         )
@@ -84,11 +84,11 @@ final class SteamGameLaunchScopingTests {
         )
     }
 
-    /// Steam's own processes each get an entry, the helpers without the NVIDIA bridge.
+    /// Steam's own processes each get an entry.
     private func expectSteamEntries(_ recorder: ScopeRecorder) {
         #expect(recorder.overrides(for: .program("steam.exe")) != nil, "steam.exe")
         for helper in ["steamwebhelper.exe", "steamservice.exe", "gameoverlayui64.exe", "GameOverlayUI.exe"] {
-            #expect(recorder.overrides(for: .program(helper))?["nvapi64"] == "", "\(helper): nvapi64")
+            #expect(recorder.overrides(for: .program(helper)) != nil, "\(helper)")
         }
     }
 
@@ -145,18 +145,13 @@ final class SteamGameLaunchScopingTests {
         #expect(recorder.overrides(for: .program("steamwebhelper.exe"))?["xinput1_3"] == nil)
     }
 
-    @Test("Red Dead Redemption 2's own plan leaves it to the runtime with d3d12 loadable")
+    @Test("Red Dead Redemption 2's own plan leaves it to the runtime")
     func rdr2PlanKeepsTheGameOnTheRuntimesLayers() async throws {
         let bottle = try makeBottle()
         let recorder = ScopeRecorder()
         let plan = LaunchResolver.plan(steamAppId: 1_174_180)
 
-        _ = try await prepareGameLaunch(
-            bottle,
-            plan: plan.overrides,
-            launchers: plan.startsLaunchers,
-            recorder: recorder
-        )
+        _ = try await prepareGameLaunch(bottle, plan: plan.overrides, recorder: recorder)
 
         // Nothing disabled, nothing native in front of the runtime's layers.
         let entry = recorder.overrides(for: .program("RDR2.exe"))
@@ -164,7 +159,6 @@ final class SteamGameLaunchScopingTests {
         #expect(entry?["d3d12"] != "")
         #expect(entry?["dxgi"]?.hasPrefix("n") != true)
         #expect(entry?["d3d11"]?.hasPrefix("n") != true)
-        #expect(recorder.overrides(for: .program("Launcher.exe"))?["d3d12"] == "")
     }
 
     @Test("A game executable never displaces Steam's own entry")
@@ -180,7 +174,7 @@ final class SteamGameLaunchScopingTests {
         )
 
         #expect(recorder.programScopes.filter { $0.lowercased() == "steamwebhelper.exe" }.count == 1)
-        #expect(recorder.overrides(for: .program("steamwebhelper.exe"))?["nvapi64"] == "")
+        #expect(recorder.overrides(for: .program("steamwebhelper.exe")) != nil)
     }
 
     // MARK: - The user's own steam.exe overrides (finding 5)
@@ -251,34 +245,9 @@ final class SteamGameLaunchScopingTests {
 
     // MARK: - Rockstar titles (findings 6 and 7)
 
-    @Test("A Rockstar title writes Rockstar's launcher entries before the launcher is installed")
-    func rockstarTitleWritesTheChainUpFront() async throws {
-        let bottle = try makeBottle()
-        let recorder = ScopeRecorder()
-
-        _ = try await prepareGameLaunch(bottle, launchers: [.rockstar], recorder: recorder)
-
-        for executable in ["Launcher.exe", "SocialClubHelper.exe"] {
-            let entry = recorder.overrides(for: .program(executable))
-            #expect(entry?["d3d12"] == "", "\(executable): d3d12")
-        }
-    }
-
-    @Test("Another game writes no Launcher.exe entry while Rockstar's launcher is absent")
-    func otherGamesLeaveLauncherExeAlone() async throws {
-        let bottle = try makeBottle()
-        let recorder = ScopeRecorder()
-
-        _ = try await prepareGameLaunch(bottle, recorder: recorder)
-
-        #expect(!recorder.programScopes.contains("Launcher.exe"))
-        #expect(!recorder.programScopes.contains("SocialClubHelper.exe"))
-    }
-
-    @Test("A game's own Launcher.exe keeps the game's plan on that game's launch")
+    @Test("A game's own Launcher.exe gets the game's plan on that game's launch")
     func gamesOwnLauncherExeKeepsTheGamesPlan() async throws {
         let bottle = try makeBottle()
-        _ = try makeExecutable("Program Files/Rockstar Games/Launcher/Launcher.exe", in: bottle)
         let recorder = ScopeRecorder()
 
         _ = try await Wine.prepareProgramLaunch(
@@ -290,7 +259,7 @@ final class SteamGameLaunchScopingTests {
 
         #expect(recorder.programScopes.filter { $0.lowercased() == "launcher.exe" }.count == 1)
         #expect(recorder.overrides(for: .program("Launcher.exe"))?["d3d11"] == nil)
-        #expect(recorder.overrides(for: .program("SocialClubHelper.exe"))?["d3d12"] == "")
+        #expect(!recorder.programScopes.contains("SocialClubHelper.exe"), "no chain entries are written ahead of time")
     }
 
     @Test("Rockstar titles are known by App ID and by GameDB publisher", arguments: [

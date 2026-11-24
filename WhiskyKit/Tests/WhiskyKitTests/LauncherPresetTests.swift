@@ -121,7 +121,6 @@ final class LauncherPresetTests: XCTestCase {
         XCTAssertEqual(launcher.recommendedLocale, .auto)
         XCTAssertFalse(launcher.usesClipboard)
         XCTAssertEqual(launcher.helperExecutables, [])
-        XCTAssertEqual(launcher.chainExecutables, [])
         XCTAssertEqual(launcher.displayName, "RSI Launcher")
     }
 

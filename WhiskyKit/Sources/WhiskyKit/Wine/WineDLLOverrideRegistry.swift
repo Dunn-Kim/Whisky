@@ -163,8 +163,6 @@ public extension Wine {
     ///   belong to when they apply to descendants.
     /// - Parameter ownSettingsExecutables: Descendants that keep their own
     ///   settings, written ahead of the descendants' overrides.
-    /// - Parameter descendantLaunchers: Launchers the descendants start on their
-    ///   own, whose ``LauncherType/chainExecutables`` need entries ahead of time.
     /// - Parameter recommendedBackend: What `.recommended` resolves to for the
     ///   bottle; `nil` asks ``GraphicsBackendResolver``.
     /// - Parameter writer: What performs the registry write.
@@ -176,7 +174,6 @@ public extension Wine {
         applyToDescendants: Bool,
         descendantExecutables: [String] = [],
         ownSettingsExecutables: [URL] = [],
-        descendantLaunchers: [LauncherType] = [],
         recommendedBackend: GraphicsBackend? = nil,
         writer: DLLOverrideWriter = { try await syncDLLOverrides(bottle: $0, scopes: $1) }
     ) async throws {
@@ -192,29 +189,26 @@ public extension Wine {
             )
         }
 
-        // The launched executable and its helpers. A launcher's helper is
-        // usually Chromium, which probes for an NVIDIA GPU on startup: a helper
-        // that takes the bridge for a real GPU can die, and a dead helper is a
-        // launcher that draws nothing. Games need nvapi64, because Streamline
-        // asks it about the GPU before it will consider DLSS at all, so it is
-        // disabled per helper rather than withheld from the bottle.
+        // The launched executable and its helpers. AppDefaults is per executable
+        // and children do not inherit it, so a launcher's helper (usually
+        // Chromium) needs the launcher's set in an entry of its own.
         //
         // The helpers are written on a Steam game launch too. The sync used to
         // *replace* each key it wrote, so leaving them out did not merely skip
-        // them, it cleared any entry they already had and handed Chromium
-        // nvapi64 again. The overrides on such a launch are the game's, so the
-        // launcher and its helpers get the launcher's own set instead: the
-        // bottle's set is not that, and a helper restarting after a game launch
-        // would otherwise run on the game's plan (#276).
+        // them, it cleared any entry they already had. The overrides on such a
+        // launch are the game's, so the launcher and its helpers get the
+        // launcher's own set instead: the bottle's set is not that, and a
+        // helper restarting after a game launch would otherwise run on the
+        // game's plan (#276).
         var gamePlan: String?
         if applyToDescendants, let launcher {
             gamePlan = wineEnvironment.removeValue(forKey: "WINEDLLOVERRIDES") ?? ""
             let own = launcherSet(Program.persistedOverrides(for: url, bottleURL: bottle.url))
-            scopes.add(launcher.helperExecutables, disablingNVAPI(in: own))
+            scopes.add(launcher.helperExecutables, own)
             scopes.add([url.lastPathComponent], own)
         } else if !applyToDescendants {
             let own = wineEnvironment.removeValue(forKey: "WINEDLLOVERRIDES") ?? ""
-            scopes.add(helperExecutables(for: url), disablingNVAPI(in: own))
+            scopes.add(helperExecutables(for: url), own)
             // The launched executable needs its own entry too: AppDefaults is per
             // executable and children do not inherit it.
             scopes.add([url.lastPathComponent], own)
@@ -223,12 +217,12 @@ public extension Wine {
         // Steam's own processes, whatever this launch is. Something other than
         // Whisky may start the client: its installer when it finishes, Windows
         // autostart, or a cold `-applaunch`. Without an entry it would run on the
-        // bottle's set instead of the launcher's.
+        // bottle's set instead of the user's own steam.exe overrides.
         let steamRoot = SteamLibrary.detectInstall(bottleURL: bottle.url)
         if launcher == .steam || steamRoot != nil {
             let steamExe = steamRoot?.appending(path: "steam.exe")
             let own = launcherSet(steamExe.flatMap { Program.persistedOverrides(for: $0, bottleURL: bottle.url) })
-            scopes.add(LauncherType.steam.helperExecutables, disablingNVAPI(in: own))
+            scopes.add(LauncherType.steam.helperExecutables, own)
             scopes.add(["steam.exe"], own)
         }
 
@@ -243,11 +237,6 @@ public extension Wine {
             }
             scopes.add(descendantExecutables, gamePlan)
         }
-
-        scopes.add(
-            chainExecutables(for: launcher, descendantLaunchers: descendantLaunchers, bottleURL: bottle.url),
-            disablingD3D12(in: launcherSet(nil))
-        )
 
         try await writer(bottle, scopes.entries)
     }
@@ -303,60 +292,6 @@ public extension Wine {
             for: bottle, programOverrides: userOverrides,
             recommendedBackend: recommendedBackend
         )["WINEDLLOVERRIDES"] ?? ""
-    }
-
-    /// The launcher executables a launch should write entries for ahead of
-    /// time, because something other than Whisky starts them.
-    ///
-    /// Rockstar's chain, when the game being launched is a Rockstar title,
-    /// whether or not Rockstar's launcher is installed yet: the first run of
-    /// one installs the launcher and starts it in the same session. Otherwise
-    /// it rides along with Steam and Rockstar launches only once the launcher
-    /// is installed in the bottle.
-    ///
-    /// `AppDefaults` is keyed on the file name alone, so the entry is the same
-    /// for any `Launcher.exe` in the bottle. Once Rockstar's launcher is there,
-    /// another program by that name gets the Rockstar layout until its own
-    /// launch from Whisky writes its own entry (and loses it again at the next
-    /// Steam launch). A game's own `Launcher.exe` keeps the game's plan during
-    /// that game's Steam launch, since game executables are written first.
-    static func chainExecutables(
-        for launcher: LauncherType?, descendantLaunchers: [LauncherType] = [], bottleURL: URL
-    ) -> [String] {
-        let rockstarSession = descendantLaunchers.contains(.rockstar)
-            || ((launcher == .steam || launcher == .rockstar) && rockstarInstalled(bottleURL: bottleURL))
-        return rockstarSession ? LauncherType.rockstar.chainExecutables : []
-    }
-
-    /// Whether the bottle has a `Rockstar Games` folder in either Program Files.
-    static func rockstarInstalled(bottleURL: URL) -> Bool {
-        let driveC = bottleURL.appending(path: "drive_c")
-        return ["Program Files", "Program Files (x86)"].contains { programFiles in
-            let folder = driveC.appending(path: programFiles).appending(path: "Rockstar Games")
-            return FileManager.default.fileExists(atPath: folder.path(percentEncoded: false))
-        }
-    }
-
-    /// Adds `nvapi64=`, `nvapi=`, and `nvngx=` to an override string, keeping whatever else it holds.
-    ///
-    /// - Parameter overrides: A `WINEDLLOVERRIDES`-syntax string, possibly empty.
-    /// - Returns: The same string with NVIDIA bridges disabled.
-    static func disablingNVAPI(in overrides: String) -> String {
-        var parsed = parseDLLOverrides(overrides)
-        parsed["nvapi64"] = ""
-        parsed["nvapi"] = ""
-        parsed["nvngx"] = ""
-        return parsed.keys.sorted().map { "\($0)=\(parsed[$0] ?? "")" }.joined(separator: ";")
-    }
-
-    /// Adds `d3d12=` to an override string, keeping whatever else it holds.
-    ///
-    /// - Parameter overrides: A `WINEDLLOVERRIDES`-syntax string, possibly empty.
-    /// - Returns: The same string with `d3d12` disabled.
-    static func disablingD3D12(in overrides: String) -> String {
-        var parsed = parseDLLOverrides(overrides)
-        parsed["d3d12"] = ""
-        return parsed.keys.sorted().map { "\($0)=\(parsed[$0] ?? "")" }.joined(separator: ";")
     }
 
     /// Parses a `WINEDLLOVERRIDES` string into DLL name to load-order pairs.

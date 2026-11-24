@@ -42,6 +42,9 @@ extension Wine {
     ///   - recommendedBackend: What `.recommended` resolves to, for the bottle and
     ///     for a program set to it. Defaults to `nil`, which asks
     ///     ``GraphicsBackendResolver`` about the installed runtime.
+    ///   - steeredExecutables: Executables of this launch that run on WineD3D
+    ///     whatever the bottle picks, beside the bottle's own launcher and the front-end table.
+    ///   - programBackends: The executables with a backend of their own, which beats the rest.
     /// - Returns: The fully resolved environment dictionary for passing to a Wine process.
     @MainActor
     public static func constructWineEnvironment(
@@ -50,7 +53,9 @@ extension Wine {
         programOverrides: ProgramOverrides? = nil,
         programSettings: ProgramSettings? = nil,
         gameProfileEnvironment: [String: String] = [:],
-        recommendedBackend: GraphicsBackend? = nil
+        recommendedBackend: GraphicsBackend? = nil,
+        steeredExecutables: [String] = [],
+        programBackends: [(executable: String, backend: GraphicsBackend)] = []
     ) -> [String: String] {
         var builder = EnvironmentBuilder()
         var dllResolver = DLLOverrideResolver(managed: [], bottleCustom: [], programCustom: [])
@@ -92,9 +97,6 @@ extension Wine {
             builder: &builder, resolvedBackend: recommendedBackend,
             displayRefreshRate: displayRefreshRate
         )
-        // shortcut: the runtime picks its graphics layer per executable by itself, so
-        // .dxmt and .wined3d add no backend environment yet; stage 4b maps the bottle's
-        // and the program's resolved backend onto the runtime's rule (WINE_COMPATDB).
 
         // Layer 4: Launcher managed -- launcher compatibility overrides
         bottle.settings.populateLauncherManagedLayer(builder: &builder)
@@ -161,6 +163,18 @@ extension Wine {
         // Resolve the builder and capture provenance for launch logging
         let (resolved, provenance) = builder.resolve()
         var result = resolved
+
+        // The runtime picks its graphics layer per executable from these rules.
+        let rules = compatdbRules(
+            bottleBackend: bottle.settings.graphicsBackend,
+            steeredExecutables: steeredExecutables + (bottle.settings.detectedLauncher?.helperExecutables ?? []),
+            programBackends: programBackends,
+            recommendedBackend: recommendedBackend ?? GraphicsBackendResolver.resolve(),
+            userRules: result["WINE_COMPATDB"]
+        )
+        if let rules {
+            result["WINE_COMPATDB"] = rules
+        }
 
         // Compose WINEDLLOVERRIDES from DLLOverrideResolver (outside the builder)
         let (overrideString, _) = dllResolver.resolve()

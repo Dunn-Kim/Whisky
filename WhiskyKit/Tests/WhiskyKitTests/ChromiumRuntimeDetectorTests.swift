@@ -279,31 +279,6 @@ final class ChromiumRuntimeDetectorTests {
         #expect(ChromiumRuntimeDetector.evaluate(executable: stub).isFinal == false, "the app folder can still land")
     }
 
-    // MARK: - CEF suggestion
-
-    @Test("CEF is suggested only when the executable imports libcef.dll and no graphics DLL")
-    func cefSuggestion() throws {
-        let folder = root.appending(path: "CEF Host")
-        try touch(["libcef.dll"], in: folder)
-        let host = folder.appending(path: "Host.exe")
-        try PEImportFixture(normalImports: ["libcef.dll", "KERNEL32.dll"], delayImports: ["d3d11.dll"]).write(to: host)
-        let delayHost = folder.appending(path: "DelayHost.exe")
-        try PEImportFixture(normalImports: ["KERNEL32.dll"], delayImports: ["libcef.dll"]).write(to: delayHost)
-        let game = folder.appending(path: "Game.exe")
-        try PEImportFixture(normalImports: ["libcef.dll", "d3d11.dll"]).write(to: game)
-        let unrelated = folder.appending(path: "Tool.exe")
-        try PEImportFixture(normalImports: ["KERNEL32.dll"]).write(to: unrelated)
-
-        #expect(ChromiumRuntimeDetector.suggestsCEF(for: host))
-        #expect(ChromiumRuntimeDetector.suggestsCEF(for: delayHost))
-        #expect(!ChromiumRuntimeDetector.suggestsCEF(for: game), "a game that draws with Direct3D itself")
-        #expect(!ChromiumRuntimeDetector.suggestsCEF(for: unrelated), "libcef.dll beside it, not imported")
-
-        let elsewhere = root.appending(path: "No CEF/Host.exe")
-        try PEImportFixture(normalImports: ["libcef.dll"]).write(to: elsewhere)
-        #expect(!ChromiumRuntimeDetector.suggestsCEF(for: elsewhere), "no libcef.dll beside it")
-    }
-
     // MARK: - Resolution
 
     @Test("A runtime match resolves to WineD3D, with a rationale and its evidence in the reason")

@@ -58,8 +58,7 @@ extension SteamLauncher {
             gameProfileEnvironment: plan.gameProfileEnvironment,
             overridesApplyToDescendants: true,
             descendantExecutables: gameExecutables(scanned: scan?.planExecutables ?? [], plan: plan),
-            ownSettingsExecutables: scan?.ownSettingsExecutables ?? [],
-            descendantLaunchers: plan.startsLaunchers
+            ownSettingsExecutables: scan?.ownSettingsExecutables ?? []
         )
     }
 }

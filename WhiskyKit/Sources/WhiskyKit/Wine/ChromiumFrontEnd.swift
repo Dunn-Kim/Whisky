@@ -23,25 +23,15 @@ import Foundation
 /// them (#372).
 ///
 /// Recommended runs the listed executables on WineD3D, one at a time, through
-/// their own `AppDefaults` entries. The table is short and hand-verified:
-/// `AppDefaults` is keyed on the file name alone, so only distinctive names
-/// belong here, and a row is added only once its layout was checked on a real
-/// install (``verifiedIn``).
+/// a compatdb rule each (``Wine/compatdbRules``).
+/// The table is short and hand-verified: the rule is keyed on the file name
+/// alone, so only distinctive names belong here, and a row is added only once
+/// its layout was checked on a real install (``verifiedIn``).
 ///
 /// An app goes into ``LauncherType`` instead when it needs anything more than
-/// a per-executable WineD3D pin: environment, locale, chain executables, launcher
+/// a per-executable WineD3D pin: environment, locale, launcher
 /// diagnostics, or the bottle's detected launcher.
 public struct ChromiumFrontEnd: Sendable, Equatable, Identifiable {
-    /// Where a front end's executable sits in a bottle, checked ahead of time
-    /// with a single `fileExists` each, so its entry exists before something
-    /// other than Whisky starts it.
-    public enum InstallLocation: Sendable, Equatable {
-        /// `steamapps/common/<folder>/<relativePath>` in each of the bottle's Steam libraries.
-        case steam(folder: String, relativePath: String)
-        /// `<relativePath>` under `drive_c/Program Files` or `drive_c/Program Files (x86)`.
-        case programFiles(relativePath: String)
-    }
-
     /// A stable identifier for the row.
     public let id: String
     /// The product's name, as shown in the UI. Not localized.
@@ -49,11 +39,8 @@ public struct ChromiumFrontEnd: Sendable, Equatable, Identifiable {
     /// The executables whose window Chromium draws. Same-executable Chromium
     /// children (its GPU process, say) share the entry.
     public let executables: [String]
-    /// Separate helper executables that share the front end's set, with the
-    /// NVIDIA bridges disabled as a launcher's helpers have them.
+    /// Separate helper executables that share the front end's set.
     public let helperExecutables: [String]
-    /// Where the front end is installed, for the entry written ahead of time.
-    public let installLocations: [InstallLocation]
     /// The front end's Steam App ID, when it is sold on Steam.
     public let steamAppId: Int?
     /// The issue or pull request where the row's layout was verified.
@@ -68,12 +55,6 @@ public struct ChromiumFrontEnd: Sendable, Equatable, Identifiable {
         displayName: "3DMark",
         executables: ["3DMark.exe"],
         helperExecutables: [],
-        installLocations: [
-            .steam(folder: "3DMark", relativePath: "bin/x64/3DMark.exe"),
-            // The standalone installer's default folder.
-            .programFiles(relativePath: "UL/3DMark/3DMark.exe"),
-            .programFiles(relativePath: "UL/3DMark/bin/x64/3DMark.exe")
-        ],
         steamAppId: 223_850,
         verifiedIn: "#372"
     )
@@ -103,28 +84,5 @@ public struct ChromiumFrontEnd: Sendable, Equatable, Identifiable {
     public static func shipsCEF(beside url: URL) -> Bool {
         let library = url.deletingLastPathComponent().appending(path: "libcef.dll")
         return FileManager.default.fileExists(atPath: library.path(percentEncoded: false))
-    }
-
-    /// This front end's executables that exist in the bottle at one of its
-    /// ``installLocations``. Never lists a folder.
-    ///
-    /// - Parameters:
-    ///   - bottleURL: The bottle to look in.
-    ///   - steamLibraries: The bottle's Steam library roots, if it has Steam.
-    func installedExecutables(bottleURL: URL, steamLibraries: [URL]) -> [URL] {
-        let driveC = bottleURL.appending(path: "drive_c")
-        let candidates = installLocations.flatMap { location -> [URL] in
-            switch location {
-            case let .steam(folder, relativePath):
-                steamLibraries.map {
-                    $0.appending(path: "steamapps/common").appending(path: folder).appending(path: relativePath)
-                }
-            case let .programFiles(relativePath):
-                ["Program Files", "Program Files (x86)"].map {
-                    driveC.appending(path: $0).appending(path: relativePath)
-                }
-            }
-        }
-        return candidates.filter { FileManager.default.fileExists(atPath: $0.path(percentEncoded: false)) }
     }
 }

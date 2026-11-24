@@ -281,7 +281,7 @@ final class ProgramLaunchPreparationTests {
         // The launcher keeps its own set; the game's plan is not in it.
         #expect(recorder.overrides(for: .program("steam.exe"))?["d2d1"] == "n,b")
         #expect(recorder.overrides(for: .program("steam.exe"))?["xinput1_3"] == nil)
-        #expect(recorder.overrides(for: .program("steamwebhelper.exe"))?["nvapi64"] == "")
+        #expect(recorder.overrides(for: .program("steamwebhelper.exe")) != nil)
     }
 
     @Test("A prepared launch prints exactly as prepared, without rebuilding its environment")

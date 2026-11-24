@@ -264,7 +264,6 @@ public class Wine {
     ///     overrides apply to descendants.
     ///   - ownSettingsExecutables: Executables among what this launch starts that keep their
     ///     own settings instead of the descendants' overrides, when those apply to descendants.
-    ///   - descendantLaunchers: Launchers what this launch starts brings up on its own.
     ///   - onOutput: Receives the launch's output events as they arrive, starting with
     ///     ``ProcessOutput/started`` once the `wine` process is running. ``ProcessOutput/terminated(_:)``
     ///     is not the last event: what the program and the bottle's processes write after the
@@ -281,7 +280,6 @@ public class Wine {
         overridesApplyToDescendants: Bool = false,
         descendantExecutables: [String] = [],
         ownSettingsExecutables: [URL] = [],
-        descendantLaunchers: [LauncherType] = [],
         onOutput: (@MainActor (ProcessOutput) -> Void)? = nil
     ) async throws -> ProgramRunResult {
         let request = ProgramLaunchRequest(
@@ -290,8 +288,7 @@ public class Wine {
             gameProfileEnvironment: gameProfileEnvironment,
             overridesApplyToDescendants: overridesApplyToDescendants,
             descendantExecutables: descendantExecutables,
-            ownSettingsExecutables: ownSettingsExecutables,
-            descendantLaunchers: descendantLaunchers
+            ownSettingsExecutables: ownSettingsExecutables
         )
         return try await runProgram(at: url, bottle: bottle, request: request, onOutput: onOutput)
     }
@@ -416,8 +413,6 @@ public class Wine {
     ///   - ownSettingsExecutables: Executables among what this launch starts that keep their
     ///     own settings: each one the user has tuned gets an entry from its own overrides, as a
     ///     launch of it from the Programs tab writes, and the descendants' overrides skip it.
-    ///   - descendantLaunchers: Launchers what this launch starts brings up on its own, such as
-    ///     the Rockstar Games Launcher a Rockstar title starts inside the Steam session.
     ///   - recommendedBackend: What `.recommended` resolves to for the bottle's games.
     ///     Defaults to the resolver's answer for the installed runtime; tests pin it.
     ///   - overrideWriter: What writes the DLL overrides into the prefix registry. Tests pass a
@@ -437,7 +432,6 @@ public class Wine {
         overridesApplyToDescendants: Bool = false,
         descendantExecutables: [String] = [],
         ownSettingsExecutables: [URL] = [],
-        descendantLaunchers: [LauncherType] = [],
         recommendedBackend: GraphicsBackend = GraphicsBackendResolver.resolve(),
         overrideWriter: DLLOverrideWriter = { try await syncDLLOverrides(bottle: $0, scopes: $1) },
         importer: RegistryImporter = { try await importRegistry(document: $0, bottle: $1) },
@@ -485,6 +479,7 @@ public class Wine {
             for: url, bottle: bottle, backend: effectiveBackend, environment: environment,
             programOverrides: programOverrides, programSettings: programSettings, callerProfile: gameProfileEnvironment,
             descendantExecutables: overridesApplyToDescendants ? descendantExecutables : nil,
+            ownSettingsExecutables: ownSettingsExecutables, steering: steering,
             recommendedBackend: recommendedBackend
         )
 
@@ -494,7 +489,6 @@ public class Wine {
             applyToDescendants: overridesApplyToDescendants,
             descendantExecutables: descendantExecutables,
             ownSettingsExecutables: ownSettingsExecutables,
-            descendantLaunchers: descendantLaunchers,
             recommendedBackend: recommendedBackend,
             writer: overrideWriter
         )
@@ -545,6 +539,8 @@ public class Wine {
     ///     plan's), which wins over a profile stored in the bottle settings.
     ///   - descendantExecutables: The game's executables when the launch only
     ///     carries their plan, or `nil` when `url` is what renders.
+    ///   - ownSettingsExecutables: Executables this launch starts that keep their own settings.
+    ///   - steering: Why `url` runs on WineD3D, when it does and its overrides are its own.
     ///   - recommendedBackend: What `.recommended` resolves to for the bottle.
     @MainActor
     static func launchEnvironment(
@@ -553,8 +549,28 @@ public class Wine {
         programOverrides: ProgramOverrides? = nil, programSettings: ProgramSettings? = nil,
         callerProfile: [String: String] = [:],
         descendantExecutables: [String]? = nil,
+        ownSettingsExecutables: [URL] = [],
+        steering: BackendSteering? = nil,
         recommendedBackend: GraphicsBackend? = nil
     ) -> [String: String] {
+        // The executables the runtime is told a backend for: Chromium-drawn ones on
+        // WineD3D, then those with a backend of their own. The program's overrides
+        // belong to its descendants when it only carries their plan.
+        let launched = url.lastPathComponent
+        var steered = LauncherType.detect(from: url)?.helperExecutables ?? []
+        switch steering {
+        case .launcher, .chromiumRuntime: steered.append(launched)
+        case .chromiumFrontEnd, nil: break
+        }
+        let ownBackends = ownSettingsExecutables.compactMap { own in
+            Program.persistedOverrides(for: own, bottleURL: bottle.url)?.graphicsBackend
+                .map { (executable: own.lastPathComponent, backend: $0) }
+        }
+        let planBackend = programOverrides?.graphicsBackend
+        let programBackends = (descendantExecutables ?? [launched]).compactMap { name in
+            planBackend.map { (executable: name, backend: $0) }
+        } + ownBackends
+
         // A game configuration applied before the game was in the bottle keeps
         // its variables in the bottle settings, scoped to the game's executables.
         // The caller's profile (a Steam launch plan) wins where both set one.
@@ -564,7 +580,8 @@ public class Wine {
         var wineEnvironment = constructWineEnvironment(
             for: bottle, environment: environment, programOverrides: programOverrides,
             programSettings: programSettings, gameProfileEnvironment: gameProfileEnvironment,
-            recommendedBackend: recommendedBackend
+            recommendedBackend: recommendedBackend,
+            steeredExecutables: steered, programBackends: programBackends
         )
         nameDXMTCaptureExecutable(
             in: &wineEnvironment, backend: backend, metalTrace: bottle.settings.metalTrace,

@@ -43,8 +43,6 @@ extension Wine {
         let descendantExecutables: [String]
         /// Executables among what this launch starts that keep their own settings.
         let ownSettingsExecutables: [URL]
-        /// Launchers what this launch starts brings up on its own.
-        let descendantLaunchers: [LauncherType]
     }
 
     /// Runs a program the way the public `runProgram` does, from a request.
@@ -95,7 +93,6 @@ extension Wine {
             overridesApplyToDescendants: request.overridesApplyToDescendants,
             descendantExecutables: request.descendantExecutables,
             ownSettingsExecutables: request.ownSettingsExecutables,
-            descendantLaunchers: request.descendantLaunchers,
             recommendedBackend: recommendedBackend,
             overrideWriter: overrideWriter, importer: importer
         )

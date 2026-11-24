@@ -35,8 +35,7 @@ public struct LaunchPlan {
     /// The game's executable names as the GameDB lists them, to scope the
     /// overrides to alongside the ones found in the install folder.
     public var gameExecutables: [String] = []
-    /// Launchers the game starts on its own inside the Steam session, whose
-    /// processes then need their `AppDefaults` entries ahead of time.
+    /// Launchers the game starts on its own inside the Steam session.
     public var startsLaunchers: [LauncherType] = []
     /// Arguments for the game's own command line, from the GameDB variant.
     public var launchArguments: [String] = []

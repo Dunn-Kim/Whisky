@@ -125,7 +125,7 @@ final class LauncherScopingTests {
         expectNoTranslationLayer(recorder.overrides(for: .bottle), "bottle")
         expectNoTranslationLayer(recorder.overrides(for: .program("steam.exe")), "steam.exe")
         expectNoTranslationLayer(recorder.overrides(for: .program("steamwebhelper.exe")), "steamwebhelper.exe")
-        #expect(recorder.overrides(for: .program("steamwebhelper.exe"))?["nvapi64"] == "")
+        #expect(recorder.overrides(for: .program("steamwebhelper.exe")) != nil)
         #expect(launch.environment["WINEDLLOVERRIDES"] == nil)
     }
 
@@ -139,7 +139,7 @@ final class LauncherScopingTests {
         let launch = try await prepareSteam(bottle, applaunch: true, recorder: recorder)
 
         // A helper restarting after this launch reads the entry written here.
-        #expect(recorder.overrides(for: .program("steamwebhelper.exe"))?["nvapi64"] == "")
+        #expect(recorder.overrides(for: .program("steamwebhelper.exe")) != nil)
         #expect(recorder.overrides(for: .program("steamservice.exe")) != nil)
         #expect(recorder.overrides(for: .program("steam.exe")) != nil)
         #expect(launch.environment["WINEDLLOVERRIDES"] == nil)
@@ -174,33 +174,19 @@ final class LauncherScopingTests {
 
     // MARK: - Rockstar's chain inside a Steam session
 
-    @Test(
-        "A Steam launch writes Rockstar's launcher and Social Club entries once Rockstar is installed",
-        arguments: [false, true]
-    )
-    func steamLaunchWritesRockstarChain(_ applaunch: Bool) async throws {
+    @Test("A Steam launch writes no Rockstar entries, installed or not", arguments: [false, true])
+    func steamLaunchWritesNoRockstarChain(_ installed: Bool) async throws {
         let bottle = try makeBottle(.recommended)
-        _ = try makeExecutable("Program Files/Rockstar Games/Launcher/Launcher.exe", in: bottle)
-        let recorder = ScopeRecorder()
-
-        _ = try await prepareSteam(bottle, applaunch: applaunch, recorder: recorder)
-
-        for executable in ["Launcher.exe", "SocialClubHelper.exe"] {
-            let entry = recorder.overrides(for: .program(executable))
-            #expect(entry?["d3d12"] == "", "\(executable) must not reach d3d12")
+        if installed {
+            _ = try makeExecutable("Program Files/Rockstar Games/Launcher/Launcher.exe", in: bottle)
         }
-        expectNoTranslationLayer(recorder.overrides(for: .bottle), "bottle")
-    }
-
-    @Test("No Rockstar entries in a bottle without Rockstar's launcher")
-    func noRockstarChainWithoutRockstar() async throws {
-        let bottle = try makeBottle(.recommended)
         let recorder = ScopeRecorder()
 
         _ = try await prepareSteam(bottle, applaunch: false, recorder: recorder)
 
         #expect(!recorder.programScopes.contains("Launcher.exe"))
         #expect(!recorder.programScopes.contains("SocialClubHelper.exe"))
+        expectNoTranslationLayer(recorder.overrides(for: .bottle), "bottle")
     }
 
     @Test("Launching Rockstar's launcher itself writes its entry once, from its own launch")
@@ -215,6 +201,6 @@ final class LauncherScopingTests {
         )
 
         #expect(recorder.programScopes.filter { $0.lowercased() == "launcher.exe" }.count == 1)
-        #expect(recorder.programScopes.contains("SocialClubHelper.exe"))
+        #expect(!recorder.programScopes.contains("SocialClubHelper.exe"))
     }
 }

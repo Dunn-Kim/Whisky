@@ -104,8 +104,7 @@ public enum BackendSteering: Sendable, Equatable {
         return url.deletingPathExtension().lastPathComponent
     }
 
-    /// Separate executables that share the steered executable's set, with the
-    /// NVIDIA bridges disabled.
+    /// Separate executables that share the steered executable's set.
     public var helperExecutables: [String] {
         switch self {
         case let .launcher(launcher):
