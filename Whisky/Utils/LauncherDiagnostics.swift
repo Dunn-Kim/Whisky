@@ -136,9 +136,6 @@ enum LauncherDiagnostics {
         config += "Detection Mode: \(bottle.settings.launcherMode.rawValue)\n"
         if let launcher = bottle.settings.detectedLauncher {
             config += "Detected Launcher: \(launcher.rawValue)\n"
-            // Same condition as the launcher config summary and the launch itself.
-            let launcherDXVK = bottle.settings.deploysDXVK(whenLaunching: launcher)
-            config += "DXVK for Launcher Launches: \(launcherDXVK ? "✅ Enabled" : "❌ Disabled")\n"
         } else {
             config += "Detected Launcher: None\n"
         }
@@ -147,19 +144,12 @@ enum LauncherDiagnostics {
         if bottle.settings.gpuSpoofing {
             config += "GPU Vendor: \(bottle.settings.gpuVendor.rawValue)\n"
         }
-        config += "DXVK for Rockstar: \(bottle.settings.autoEnableDXVK ? "✅ Yes" : "❌ No")\n\n"
+        config += "\n"
 
         // Graphics Settings
         config += "--- Graphics Configuration ---\n"
-        // The chosen backend; whether a launcher launch gets DXVK is reported
-        // above, since Recommended and the auto-enable deploy it under any backend.
         config += "Graphics Backend: \(bottle.settings.graphicsBackend.rawValue)\n"
-        if bottle.settings.dxvk {
-            config += "DXVK Async: \(bottle.settings.dxvkAsync ? "✅ Enabled" : "❌ Disabled")\n"
-            config += "DXVK HUD: \(bottle.settings.dxvkHud)\n"
-        }
         config += "Metal HUD: \(bottle.settings.metalHud ? "✅ Enabled" : "❌ Disabled")\n"
-        config += "DXR Support: \(bottle.settings.dxrEnabled ? "✅ Enabled" : "❌ Disabled")\n"
         config += "Metal Validation: \(bottle.settings.metalValidation ? "✅ Enabled" : "❌ Disabled")\n"
         config += "Sequoia Compat Mode: \(bottle.settings.sequoiaCompatMode ? "✅ Enabled" : "❌ Disabled")\n\n"
 
@@ -240,7 +230,6 @@ enum LauncherDiagnostics {
 
     /// Generates recommendations section.
     @MainActor
-    // swiftlint:disable:next cyclomatic_complexity
     private static func generateRecommendations(for bottle: Bottle) -> String {
         var recommendations = """
         [RECOMMENDATIONS]
@@ -266,27 +255,9 @@ enum LauncherDiagnostics {
 
         // Launcher-specific recommendations
         if let launcher = bottle.settings.detectedLauncher {
-            switch launcher {
-            case .steam:
-                if !bottle.settings.dxvk {
-                    recommendations += "💡 Enable DXVK for better Steam performance\n"
-                    hasRecommendations = true
-                }
-
-            case .rockstar:
-                if !bottle.settings.dxvk {
-                    recommendations += "❗️ CRITICAL: Enable DXVK (required for Rockstar Launcher)\n"
-                    hasRecommendations = true
-                }
-
-            case .eaApp:
-                if !bottle.settings.gpuSpoofing {
-                    recommendations += "❗️ CRITICAL: Enable GPU spoofing (required for EA App)\n"
-                    hasRecommendations = true
-                }
-
-            default:
-                break
+            if launcher == .eaApp, !bottle.settings.gpuSpoofing {
+                recommendations += "❗️ CRITICAL: Enable GPU spoofing (required for EA App)\n"
+                hasRecommendations = true
             }
         }
 

@@ -177,7 +177,6 @@ final class LauncherDiagnosticsTests: XCTestCase {
         bottle.settings.launcherLocale = .english
         bottle.settings.gpuSpoofing = true
         bottle.settings.gpuVendor = .nvidia
-        bottle.settings.autoEnableDXVK = true
 
         // Save settings
         bottle.saveBottleSettings()
@@ -192,7 +191,6 @@ final class LauncherDiagnosticsTests: XCTestCase {
         XCTAssertEqual(bottle2.settings.launcherLocale, .english)
         XCTAssertTrue(bottle2.settings.gpuSpoofing)
         XCTAssertEqual(bottle2.settings.gpuVendor, .nvidia)
-        XCTAssertTrue(bottle2.settings.autoEnableDXVK)
     }
 
     func testLauncherSettingsDefaultsAfterDecode() throws {
@@ -210,7 +208,6 @@ final class LauncherDiagnosticsTests: XCTestCase {
         XCTAssertEqual(bottle.settings.launcherLocale, .auto, "Should default to auto locale")
         XCTAssertTrue(bottle.settings.gpuSpoofing, "Should default to enabled")
         XCTAssertEqual(bottle.settings.gpuVendor, .nvidia, "Should default to NVIDIA")
-        XCTAssertTrue(bottle.settings.autoEnableDXVK, "Should default to enabled")
     }
 
     // MARK: - GPU Validation Tests
@@ -309,58 +306,24 @@ final class LauncherDiagnosticsTests: XCTestCase {
         XCTAssertNil(env["LANG"], "Should not set LANG to empty string")
     }
 
-    // MARK: - Auto-Enable DXVK Tests
+    // MARK: - Launcher Graphics Tests
 
-    func testAutoEnableDXVKForRockstar() throws {
+    func testLauncherCompatibilityAddsNoDLLOverrides() throws {
         let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: tempURL, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: tempURL) }
 
-        let bottle = Bottle(bottleUrl: tempURL, inFlight: false, isAvailable: true)
-        bottle.settings.launcherCompatibilityMode = true
-        bottle.settings.detectedLauncher = .rockstar
-        bottle.settings.autoEnableDXVK = true
-        bottle.settings.dxvk = false // Explicitly disabled
+        for launcher in [LauncherType.rockstar, .steam] {
+            let bottle = Bottle(bottleUrl: tempURL, inFlight: false, isAvailable: true)
+            bottle.settings.launcherCompatibilityMode = true
+            bottle.settings.detectedLauncher = launcher
 
-        var env: [String: String] = [:]
-        bottle.settings.environmentVariables(wineEnv: &env)
+            var env: [String: String] = [:]
+            bottle.settings.environmentVariables(wineEnv: &env)
 
-        // DXVK should be auto-enabled because Rockstar requires it
-        // DLL overrides are now composed per-DLL via DLLOverrideResolver (sorted alphabetically).
-        // No runtime under test means no GPTK payload, so d3d12 is left alone.
-        XCTAssertEqual(env["WINEDLLOVERRIDES"], "d3d10core=n,b;d3d11=n,b;d3d9=n,b;dxgi=n,b")
-    }
-
-    func testAutoEnableDXVKNotTriggeredForSteam() throws {
-        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        try FileManager.default.createDirectory(at: tempURL, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: tempURL) }
-
-        let bottle = Bottle(bottleUrl: tempURL, inFlight: false, isAvailable: true)
-        bottle.settings.launcherCompatibilityMode = true
-        bottle.settings.detectedLauncher = .steam // Steam doesn't require DXVK
-        bottle.settings.autoEnableDXVK = true
-        bottle.settings.dxvk = false
-        // Pin a builtin-backed backend: `.recommended` resolves via ambient
-        // machine state and would add the DXVK preset through the bottle layer
-        // on machines without a runtime. Auto-enable applies through the
-        // launcher layer regardless of backend, so the assertion below still
-        // catches Steam wrongly auto-enabling.
-        bottle.settings.graphicsBackend = .d3dMetal
-
-        var env: [String: String] = [:]
-        bottle.settings.environmentVariables(wineEnv: &env)
-
-        // DXVK should NOT be auto-enabled (Steam doesn't require it)
-        XCTAssertNil(env["WINEDLLOVERRIDES"])
-    }
-
-    // MARK: - Launcher Requirements Tests
-
-    func testRockstarRequiresDXVK() {
-        XCTAssertTrue(LauncherType.rockstar.requiresDXVK)
-        XCTAssertFalse(LauncherType.steam.requiresDXVK)
-        XCTAssertFalse(LauncherType.eaApp.requiresDXVK)
+            // The runtime picks its graphics layer itself: no preset, whatever the launcher.
+            XCTAssertNil(env["WINEDLLOVERRIDES"], "\(launcher)")
+        }
     }
 
     func testRecommendedLocales() {
@@ -390,7 +353,6 @@ final class LauncherDiagnosticsTests: XCTestCase {
         XCTAssertEqual(env["STEAM_DISABLE_CEF_SANDBOX"], "1", "Steam-specific CEF disable from preset")
         XCTAssertEqual(env["CEF_DISABLE_SANDBOX"], "1", "Global CEF disable from MacOSCompatibility")
         XCTAssertEqual(env["STEAM_RUNTIME"], "0")
-        XCTAssertEqual(env["DXVK_ASYNC"], "1")
     }
 
     // MARK: - macOS Compatibility Tests
@@ -426,7 +388,6 @@ final class LauncherDiagnosticsTests: XCTestCase {
         config.launcherLocale = .english
         config.gpuSpoofing = true
         config.gpuVendor = .amd
-        config.autoEnableDXVK = false
 
         // Encode
         let encoder = PropertyListEncoder()
@@ -443,7 +404,6 @@ final class LauncherDiagnosticsTests: XCTestCase {
         XCTAssertEqual(decoded.launcherLocale, .english)
         XCTAssertEqual(decoded.gpuSpoofing, true)
         XCTAssertEqual(decoded.gpuVendor, .amd)
-        XCTAssertEqual(decoded.autoEnableDXVK, false)
     }
 
     /// Bottles saved before the network timeout setting was removed carry a
@@ -453,7 +413,6 @@ final class LauncherDiagnosticsTests: XCTestCase {
         config.compatibilityMode = true
         config.detectedLauncher = .steam
         config.gpuVendor = .amd
-        config.autoEnableDXVK = false
 
         let data = try PropertyListEncoder().encode(config)
         var dictionary = try XCTUnwrap(
@@ -466,7 +425,6 @@ final class LauncherDiagnosticsTests: XCTestCase {
         XCTAssertTrue(decoded.compatibilityMode)
         XCTAssertEqual(decoded.detectedLauncher, .steam)
         XCTAssertEqual(decoded.gpuVendor, .amd)
-        XCTAssertFalse(decoded.autoEnableDXVK)
     }
 
     /// The same legacy key inside a whole bottle's settings file decodes,

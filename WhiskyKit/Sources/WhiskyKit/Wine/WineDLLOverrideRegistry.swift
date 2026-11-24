@@ -193,8 +193,8 @@ public extension Wine {
         }
 
         // The launched executable and its helpers. A launcher's helper is
-        // usually Chromium, which probes for an NVIDIA GPU on startup: answering
-        // makes it load D3DMetal and take the helper down, and a dead helper is a
+        // usually Chromium, which probes for an NVIDIA GPU on startup: a helper
+        // that takes the bridge for a real GPU can die, and a dead helper is a
         // launcher that draws nothing. Games need nvapi64, because Streamline
         // asks it about the GPU before it will consider DLSS at all, so it is
         // disabled per helper rather than withheld from the bottle.
@@ -204,8 +204,8 @@ public extension Wine {
         // them, it cleared any entry they already had and handed Chromium
         // nvapi64 again. The overrides on such a launch are the game's, so the
         // launcher and its helpers get the launcher's own set instead: the
-        // bottle's set is not that (D3DMetal, for a bottle on Recommended), and
-        // a helper restarting after a game launch would crash-loop on it (#276).
+        // bottle's set is not that, and a helper restarting after a game launch
+        // would otherwise run on the game's plan (#276).
         var gamePlan: String?
         if applyToDescendants, let launcher {
             gamePlan = wineEnvironment.removeValue(forKey: "WINEDLLOVERRIDES") ?? ""
@@ -223,7 +223,7 @@ public extension Wine {
         // Steam's own processes, whatever this launch is. Something other than
         // Whisky may start the client: its installer when it finishes, Windows
         // autostart, or a cold `-applaunch`. Without an entry it would run on the
-        // bottle's backend, which over D3DMetal crash-loops its helpers.
+        // bottle's set instead of the launcher's.
         let steamRoot = SteamLibrary.detectInstall(bottleURL: bottle.url)
         if launcher == .steam || steamRoot != nil {
             let steamExe = steamRoot?.appending(path: "steam.exe")
@@ -231,14 +231,6 @@ public extension Wine {
             scopes.add(LauncherType.steam.helperExecutables, disablingNVAPI(in: own))
             scopes.add(["steam.exe"], own)
         }
-
-        // Chromium front ends (3DMark's) get the launcher set: among what a Steam
-        // launch starts, and wherever one is installed, since Steam's own Play
-        // button or a shortcut starts it without Whisky (#372).
-        addFrontEndScopes(
-            ownSettingsExecutables + frontEndExecutables(bottleURL: bottle.url, steamRoot: steamRoot),
-            to: &scopes, bottle: bottle, recommendedBackend: recommendedBackend, launcherSet: launcherSet
-        )
 
         // The game's plan, in the entries of the executables it runs as. After
         // Steam's own, which a game executable never displaces.
@@ -292,14 +284,9 @@ public extension Wine {
     }
 
     /// The DLL overrides a launcher's own processes run with: the bottle's set
-    /// with the DXVK preset on top, and the user's own overrides for the
-    /// launcher's executable on top of that.
+    /// with the user's own overrides for the launcher's executable on top.
     ///
-    /// The resolver sends every launcher to DXVK (#252), because Chromium cannot
-    /// draw on D3DMetal or DXMT. Pinned rather than resolved, so it holds for a
-    /// bottle on any backend, and it never goes into the bottle scope: that one
-    /// is the games'. A backend the user picked for the launcher's executable
-    /// itself is kept, as a launch of it from the Programs tab would.
+    /// It never goes into the bottle scope: that one is the games'.
     ///
     /// - Parameters:
     ///   - bottle: The bottle whose set to start from.
@@ -312,12 +299,8 @@ public extension Wine {
         userOverrides: ProgramOverrides? = nil,
         recommendedBackend: GraphicsBackend? = nil
     ) -> String {
-        var pinned = userOverrides ?? ProgramOverrides()
-        if pinned.graphicsBackend == nil || pinned.graphicsBackend == .recommended {
-            pinned.graphicsBackend = .dxvk
-        }
-        return constructWineEnvironment(
-            for: bottle, programOverrides: pinned,
+        constructWineEnvironment(
+            for: bottle, programOverrides: userOverrides,
             recommendedBackend: recommendedBackend
         )["WINEDLLOVERRIDES"] ?? ""
     }

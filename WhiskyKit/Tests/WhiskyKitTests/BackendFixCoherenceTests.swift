@@ -19,9 +19,8 @@
 @testable import WhiskyKit
 import XCTest
 
-/// The backend fixes must do what their cards say: the wizard's "Switch to
-/// DXVK" switches to DXVK, and the crash diagnosis card that resets to
-/// Recommended says so and stays out of the way on a bottle already there.
+/// The backend fixes must do what their cards say: the crash diagnosis card that
+/// resets to Recommended says so and stays out of the way on a bottle already there.
 @MainActor
 final class BackendFixCoherenceTests: XCTestCase {
     private var tempDir: URL!
@@ -42,49 +41,6 @@ final class BackendFixCoherenceTests: XCTestCase {
     }
 
     // MARK: - Guided Troubleshooting
-
-    private func fixNode(flow fileName: String, node nodeId: String) throws -> FlowStepNode {
-        let flow = try XCTUnwrap(FlowLoader.loadFlow(fileName: fileName))
-        return try XCTUnwrap(flow.nodes[nodeId], "\(fileName) lost \(nodeId)")
-    }
-
-    /// The path the wizard takes on a Recommended bottle whose resolved
-    /// backend is not DXVK: the card offers DXVK, previews DXVK, and applying
-    /// it leaves the bottle on DXVK.
-    private func assertSwitchesRecommendedBottleToDXVK(
-        flow fileName: String, node nodeId: String, file: StaticString = #filePath, line: UInt = #line
-    ) throws {
-        let node = try fixNode(flow: fileName, node: nodeId)
-        XCTAssertEqual(node.fixId, "switch-backend", file: file, line: line)
-        XCTAssertEqual(node.title, "Switch to DXVK", file: file, line: line)
-        bottle.settings.graphicsBackend = .recommended
-        let params = node.params ?? [:]
-
-        let preview = try XCTUnwrap(FixApplicator.preview(
-            fixId: "switch-backend", params: params, bottle: bottle, program: nil
-        ))
-        XCTAssertEqual(preview.currentValue, GraphicsBackend.recommended.displayName, file: file, line: line)
-        XCTAssertEqual(
-            preview.newValue, GraphicsBackend.dxvk.displayName,
-            "preview must not read Recommended to Recommended", file: file, line: line
-        )
-
-        let attempt = FixApplicator.apply(fixId: "switch-backend", params: params, bottle: bottle, program: nil)
-        XCTAssertEqual(bottle.settings.graphicsBackend, .dxvk, file: file, line: line)
-        XCTAssertEqual(attempt.beforeValue, "recommended", file: file, line: line)
-        XCTAssertEqual(attempt.afterValue, "dxvk", file: file, line: line)
-
-        XCTAssertTrue(FixApplicator.undo(attempt: attempt, bottle: bottle, program: nil), file: file, line: line)
-        XCTAssertEqual(bottle.settings.graphicsBackend, .recommended, file: file, line: line)
-    }
-
-    func testGraphicsFlowSwitchToDXVKSetsDXVK() throws {
-        try assertSwitchesRecommendedBottleToDXVK(flow: "graphics", node: "fix_enable_dxvk")
-    }
-
-    func testLaunchCrashFlowSwitchToDXVKSetsDXVK() throws {
-        try assertSwitchesRecommendedBottleToDXVK(flow: "launch-crash", node: "fix_switch_backend")
-    }
 
     func testValidatorRejectsSwitchBackendWithoutTargetBackend() {
         func flow(params: [String: String]?) -> FlowDefinition {
@@ -109,7 +65,7 @@ final class BackendFixCoherenceTests: XCTestCase {
             )
         }
 
-        let valid = FlowValidator.validate(flows: ["test": flow(params: ["backend": "dxvk"])], fragments: [:])
+        let valid = FlowValidator.validate(flows: ["test": flow(params: ["backend": "wined3d"])], fragments: [:])
         XCTAssertFalse(valid.contains { $0.message.contains("backend") }, "got: \(valid)")
     }
 
@@ -135,7 +91,7 @@ final class BackendFixCoherenceTests: XCTestCase {
         bottle.settings.graphicsBackend = .recommended
         XCTAssertFalse(action.wouldChange(bottle.settings), "a reset to Recommended changes nothing here")
 
-        for backend in [GraphicsBackend.dxvk, .dxmt, .d3dMetal, .wined3d] {
+        for backend in [GraphicsBackend.dxmt, .wined3d] {
             bottle.settings.graphicsBackend = backend
             XCTAssertTrue(action.wouldChange(bottle.settings), "\(backend) should be offered the reset")
         }

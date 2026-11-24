@@ -19,17 +19,17 @@
 import Foundation
 
 /// A program whose own window is drawn by Chromium, which stays black on
-/// D3DMetal and DXMT, while the programs it starts are games that should keep
+/// DXMT, while the programs it starts are games that should keep
 /// them (#372).
 ///
-/// Recommended runs the listed executables on DXVK, one at a time, through
+/// Recommended runs the listed executables on WineD3D, one at a time, through
 /// their own `AppDefaults` entries. The table is short and hand-verified:
 /// `AppDefaults` is keyed on the file name alone, so only distinctive names
 /// belong here, and a row is added only once its layout was checked on a real
 /// install (``verifiedIn``).
 ///
 /// An app goes into ``LauncherType`` instead when it needs anything more than
-/// a per-executable DXVK pin: environment, locale, chain executables, launcher
+/// a per-executable WineD3D pin: environment, locale, chain executables, launcher
 /// diagnostics, or the bottle's detected launcher.
 public struct ChromiumFrontEnd: Sendable, Equatable, Identifiable {
     /// Where a front end's executable sits in a bottle, checked ahead of time
@@ -59,9 +59,9 @@ public struct ChromiumFrontEnd: Sendable, Equatable, Identifiable {
     /// The issue or pull request where the row's layout was verified.
     public let verifiedIn: String
 
-    /// 3DMark: its menu is CEF and stays black on D3DMetal, while its
+    /// 3DMark: its menu is CEF and stays black on DXMT, while its
     /// benchmarks (Time Spy, Steel Nomad, the DLSS feature test) are D3D11 and
-    /// D3D12 workloads that keep D3DMetal. Its Chromium GPU process runs as
+    /// D3D12 workloads that keep DXMT. Its Chromium GPU process runs as
     /// `3DMark.exe` itself, so the row lists no helper.
     public static let threeDMark = ChromiumFrontEnd(
         id: "3dmark",
@@ -78,7 +78,7 @@ public struct ChromiumFrontEnd: Sendable, Equatable, Identifiable {
         verifiedIn: "#372"
     )
 
-    /// Every front end Recommended steers to DXVK.
+    /// Every front end Recommended steers to WineD3D.
     public static let all: [ChromiumFrontEnd] = [.threeDMark]
 
     /// The front end an executable name belongs to, compared without case as
@@ -97,9 +97,9 @@ public struct ChromiumFrontEnd: Sendable, Equatable, Identifiable {
     }
 
     /// Whether `libcef.dll` sits beside an executable: the program ships CEF,
-    /// and its window may stay black off DXVK. One `fileExists`. Never used
-    /// to steer anything: a game can ship CEF for an overlay, and DXVK has no
-    /// D3D12 on macOS. It only feeds a suggestion and the diagnostics export.
+    /// and its window may stay black off WineD3D. One `fileExists`. Never used
+    /// to steer anything: a game can ship CEF for an overlay. It only feeds a
+    /// suggestion and the diagnostics export.
     public static func shipsCEF(beside url: URL) -> Bool {
         let library = url.deletingLastPathComponent().appending(path: "libcef.dll")
         return FileManager.default.fileExists(atPath: library.path(percentEncoded: false))

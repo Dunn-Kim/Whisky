@@ -178,7 +178,6 @@ final class BottleLauncherConfigDetailedTests: XCTestCase {
         XCTAssertEqual(config.launcherLocale, .auto)
         XCTAssertTrue(config.gpuSpoofing)
         XCTAssertEqual(config.gpuVendor, .nvidia)
-        XCTAssertTrue(config.autoEnableDXVK)
     }
 
     func testRoundTrip() throws {
@@ -189,7 +188,6 @@ final class BottleLauncherConfigDetailedTests: XCTestCase {
         original.launcherLocale = .english
         original.gpuSpoofing = true
         original.gpuVendor = .amd
-        original.autoEnableDXVK = false
 
         let encoder = PropertyListEncoder()
         encoder.outputFormat = .xml
@@ -203,7 +201,6 @@ final class BottleLauncherConfigDetailedTests: XCTestCase {
         XCTAssertEqual(decoded.launcherLocale, .english)
         XCTAssertTrue(decoded.gpuSpoofing)
         XCTAssertEqual(decoded.gpuVendor, .amd)
-        XCTAssertFalse(decoded.autoEnableDXVK)
     }
 }
 

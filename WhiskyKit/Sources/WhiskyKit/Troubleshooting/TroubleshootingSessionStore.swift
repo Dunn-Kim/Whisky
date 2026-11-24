@@ -214,7 +214,7 @@ public struct TroubleshootingSessionStore: TroubleshootingSessionStoring {
 
         var changes: [StalenessChange] = []
 
-        // Graphics backend changed. The preflight stores raw values ("dxvk"),
+        // Graphics backend changed. The preflight stores raw values ("dxmt"),
         // so the message names the backends the way the app does.
         if snapshot.graphicsBackend != currentPreflight.graphicsBackend {
             let oldBackend = Self.backendName(snapshot.graphicsBackend)

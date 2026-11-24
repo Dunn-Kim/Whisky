@@ -305,7 +305,6 @@ final class CrashClassifierTests: XCTestCase {
         XCTAssertTrue(types.contains(.installVerb))
         XCTAssertTrue(types.contains(.informational))
         XCTAssertTrue(types.contains(.switchBackend))
-        XCTAssertTrue(types.contains(.changeSetting))
     }
 
     /// A missing-DLL failure is a head-of-log event. A session that then runs

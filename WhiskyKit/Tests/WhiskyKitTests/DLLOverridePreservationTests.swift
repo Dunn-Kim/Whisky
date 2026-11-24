@@ -99,61 +99,36 @@ final class DLLOverridePreservationTests {
     /// Runs a launch's DLL override sync against the simulated registry.
     private func launch(_ url: URL, in bottle: Bottle) async throws {
         var environment = Wine.constructWineEnvironment(
-            for: bottle, recommendedBackend: .d3dMetal
+            for: bottle, recommendedBackend: .dxmt
         )
         try await Wine.applyDLLOverrides(
             for: url, bottle: bottle, wineEnvironment: &environment, applyToDescendants: false,
-            recommendedBackend: .d3dMetal,
+            recommendedBackend: .dxmt,
             writer: { bottle, scopes in
                 try await Wine.syncDLLOverrides(bottle: bottle, scopes: scopes, importer: self.registry.importer)
             }
         )
     }
 
-    @Test("A winetricks override survives a D3DMetal launch and a switch back to DXVK")
+    @Test("A winetricks override survives launches and a switch of backend")
     func winetricksOverrideSurvivesBackendSwitch() async throws {
-        let (bottle, game) = try makeBottle(.dxvk)
+        let (bottle, game) = try makeBottle(.dxmt)
         try await launch(game, in: bottle)
-        #expect(registry.values(bottleKey)["dxgi"] == "n,b")
+        // The backend writes nothing: the runtime picks its graphics layer itself.
+        #expect(registry.values(bottleKey).isEmpty)
 
         // What `winetricks d3dx9 xact` and winecfg leave behind.
         registry.set(bottleKey, ["d3dx9_43": "native", "xaudio2_7": "native,builtin"])
         registry.set(gameKey, ["dinput8": "native"])
 
-        bottle.settings.graphicsBackend = .d3dMetal
+        bottle.settings.graphicsBackend = .wined3d
         try await launch(game, in: bottle)
-        // D3DMetal writes nothing at bottle level: DXVK's set goes, the rest stays.
         #expect(registry.values(bottleKey) == ["d3dx9_43": "native", "xaudio2_7": "native,builtin"])
         #expect(registry.values(gameKey) == ["dinput8": "native"])
-
-        bottle.settings.graphicsBackend = .dxvk
-        try await launch(game, in: bottle)
-        let bottleValues = registry.values(bottleKey)
-        #expect(bottleValues["d3dx9_43"] == "native")
-        #expect(bottleValues["xaudio2_7"] == "native,builtin")
-        for dll in ["dxgi", "d3d9", "d3d10core", "d3d11"] {
-            #expect(bottleValues[dll] == "n,b", "\(dll)")
-        }
-        #expect(registry.values(gameKey)["dinput8"] == "native")
     }
 
-    @Test("Winetricks' starred backend overrides go on a D3DMetal launch, its others stay")
-    func starredBackendOverridesGo() async throws {
-        let (bottle, game) = try makeBottle(.d3dMetal)
-        // What `winetricks dxvk d3dx9` writes: every name with a leading `*`.
-        registry.set(bottleKey, [
-            "*d3d11": "native", "*dxgi": "native", "*d3d12": "native", "*d3dx9_43": "native"
-        ])
-        registry.set(gameKey, ["*d3d9": "native", "*xaudio2_7": "native"])
-
-        try await launch(game, in: bottle)
-        #expect(registry.values(bottleKey) == ["*d3dx9_43": "native"])
-        #expect(registry.values(gameKey) == ["*xaudio2_7": "native"])
-    }
-
-    @Test("A deleted custom override is taken back, and only that one")
     func removedCustomOverrideIsTakenBack() async throws {
-        let (bottle, game) = try makeBottle(.d3dMetal)
+        let (bottle, game) = try makeBottle(.recommended)
         registry.set(bottleKey, ["d3dx9_43": "native"])
         bottle.settings.dllOverrides = [DLLOverrideEntry(dllName: "version", mode: .nativeThenBuiltin)]
         try await launch(game, in: bottle)
@@ -168,7 +143,7 @@ final class DLLOverridePreservationTests {
     func recordKeepsOtherProgramsNames() {
         let otherKey = Wine.DLLOverrideScope.program("Other.exe").registryKey
         var record = DLLOverrideRecord().updated(with: [(key: otherKey, overrides: ["version": "n,b"])])
-        record = record.updated(with: [(key: gameKey, overrides: ["dinput8": "n", "dxgi": "n,b"])])
+        record = record.updated(with: [(key: gameKey, overrides: ["dinput8": "n", "nvapi64": ""])])
 
         #expect(record.names(for: otherKey) == ["version"])
         // Managed names are always removable, so they are not recorded.
@@ -181,7 +156,7 @@ final class DLLOverridePreservationTests {
 
     @Test("A launch that finishes during another's import keeps its recorded names")
     func overlappingLaunchesKeepEachOthersNames() async throws {
-        let (bottle, _) = try makeBottle(.d3dMetal)
+        let (bottle, _) = try makeBottle(.recommended)
         let otherKey = Wine.DLLOverrideScope.program("Other.exe").registryKey
         // Launch B saves its names while launch A's import is still running.
         let importer: Wine.RegistryImporter = { document, bottle in
@@ -201,7 +176,7 @@ final class DLLOverridePreservationTests {
 
     @Test("A launch that starts during another's import takes back the name that import wrote")
     func overlappingLaunchesOfOneProgramTakeBackStaleNames() async throws {
-        let (bottle, _) = try makeBottle(.d3dMetal)
+        let (bottle, _) = try makeBottle(.recommended)
         var releaseFirst: CheckedContinuation<Void, Never>?
         var held = false
         let importer: Wine.RegistryImporter = { document, _ in
@@ -260,7 +235,7 @@ final class DLLOverridePreservationTests {
 
     @Test("The record survives a save and load")
     func recordRoundTrips() throws {
-        let (bottle, _) = try makeBottle(.d3dMetal)
+        let (bottle, _) = try makeBottle(.recommended)
         let record = DLLOverrideRecord().updated(with: [(key: bottleKey, overrides: ["Version": "n,b"])])
         try record.save(to: bottle.url)
         #expect(DLLOverrideRecord.load(from: bottle.url) == record)

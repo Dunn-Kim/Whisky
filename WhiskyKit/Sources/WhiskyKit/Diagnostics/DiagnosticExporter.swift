@@ -212,12 +212,6 @@ public enum DiagnosticExporter {
             section += "- **WhiskyWine:** \(whiskyWineVersion.major).\(whiskyWineVersion.minor)"
             section += ".\(whiskyWineVersion.patch)\n"
         }
-        if let dxvkVersion = WhiskyWineInstaller.whiskyWineDXVKVersion() {
-            section += "- **DXVK:** \(dxvkVersion)\n"
-        }
-        if let dxmtVersion = WhiskyWineInstaller.whiskyWineDXMTVersion() {
-            section += "- **DXMT:** \(dxmtVersion)\n"
-        }
         section += "\n"
         return section
     }
@@ -228,7 +222,6 @@ public enum DiagnosticExporter {
         section += "- **Bottle:** \(bottle.settings.name)\n"
         section += "- **Windows Version:** \(bottle.settings.windowsVersion)\n"
         section += "- **Graphics Backend:** \(bottle.settings.graphicsBackend)\n"
-        section += "- **DXVK Async:** \(bottle.settings.dxvkAsync ? "Enabled" : "Disabled")\n"
         section += "- **Enhanced Sync:** \(bottle.settings.enhancedSync)\n"
         section += "\n"
         return section
@@ -330,11 +323,9 @@ public enum DiagnosticExporter {
         info["name"] = bottle.settings.name
         info["windowsVersion"] = "\(bottle.settings.windowsVersion)"
         info["graphicsBackend"] = "\(bottle.settings.graphicsBackend)"
-        info["dxvkAsync"] = "\(bottle.settings.dxvkAsync)"
         info["enhancedSync"] = "\(bottle.settings.enhancedSync)"
         info["metalHud"] = "\(bottle.settings.metalHud)"
         info["metalValidation"] = "\(bottle.settings.metalValidation)"
-        info["dxrEnabled"] = "\(bottle.settings.dxrEnabled)"
         info["shaderCacheEnabled"] = "\(bottle.settings.shaderCacheEnabled)"
         info["avxEnabled"] = "\(bottle.settings.avxEnabled)"
         info["sequoiaCompatMode"] = "\(bottle.settings.sequoiaCompatMode)"
@@ -359,7 +350,7 @@ public enum DiagnosticExporter {
             : Redactor.redactLogText(program.settings.arguments)
         info["hasOverrides"] = "\(program.settings.overrides != nil)"
         // Why Recommended picked what it did, so a black-window report shows
-        // whether the program was steered to DXVK (#372).
+        // whether the program was steered to WineD3D (#372).
         let backends = PreflightCollector.resolvedBackends(
             bottle: program.bottle.settings.graphicsBackend,
             programOverride: program.settings.overrides?.graphicsBackend,

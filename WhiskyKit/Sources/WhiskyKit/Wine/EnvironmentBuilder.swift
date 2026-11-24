@@ -28,7 +28,7 @@ import Foundation
 ///
 /// 1. ``base`` -- WINEPREFIX, default WINEDEBUG, PATH-related defaults
 /// 2. ``platform`` -- macOS compatibility fixes
-/// 3. ``bottleManaged`` -- Toggles/presets Whisky owns (DXVK, Metal, sync, performance)
+/// 3. ``bottleManaged`` -- Toggles/presets Whisky owns (Metal, sync, performance)
 /// 4. ``launcherManaged`` -- Launcher compatibility mode and detected overrides
 /// 5. ``gameProfile`` -- GameDB variant environment applied for a single launch
 /// 6. ``bottleUser`` -- User-defined bottle-level environment variables
@@ -92,10 +92,10 @@ public struct EnvironmentProvenance: Sendable {
 /// ```swift
 /// var builder = EnvironmentBuilder()
 /// builder.set("WINEPREFIX", bottlePath, layer: .base)
-/// builder.set("DXVK_ASYNC", "1", layer: .bottleManaged)
-/// builder.set("DXVK_ASYNC", "0", layer: .programUser)
+/// builder.set("DXMT_SHADER_CACHE", "1", layer: .bottleManaged)
+/// builder.set("DXMT_SHADER_CACHE", "0", layer: .programUser)
 /// let result = builder.resolve()
-/// // result.environment["DXVK_ASYNC"] == "0" (programUser wins)
+/// // result.environment["DXMT_SHADER_CACHE"] == "0" (programUser wins)
 /// ```
 public struct EnvironmentBuilder: Sendable {
     /// Per-layer storage of key-value entries.
@@ -158,7 +158,7 @@ public struct EnvironmentBuilder: Sendable {
         layers[layer, default: [:]][key] = nil as String?
     }
 
-    /// Variables whose value is a DXVK-style `name=value;name=value` list.
+    /// Variables whose value is a `name=value;name=value` list.
     ///
     /// Layers merge these per entry instead of replacing the whole value, so a
     /// program's own `DXMT_CONFIG` keeps the bottle's frame cap and the reverse.

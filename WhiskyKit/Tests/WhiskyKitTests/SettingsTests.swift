@@ -195,7 +195,6 @@ final class BottleMetalConfigTests: XCTestCase {
 
         XCTAssertFalse(config.metalHud)
         XCTAssertFalse(config.metalTrace)
-        XCTAssertFalse(config.dxrEnabled)
         XCTAssertFalse(config.metalValidation)
         XCTAssertTrue(config.sequoiaCompatMode)
     }
@@ -204,7 +203,6 @@ final class BottleMetalConfigTests: XCTestCase {
         var original = BottleMetalConfig()
         original.metalHud = true
         original.metalTrace = true
-        original.dxrEnabled = true
         original.metalValidation = true
         original.sequoiaCompatMode = false
 
@@ -216,7 +214,6 @@ final class BottleMetalConfigTests: XCTestCase {
 
         XCTAssertTrue(decoded.metalHud)
         XCTAssertTrue(decoded.metalTrace)
-        XCTAssertTrue(decoded.dxrEnabled)
         XCTAssertTrue(decoded.metalValidation)
         XCTAssertFalse(decoded.sequoiaCompatMode)
     }
@@ -229,48 +226,7 @@ final class BottleMetalConfigTests: XCTestCase {
 
         XCTAssertFalse(config.metalHud)
         XCTAssertFalse(config.metalTrace)
-        XCTAssertFalse(config.dxrEnabled)
         XCTAssertFalse(config.metalValidation)
         XCTAssertTrue(config.sequoiaCompatMode)
-    }
-}
-
-// MARK: - BottleDXVKConfig Tests
-
-final class BottleDXVKConfigTests: XCTestCase {
-    func testDefaultValues() {
-        let config = BottleDXVKConfig()
-
-        XCTAssertFalse(config.dxvk)
-        XCTAssertTrue(config.dxvkAsync)
-        XCTAssertEqual(config.dxvkHud, .off)
-    }
-
-    func testRoundTrip() throws {
-        var original = BottleDXVKConfig()
-        original.dxvk = true
-        original.dxvkAsync = false
-        original.dxvkHud = .full
-
-        let encoder = PropertyListEncoder()
-        encoder.outputFormat = .xml
-        let data = try encoder.encode(original)
-
-        let decoded = try PropertyListDecoder().decode(BottleDXVKConfig.self, from: data)
-
-        XCTAssertTrue(decoded.dxvk)
-        XCTAssertFalse(decoded.dxvkAsync)
-        XCTAssertEqual(decoded.dxvkHud, .full)
-    }
-
-    func testDecodeWithMissingValuesUsesDefaults() throws {
-        let plist: [String: Any] = [:]
-
-        let data = try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0)
-        let config = try PropertyListDecoder().decode(BottleDXVKConfig.self, from: data)
-
-        XCTAssertFalse(config.dxvk)
-        XCTAssertTrue(config.dxvkAsync)
-        XCTAssertEqual(config.dxvkHud, .off)
     }
 }

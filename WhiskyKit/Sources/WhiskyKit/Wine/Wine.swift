@@ -76,15 +76,9 @@ private let logger = Logger(subsystem: Bundle.whiskyBundleIdentifier, category: 
 /// ### Utilities
 /// - ``wineVersion()``
 /// - ``killBottle(bottle:)``
-/// - ``enableDXVK(bottle:)``
 /// - ``generateRunCommand(at:bottle:args:environment:)``
 /// - ``generateTerminalEnvironmentCommand(bottle:)``
 public class Wine {
-    /// URL to the installed DXVK folder containing Direct3D-to-Vulkan translation libraries.
-    static let dxvkFolder: URL = WhiskyWineInstaller.libraryFolder.appending(path: "DXVK")
-    /// URL to the installed DXMT payload containing Direct3D-11-to-Metal translation libraries.
-    /// Absent on runtimes older than Wine Libraries 3.1.0.
-    static let dxmtFolder: URL = WhiskyWineInstaller.libraryFolder.appending(path: "DXMT")
     /// The URL to the `wine` binary executable.
     ///
     /// This is the main Wine binary used to execute Windows applications.
@@ -242,11 +236,6 @@ public class Wine {
     /// This is the primary method for launching Windows applications. It prepares the bottle
     /// with `prepareProgramLaunch` and then executes the program using `wine start /unix`.
     ///
-    /// - Note: If DXVK is enabled in the bottle's settings (`bottle.settings.dxvk`),
-    ///   the DXVK libraries will be automatically installed into the bottle before
-    ///   execution. This ensures Direct3D games use Vulkan translation for better
-    ///   performance on macOS.
-    ///
     /// ## Example
     ///
     /// ```swift
@@ -273,9 +262,6 @@ public class Wine {
     ///     one spawns rather than to `url` itself, as when `steam.exe` launches a game.
     ///   - descendantExecutables: The executable names of what this launch starts, when the
     ///     overrides apply to descendants.
-    ///   - descendantExecutableURLs: Where the executables of what this launch starts are, when
-    ///     the overrides apply to descendants. A launcher carrying a DXMT plan places DXMT's
-    ///     trio beside them, since its own `system32` keeps DXVK.
     ///   - ownSettingsExecutables: Executables among what this launch starts that keep their
     ///     own settings instead of the descendants' overrides, when those apply to descendants.
     ///   - descendantLaunchers: Launchers what this launch starts brings up on its own.
@@ -294,7 +280,6 @@ public class Wine {
         gameProfileEnvironment: [String: String] = [:],
         overridesApplyToDescendants: Bool = false,
         descendantExecutables: [String] = [],
-        descendantExecutableURLs: [URL] = [],
         ownSettingsExecutables: [URL] = [],
         descendantLaunchers: [LauncherType] = [],
         onOutput: (@MainActor (ProcessOutput) -> Void)? = nil
@@ -305,7 +290,6 @@ public class Wine {
             gameProfileEnvironment: gameProfileEnvironment,
             overridesApplyToDescendants: overridesApplyToDescendants,
             descendantExecutables: descendantExecutables,
-            descendantExecutableURLs: descendantExecutableURLs,
             ownSettingsExecutables: ownSettingsExecutables,
             descendantLaunchers: descendantLaunchers
         )
@@ -406,9 +390,8 @@ public class Wine {
     ///
     /// This is everything `runProgram` does before it starts the process: it
     /// adds the Noto CJK aliases once Source Han Sans is installed, resolves
-    /// the effective graphics backend, deploys that backend's files into the
-    /// prefix, builds the environment, and writes the launch's DLL overrides
-    /// into the prefix registry. What it writes stays in the prefix, so running
+    /// the effective graphics backend, builds the environment, and writes the
+    /// launch's DLL overrides into the prefix registry. What it writes stays in the prefix, so running
     /// the returned arguments with the returned environment later, from a
     /// terminal, starts the program with the DLLs, fonts and settings a launch
     /// from Whisky gives it. What only happens while `runProgram` runs is not
@@ -430,9 +413,6 @@ public class Wine {
     ///   - descendantExecutables: The executable names of what this launch starts, when the
     ///     overrides apply to descendants. The overrides go into their `AppDefaults` entries,
     ///     replacing whatever an earlier launch or version left there.
-    ///   - descendantExecutableURLs: Where those executables are. A launcher carrying a DXMT
-    ///     plan keeps DXVK in `system32` for itself, so DXMT's trio goes beside each of them,
-    ///     where Wine's loader finds it first; a later launch on another plan takes it back.
     ///   - ownSettingsExecutables: Executables among what this launch starts that keep their
     ///     own settings: each one the user has tuned gets an entry from its own overrides, as a
     ///     launch of it from the Programs tab writes, and the descendants' overrides skip it.
@@ -446,14 +426,9 @@ public class Wine {
     ///     recorder here too.
     ///   - virtualDesktopQuery: Whether the bottle's registry turns its virtual desktop on.
     ///     Only asked for a program whose override turns the virtual desktop off. Tests pin it.
-    ///   - dxvkFolder: The DXVK payload a launch on DXVK copies into the prefix. Defaults to
-    ///     the installed one; tests pass their own, to see which files the prefix ends up with.
-    ///   - dxmtFolder: The DXMT payload a launch on DXMT copies into the prefix and, for a
-    ///     launcher carrying a DXMT plan or a game with copies already recorded, beside the
-    ///     game's executables. Defaults to the installed one; tests pass their own.
     /// - Returns: The environment and `wine` arguments the launch runs with.
-    /// - Throws: An error if a backend's files cannot be deployed or the DLL override import
-    ///   cannot be started. A failed font alias import is only logged.
+    /// - Throws: An error if the DLL override import cannot be started. A failed font
+    ///   alias import is only logged.
     @MainActor
     static func prepareProgramLaunch(
         at url: URL, args: [String] = [], bottle: Bottle, environment: [String: String] = [:],
@@ -461,47 +436,40 @@ public class Wine {
         gameProfileEnvironment: [String: String] = [:],
         overridesApplyToDescendants: Bool = false,
         descendantExecutables: [String] = [],
-        descendantExecutableURLs: [URL] = [],
         ownSettingsExecutables: [URL] = [],
         descendantLaunchers: [LauncherType] = [],
         recommendedBackend: GraphicsBackend = GraphicsBackendResolver.resolve(),
         overrideWriter: DLLOverrideWriter = { try await syncDLLOverrides(bottle: $0, scopes: $1) },
         importer: RegistryImporter = { try await importRegistry(document: $0, bottle: $1) },
-        virtualDesktopQuery: VirtualDesktopQuery = { try await isVirtualDesktopEnabled(bottle: $0) },
-        dxvkFolder: URL = Wine.dxvkFolder,
-        dxmtFolder: URL = Wine.dxmtFolder
+        virtualDesktopQuery: VirtualDesktopQuery = { try await isVirtualDesktopEnabled(bottle: $0) }
     ) async throws -> PreparedLaunch {
         // Font aliases first, before any setting is read: their import can take
         // a few seconds, and a setting changed during it would leave this launch
-        // with one backend's files and another's environment. It must finish
+        // with one backend's environment and another's. It must finish
         // before the program starts, since a process reads the aliases once, and
         // like every Wine process it reconciles the user profile before starting.
         await syncCJKFontReplacements(bottle: bottle, importer: importer)
 
         // The effective backend for this launch: a program-level override wins
         // over the bottle setting, and `.recommended` resolves to its concrete
-        // backend. This decides which translation layer's files are deployed;
-        // the matching WINEDLLOVERRIDES come from the environment layers.
-        // `.recommended` resolves against what is being launched, not just the
-        // machine: a launcher is steered to DXVK. Not when the overrides are a
-        // descendant's, as with `steam.exe -applaunch`: steam.exe is only the
-        // vehicle there and the plan is the game's, so the game resolves the way
-        // the bottle's games do. Steered, every game started that way got DXVK's
-        // set, `d3d12=` included (#276). The launcher keeps DXVK through its own
-        // `AppDefaults` entry, written from the launcher's set. A Chromium front
-        // end from the curated table (3DMark) is steered the same way, while
-        // the benchmarks and games it starts keep the bottle's backend, and so
-        // is an Electron or NW.js app found by its files (#372).
+        // backend. `.recommended` resolves against what is being launched, not
+        // just the machine: a launcher is steered to WineD3D. Not when the
+        // overrides are a descendant's, as with `steam.exe -applaunch`:
+        // steam.exe is only the vehicle there and the plan is the game's, so the
+        // game resolves the way the bottle's games do. A Chromium front end from
+        // the curated table (3DMark) is steered the same way, while the
+        // benchmarks and games it starts keep the bottle's backend, and so is an
+        // Electron or NW.js app found by its files (#372).
         let launcher = LauncherType.detect(from: url)
-        let steering = overridesApplyToDescendants ? nil : DXVKSteering.inspect(executable: url)
+        let steering = overridesApplyToDescendants ? nil : BackendSteering.inspect(executable: url)
         let effectiveBackendChoice = programOverrides?.graphicsBackend ?? bottle.settings.graphicsBackend
         let effectiveBackend = effectiveBackend(
             for: url, choice: effectiveBackendChoice, steering: steering, recommendedBackend: recommendedBackend
         )
 
-        // The bottle composes its overrides from its own resolution, which does
+        // The bottle composes its environment from its own resolution, which does
         // not know what is being launched, so pin the decision here or a
-        // steered launcher gets DXVK's files and none of its overrides.
+        // steered launcher gets the bottle's backend.
         var programOverrides = programOverrides
         if effectiveBackendChoice == .recommended, effectiveBackend != recommendedBackend {
             var pinned = programOverrides ?? ProgramOverrides()
@@ -512,16 +480,6 @@ public class Wine {
         // The profile has to resolve under whichever name this runtime uses
         // before anything in the bottle starts, or the app boots into an empty one.
         WineUserProfile.reconcile(bottleURL: bottle.url)
-
-        try prepareBackendPrefix(effectiveBackend, bottle: bottle, dxmtFolder: dxmtFolder)
-
-        try deployLauncherAndGameLayers(
-            bottle: bottle, effectiveBackend: effectiveBackend, programOverrides: programOverrides,
-            launcherCarriesDescendantPlan: overridesApplyToDescendants && launcher != nil,
-            gameExecutables: overridesApplyToDescendants ? descendantExecutableURLs : [url],
-            steamGamesBackend: launcher == .steam ? recommendedBackend : nil,
-            dxvkFolder: dxvkFolder, dxmtFolder: dxmtFolder
-        )
 
         var wineEnvironment = launchEnvironment(
             for: url, bottle: bottle, backend: effectiveBackend, environment: environment,
@@ -553,23 +511,23 @@ public class Wine {
 
     /// The concrete backend a launch runs on: an explicit choice as is, and
     /// Recommended resolved for what is launched, which steers a launcher, a
-    /// Chromium front end, or an Electron or NW.js app to DXVK. A steered pick
+    /// Chromium front end, or an Electron or NW.js app to WineD3D. A steered pick
     /// is logged with its evidence.
     ///
     /// - Parameters:
     ///   - url: The executable being launched.
     ///   - choice: The program's backend override, else the bottle's backend.
-    ///   - steering: Why `url` needs DXVK, when it does and its overrides are its own.
+    ///   - steering: Why `url` needs WineD3D, when it does and its overrides are its own.
     ///   - recommendedBackend: What `.recommended` resolves to for the bottle's games.
     static func effectiveBackend(
-        for url: URL, choice: GraphicsBackend, steering: DXVKSteering?, recommendedBackend: GraphicsBackend
+        for url: URL, choice: GraphicsBackend, steering: BackendSteering?, recommendedBackend: GraphicsBackend
     ) -> GraphicsBackend {
         guard choice == .recommended else { return choice }
         guard let steering else { return recommendedBackend }
         let executable = url.lastPathComponent
         let evidence = steering.evidence
-        logger.info("Recommended -> DXVK for \(executable, privacy: .public) (\(evidence, privacy: .public))")
-        return .dxvk
+        logger.info("Recommended -> WineD3D for \(executable, privacy: .public) (\(evidence, privacy: .public))")
+        return .wined3d
     }
 
     /// The environment a launch runs with: `constructWineEnvironment` with the
@@ -1109,255 +1067,6 @@ public class Wine {
         let deadline = Date().addingTimeInterval(timeout)
         while process.isRunning, Date() < deadline {
             Thread.sleep(forTimeInterval: 0.05)
-        }
-    }
-
-    /// Installs DXVK libraries into a bottle's Windows system directories.
-    ///
-    /// DXVK translates DirectX 9/10/11 calls to Vulkan, often providing better
-    /// performance than Wine's built-in DirectX implementation. This method copies
-    /// the DXVK DLL files to the bottle's system32 and syswow64 directories.
-    ///
-    /// - Parameter bottle: The ``Bottle`` to install DXVK into.
-    /// - Throws: An error if the DLL files cannot be copied.
-    ///
-    /// - Note: This is automatically called by ``runProgram(at:args:bottle:environment:)``
-    ///   when DXVK is enabled in the bottle settings.
-    @MainActor
-    public static func enableDXVK(bottle: Bottle) throws {
-        try enableDXVK(bottle: bottle, from: dxvkFolder)
-    }
-
-    /// Installs the DXVK libraries in `dxvkFolder` into a bottle's Windows
-    /// system directories. Tests pass a folder of their own.
-    @MainActor
-    static func enableDXVK(bottle: Bottle, from dxvkFolder: URL) throws {
-        try FileManager.default.replaceDLLs(
-            in: bottle.url.appending(path: "drive_c").appending(path: "windows").appending(path: "system32"),
-            withContentsIn: dxvkFolder.appending(path: "x64")
-        )
-        try FileManager.default.replaceDLLs(
-            in: bottle.url.appending(path: "drive_c").appending(path: "windows").appending(path: "syswow64"),
-            withContentsIn: dxvkFolder.appending(path: "x32")
-        )
-        removeStaleNativeDXGI(prefixRoot: bottle.url)
-    }
-
-    /// Removes a native `dxgi.dll` the prefix must not keep under DXVK.
-    ///
-    /// DXVK-macOS ships no `dxgi.dll`, so ``enableDXVK(bottle:)`` never
-    /// overwrites one. After a bottle has launched under DXMT, its system
-    /// directories hold DXMT's *native* dxgi, and a DXVK launch then pairs
-    /// DXVK's `d3d11` with DXMT's `dxgi` under the `n,b` override. That mix
-    /// cannot create window swapchains: Chromium clients fail with
-    /// `DXGI_ERROR_UNSUPPORTED` and run with no window at all. Removing the
-    /// leftover lets the `,b` half of the override load the builtin, which is
-    /// the pairing DXVK is written against.
-    ///
-    /// Both arches are swept, because a DXMT launch writes both and a 32-bit
-    /// title otherwise keeps the bad pairing. A builtin-marked file is never
-    /// touched: that is wine's own fake DLL, exactly what DXVK expects to
-    /// defer to, and leaving it in place is what keeps this off the
-    /// per-launch prefix-mutation path.
-    static func removeStaleNativeDXGI(
-        prefixRoot: URL,
-        libraryFolder: URL = WhiskyWineInstaller.libraryFolder
-    ) {
-        let fileManager = FileManager.default
-        let builtinDirs = ["system32": "x86_64-windows", "syswow64": "i386-windows"]
-        for (dir, arch) in builtinDirs {
-            let dxgi = prefixRoot.appending(path: "drive_c").appending(path: "windows")
-                .appending(path: dir).appending(path: "dxgi.dll")
-            guard fileManager.fileExists(atPath: dxgi.path(percentEncoded: false)),
-                  (try? isNativePE(dxgi)) == true
-            else { continue }
-            do {
-                try fileManager.removeItem(at: dxgi)
-                Logger.wineKit.info("Removed stale native dxgi.dll from \(dir, privacy: .public)")
-            } catch {
-                Logger.wineKit.warning(
-                    "Could not remove stale native dxgi.dll: \(error.localizedDescription, privacy: .public)"
-                )
-                continue
-            }
-            // The removal must not leave the slot empty. Wine's loader only reaches a
-            // builtin through its system32 placeholder (ntdll/loader.c
-            // find_builtin_without_file refuses every non-16-bit DLL that has no
-            // file), so with nothing here `LoadLibrary("dxgi.dll")` fails outright
-            // and Chromium's GPU process cannot bring up D3D11. wineboot would
-            // reinstall the placeholder on the next prefix update, but a runtime
-            // whose wine.inf matches the prefix stamp never runs one. Put back the
-            // runtime's own marked copy, which is what wineboot installs.
-            let builtin = libraryFolder.appending(path: "Wine").appending(path: "lib")
-                .appending(path: "wine").appending(path: arch).appending(path: "dxgi.dll")
-            guard fileManager.fileExists(atPath: builtin.path(percentEncoded: false)) else {
-                Logger.wineKit.warning("No builtin dxgi.dll to restore into \(dir, privacy: .public)")
-                continue
-            }
-            do {
-                try fileManager.copyItem(at: builtin, to: dxgi)
-                Logger.wineKit.info("Restored builtin dxgi.dll placeholder into \(dir, privacy: .public)")
-            } catch {
-                Logger.wineKit.warning(
-                    "Could not restore builtin dxgi.dll: \(error.localizedDescription, privacy: .public)"
-                )
-            }
-        }
-    }
-
-    /// Errors thrown by ``enableDXMT(bottle:)``.
-    public enum DXMTError: LocalizedError, Equatable {
-        /// The installed runtime has no usable DXMT payload — either absent
-        /// (a runtime predating the DXMT payload, or a damaged/truncated
-        /// install) or the older builtin-variant payload that cannot be
-        /// activated per-bottle.
-        case payloadMissing
-
-        public var errorDescription: String? {
-            switch self {
-            case .payloadMissing:
-                String(localized: "wine.dxmt.error.payloadMissing")
-            }
-        }
-    }
-
-    /// DXMT's D3D translation trio — native PEs loaded from the prefix under the
-    /// `n,b` override.
-    private static let dxmtNativeTrio = ["d3d11.dll", "dxgi.dll", "d3d10core.dll"]
-
-    /// The DXMT files deployed into a bottle: the native D3D trio plus
-    /// `winemetal.dll`. `winemetal.dll` is the builtin-marked redirect whose
-    /// import resolves to the runtime's `winemetal.dll` builtin in `lib/wine`.
-    /// The NVIDIA extras (nvapi64/nvngx) in the payload are deliberately not
-    /// deployed — DXMT's vendor spoofing is out of scope.
-    private static let dxmtPrefixDLLs = dxmtNativeTrio + ["winemetal.dll"]
-
-    /// Whether the installed runtime carries a DXMT payload that can actually be
-    /// activated per-bottle: present **and** the *native* variant. A
-    /// builtin-marked trio (the older runtime layout) is silently ignored by the
-    /// loader in favor of wined3d, so it does not count as available. Used to
-    /// gate the DXMT backend in the pickers. The x64 `d3d11.dll` is sampled as
-    /// the trio's representative (the runtime assembles all three together); the
-    /// per-launch ``enableDXMT(payloadRoot:prefixRoot:)`` guard verifies the whole
-    /// trio.
-    public static func isDXMTRuntimeNative() -> Bool {
-        isDXMTRuntimeNative(payloadRoot: dxmtFolder)
-    }
-
-    /// Capability check against an explicit payload root. Factored out so the
-    /// gate can be tested against temporary fixtures (mirrors the
-    /// ``enableDXMT(payloadRoot:prefixRoot:)`` seam).
-    static func isDXMTRuntimeNative(payloadRoot: URL) -> Bool {
-        let d3d11 = payloadRoot.appending(path: "x64").appending(path: "d3d11.dll")
-        guard FileManager.default.fileExists(atPath: d3d11.path(percentEncoded: false)) else { return false }
-        return (try? isNativePE(d3d11)) ?? false
-    }
-
-    /// Returns `true` when the PE at `url` is a markerless *native* DLL — i.e. its
-    /// DOS stub does not carry winebuild's "Wine builtin DLL" signature in the 16
-    /// bytes at offset 0x40. A builtin-marked copy placed in the prefix is ignored
-    /// by the loader, which redirects to the `lib/wine` builtin (wined3d) instead.
-    /// A file too short to hold those 16 bytes is treated as **not** native
-    /// (fail-closed): a truncated or corrupt payload must not be deployed as if it
-    /// were a working native DLL — that would resurrect the silent wined3d
-    /// fallback this guard exists to prevent.
-    static func isNativePE(_ url: URL) throws -> Bool {
-        let handle = try FileHandle(forReadingFrom: url)
-        defer { try? handle.close() }
-        try handle.seek(toOffset: 0x40)
-        guard let marker = try handle.read(upToCount: 16), marker.count == 16 else {
-            return false
-        }
-        return marker != Data("Wine builtin DLL".utf8)
-    }
-
-    /// Places the per-bottle files a backend needs in the prefix before launch.
-    ///
-    /// DXMT goes first: if launcher auto-DXVK also fires in `runProgram`, DXVK's
-    /// file copy deterministically wins, matching the override-layer order where
-    /// launcher-managed entries land after bottle-managed ones.
-    /// A game whose DXMT plan a launcher carries then gets DXMT's trio in its own
-    /// folder (``reconcileDXMTGameFolders(_:executables:bottleURL:payloadRoot:)``).
-    @MainActor
-    private static func prepareBackendPrefix(
-        _ backend: GraphicsBackend, bottle: Bottle, dxmtFolder: URL = Wine.dxmtFolder
-    ) throws {
-        switch backend {
-        case .dxmt:
-            try enableDXMT(payloadRoot: dxmtFolder, prefixRoot: bottle.url)
-        case .d3dMetal, .dxvk, .wined3d, .recommended:
-            break
-        }
-    }
-
-    /// Installs DXMT into a bottle so its Direct3D-11-to-Metal layer is used.
-    ///
-    /// Copies the native D3D translation trio (`d3d11`, `dxgi`, `d3d10core`) and
-    /// `winemetal.dll` from the runtime's DXMT payload into the bottle's system
-    /// directories — the same per-bottle, prefix-local model as ``enableDXVK``,
-    /// selected by the `n,b` overrides from ``DLLOverrideResolver/dxmtPreset()``.
-    /// The runtime ships DXMT's `winemetal.dll` builtin (paired with its
-    /// `winemetal.so` unixlib) in `lib/wine`, so this method never touches the
-    /// shared Wine tree; the prefix `winemetal.dll` is the builtin-marked
-    /// redirect that resolves the trio's import to that builtin.
-    ///
-    /// - Parameter bottle: The ``Bottle`` to install DXMT into.
-    /// - Throws: ``DXMTError/payloadMissing`` when the runtime has no usable
-    ///   (present and native) DXMT payload, or a `CocoaError` if a copy fails.
-    ///
-    /// - Note: This is automatically called by `runProgram` when the effective
-    ///   graphics backend is `.dxmt`.
-    @MainActor
-    public static func enableDXMT(bottle: Bottle) throws {
-        try enableDXMT(payloadRoot: Wine.dxmtFolder, prefixRoot: bottle.url)
-    }
-
-    /// Performs the DXMT installation against explicit roots. Factored out of
-    /// ``enableDXMT(bottle:)`` so the file placement can be tested against
-    /// temporary directories (mirrors `enableDXVK`'s prefix-local copy).
-    static func enableDXMT(payloadRoot: URL, prefixRoot: URL) throws {
-        let fileManager = FileManager.default
-        let x64Payload = payloadRoot.appending(path: "x64")
-        let x32Payload = payloadRoot.appending(path: "x32")
-
-        let windowsDir = prefixRoot.appending(path: "drive_c").appending(path: "windows")
-        let system32 = windowsDir.appending(path: "system32")
-        let syswow64 = windowsDir.appending(path: "syswow64")
-        let deploy32Bit = fileManager.fileExists(atPath: syswow64.path(percentEncoded: false))
-
-        // Validate every source BEFORE touching the prefix, and require the whole
-        // trio to be the native variant. A damaged runtime (a file missing or
-        // truncated) or the older builtin-variant payload (which the loader would
-        // ignore in favor of wined3d) must fail with the actionable payloadMissing
-        // error rather than half-deploy, or launch a bottle that silently isn't
-        // using DXMT.
-        var sources = dxmtPrefixDLLs.map { x64Payload.appending(path: $0) }
-        if deploy32Bit {
-            sources += dxmtPrefixDLLs.map { x32Payload.appending(path: $0) }
-        }
-        let allPresent = sources.allSatisfy { fileManager.fileExists(atPath: $0.path(percentEncoded: false)) }
-        let trioIsNative = dxmtNativeTrio.allSatisfy {
-            (try? isNativePE(x64Payload.appending(path: $0))) == true
-        }
-        guard allPresent, trioIsNative else {
-            throw DXMTError.payloadMissing
-        }
-
-        for name in dxmtPrefixDLLs {
-            try fileManager.installFileIfContentDiffers(
-                at: system32.appending(path: name),
-                from: x64Payload.appending(path: name)
-            )
-        }
-
-        // 32-bit half: only when the prefix actually has a syswow64 tree.
-        if deploy32Bit {
-            for name in dxmtPrefixDLLs {
-                try fileManager.installFileIfContentDiffers(
-                    at: syswow64.appending(path: name),
-                    from: x32Payload.appending(path: name)
-                )
-            }
         }
     }
 }

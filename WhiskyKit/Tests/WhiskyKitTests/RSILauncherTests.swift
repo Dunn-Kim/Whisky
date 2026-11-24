@@ -17,15 +17,12 @@
 //
 
 import Foundation
-import SemanticVersion
 import Testing
 @testable import WhiskyKit
 
-/// The RSI Launcher draws its window only on DXVK (#168). It is detected as a
-/// launcher so Recommended steers it there, while Star Citizen, the game it
+/// The RSI Launcher's window is drawn by Chromium (#168). It is detected as a
+/// launcher so Recommended steers it to WineD3D, while Star Citizen, the game it
 /// starts from the folder beside it, resolves the way the bottle's games do.
-/// Started by the launcher over DXMT, the game still loads the DXVK files the
-/// launcher's launch left in the prefix.
 @Suite("RSI Launcher")
 @MainActor
 final class RSILauncherTests {
@@ -71,26 +68,20 @@ final class RSILauncherTests {
         try makeExecutable("\(Self.gameFolder)/StarCitizen.exe", in: bottle)
     }
 
-    /// Prepares a launch of `url` against a runtime pinned to D3DMetal.
+    /// Prepares a launch of `url` against a runtime pinned to DXMT.
     private func prepare(
         _ url: URL, in bottle: Bottle, programOverrides: ProgramOverrides? = nil, recorder: ScopeRecorder
     ) async throws -> Wine.PreparedLaunch {
         try await Wine.prepareProgramLaunch(
             at: url, bottle: bottle, programOverrides: programOverrides,
-            recommendedBackend: .d3dMetal,
+            recommendedBackend: .dxmt,
             overrideWriter: recorder.writer, importer: recorder.importer
         )
     }
 
-    private func expectDXVK(_ overrides: [String: String]?, _ label: String) {
-        #expect(overrides?["dxgi"] == "n,b", "\(label): dxgi")
-        #expect(overrides?["d3d11"] == "n,b", "\(label): d3d11")
-        #expect(overrides?["d3d10core"] == "n,b", "\(label): d3d10core")
-    }
-
     private func expectNoTranslationLayer(_ overrides: [String: String]?, _ label: String) {
         #expect(overrides != nil, "\(label) has an entry")
-        for dll in ["dxgi", "d3d9", "d3d10core", "d3d11", "d3d12"] {
+        for dll in ["dxgi", "d3d9", "d3d10core", "d3d11", "winemetal"] {
             #expect(overrides?[dll] == nil, "\(label) must not mention \(dll)")
         }
     }
@@ -134,57 +125,32 @@ final class RSILauncherTests {
 
     // MARK: - Resolution
 
-    @Test("Recommended resolves the launcher to DXVK on every runtime")
-    func resolverGivesTheLauncherDXVK() {
-        let runtime = WhiskyWineVersion(version: SemanticVersion(3, 1, 1), dxmtVersion: "0.80")
-        for dxmtNative in [true, false] {
-            #expect(
-                GraphicsBackendResolver.resolve(
-                    for: .rsiLauncher, runtimeInfo: runtime, dxmtRuntimeNative: dxmtNative
-                ) == .dxvk
-            )
-        }
+    @Test("Recommended resolves the launcher to WineD3D")
+    func resolverGivesTheLauncherWineD3D() {
+        #expect(GraphicsBackendResolver.resolve(for: .rsiLauncher) == .wined3d)
     }
 
     @Test("Star Citizen on its own resolves the way the bottle's games do")
     func gameResolvesAsAGame() {
         let url = URL(fileURLWithPath: "C:/\(Self.gameFolder)/StarCitizen.exe")
-        let runtime = WhiskyWineVersion(version: SemanticVersion(3, 1, 1), dxmtVersion: "0.80")
-        let launcher = LauncherType.detect(from: url)
-        #expect(
-            GraphicsBackendResolver.resolve(
-                for: launcher, runtimeInfo: runtime, dxmtRuntimeNative: true
-            ) == .dxmt
-        )
+        #expect(GraphicsBackendResolver.resolve(for: LauncherType.detect(from: url)) == .dxmt)
     }
 
     // MARK: - Launch preparation
 
-    @Test("Launching the launcher on a Recommended bottle gives its own entry DXVK")
-    func launchSteersTheLauncherToDXVK() async throws {
+    @Test("Launching the launcher on a Recommended bottle writes its own entry and no translation layer")
+    func launchWritesTheLauncherEntry() async throws {
         let bottle = try makeBottle()
         let recorder = ScopeRecorder()
 
         let launch = try await prepare(rsiLauncher(in: bottle), in: bottle, recorder: recorder)
 
         // Its Chromium children run as the same executable, so they read this entry.
-        expectDXVK(recorder.overrides(for: .program("RSI Launcher.exe")), "RSI Launcher.exe")
+        expectNoTranslationLayer(recorder.overrides(for: .program("RSI Launcher.exe")), "RSI Launcher.exe")
         // The prefix default is the games', and nothing is left for a child to inherit.
         expectNoTranslationLayer(recorder.overrides(for: .bottle), "the bottle scope")
         #expect(launch.environment["WINEDLLOVERRIDES"] == nil)
         #expect(bottle.settings.graphicsBackend == .recommended)
-    }
-
-    @Test("A program on Recommended in a bottle set to D3DMetal still steers the launcher")
-    func programOnRecommendedSteersTheLauncher() async throws {
-        let bottle = try makeBottle(.d3dMetal)
-        var overrides = ProgramOverrides()
-        overrides.graphicsBackend = .recommended
-        let recorder = ScopeRecorder()
-
-        _ = try await prepare(rsiLauncher(in: bottle), in: bottle, programOverrides: overrides, recorder: recorder)
-
-        expectDXVK(recorder.overrides(for: .program("RSI Launcher.exe")), "RSI Launcher.exe")
     }
 
     @Test("Star Citizen in the same bottle keeps the bottle's Recommended backend")
@@ -196,44 +162,6 @@ final class RSILauncherTests {
 
         expectNoTranslationLayer(recorder.overrides(for: .program("StarCitizen.exe")), "StarCitizen.exe")
         #expect(launch.environment["WINEDLLOVERRIDES"] == nil)
-    }
-
-    @Test("Over DXMT, Star Citizen started by the launcher loads the DXVK files the launcher's launch leaves")
-    func launcherLeavesDXVKWhereTheGameLoadsIt() async throws {
-        let bottle = try makeBottle()
-        let system32 = bottle.url.appending(path: "drive_c/windows/system32")
-        let dlls = ["d3d10core.dll", "d3d11.dll"]
-        // An earlier launch from Whisky left DXMT's files.
-        for dll in dlls {
-            try Data("DXMT \(dll)".utf8).write(to: system32.appending(path: dll))
-        }
-        let dxvkFolder = tempRoot.appending(path: "DXVK")
-        for arch in ["x64", "x32"] {
-            let folder = dxvkFolder.appending(path: arch)
-            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-            for dll in dlls {
-                try Data("DXVK \(dll)".utf8).write(to: folder.appending(path: dll))
-            }
-        }
-        let recorder = ScopeRecorder()
-
-        _ = try await Wine.prepareProgramLaunch(
-            at: rsiLauncher(in: bottle), bottle: bottle,
-            recommendedBackend: .dxmt,
-            overrideWriter: recorder.writer, importer: recorder.importer, dxvkFolder: dxvkFolder
-        )
-
-        expectDXVK(recorder.overrides(for: .program("RSI Launcher.exe")), "RSI Launcher.exe")
-        // DXVK's files replaced DXMT's, and the bottle scope, which Star Citizen
-        // reads when the launcher starts it, prefers the native ones: the game
-        // runs on DXVK. The bottle itself stays on Recommended.
-        for dll in dlls {
-            #expect(try Data(contentsOf: system32.appending(path: dll)) == Data("DXVK \(dll)".utf8), "\(dll)")
-        }
-        let bottleScope = recorder.overrides(for: .bottle)
-        #expect(bottleScope?["d3d11"] == "n,b")
-        #expect(bottleScope?["d3d10core"] == "n,b")
-        #expect(bottle.settings.graphicsBackend == .recommended)
     }
 
     // MARK: - Launcher fixes
@@ -251,14 +179,10 @@ final class RSILauncherTests {
 
         #expect(bottle.settings.detectedLauncher == .rsiLauncher)
         #expect(bottle.settings.graphicsBackend == .recommended)
-        #expect(!bottle.settings.dxvk)
-        #expect(!bottle.settings.launcherSwitchedBackend)
         #expect(bottle.settings.gpuSpoofing == gpuSpoofing)
         #expect(bottle.settings.launcherLocale == locale)
-        // No bottle-wide DXVK requirement, which the launcher auto-enable would deploy.
-        #expect(bottle.settings.detectedLauncher?.requiresDXVK == false)
         let env = Wine.constructWineEnvironment(
-            for: bottle, recommendedBackend: .d3dMetal
+            for: bottle, recommendedBackend: .dxmt
         )
         for key in ["LC_ALL", "LANG"] {
             #expect(env[key] == nil, "\(key)")

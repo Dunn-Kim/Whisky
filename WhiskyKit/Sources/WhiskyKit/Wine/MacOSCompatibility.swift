@@ -125,8 +125,8 @@ public enum MacOSCompatibilityFixes {
     /// Fixes are ordered by the macOS version they apply from, with universal fixes first.
     /// Each fix carries a reason string and category for provenance display.
     ///
-    /// Only list a variable something actually reads: a shipped runtime (Wine, DXVK,
-    /// DXMT, D3DMetal), Steam or CEF, or an Apple framework. Names no runtime
+    /// Only list a variable something actually reads: a shipped runtime (Wine or
+    /// DXMT), Steam or CEF, or an Apple framework. Names no runtime
     /// binary contains do nothing except clutter the provenance display.
     public static let allFixes: [MacOSFix] = [
         // Universal fixes (all macOS versions)

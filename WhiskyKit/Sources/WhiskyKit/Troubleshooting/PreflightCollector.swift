@@ -110,7 +110,7 @@ public enum PreflightCollector {
         _ inputs: Inputs,
         logsFolder: URL,
         audioDevice: () -> AudioDeviceInfo? = { AudioDeviceMonitor().defaultOutputDevice() },
-        recommendedBackend: (DXVKSteering?) -> BackendResolution = { GraphicsBackendResolver.resolution(for: $0) }
+        recommendedBackend: (BackendSteering?) -> BackendResolution = { GraphicsBackendResolver.resolution(for: $0) }
     ) -> PreflightData {
         var programOverride = inputs.programBackendOverride
         if inputs.readsPersistedOverride, let programURL = inputs.programURL {
@@ -156,21 +156,21 @@ public enum PreflightCollector {
     ///
     /// Mirrors the launch: the program's override wins over the bottle's
     /// setting, and Recommended resolves for what is launched, which steers
-    /// a launcher, a Chromium front end, or an Electron or NW.js app to DXVK.
+    /// a launcher, a Chromium front end, or an Electron or NW.js app to WineD3D.
     /// Reads the executable's files the way a launch does. The reason is the
     /// Recommended pick's, and `nil` for an explicit choice.
     static func resolvedBackends(
         bottle: GraphicsBackend,
         programOverride: GraphicsBackend?,
         programURL: URL?,
-        recommended: (DXVKSteering?) -> BackendResolution
+        recommended: (BackendSteering?) -> BackendResolution
     ) -> ResolvedBackends {
         let bottleResolved = bottle == .recommended ? recommended(nil).backend : bottle
         let choice = programOverride ?? bottle
         guard choice == .recommended else {
             return ResolvedBackends(effective: choice, bottle: bottleResolved, reason: nil)
         }
-        let resolution = recommended(programURL.flatMap { DXVKSteering.inspect(executable: $0) })
+        let resolution = recommended(programURL.flatMap { BackendSteering.inspect(executable: $0) })
         return ResolvedBackends(effective: resolution.backend, bottle: bottleResolved, reason: resolution.reason)
     }
 

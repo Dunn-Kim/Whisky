@@ -31,7 +31,7 @@ import os.log
 /// let registry = CheckRegistry()  // All 15 checks pre-registered
 /// let result = await registry.run(
 ///     checkId: "graphics.backend_is",
-///     params: ["expected": "dxvk"],
+///     params: ["expected": "wined3d"],
 ///     context: checkContext
 /// )
 /// ```
@@ -124,7 +124,6 @@ public final class CheckRegistry: @unchecked Sendable {
         // Graphics and crash diagnostics
         register(CrashLogCheck())
         register(GraphicsBackendCheck())
-        register(DXVKSettingsCheck())
 
         // Audio diagnostics
         register(AudioDriverCheck())

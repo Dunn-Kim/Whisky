@@ -17,11 +17,10 @@
 //
 
 import Foundation
-import SemanticVersion
 import Testing
 @testable import WhiskyKit
 
-/// The curated table of Chromium front ends Recommended runs on DXVK (#372),
+/// The curated table of Chromium front ends Recommended runs on WineD3D (#372),
 /// and how the resolver reports the pick.
 @Suite("Chromium front ends")
 struct ChromiumFrontEndTests {
@@ -49,7 +48,7 @@ struct ChromiumFrontEndTests {
     func matchesTheFrontEnd(_ path: String) {
         let url = URL(fileURLWithPath: path)
         #expect(ChromiumFrontEnd.match(url: url) == .threeDMark)
-        #expect(DXVKSteering.detect(executable: url) == .chromiumFrontEnd(.threeDMark))
+        #expect(BackendSteering.detect(executable: url) == .chromiumFrontEnd(.threeDMark))
     }
 
     @Test("Other executables match nothing, even beside libcef.dll", arguments: [
@@ -66,10 +65,10 @@ struct ChromiumFrontEndTests {
     @Test("A launcher keeps its own path, ahead of the table")
     func launcherComesFirst() {
         let steam = URL(fileURLWithPath: "/b/drive_c/Program Files (x86)/Steam/steam.exe")
-        #expect(DXVKSteering.detect(executable: steam) == .launcher(.steam))
+        #expect(BackendSteering.detect(executable: steam) == .launcher(.steam))
         let rsi =
             URL(fileURLWithPath: "/b/drive_c/Program Files/Roberts Space Industries/RSI Launcher/RSI Launcher.exe")
-        #expect(DXVKSteering.detect(executable: rsi) == .launcher(.rsiLauncher))
+        #expect(BackendSteering.detect(executable: rsi) == .launcher(.rsiLauncher))
     }
 
     @Test("A game with CEF in its folder is not steered")
@@ -83,7 +82,7 @@ struct ChromiumFrontEndTests {
         try Data("MZ".utf8).write(to: folder.appending(path: "libcef.dll"))
 
         #expect(ChromiumFrontEnd.shipsCEF(beside: game), "only the suggestion and the export see it")
-        #expect(DXVKSteering.detect(executable: game) == nil)
+        #expect(BackendSteering.detect(executable: game) == nil)
     }
 
     // MARK: - Table hygiene
@@ -132,49 +131,28 @@ struct ChromiumFrontEndTests {
 
     // MARK: - Resolution
 
-    @Test("A front end resolves to DXVK, steered, on every runtime")
-    func frontEndResolvesToDXVK() {
-        let runtime = WhiskyWineVersion(version: SemanticVersion(3, 1, 1), dxmtVersion: "0.80")
-        for dxmtNative in [true, false] {
-            let resolution = GraphicsBackendResolver.resolution(
-                for: .chromiumFrontEnd(.threeDMark), runtimeInfo: runtime, dxmtRuntimeNative: dxmtNative
-            )
-            #expect(resolution == BackendResolution(backend: .dxvk, reason: .steered(.chromiumFrontEnd(.threeDMark))))
-        }
+    @Test("A front end resolves to WineD3D, steered")
+    func frontEndResolvesToWineD3D() {
+        let resolution = GraphicsBackendResolver.resolution(for: .chromiumFrontEnd(.threeDMark))
+        #expect(resolution == BackendResolution(backend: .wined3d, reason: .steered(.chromiumFrontEnd(.threeDMark))))
     }
 
-    @Test("An unsteered executable keeps the DXMT, DXVK chain, with its reason")
-    func unsteeredKeepsTheChain() {
-        let runtime = WhiskyWineVersion(version: SemanticVersion(3, 1, 1), dxmtVersion: "0.80")
-        let cases: [(dxmtNative: Bool, expected: BackendResolution)] = [
-            (true, BackendResolution(backend: .dxmt, reason: .dxmt)),
-            (false, BackendResolution(backend: .dxvk, reason: .dxvkFallback))
-        ]
-        for (dxmtNative, expected) in cases {
-            let resolution = GraphicsBackendResolver.resolution(
-                for: nil, runtimeInfo: runtime, dxmtRuntimeNative: dxmtNative
-            )
-            #expect(resolution == expected)
-            // The launcher wrapper answers the same as before.
-            #expect(
-                GraphicsBackendResolver.resolve(runtimeInfo: runtime, dxmtRuntimeNative: dxmtNative) == expected.backend
-            )
-            #expect(
-                GraphicsBackendResolver.resolve(
-                    for: .steam, runtimeInfo: runtime, dxmtRuntimeNative: dxmtNative
-                ) == .dxvk
-            )
-        }
+    @Test("An unsteered executable resolves to DXMT, with its reason")
+    func unsteeredResolvesToDXMT() {
+        let resolution = GraphicsBackendResolver.resolution(for: nil)
+        #expect(resolution == BackendResolution(backend: .dxmt, reason: .dxmt))
+        #expect(GraphicsBackendResolver.resolve() == .dxmt)
+        #expect(GraphicsBackendResolver.resolve(for: .steam) == .wined3d)
     }
 
     @Test("Every reason has a rationale and an export name")
     func everyReasonExplainsItself() {
         let reasons: [RecommendedReason] = [
-            .steered(.launcher(.steam)), .steered(.chromiumFrontEnd(.threeDMark)), .dxmt, .dxvkFallback
+            .steered(.launcher(.steam)), .steered(.chromiumFrontEnd(.threeDMark)), .dxmt
         ]
         for reason in reasons {
-            for games in [GraphicsBackend.d3dMetal, .dxmt, .dxvk] {
-                let resolution = BackendResolution(backend: .dxvk, reason: reason)
+            for games in GraphicsBackend.allCases {
+                let resolution = BackendResolution(backend: .wined3d, reason: reason)
                 #expect(!resolution.rationale(gamesBackend: games).isEmpty)
             }
             #expect(!reason.exportName.isEmpty)
@@ -184,12 +162,12 @@ struct ChromiumFrontEndTests {
 
     @Test("A steering names what it steers and carries its helpers")
     func steeringDescribesItself() {
-        let launcher = DXVKSteering.launcher(.steam)
+        let launcher = BackendSteering.launcher(.steam)
         #expect(launcher.displayName == LauncherType.steam.displayName)
         #expect(launcher.helperExecutables == LauncherType.steam.helperExecutables)
         #expect(launcher.evidence == "launcher: \(LauncherType.steam.rawValue)")
 
-        let frontEnd = DXVKSteering.chromiumFrontEnd(.threeDMark)
+        let frontEnd = BackendSteering.chromiumFrontEnd(.threeDMark)
         #expect(frontEnd.displayName == "3DMark")
         #expect(frontEnd.helperExecutables == ChromiumFrontEnd.threeDMark.helperExecutables)
         #expect(frontEnd.evidence == "Chromium front end: 3DMark")

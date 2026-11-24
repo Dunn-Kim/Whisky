@@ -28,7 +28,7 @@ public enum DistributionConfig {
     ///
     /// Apps before 3.10.0 read `WhiskyWineVersion.plist`, which stays on the
     /// stock 3.1.1 engine: the GPTK-capable engine was tested with 3.10.0 and
-    /// its D3DMetal, DLL override and environment fixes, so older apps are not
+    /// its graphics, DLL override and environment fixes, so older apps are not
     /// offered an engine switch nobody tested them with. This feed is the one
     /// that moves.
     ///

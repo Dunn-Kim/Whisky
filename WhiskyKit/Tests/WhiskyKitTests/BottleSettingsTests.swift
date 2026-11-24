@@ -36,11 +36,8 @@ final class BottleSettingsTests: XCTestCase {
         XCTAssertEqual(settings.enhancedSync, .msync)
         XCTAssertFalse(settings.metalHud)
         XCTAssertFalse(settings.metalTrace)
-        XCTAssertFalse(settings.dxvk)
-        XCTAssertTrue(settings.dxvkAsync)
-        XCTAssertEqual(settings.dxvkHud, .off)
+        XCTAssertEqual(settings.graphicsBackend, .recommended)
         XCTAssertFalse(settings.avxEnabled)
-        XCTAssertFalse(settings.dxrEnabled)
         XCTAssertFalse(settings.metalValidation)
         XCTAssertTrue(settings.sequoiaCompatMode)
         XCTAssertTrue(settings.shaderCacheEnabled)
@@ -55,8 +52,7 @@ final class BottleSettingsTests: XCTestCase {
         var settings = BottleSettings()
         settings.name = "Test Bottle"
         settings.windowsVersion = .win11
-        settings.dxvk = true
-        settings.dxvkHud = .full
+        settings.graphicsBackend = .wined3d
         settings.metalHud = true
         settings.enhancedSync = .esync
         settings.avxEnabled = true
@@ -73,8 +69,7 @@ final class BottleSettingsTests: XCTestCase {
         // Verify all values
         XCTAssertEqual(decoded.name, "Test Bottle")
         XCTAssertEqual(decoded.windowsVersion, .win11)
-        XCTAssertTrue(decoded.dxvk)
-        XCTAssertEqual(decoded.dxvkHud, .full)
+        XCTAssertEqual(decoded.graphicsBackend, .wined3d)
         XCTAssertTrue(decoded.metalHud)
         XCTAssertEqual(decoded.enhancedSync, .esync)
         XCTAssertTrue(decoded.avxEnabled)
@@ -140,22 +135,6 @@ final class BottleSettingsTests: XCTestCase {
         }
     }
 
-    // MARK: - DXVKHUD Tests
-
-    func testDXVKHUDEncodingDecoding() throws {
-        let values: [DXVKHUD] = [.full, .partial, .fps, .off]
-
-        for value in values {
-            let encoder = JSONEncoder()
-            let data = try encoder.encode(value)
-
-            let decoder = JSONDecoder()
-            let decoded = try decoder.decode(DXVKHUD.self, from: data)
-
-            XCTAssertEqual(decoded, value)
-        }
-    }
-
     // MARK: - PinnedProgram Tests
 
     func testPinnedProgramEncodingDecoding() throws {
@@ -208,20 +187,9 @@ final class BottleSettingsTests: XCTestCase {
 
         XCTAssertFalse(config.metalHud)
         XCTAssertFalse(config.metalTrace)
-        XCTAssertFalse(config.dxrEnabled)
         XCTAssertFalse(config.metalValidation)
         XCTAssertNil(config.forceGPUFamily)
         XCTAssertTrue(config.sequoiaCompatMode)
-    }
-
-    // MARK: - BottleDXVKConfig Tests
-
-    func testBottleDXVKConfigDefaultValues() {
-        let config = BottleDXVKConfig()
-
-        XCTAssertFalse(config.dxvk)
-        XCTAssertTrue(config.dxvkAsync)
-        XCTAssertEqual(config.dxvkHud, .off)
     }
 
     // MARK: - BottlePerformanceConfig Tests
@@ -342,7 +310,7 @@ final class BottleSettingsTests: XCTestCase {
     func testSettingsWithUnknownGraphicsBackendStillDecode() throws {
         var settings = BottleSettings()
         settings.name = "Forward Compat"
-        settings.graphicsBackend = .dxvk
+        settings.graphicsBackend = .dxmt
 
         let encoder = PropertyListEncoder()
         encoder.outputFormat = .xml
@@ -350,8 +318,8 @@ final class BottleSettingsTests: XCTestCase {
 
         // Simulate a Metadata.plist written by a newer Whisky with a backend this build doesn't know.
         let xml = try XCTUnwrap(String(data: data, encoding: .utf8))
-        XCTAssertTrue(xml.contains("<string>dxvk</string>"), "encoding shape changed; test no longer substitutes")
-        let mutated = xml.replacingOccurrences(of: "<string>dxvk</string>", with: "<string>someFutureBackend</string>")
+        XCTAssertTrue(xml.contains("<string>dxmt</string>"), "encoding shape changed; test no longer substitutes")
+        let mutated = xml.replacingOccurrences(of: "<string>dxmt</string>", with: "<string>someFutureBackend</string>")
         let decoded = try PropertyListDecoder().decode(BottleSettings.self, from: Data(mutated.utf8))
 
         XCTAssertEqual(decoded.name, "Forward Compat")
@@ -397,18 +365,62 @@ final class BottleSettingsTests: XCTestCase {
         XCTAssertEqual(reloaded.backend, .recommended)
     }
 
-    func testDXMTAvailabilityFollowsRuntimeRecord() {
-        let withDXMT = WhiskyWineVersion(version: SemanticVersion(3, 1, 0), dxmtVersion: "0.80")
-        let withoutDXMT = WhiskyWineVersion(version: SemanticVersion(3, 0, 0))
-
-        XCTAssertTrue(GraphicsBackend.dxmt.isAvailable(runtimeInfo: withDXMT))
-        XCTAssertFalse(GraphicsBackend.dxmt.isAvailable(runtimeInfo: withoutDXMT))
-        XCTAssertFalse(GraphicsBackend.dxmt.isAvailable(runtimeInfo: nil), "No runtime installed: DXMT unavailable")
-
-        // Every other backend is runtime-independent.
-        for backend in GraphicsBackend.allCases where backend != .dxmt {
-            XCTAssertTrue(backend.isAvailable(runtimeInfo: nil), "\(backend) should always be available")
+    func testRemovedBackendRawValuesDecodeAsRecommended() throws {
+        // DXVK and D3DMetal are gone, but plists, program overrides and the GameDB
+        // still carry their raw values.
+        let expected: [(raw: String, backend: GraphicsBackend)] = [
+            ("dxvk", .recommended), ("d3dMetal", .recommended), ("dxmt", .dxmt), ("wined3d", .wined3d),
+            ("recommended", .recommended), ("someFutureBackend", .recommended)
+        ]
+        for (raw, backend) in expected {
+            let decoded = try JSONDecoder().decode(GraphicsBackend.self, from: Data("\"\(raw)\"".utf8))
+            XCTAssertEqual(decoded, backend, raw)
         }
+    }
+
+    func testSettingsFromTheDXVKEraStillDecode() throws {
+        // A Metadata.plist written when DXVK was a choice: the `dxvkConfig` group,
+        // the removed Metal and graphics keys and a `dxvk` backend are ignored.
+        let plist = """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0">
+        <dict>
+            <key>info</key>
+            <dict><key>name</key><string>Old Bottle</string></dict>
+            <key>dxvk</key>
+            <true/>
+            <key>dxvkConfig</key>
+            <dict>
+                <key>dxvk</key><true/>
+                <key>dxvkAsync</key><true/>
+                <key>dxvkHud</key><string>full</string>
+            </dict>
+            <key>metalConfig</key>
+            <dict>
+                <key>metalHud</key><true/>
+                <key>dxrEnabled</key><true/>
+                <key>metal4Enabled</key><true/>
+            </dict>
+            <key>graphicsConfig</key>
+            <dict>
+                <key>backend</key><string>d3dMetal</string>
+                <key>metalFX</key><true/>
+                <key>frameGeneration</key><true/>
+            </dict>
+            <key>launcherConfig</key>
+            <dict>
+                <key>autoEnableDXVK</key><true/>
+                <key>backendSwitchedByLauncher</key><true/>
+            </dict>
+        </dict>
+        </plist>
+        """
+        let decoded = try PropertyListDecoder().decode(BottleSettings.self, from: Data(plist.utf8))
+
+        XCTAssertEqual(decoded.name, "Old Bottle")
+        XCTAssertTrue(decoded.metalHud)
+        XCTAssertEqual(decoded.graphicsBackend, .recommended)
     }
 
     func testDXMTBackendRoundTrips() throws {

@@ -183,8 +183,6 @@ struct GameConfigurationView: View {
 
     private func backendDisplayName(_ backend: GraphicsBackend) -> String? {
         switch backend {
-        case .d3dMetal: "D3DMetal"
-        case .dxvk: "DXVK"
         case .dxmt: "DXMT"
         case .wined3d: "WineD3D"
         case .recommended: nil

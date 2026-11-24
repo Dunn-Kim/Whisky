@@ -80,13 +80,13 @@ final class StaleD3D12OverrideTests {
     }
 
     private func prepareGameLaunch(
-        _ bottle: Bottle, plan: ProgramOverrides? = nil, payload: Bool = false, recorder: ScopeRecorder
+        _ bottle: Bottle, plan: ProgramOverrides? = nil, recorder: ScopeRecorder
     ) async throws {
         _ = try await Wine.prepareProgramLaunch(
             at: steam(in: bottle), args: ["-applaunch", "1174180"], bottle: bottle,
             programOverrides: plan, overridesApplyToDescendants: true,
             descendantExecutables: ["PlayRDR2.exe", "RDR2.exe"],
-            recommendedBackend: payload ? .d3dMetal : .dxvk,
+            recommendedBackend: .dxmt,
             overrideWriter: recorder.writer, importer: recorder.importer
         )
     }
@@ -109,13 +109,13 @@ final class StaleD3D12OverrideTests {
         }
     }
 
-    @Test("Over D3DMetal, the rewritten entry has no translation layer in front of d3d12 either")
-    func steamGameLaunchOverD3DMetalLeavesNoNativeLayer() async throws {
+    @Test("The rewritten entry has no translation layer in front of d3d12 either")
+    func steamGameLaunchLeavesNoNativeLayer() async throws {
         let bottle = try makeBottle(.recommended)
         try addStaleD3D12(to: bottle)
         let recorder = ScopeRecorder()
 
-        try await prepareGameLaunch(bottle, payload: true, recorder: recorder)
+        try await prepareGameLaunch(bottle, recorder: recorder)
 
         let entry = recorder.overrides(for: .program("RDR2.exe"))
         #expect(entry != nil)
@@ -132,7 +132,7 @@ final class StaleD3D12OverrideTests {
         let recorder = ScopeRecorder()
 
         _ = try await Wine.prepareProgramLaunch(
-            at: game, bottle: bottle, recommendedBackend: .d3dMetal,
+            at: game, bottle: bottle, recommendedBackend: .dxmt,
             overrideWriter: recorder.writer, importer: recorder.importer
         )
 

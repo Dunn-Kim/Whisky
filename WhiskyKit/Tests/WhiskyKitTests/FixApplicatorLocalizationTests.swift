@@ -109,7 +109,7 @@ final class FixApplicatorLocalizationTests: XCTestCase {
 
     func testBottleSettingNamesAreCatalogKeys() throws {
         let fixIds = [
-            "switch-backend", "enable-dxvk-async", "set-audio-driver", "set-buffer-size",
+            "switch-backend", "set-audio-driver", "set-buffer-size",
             "enable-esync", "enable-controller-compat", "install-winetricks-verb",
             "set-registry-value", "apply-launcher-fixes"
         ]
@@ -123,26 +123,6 @@ final class FixApplicatorLocalizationTests: XCTestCase {
     }
 
     // MARK: - On/off states
-
-    func testDXVKAsyncPreviewShowsOffThenOn() throws {
-        bottle.settings.dxvkAsync = false
-
-        let fix = try preview("enable-dxvk-async")
-
-        XCTAssertEqual(fix.currentValue, String(localized: "config.retinaMode.off"))
-        XCTAssertEqual(fix.newValue, String(localized: "config.retinaMode.on"))
-        assertCatalogKey(fix.currentValue)
-        assertCatalogKey(fix.newValue)
-    }
-
-    func testDXVKAsyncPreviewWhenAlreadyOn() throws {
-        bottle.settings.dxvkAsync = true
-
-        let fix = try preview("enable-dxvk-async")
-
-        XCTAssertEqual(fix.currentValue, fix.newValue)
-        XCTAssertEqual(fix.currentValue, String(localized: "config.retinaMode.on"))
-    }
 
     func testControllerCompatPreviewFollowsTheSetting() throws {
         bottle.settings.controllerCompatibilityMode = false
@@ -339,10 +319,8 @@ final class FixApplicatorLocalizationTests: XCTestCase {
         let (_, variant) = try defaultVariant(of: "celeste")
         let settings = variant.settings
         if let backend = settings.graphicsBackend {
-            bottle.settings.graphicsBackend = GameConfigApplicator.effectiveBackend(backend)
+            bottle.settings.graphicsBackend = backend
         }
-        if let dxvk = settings.dxvk { bottle.settings.dxvk = dxvk }
-        if let dxvkAsync = settings.dxvkAsync { bottle.settings.dxvkAsync = dxvkAsync }
         if let enhancedSync = settings.enhancedSync { bottle.settings.enhancedSync = enhancedSync }
         if let shaderCache = settings.shaderCacheEnabled { bottle.settings.shaderCacheEnabled = shaderCache }
         if let avx = settings.avxEnabled { bottle.settings.avxEnabled = avx }

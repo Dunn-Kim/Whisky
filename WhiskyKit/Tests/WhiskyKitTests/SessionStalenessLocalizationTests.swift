@@ -27,7 +27,7 @@ final class SessionStalenessLocalizationTests: XCTestCase {
     private let bottleURL = URL(filePath: "/tmp/staleness-localization-test-bottle")
 
     private func preflight(
-        backend: String = "dxvk",
+        backend: String = "dxmt",
         audioDevice: String? = "MacBook Pro Speakers",
         wineserverRunning: Bool = false,
         processCount: Int = 0
@@ -81,7 +81,7 @@ final class SessionStalenessLocalizationTests: XCTestCase {
             graphicsBackend: "recommended"
         )
         let current = preflight(
-            backend: "d3dMetal", audioDevice: "MacBook Pro Speakers", wineserverRunning: true, processCount: 8
+            backend: "wined3d", audioDevice: "MacBook Pro Speakers", wineserverRunning: true, processCount: 8
         )
 
         XCTAssertTrue(changes(from: legacy, to: current).isEmpty)
@@ -90,14 +90,14 @@ final class SessionStalenessLocalizationTests: XCTestCase {
     // MARK: - Graphics backend
 
     func testBackendChangeNamesBothBackendsTheWayTheAppDoes() throws {
-        let change = try onlyChange(from: preflight(backend: "dxvk"), to: preflight(backend: "d3dMetal"))
+        let change = try onlyChange(from: preflight(backend: "wined3d"), to: preflight(backend: "dxmt"))
 
         XCTAssertEqual(change.field, "graphicsBackend")
-        XCTAssertEqual(change.oldValue, "dxvk")
-        XCTAssertEqual(change.newValue, "d3dMetal")
+        XCTAssertEqual(change.oldValue, "wined3d")
+        XCTAssertEqual(change.newValue, "dxmt")
         XCTAssertEqual(
             change.displayMessage,
-            String(localized: "troubleshooting.resume.change.backend DXVK D3DMetal")
+            String(localized: "troubleshooting.resume.change.backend WineD3D DXMT")
         )
         assertCatalogKey(change.displayMessage)
     }
@@ -222,8 +222,8 @@ final class SessionStalenessLocalizationTests: XCTestCase {
 
     func testEveryKindOfChangeGetsItsOwnMessage() {
         let found = changes(
-            from: preflight(backend: "dxvk", audioDevice: nil, wineserverRunning: false, processCount: 0),
-            to: preflight(backend: "dxmt", audioDevice: "AirPods", wineserverRunning: true, processCount: 8)
+            from: preflight(backend: "dxmt", audioDevice: nil, wineserverRunning: false, processCount: 0),
+            to: preflight(backend: "wined3d", audioDevice: "AirPods", wineserverRunning: true, processCount: 8)
         )
 
         XCTAssertEqual(

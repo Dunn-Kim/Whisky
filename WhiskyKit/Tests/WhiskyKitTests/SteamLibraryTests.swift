@@ -284,7 +284,7 @@ struct SteamLibraryTests {
     @Test("Preferred overrides come from the shallowest executable that has any")
     func picksPreferredOverrides() {
         var deep = ProgramOverrides()
-        deep.dxvk = true
+        deep.metalHud = true
         var shallow = ProgramOverrides()
         shallow.shaderCacheEnabled = false
 
@@ -300,7 +300,7 @@ struct SteamLibraryTests {
     @Test("Preferred overrides between two same-named executables at one depth go by path, in any order")
     func preferredOverridesTieBreakByPath() {
         var x64 = ProgramOverrides()
-        x64.dxvk = true
+        x64.metalHud = true
         var x86 = ProgramOverrides()
         x86.shaderCacheEnabled = false
         let candidates = [

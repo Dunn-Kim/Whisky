@@ -41,8 +41,6 @@ extension Wine {
         let overridesApplyToDescendants: Bool
         /// The executable names of what this launch starts.
         let descendantExecutables: [String]
-        /// Where the executables of what this launch starts are.
-        let descendantExecutableURLs: [URL]
         /// Executables among what this launch starts that keep their own settings.
         let ownSettingsExecutables: [URL]
         /// Launchers what this launch starts brings up on its own.
@@ -81,19 +79,14 @@ extension Wine {
     ///   - recommendedBackend: What `.recommended` resolves to for the bottle's games.
     ///   - overrideWriter: What writes the DLL overrides into the prefix registry.
     ///   - importer: What imports the CJK font aliases the prefix is missing.
-    ///   - dxvkFolder: The DXVK payload.
-    ///   - dxmtFolder: The DXMT payload.
     /// - Returns: The environment and `wine` arguments the launch runs with.
-    /// - Throws: An error if a backend's files cannot be deployed or the DLL override import
-    ///   cannot be started.
+    /// - Throws: An error if the DLL override import cannot be started.
     @MainActor
     static func prepareProgramLaunch(
         at url: URL, bottle: Bottle, request: ProgramLaunchRequest,
         recommendedBackend: GraphicsBackend = GraphicsBackendResolver.resolve(),
         overrideWriter: DLLOverrideWriter = { try await syncDLLOverrides(bottle: $0, scopes: $1) },
-        importer: RegistryImporter = { try await importRegistry(document: $0, bottle: $1) },
-        dxvkFolder: URL = Wine.dxvkFolder,
-        dxmtFolder: URL = Wine.dxmtFolder
+        importer: RegistryImporter = { try await importRegistry(document: $0, bottle: $1) }
     ) async throws -> PreparedLaunch {
         try await prepareProgramLaunch(
             at: url, args: request.args, bottle: bottle, environment: request.environment,
@@ -101,12 +94,10 @@ extension Wine {
             gameProfileEnvironment: request.gameProfileEnvironment,
             overridesApplyToDescendants: request.overridesApplyToDescendants,
             descendantExecutables: request.descendantExecutables,
-            descendantExecutableURLs: request.descendantExecutableURLs,
             ownSettingsExecutables: request.ownSettingsExecutables,
             descendantLaunchers: request.descendantLaunchers,
             recommendedBackend: recommendedBackend,
-            overrideWriter: overrideWriter, importer: importer,
-            dxvkFolder: dxvkFolder, dxmtFolder: dxmtFolder
+            overrideWriter: overrideWriter, importer: importer
         )
     }
 

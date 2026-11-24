@@ -71,7 +71,7 @@ final class ChromiumRuntimeDetectorTests {
         return folder
     }
 
-    func classify(_ url: URL) -> DXVKSteering? {
+    func classify(_ url: URL) -> BackendSteering? {
         ChromiumRuntimeDetector.classify(executable: url)
     }
 
@@ -82,7 +82,7 @@ final class ChromiumRuntimeDetectorTests {
         let exe = try electronFolder().appending(path: "Electron App.exe")
         try Self.electron45.write(to: exe)
         #expect(classify(exe) == .chromiumRuntime(kind: .electron, evidence: "resources/app.asar"))
-        #expect(DXVKSteering.inspect(executable: exe) == .chromiumRuntime(
+        #expect(BackendSteering.inspect(executable: exe) == .chromiumRuntime(
             kind: .electron,
             evidence: "resources/app.asar"
         ))
@@ -161,9 +161,9 @@ final class ChromiumRuntimeDetectorTests {
         try Self.electron45.write(to: launcher)
         try Self.electron45.write(to: frontEnd)
         #expect(ChromiumRuntimeDetector.detect(executable: launcher) == nil)
-        #expect(DXVKSteering.inspect(executable: launcher) == .launcher(.rsiLauncher))
-        #expect(DXVKSteering.inspect(executable: frontEnd) == .chromiumFrontEnd(.threeDMark))
-        #expect(DXVKSteering.detect(executable: folder.appending(path: "Electron App.exe")) == nil, "name only")
+        #expect(BackendSteering.inspect(executable: launcher) == .launcher(.rsiLauncher))
+        #expect(BackendSteering.inspect(executable: frontEnd) == .chromiumFrontEnd(.threeDMark))
+        #expect(BackendSteering.detect(executable: folder.appending(path: "Electron App.exe")) == nil, "name only")
     }
 
     // MARK: - NW.js
@@ -306,22 +306,20 @@ final class ChromiumRuntimeDetectorTests {
 
     // MARK: - Resolution
 
-    @Test("A runtime match resolves to DXVK, with a rationale and its evidence in the reason")
+    @Test("A runtime match resolves to WineD3D, with a rationale and its evidence in the reason")
     func resolution() {
-        let steering = DXVKSteering.chromiumRuntime(kind: .electron, evidence: "resources/app.asar")
-        let resolution = GraphicsBackendResolver.resolution(
-            for: steering, runtimeInfo: nil, dxmtRuntimeNative: false
-        )
-        #expect(resolution.backend == .dxvk)
+        let steering = BackendSteering.chromiumRuntime(kind: .electron, evidence: "resources/app.asar")
+        let resolution = GraphicsBackendResolver.resolution(for: steering)
+        #expect(resolution.backend == .wined3d)
         #expect(resolution.reason == .steered(steering))
         #expect(resolution.reason.exportName.contains("resources/app.asar"))
         #expect(steering.helperExecutables.isEmpty)
-        for games in [GraphicsBackend.d3dMetal, .dxmt] {
+        for games in GraphicsBackend.allCases {
             #expect(!resolution.rationale(gamesBackend: games).isEmpty)
         }
-        let nwjs = DXVKSteering.chromiumRuntime(kind: .nwjs, evidence: "nw.dll")
-        #expect(!BackendResolution(backend: .dxvk, reason: .steered(nwjs)).rationale(gamesBackend: .d3dMetal).isEmpty)
+        let nwjs = BackendSteering.chromiumRuntime(kind: .nwjs, evidence: "nw.dll")
+        #expect(!BackendResolution(backend: .wined3d, reason: .steered(nwjs)).rationale(gamesBackend: .dxmt).isEmpty)
         #expect(nwjs.listedName(executable: URL(filePath: "/x/Game.exe")) == "Game")
-        #expect(DXVKSteering.launcher(.steam).listedName(executable: URL(filePath: "/x/steam.exe")) == "Steam")
+        #expect(BackendSteering.launcher(.steam).listedName(executable: URL(filePath: "/x/steam.exe")) == "Steam")
     }
 }

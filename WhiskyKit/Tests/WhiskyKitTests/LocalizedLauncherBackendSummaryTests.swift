@@ -116,26 +116,26 @@ final class LocalizedLauncherBackendSummaryTests: XCTestCase {
 
     func testBackendMismatchNamesBothBackendsByDisplayName() async throws {
         let result = await GraphicsBackendCheck().run(
-            params: ["expected": "dxvk"],
+            params: ["expected": "dxmt"],
             context: makeCheckContext(graphicsBackend: "wined3d")
         )
         let localized = try XCTUnwrap(GraphicsBackendCheck.localizedSummary(for: result))
 
         XCTAssertEqual(result.outcome, .fail)
-        XCTAssertEqual(localized, "troubleshooting.check.backend.mismatch WineD3D DXVK")
+        XCTAssertEqual(localized, "troubleshooting.check.backend.mismatch WineD3D DXMT")
         assertCatalogKey(localized)
-        XCTAssertEqual(result.summary, "Backend is wined3d, expected dxvk")
+        XCTAssertEqual(result.summary, "Backend is wined3d, expected dxmt")
     }
 
     func testBackendKeepsAnUnrecognizedIdentifierAsIs() async throws {
         let result = await GraphicsBackendCheck().run(
             params: ["expected": "metalfx"],
-            context: makeCheckContext(graphicsBackend: "d3dMetal")
+            context: makeCheckContext(graphicsBackend: "legacy")
         )
 
         XCTAssertEqual(
             GraphicsBackendCheck.localizedSummary(for: result),
-            "troubleshooting.check.backend.mismatch D3DMetal metalfx"
+            "troubleshooting.check.backend.mismatch legacy metalfx"
         )
     }
 

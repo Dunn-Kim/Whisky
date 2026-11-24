@@ -16,85 +16,38 @@
 //  If not, see https://www.gnu.org/licenses/.
 //
 
-import SemanticVersion
 @testable import WhiskyKit
 import XCTest
 
 final class BackendResolverLauncherTests: XCTestCase {
     /// A launcher does not get what a game does. Chromium cannot render on
     /// DXMT: the window comes up, the process tree looks healthy, nothing paints.
-    func testLauncherGetsDXVK() {
+    func testLauncherGetsWineD3D() {
         for launcher in LauncherType.allCases {
             XCTAssertEqual(
-                GraphicsBackendResolver.resolve(for: launcher, runtimeInfo: nil, dxmtRuntimeNative: true),
-                .dxvk,
+                GraphicsBackendResolver.resolve(for: launcher),
+                .wined3d,
                 "\(launcher.displayName) resolved to a backend its client cannot render on"
             )
         }
     }
 
-    /// DXMT is unrenderable for Chromium, so on a runtime that would recommend
-    /// DXMT a launcher still gets DXVK. Without the steer, the first Steam
-    /// launch deploys DXMT and the client never shows a window.
-    func testLauncherGetsDXVKWhenDXMTWouldBeRecommended() {
-        let runtime = WhiskyWineVersion(version: SemanticVersion(3, 1, 1), dxmtVersion: "0.80")
-        XCTAssertEqual(
-            GraphicsBackendResolver.resolve(for: nil, runtimeInfo: runtime, dxmtRuntimeNative: true),
-            .dxmt
-        )
-        XCTAssertEqual(
-            GraphicsBackendResolver.resolve(for: .steam, runtimeInfo: runtime, dxmtRuntimeNative: true),
-            .dxvk
-        )
-    }
-
-    /// Without DXMT the answer is DXVK for everyone, so the steer changes
-    /// nothing there.
-    func testLauncherAndGameAgreeWhenOnlyDXVKExists() {
-        let runtime = WhiskyWineVersion(version: SemanticVersion(3, 0, 0))
-        let game = GraphicsBackendResolver.resolve(for: nil, runtimeInfo: runtime, dxmtRuntimeNative: false)
-        let launcher = GraphicsBackendResolver.resolve(for: .steam, runtimeInfo: runtime, dxmtRuntimeNative: false)
-        XCTAssertEqual(game, .dxvk)
-        XCTAssertEqual(game, launcher)
-    }
-
-    /// Callers that pass nothing keep the old behaviour, so every existing
-    /// call site is unaffected.
+    /// Callers that pass nothing keep the game answer.
     func testDefaultArgumentMatchesTheGameCase() {
-        XCTAssertEqual(
-            GraphicsBackendResolver.resolve(runtimeInfo: nil, dxmtRuntimeNative: true),
-            GraphicsBackendResolver.resolve(for: nil, runtimeInfo: nil, dxmtRuntimeNative: true)
-        )
+        XCTAssertEqual(GraphicsBackendResolver.resolve(), GraphicsBackendResolver.resolve(for: nil))
+        XCTAssertEqual(GraphicsBackendResolver.resolve(), .dxmt)
     }
 
-    /// A game inside a Steam library is not the Steam client, so it must not
-    /// be steered onto DXVK.
-    func testSteamLibraryGameResolvesAsAGame() {
+    /// A game inside a library is not the client, so it must not be steered onto WineD3D.
+    func testLibraryGameResolvesAsAGame() {
         let url = URL(filePath: "/B/Steam/steamapps/common/Some Game/game.exe")
         XCTAssertNil(LauncherType.detect(from: url))
-        XCTAssertEqual(
-            GraphicsBackendResolver.resolve(
-                for: LauncherType.detect(from: url), runtimeInfo: nil, dxmtRuntimeNative: false
-            ),
-            .dxvk
-        )
-        let runtime = WhiskyWineVersion(version: SemanticVersion(3, 1, 1), dxmtVersion: "0.80")
-        XCTAssertEqual(
-            GraphicsBackendResolver.resolve(
-                for: LauncherType.detect(from: url), runtimeInfo: runtime, dxmtRuntimeNative: true
-            ),
-            .dxmt
-        )
+        XCTAssertEqual(GraphicsBackendResolver.resolve(for: LauncherType.detect(from: url)), .dxmt)
     }
 
     func testSteamClientResolvesAsALauncher() {
         let url = URL(filePath: "/B/Steam/steam.exe")
         XCTAssertEqual(LauncherType.detect(from: url), .steam)
-        XCTAssertEqual(
-            GraphicsBackendResolver.resolve(
-                for: LauncherType.detect(from: url), runtimeInfo: nil, dxmtRuntimeNative: true
-            ),
-            .dxvk
-        )
+        XCTAssertEqual(GraphicsBackendResolver.resolve(for: LauncherType.detect(from: url)), .wined3d)
     }
 }

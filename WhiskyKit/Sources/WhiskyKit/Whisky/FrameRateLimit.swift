@@ -95,13 +95,13 @@ public enum FrameRateLimit: Int, Codable, CaseIterable, Equatable, Sendable {
 public extension GraphicsBackend {
     /// Whether this backend ships a frame rate limiter Whisky can drive.
     ///
-    /// D3DMetal and WineD3D expose no such knob, so a limit selected against
-    /// them is inert and the UI says so instead of pretending it applied.
+    /// WineD3D exposes no such knob, so a limit selected against it is inert
+    /// and the UI says so instead of pretending it applied.
     var supportsFrameRateLimit: Bool {
         switch self {
-        case .dxvk, .dxmt:
+        case .dxmt:
             true
-        case .recommended, .d3dMetal, .wined3d:
+        case .recommended, .wined3d:
             false
         }
     }
@@ -113,13 +113,10 @@ public extension GraphicsBackend {
     ///   has no limiter.
     func frameRateLimitEnvironment(fps: Int) -> [String: String] {
         switch self {
-        case .dxvk:
-            // DXVK's own limiter; also settable as `dxgi.maxFrameRate` in dxvk.conf.
-            ["DXVK_FRAME_RATE": String(fps)]
         case .dxmt:
-            // DXMT reads a DXVK-style `key=value` list from DXMT_CONFIG.
+            // DXMT reads a `key=value` list from DXMT_CONFIG.
             ["DXMT_CONFIG": "d3d11.preferredMaxFrameRate=\(fps)"]
-        case .recommended, .d3dMetal, .wined3d:
+        case .recommended, .wined3d:
             [:]
         }
     }

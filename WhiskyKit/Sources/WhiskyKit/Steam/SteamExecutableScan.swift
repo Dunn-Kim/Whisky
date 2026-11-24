@@ -54,7 +54,7 @@ struct SteamExecutableScan: Equatable {
     /// The executables a launch leaves on their own settings: the Chromium
     /// hosts, then the table's front ends the scan did not count as hosts,
     /// then the Electron and NW.js apps. Under Recommended a front end or an
-    /// app among them gets DXVK's set instead
+    /// app among them gets WineD3D's set instead
     /// (``Wine/addFrontEndScopes(_:to:bottle:recommendedBackend:launcherSet:)``),
     /// as it does when the Programs tab starts it.
     var ownSettingsExecutables: [URL] {
@@ -163,7 +163,7 @@ extension SteamLibrary {
     /// watches for them in the process list. So below the first folder level
     /// the scan leaves out what must not get the game's overrides or pass for
     /// the game running: crash reporters, Chromium helpers (CEF draws nothing
-    /// on D3DMetal), redistributables and installers, bundled runtimes,
+    /// on DXMT), redistributables and installers, bundled runtimes,
     /// Unreal's engine tree except its `Binaries`, and anything behind a
     /// symbolic link. It reads no further than ``executableScanDepth``, and
     /// within ``deepScanEntryBudget`` and ``deepScanFolderEntryLimit``.

@@ -16,7 +16,6 @@
 //  If not, see https://www.gnu.org/licenses/.
 //
 
-import Metal
 import SwiftUI
 import WhiskyKit
 
@@ -46,19 +45,10 @@ struct GraphicsConfigSection: View {
             BackendPickerView(
                 selection: $bottle.settings.graphicsBackend,
                 resolvedBackend: resolvedBackend,
-                isBackendAvailable: { backend in
-                    WhiskyWineInstaller.isBackendAvailable(backend)
-                },
                 chromiumPrograms: chromiumProgramNames
             )
 
             chromiumOnExplicitBackendNotice
-
-            // Said once, after an update put a bottle the old Steam profile had
-            // switched to DXVK back on Recommended (#276).
-            if bottle.settings.launcherBackendResetNotice {
-                launcherBackendResetNotice
-            }
 
             // Running process warning banner
             if hasRunningProcesses {
@@ -66,39 +56,6 @@ struct GraphicsConfigSection: View {
             }
 
             frameRateLimitPicker
-
-            // MetalFX rides on D3DMetal's DLSS bridge and Metal 4 is D3DMetal's
-            // own command-encoding backend, so both are meaningless under any
-            // other backend rather than merely inactive.
-            if resolvedBackend == .d3dMetal {
-                Toggle(isOn: $bottle.settings.metalFX) {
-                    VStack(alignment: .leading) {
-                        Text("config.metalFX")
-                        Text("config.metalFX.info")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                Toggle(isOn: $bottle.settings.metal4Enabled) {
-                    VStack(alignment: .leading) {
-                        Text("config.metal4")
-                        Text("config.metal4.info")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                // Frame generation reaches MetalFX through the same DLSS bridge
-                // as upscaling, so it has nothing to switch on without it.
-                Toggle(isOn: $bottle.settings.frameGeneration) {
-                    VStack(alignment: .leading) {
-                        Text("config.frameGeneration")
-                        Text("config.frameGeneration.info")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .disabled(!bottle.settings.metalFX)
-            }
 
             dxmtMetalFXToggle
 
@@ -118,14 +75,7 @@ struct GraphicsConfigSection: View {
 
             // Advanced mode content
             if advancedMode {
-                // DXVK settings subsection
-                DXVKSettingsView(
-                    bottle: bottle,
-                    resolvedBackend: resolvedBackend,
-                    bottleURL: bottle.url
-                )
-
-                // Metal settings subsection (migrated from MetalConfigSection)
+                // Metal settings subsection
                 VStack(alignment: .leading, spacing: 8) {
                     Text("config.metal.title")
                         .font(.headline)
@@ -135,14 +85,6 @@ struct GraphicsConfigSection: View {
                     Toggle(isOn: $bottle.settings.metalTrace) {
                         Text("config.metalTrace")
                         Text("config.metalTrace.info")
-                    }
-                    if let device = MTLCreateSystemDefaultDevice() {
-                        if device.supportsFamily(.apple9) {
-                            Toggle(isOn: $bottle.settings.dxrEnabled) {
-                                Text("config.dxr")
-                                Text("config.dxr.info")
-                            }
-                        }
                     }
                     Toggle(isOn: $bottle.settings.metalValidation) {
                         Text("config.metalValidation")
@@ -156,34 +98,8 @@ struct GraphicsConfigSection: View {
             }
         }
         .animation(.default, value: advancedMode)
-        .onChange(of: bottle.settings.graphicsBackend) {
-            // Picking a backend answers the notice.
-            if bottle.settings.launcherBackendResetNotice {
-                bottle.settings.launcherBackendResetNotice = false
-            }
-        }
         .task {
             await checkRunningProcesses()
-        }
-    }
-
-    // MARK: - Launcher Backend Reset Notice
-
-    private var launcherBackendResetNotice: some View {
-        HStack {
-            Image(systemName: "info.circle")
-                .foregroundStyle(.blue)
-            Text("config.graphics.backend.launcherReset")
-                .font(.caption)
-            Spacer()
-            Button {
-                bottle.settings.launcherBackendResetNotice = false
-            } label: {
-                Image(systemName: "xmark")
-            }
-            .buttonStyle(.borderless)
-            .help("config.graphics.backend.launcherReset.dismiss")
-            .accessibilityLabel("config.graphics.backend.launcherReset.dismiss")
         }
     }
 
@@ -222,13 +138,9 @@ struct GraphicsConfigSection: View {
     // MARK: - Advanced Settings Badge
 
     private var hasAdvancedSettingsConfigured: Bool {
-        // Default dxvkAsync is true; check if any advanced-only settings differ from defaults
-        !bottle.settings.dxvkAsync
-            || bottle.settings.dxvkHud != .off
-            || bottle.settings.metalHud
+        bottle.settings.metalHud
             || bottle.settings.metalTrace
             || bottle.settings.metalValidation
-            || bottle.settings.dxrEnabled
     }
 
     private var advancedSettingsBadge: some View {
@@ -340,19 +252,19 @@ private extension GraphicsConfigSection {
 extension GraphicsConfigSection {
     /// The launchers, Chromium front ends, and Electron and NW.js apps among
     /// the bottle's programs, by name, each once: the programs Recommended
-    /// runs on DXVK (#372). Read from each program's scan, not its files.
+    /// runs on WineD3D (#372). Read from each program's scan, not its files.
     var chromiumProgramNames: [String] {
         var seen = Set<String>()
         return bottle.programs
-            .compactMap { program in program.dxvkSteering?.listedName(executable: program.url) }
+            .compactMap { program in program.backendSteering?.listedName(executable: program.url) }
             .filter { seen.insert($0).inserted }
     }
 
-    /// Recommended would run these on DXVK; an explicit D3DMetal or DXMT does not.
+    /// Recommended would run these on WineD3D; an explicit DXMT does not.
     @ViewBuilder
     var chromiumOnExplicitBackendNotice: some View {
         let names = chromiumProgramNames
-        if [.d3dMetal, .dxmt].contains(bottle.settings.graphicsBackend), !names.isEmpty {
+        if bottle.settings.graphicsBackend == .dxmt, !names.isEmpty {
             Text("config.graphics.chromiumOnExplicitBackend \(ListFormatter.localizedString(byJoining: names))")
                 .font(.caption)
                 .foregroundStyle(.secondary)

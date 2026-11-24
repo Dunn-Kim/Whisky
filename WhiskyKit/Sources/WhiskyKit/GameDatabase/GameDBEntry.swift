@@ -185,10 +185,6 @@ public struct Provenance: Codable, Sendable, Equatable {
 public struct GameConfigVariantSettings: Codable, Sendable, Equatable {
     /// The graphics backend to use.
     public let graphicsBackend: GraphicsBackend?
-    /// Whether DXVK should be enabled.
-    public let dxvk: Bool?
-    /// Whether DXVK async shader compilation should be enabled.
-    public let dxvkAsync: Bool?
     /// The enhanced sync mode.
     public let enhancedSync: EnhancedSync?
     /// Whether shader caching should be enabled.
@@ -207,8 +203,6 @@ public struct GameConfigVariantSettings: Codable, Sendable, Equatable {
 
     public init(
         graphicsBackend: GraphicsBackend? = nil,
-        dxvk: Bool? = nil,
-        dxvkAsync: Bool? = nil,
         enhancedSync: EnhancedSync? = nil,
         shaderCacheEnabled: Bool? = nil,
         avxEnabled: Bool? = nil,
@@ -216,8 +210,6 @@ public struct GameConfigVariantSettings: Codable, Sendable, Equatable {
         frameRateLimit: FrameRateLimit? = nil
     ) {
         self.graphicsBackend = graphicsBackend
-        self.dxvk = dxvk
-        self.dxvkAsync = dxvkAsync
         self.enhancedSync = enhancedSync
         self.shaderCacheEnabled = shaderCacheEnabled
         self.avxEnabled = avxEnabled
@@ -227,9 +219,9 @@ public struct GameConfigVariantSettings: Codable, Sendable, Equatable {
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.graphicsBackend = container.decodeLenientIfPresent(GraphicsBackend.self, forKey: .graphicsBackend)
-        self.dxvk = try container.decodeIfPresent(Bool.self, forKey: .dxvk)
-        self.dxvkAsync = try container.decodeIfPresent(Bool.self, forKey: .dxvkAsync)
+        // The database still carries `dxvk`, `dxvkAsync` and `"graphicsBackend": "dxvk"`
+        // entries: the keys are ignored and the backend value decodes as `.recommended`.
+        self.graphicsBackend = (try? container.decodeIfPresent(GraphicsBackend.self, forKey: .graphicsBackend)) ?? nil
         // EnhancedSync uses Swift's auto-synthesized Codable (keyed enum, not String raw value).
         // The JSON database uses plain strings ("none", "esync", "msync") for readability,
         // so we try String first and fall back to the native Codable format.
@@ -271,7 +263,7 @@ public struct GameConfigVariantSettings: Codable, Sendable, Equatable {
 /// A specific configuration variant for a game.
 ///
 /// A single game entry can have multiple variants (e.g., "Apple Silicon",
-/// "Intel", "DXVK mode"). Each variant contains the full set of settings
+/// "Intel", "Low settings"). Each variant contains the full set of settings
 /// to apply, along with metadata about when and why to use it.
 public struct GameConfigVariant: Codable, Sendable, Equatable {
     /// Stable identifier for this variant.

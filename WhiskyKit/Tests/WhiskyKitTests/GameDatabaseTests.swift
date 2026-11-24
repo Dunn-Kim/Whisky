@@ -148,8 +148,7 @@ final class GameDatabaseTests: XCTestCase {
         XCTAssertEqual(variant.id, "recommended-apple-silicon")
         XCTAssertEqual(variant.label, "Recommended (Apple Silicon)")
         XCTAssertEqual(variant.isDefault, true)
-        XCTAssertEqual(variant.settings.graphicsBackend, .d3dMetal)
-        XCTAssertEqual(variant.settings.dxvk, false)
+        XCTAssertEqual(variant.settings.graphicsBackend, .recommended)
         XCTAssertEqual(variant.settings.enhancedSync, .esync)
         XCTAssertEqual(variant.settings.shaderCacheEnabled, true)
         XCTAssertEqual(variant.environmentVariables?["D3DM_SUPPORT_DXR"], "0")
@@ -213,8 +212,6 @@ final class GameDatabaseTests: XCTestCase {
         let settings = try JSONDecoder().decode(GameConfigVariantSettings.self, from: data)
 
         XCTAssertNil(settings.graphicsBackend)
-        XCTAssertNil(settings.dxvk)
-        XCTAssertNil(settings.dxvkAsync)
         XCTAssertNil(settings.enhancedSync)
         XCTAssertNil(settings.shaderCacheEnabled)
         XCTAssertNil(settings.avxEnabled)
@@ -267,8 +264,7 @@ final class GameDatabaseTests: XCTestCase {
         let data = try XCTUnwrap(json.data(using: .utf8))
         let settings = try JSONDecoder().decode(GameConfigVariantSettings.self, from: data)
 
-        XCTAssertEqual(settings.graphicsBackend, .dxvk)
-        XCTAssertEqual(settings.dxvkAsync, true)
+        XCTAssertEqual(settings.graphicsBackend, .recommended)
         XCTAssertEqual(settings.shaderCacheEnabled, false)
         XCTAssertEqual(settings.sequoiaCompatMode, true)
     }
@@ -542,16 +538,18 @@ final class GameDatabaseTests: XCTestCase {
         XCTAssertNil(GameConfigSnapshot.load(from: tempDir))
     }
 
-    func testVariantSettingsUnknownGraphicsBackendDecodesToNil() throws {
+    func testVariantSettingsUnknownGraphicsBackendDecodesToRecommended() throws {
+        // The bundled database still carries `dxvk` and `dxvkAsync` keys and
+        // `"dxvk"` / `"d3dMetal"` backends: the keys are ignored, the values read as Recommended.
         let json = """
         {
           "graphicsBackend": "someFutureBackend",
-          "dxvk": true
+          "dxvk": true,
+          "dxvkAsync": true
         }
         """
         let settings = try JSONDecoder().decode(GameConfigVariantSettings.self, from: Data(json.utf8))
-        XCTAssertNil(settings.graphicsBackend)
-        XCTAssertEqual(settings.dxvk, true)
+        XCTAssertEqual(settings.graphicsBackend, .recommended)
     }
 }
 

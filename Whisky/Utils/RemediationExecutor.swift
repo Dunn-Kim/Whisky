@@ -146,17 +146,10 @@ enum RemediationExecutor {
         _ action: RemediationAction,
         to bottle: Bottle
     ) -> (before: String, after: String)? {
-        switch action.settingKeyPath {
-        case "metalConfig.dxrEnabled":
-            let before = String(bottle.settings.dxrEnabled)
-            bottle.settings.dxrEnabled = action.settingValue == "true"
-            return (before, String(bottle.settings.dxrEnabled))
-        default:
-            let keyPath = action.settingKeyPath ?? "nil"
-            logger.error(
-                "Unknown settingKeyPath \(keyPath, privacy: .public) for \(action.id, privacy: .public)"
-            )
-            return nil
-        }
+        let keyPath = action.settingKeyPath ?? "nil"
+        logger.error(
+            "Unknown settingKeyPath \(keyPath, privacy: .public) for \(action.id, privacy: .public)"
+        )
+        return nil
     }
 }

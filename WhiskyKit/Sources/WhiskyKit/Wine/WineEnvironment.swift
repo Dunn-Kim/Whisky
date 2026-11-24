@@ -20,8 +20,6 @@
 import Foundation
 import os.log
 
-// swiftlint:disable file_length
-
 private let envLogger = Logger(subsystem: Bundle.whiskyBundleIdentifier, category: "WineEnvironment")
 
 // swiftlint:disable cyclomatic_complexity
@@ -86,34 +84,20 @@ extension Wine {
             )
         }
 
-        // Layer 3: Bottle managed -- settings-derived env vars (DXVK, sync, Metal, perf)
+        // Layer 3: Bottle managed -- settings-derived env vars (sync, Metal, perf)
         // Resolved on the main actor here so the nonisolated settings layer does
         // not have to reach for NSScreen itself.
         let displayRefreshRate = FrameRateLimit.mainDisplayRefreshRate()
-        let managedOverrides = bottle.settings.populateBottleManagedLayer(
+        bottle.settings.populateBottleManagedLayer(
             builder: &builder, resolvedBackend: recommendedBackend,
             displayRefreshRate: displayRefreshRate
         )
-        dllResolver.managed.append(contentsOf: managedOverrides)
-
-        // DXVK reads its config from DXVK_CONFIG_FILE or the process working
-        // directory, and the working directory of a launch is never the bottle
-        // root the config editor writes to, so without this line the file is
-        // decoration. Z: maps the host filesystem and DXVK's PE build accepts
-        // forward slashes.
-        let dxvkConf = bottle.url.appending(path: "dxvk.conf")
-        if FileManager.default.fileExists(atPath: dxvkConf.path(percentEncoded: false)) {
-            builder.set(
-                "DXVK_CONFIG_FILE", "Z:\(dxvkConf.path(percentEncoded: false))",
-                layer: .bottleManaged, reason: "dxvk.conf present in the bottle"
-            )
-        }
+        // shortcut: the runtime picks its graphics layer per executable by itself, so
+        // .dxmt and .wined3d add no backend environment yet; stage 4b maps the bottle's
+        // and the program's resolved backend onto the runtime's rule (WINE_COMPATDB).
 
         // Layer 4: Launcher managed -- launcher compatibility overrides
-        let launcherOverrides = bottle.settings.populateLauncherManagedLayer(
-            builder: &builder
-        )
-        dllResolver.managed.append(contentsOf: launcherOverrides)
+        bottle.settings.populateLauncherManagedLayer(builder: &builder)
 
         // Input compatibility (bottleManaged layer -- input settings are bottle-managed toggles)
         bottle.settings.populateInputCompatibilityLayer(builder: &builder)
@@ -145,9 +129,6 @@ extension Wine {
         if let overrides = programOverrides {
             applyProgramOverrides(
                 overrides,
-                frameGeneration: bottle.settings.frameGeneration,
-                dxvkAsync: bottle.settings.dxvkAsync,
-                programEnvironmentKeys: Set(environment.keys),
                 recommendedBackend: recommendedBackend,
                 builder: &builder,
                 dllResolver: &dllResolver,
@@ -193,16 +174,6 @@ extension Wine {
         return result
     }
 
-    /// Builtin-mode reset entries for every DLL any translation layer may have
-    /// overridden — the union of the DXVK and DXMT presets. Used when a
-    /// program-level backend override selects a builtin-backed path
-    /// (D3DMetal/wined3d) and must neutralize whatever the bottle enabled.
-    static func translationDLLResetEntries() -> [DLLOverrideEntry] {
-        let presets = DLLOverrideResolver.dxvkPreset()
-            + DLLOverrideResolver.dxmtPreset()
-        return Set(presets.map(\.dllName)).sorted().map { DLLOverrideEntry(dllName: $0, mode: .builtin) }
-    }
-
     /// Applies per-program overrides to the programUser layer of the builder.
     ///
     /// Each non-nil field in the overrides sets the corresponding environment variable(s)
@@ -211,14 +182,8 @@ extension Wine {
     ///
     /// `recommendedBackend` is what a program set to
     /// `.recommended` gets; `nil` asks ``GraphicsBackendResolver``.
-    /// `dxvkAsync` is the bottle's async setting, which a program moved onto
-    /// DXVK inherits. `programEnvironmentKeys` are the variables the program's
-    /// own environment sets, which the DXVK compile settings leave alone.
     static func applyProgramOverrides(
         _ overrides: ProgramOverrides,
-        frameGeneration: Bool = false,
-        dxvkAsync: Bool = true,
-        programEnvironmentKeys: Set<String> = [],
         recommendedBackend: GraphicsBackend? = nil,
         builder: inout EnvironmentBuilder,
         dllResolver: inout DLLOverrideResolver,
@@ -226,132 +191,6 @@ extension Wine {
         bottleFrameRateLimit: FrameRateLimit = .unlimited,
         displayRefreshRate: Int? = nil
     ) {
-        let dxvkPreset = DLLOverrideResolver.dxvkPreset()
-        let dxmtPreset = DLLOverrideResolver.dxmtPreset()
-        let translationReset = translationDLLResetEntries()
-
-        // What the bottle layer sets under DXVK, for a program moved onto DXVK
-        // in a bottle running something else: without it the program compiled
-        // its shaders synchronously and one at a time. Both share the program's
-        // layer with its own environment, where the later write wins, so a
-        // value the user gave the program is kept.
-        let concurrentCompile = "MVK_CONFIG_SHOULD_MAXIMIZE_CONCURRENT_COMPILATION"
-        func addDXVKEnvironment() {
-            if dxvkAsync, !programEnvironmentKeys.contains("DXVK_ASYNC") {
-                builder.set("DXVK_ASYNC", "1", layer: .programUser)
-            }
-            if !programEnvironmentKeys.contains(concurrentCompile) {
-                builder.set(concurrentCompile, "1", layer: .programUser)
-            }
-        }
-        func removeConcurrentCompile() {
-            if !programEnvironmentKeys.contains(concurrentCompile) {
-                builder.remove(concurrentCompile, layer: .programUser)
-            }
-        }
-
-        // Graphics backend override: replaces bottle-level backend entirely
-        if let backend = overrides.graphicsBackend {
-            let resolved = if backend == .recommended {
-                recommendedBackend ?? GraphicsBackendResolver.resolve()
-            } else {
-                backend
-            }
-            switch resolved {
-            case .d3dMetal, .recommended:
-                // Undo any bottle-level DXVK/DXMT by overriding DLLs to builtin
-                dllResolver.programCustom.append(contentsOf: translationReset)
-                // Remove DXVK and wined3d env vars at program layer
-                builder.remove("DXVK_HUD", layer: .programUser)
-                builder.remove("DXVK_ASYNC", layer: .programUser)
-                removeConcurrentCompile()
-                builder.remove("WINED3DMETAL", layer: .programUser)
-                // One program on D3DMetal inside a bottle running something else
-                // still has to claim scheduling itself; see the bottle layer.
-                // Gated on the same setting, or turning frame generation off
-                // would leave this one route still open.
-                if frameGeneration {
-                    builder.set("CX_ACTIVE_GRAPHICS_BACKEND", "d3dmetal", layer: .programUser)
-                }
-
-            case .dxvk:
-                // Enable DXVK DLLs at program level
-                dllResolver.programCustom.append(contentsOf: dxvkPreset)
-                addDXVKEnvironment()
-                builder.remove("WINED3DMETAL", layer: .programUser)
-                // CX_ACTIVE_GRAPHICS_BACKEND deliberately survives. It selects no
-                // backend: win32u is the only thing in the runtime that reads it,
-                // and all it does is answer KMTQAITYPE_WDDM_2_7_CAPS. Stripping it
-                // here starved every child of a DXVK-steered launcher, because
-                // Steam runs its games on D3DMetal (DXVK has no d3d12) while they
-                // inherit Steam's environment, and Streamline then refuses DLSS
-                // frame generation. D3DM_ENABLE_METALFX and D3DM_MTL4 already
-                // survive this branch for the same reason.
-
-            case .dxmt:
-                // Reset the full translation-DLL union to builtin first so a DXVK
-                // bottle's d3d9 (which DXMT's preset doesn't touch, and whose
-                // native copy enableDXVK left in the prefix) is neutralized, then
-                // layer DXMT's preset on top — last-append-wins restores n,b for
-                // the DXMT trio and b for winemetal. DXVK/wined3d env must not leak.
-                dllResolver.programCustom.append(contentsOf: translationReset)
-                dllResolver.programCustom.append(contentsOf: dxmtPreset)
-                builder.remove("DXVK_HUD", layer: .programUser)
-                builder.remove("DXVK_ASYNC", layer: .programUser)
-                removeConcurrentCompile()
-                builder.remove("WINED3DMETAL", layer: .programUser)
-                // Survives for the reason given under .dxvk: DXMT translates d3d11
-                // only, so d3d12 is still D3DMetal here.
-
-            case .wined3d:
-                // Force wined3d: disable D3DMetal + undo DXVK/DXMT DLLs
-                builder.set("WINED3DMETAL", "0", layer: .programUser)
-                // The one branch that really has no D3DMetal behind it, so the
-                // capability claim would be a lie.
-                builder.remove("CX_ACTIVE_GRAPHICS_BACKEND", layer: .programUser)
-                dllResolver.programCustom.append(contentsOf: translationReset)
-            }
-        }
-
-        // Legacy DXVK override: only honored when no explicit backend override is
-        // present. The override UI historically wrote `dxvk` alongside
-        // `graphicsBackend`, and since program-custom resolution is last-append-wins
-        // the stale flag would silently clobber the explicit backend choice
-        // (re-enabling DXVK under a D3DMetal override, or disabling DXMT).
-        if let dxvk = overrides.dxvk, overrides.graphicsBackend == nil {
-            if dxvk {
-                // Program forces DXVK on -- add DXVK preset to program custom DLLs
-                dllResolver.programCustom.append(contentsOf: dxvkPreset)
-                addDXVKEnvironment()
-            } else {
-                // Program forces DXVK off -- override each DXVK DLL to builtin
-                for entry in dxvkPreset {
-                    dllResolver.programCustom.append(
-                        DLLOverrideEntry(dllName: entry.dllName, mode: .builtin)
-                    )
-                }
-            }
-        }
-
-        // DXVK HUD override
-        if let dxvkHud = overrides.dxvkHud {
-            switch dxvkHud {
-            case .full:
-                builder.set("DXVK_HUD", "full", layer: .programUser)
-            case .partial:
-                builder.set("DXVK_HUD", "devinfo,fps,frametimes", layer: .programUser)
-            case .fps:
-                builder.set("DXVK_HUD", "fps", layer: .programUser)
-            case .off:
-                builder.remove("DXVK_HUD", layer: .programUser)
-            }
-        }
-
-        // DXVK async override
-        if let dxvkAsync = overrides.dxvkAsync {
-            builder.set("DXVK_ASYNC", dxvkAsync ? "1" : "0", layer: .programUser)
-        }
-
         // Enhanced sync override
         if let enhancedSync = overrides.enhancedSync {
             switch enhancedSync {
@@ -373,18 +212,6 @@ extension Wine {
             }
         }
 
-        // Metal 4 override. `D3DMDevice::MTL4OptionEnabled` only takes that path
-        // for D3D12 devices, so a D3D12 title whose renderer wedges on a fence
-        // the Metal 4 submission path never signals has to be able to drop back
-        // without the rest of the bottle losing it.
-        if let metal4Enabled = overrides.metal4Enabled {
-            if metal4Enabled {
-                builder.set("D3DM_MTL4", "1", layer: .programUser)
-            } else {
-                builder.remove("D3DM_MTL4", layer: .programUser)
-            }
-        }
-
         // Metal HUD override. The bottle value lands in the bottleManaged layer
         // and reaches every process in the prefix, launcher windows included, so
         // a program that wants the HUD to itself sets it here.
@@ -401,13 +228,11 @@ extension Wine {
             }
         }
 
-        // Shader cache override, on the variables DXVK and DXMT actually read.
+        // Shader cache override, on the variable DXMT reads.
         if let shaderCache = overrides.shaderCacheEnabled {
             if !shaderCache {
-                builder.set("DXVK_STATE_CACHE", "0", layer: .programUser)
                 builder.set("DXMT_SHADER_CACHE", "0", layer: .programUser)
             } else {
-                builder.remove("DXVK_STATE_CACHE", layer: .programUser)
                 builder.remove("DXMT_SHADER_CACHE", layer: .programUser)
             }
         }
@@ -447,7 +272,6 @@ extension Wine {
                 ? recommendedBackend ?? GraphicsBackendResolver.resolve() : chosen
             let fps = (overrides.frameRateLimit ?? bottleFrameRateLimit)
                 .resolved(displayRefreshRate: displayRefreshRate)
-            builder.remove("DXVK_FRAME_RATE", layer: .programUser)
             if effectiveBackend == .dxmt {
                 // The cap is one entry of DXMT_CONFIG, so it is merged, not set: a
                 // DXMT_CONFIG from the program's environment keeps its other
@@ -494,8 +318,7 @@ extension Wine {
 
         // Non-sensitive keys allowed in the launch summary
         let allowedKeys = [
-            "DXVK_ASYNC", "DXVK_HUD", "WINEESYNC", "WINEMSYNC",
-            "D3DM_MTL4", "MTL_HUD_ENABLED", "WINED3DMETAL"
+            "WINEESYNC", "WINEMSYNC", "MTL_HUD_ENABLED"
         ]
         let safeEntries = allowedKeys.compactMap { key -> String? in
             guard let value = environment[key] else { return nil }

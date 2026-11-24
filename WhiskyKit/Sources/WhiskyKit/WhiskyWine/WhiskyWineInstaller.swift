@@ -16,7 +16,6 @@
 //  If not, see https://www.gnu.org/licenses/.
 //
 
-// swiftlint:disable file_length
 import CryptoKit
 import Foundation
 import os
@@ -95,7 +94,7 @@ public class WhiskyWineInstaller {
         for: .applicationSupportDirectory, in: .userDomainMask
     )[0].appending(path: Bundle.whiskyBundleIdentifier)
 
-    /// The folder containing all library files including Wine and DXVK.
+    /// The folder containing all library files including Wine.
     ///
     /// Located at `~/Library/Application Support/{bundle-identifier}/Libraries/`.
     public static let libraryFolder = applicationFolder.appending(path: "Libraries")
@@ -257,7 +256,7 @@ public class WhiskyWineInstaller {
 
     /// Removes the installed WhiskyWine runtime.
     ///
-    /// This deletes the Libraries folder containing Wine and DXVK.
+    /// This deletes the Libraries folder containing Wine.
     /// Existing bottles are not affected, but they will not be able
     /// to run programs until WhiskyWine is reinstalled.
     public static func uninstall() {
@@ -356,61 +355,12 @@ public class WhiskyWineInstaller {
         whiskyWineInfo()?.version
     }
 
-    /// The bundled DXVK (macOS) version recorded in the installed runtime's
-    /// version plist, or `nil` if WhiskyWine is not installed or the plist does
-    /// not record a DXVK version.
-    public static func whiskyWineDXVKVersion() -> String? {
-        whiskyWineInfo()?.dxvkVersion
-    }
-
-    /// The bundled DXMT version recorded in the installed runtime's version
-    /// plist, or `nil` if WhiskyWine is not installed or the runtime predates
-    /// the DXMT payload (< v3.1.0). `nil` means the DXMT graphics backend is
-    /// unavailable.
-    public static func whiskyWineDXMTVersion() -> String? {
-        whiskyWineInfo()?.dxmtVersion
-    }
-
     /// Whether the installed runtime's Wine applies the Enhanced Sync setting
     /// (see ``WhiskyWineVersion/implementsEnhancedSync``). `false` when
     /// WhiskyWine is not installed or its plist does not show it. Reads the
     /// plist on every call, so a view reads it once and keeps the answer.
     public static func runtimeImplementsEnhancedSync() -> Bool {
         whiskyWineInfo()?.implementsEnhancedSync ?? false
-    }
-
-    /// Whether `backend` can actually be selected against the currently
-    /// installed runtime. Extends the pure
-    /// ``GraphicsBackend/isAvailable(runtimeInfo:)`` version gate with the
-    /// payload checks version records can't express: DXMT needs the *native*
-    /// payload variant (an older builtin-variant payload would silently
-    /// redirect to wined3d), and D3DMetal is never available (no payload is
-    /// deployed on this build).
-    public static func isBackendAvailable(_ backend: GraphicsBackend) -> Bool {
-        backendAvailability(
-            backend,
-            runtimeInfo: whiskyWineInfo(),
-            dxmtRuntimeNative: Wine.isDXMTRuntimeNative()
-        )
-    }
-
-    /// Pure availability logic behind ``isBackendAvailable(_:)``, with every
-    /// machine-dependent input injected so tests answer the same on every
-    /// machine.
-    static func backendAvailability(
-        _ backend: GraphicsBackend,
-        runtimeInfo: WhiskyWineVersion?,
-        dxmtRuntimeNative: Bool
-    ) -> Bool {
-        let versionAvailable = backend.isAvailable(runtimeInfo: runtimeInfo)
-        switch backend {
-        case .dxmt:
-            return versionAvailable && dxmtRuntimeNative
-        case .d3dMetal:
-            return false
-        case .recommended, .dxvk, .wined3d:
-            return versionAvailable
-        }
     }
 
     /// Reads the full version record from the installed WhiskyWine runtime.

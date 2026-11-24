@@ -58,20 +58,6 @@
       "appliesNextLaunch": true
     },
     {
-      "id": "disable-dxr",
-      "title": "Disable Ray Tracing",
-      "description": "Disable DXR (DirectX Raytracing) to improve stability on macOS.",
-      "category": "graphics",
-      "actionType": "changeSetting",
-      "risk": "low",
-      "settingKeyPath": "metalConfig.dxrEnabled",
-      "settingValue": "false",
-      "winetricksVerb": null,
-      "whatWillChange": "Disables ray tracing features which may cause GPU crashes",
-      "undoPath": "Re-enable 'DXR' in Graphics settings",
-      "appliesNextLaunch": true
-    },
-    {
       "id": "reinstall-prefix",
       "title": "Recreate Wine Prefix",
       "description": "Delete and recreate the Wine prefix to fix corruption issues. This will reset all bottle settings.",

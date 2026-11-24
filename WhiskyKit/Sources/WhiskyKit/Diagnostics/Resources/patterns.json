@@ -118,9 +118,9 @@
       "confidence": 0.7,
       "substringPrefilter": "device_lost",
       "regex": "(?:err:.*device_lost|DXGI_ERROR_DEVICE_REMOVED|D3D.*device lost)",
-      "tags": ["gpu", "dxvk", "device-removed"],
+      "tags": ["gpu", "device-removed"],
       "captureGroups": null,
-      "remediationActionIds": ["switch-backend", "disable-dxr"]
+      "remediationActionIds": ["switch-backend"]
     },
     {
       "id": "gpu-metal-validation",
@@ -142,7 +142,7 @@
       "regex": "(?:D3D|d3d).*device hung",
       "tags": ["gpu", "d3d", "hung"],
       "captureGroups": null,
-      "remediationActionIds": ["switch-backend", "disable-dxr"]
+      "remediationActionIds": ["switch-backend"]
     },
     {
       "id": "dx12-path-issue",

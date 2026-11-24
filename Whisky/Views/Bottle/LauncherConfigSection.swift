@@ -99,18 +99,6 @@ extension LauncherConfigSection {
 
         Divider()
 
-        // Rockstar is the only launcher that requires DXVK; every launcher
-        // already resolves to DXVK under the Recommended backend
-        Toggle("Use DXVK for Rockstar Games Launcher", isOn: $bottle.settings.autoEnableDXVK)
-            .help("""
-            Rockstar Games Launcher shows no window without DXVK. When it is this bottle's \
-            launcher, the bottle switches to DXVK on detection and every program in it runs \
-            with DXVK, whatever Graphics Backend is set to. Other launchers already run on DXVK \
-            under the Recommended backend.
-            """)
-
-        Divider()
-
         // Active Environment Overrides provenance display
         ActiveEnvironmentOverrides(
             launcher: bottle.settings.detectedLauncher,

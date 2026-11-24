@@ -34,11 +34,9 @@ struct GameDBOpenGLEntryTests {
     func isaacSetsNoBackend() throws {
         let variant = try #require(isaac().defaultVariant)
         #expect(variant.settings.graphicsBackend == nil)
-        // The legacy switch would reset the bottle to Recommended.
-        #expect(variant.settings.dxvk == nil)
     }
 
-    @Test("Applying Isaac keeps the bottle's backend", arguments: [GraphicsBackend.dxmt, .d3dMetal, .recommended])
+    @Test("Applying Isaac keeps the bottle's backend", arguments: GraphicsBackend.allCases)
     func applyKeepsBackend(_ backend: GraphicsBackend) throws {
         let url = FileManager.default.temporaryDirectory.appending(path: "GameDBOpenGL-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
@@ -50,7 +48,7 @@ struct GameDBOpenGLEntryTests {
         let variant = try #require(entry.defaultVariant)
 
         #expect(!GameConfigApplicator.previewChanges(variant: variant, bottle: bottle)
-            .contains { [.graphicsBackend, .dxvk].contains($0.kind) })
+            .contains { $0.kind == .graphicsBackend })
         _ = try GameConfigApplicator.apply(entry: entry, variant: variant, to: bottle)
 
         #expect(bottle.settings.graphicsBackend == backend)

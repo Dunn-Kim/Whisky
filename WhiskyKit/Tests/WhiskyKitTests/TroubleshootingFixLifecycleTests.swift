@@ -37,7 +37,7 @@ final class TroubleshootingFixLifecycleTests: XCTestCase {
             bottleName: "Lifecycle",
             isWineserverRunning: false,
             processCount: 0,
-            graphicsBackend: "dxvk"
+            graphicsBackend: "dxmt"
         )
         return TroubleshootingFlowEngine(
             flowDefinitions: FlowLoader.loadAllFlows(),
@@ -129,9 +129,7 @@ final class TroubleshootingFixLifecycleTests: XCTestCase {
 
     func testGameConfigThatDidNotHelpIsNotOfferedAgain() async {
         let engine = makeEngine(scripted: [
-            "graphics.backend_is": .pass,
             "crash.log_classify": .pass,
-            "dxvk.settings_check": .pass,
             "game.config_available": .pass
         ])
         engine.selectCategory(.graphics)
@@ -164,8 +162,8 @@ final class TroubleshootingFixLifecycleTests: XCTestCase {
 
     func testFixDidNotHelpOnlyCountsAttemptsThatLanded() throws {
         let engine = makeEngine(scripted: [:])
-        let node = try XCTUnwrap(engine.flowDefinitions["graphics"]?.nodes["fix_enable_dxvk"])
-        var notApplied = FixAttempt(fixId: "switch-backend", result: .failed, nodeId: node.id)
+        let node = try XCTUnwrap(engine.flowDefinitions["graphics"]?.nodes["suggest_game_config"])
+        var notApplied = FixAttempt(fixId: "apply-game-config", result: .failed, nodeId: node.id)
         engine.session.fixAttempts = [notApplied]
         XCTAssertFalse(engine.fixDidNotHelp(at: node))
 
@@ -236,10 +234,10 @@ final class TroubleshootingFixLifecycleTests: XCTestCase {
             "a registry fix recorded without its key cannot be put back"
         )
 
-        let bottleBackend = FixAttempt(fixId: "switch-backend", beforeValue: "d3dMetal", result: .applied)
+        let bottleBackend = FixAttempt(fixId: "switch-backend", beforeValue: "dxmt", result: .applied)
         XCTAssertTrue(FixApplicator.canUndo(bottleBackend, hasProgram: false))
         let programBackend = FixAttempt(
-            fixId: "switch-backend", beforeValue: "d3dMetal", result: .applied, params: ["scope": "program"]
+            fixId: "switch-backend", beforeValue: "dxmt", result: .applied, params: ["scope": "program"]
         )
         XCTAssertFalse(FixApplicator.canUndo(programBackend, hasProgram: false))
         XCTAssertTrue(FixApplicator.canUndo(programBackend, hasProgram: true))
@@ -249,7 +247,7 @@ final class TroubleshootingFixLifecycleTests: XCTestCase {
         XCTAssertTrue(FixApplicator.canUndo(enhanced, hasProgram: true))
 
         XCTAssertTrue(FixApplicator.canUndo(
-            FixAttempt(fixId: "enable-dxvk-async", beforeValue: "false"),
+            FixAttempt(fixId: "enable-esync", beforeValue: "none"),
             hasProgram: false
         ))
         XCTAssertFalse(FixApplicator.canUndo(FixAttempt(fixId: "install-winetricks-verb"), hasProgram: true))

@@ -111,8 +111,8 @@ public enum GPUDetection {
     ///
     /// The vendor and model no longer change the result. The `GPU_VENDOR_ID`,
     /// `GPU_DEVICE_ID`, `GPU_DESCRIPTION`, `GPU_MEMORY_SIZE` and
-    /// `D3DM_SHADER_MODEL` keys they used to fill are read by no shipped
-    /// runtime (Wine, DXVK, DXMT or D3DMetal), so they were dropped.
+    /// shader-model keys they used to fill are read by no shipped runtime, so
+    /// they were dropped.
     ///
     /// - Parameters:
     ///   - vendor: The GPU vendor to spoof (NVIDIA, AMD, or Intel)
@@ -124,9 +124,6 @@ public enum GPUDetection {
         // OpenGL version reporting (4.6 is modern and well-supported)
         env["MESA_GL_VERSION_OVERRIDE"] = "4.6"
         env["MESA_GLSL_VERSION_OVERRIDE"] = "460"
-
-        // Ray tracing capability (helps with modern launcher checks)
-        env["D3DM_SUPPORT_DXR"] = "1"
 
         return env
     }
@@ -165,8 +162,7 @@ public enum GPUDetection {
     /// Validates that GPU spoofing environment is correctly configured.
     ///
     /// This method checks that the keys the bottle-level spoof always sets are
-    /// present. `D3DM_SUPPORT_DXR` is not among them, since the bottle resolves
-    /// it against its own ray tracing toggle.
+    /// present.
     ///
     /// - Parameter environment: The environment dictionary to validate
     /// - Returns: `true` if GPU spoofing is properly configured

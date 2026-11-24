@@ -22,12 +22,8 @@ import WhiskyKit
 struct BackendPickerView: View {
     @Binding var selection: GraphicsBackend
     let resolvedBackend: GraphicsBackend
-    /// Whether a backend can be offered on this machine. Defaults to all-true;
-    /// production callers gate payload-dependent backends (DXMT) on the
-    /// installed runtime.
-    var isBackendAvailable: (GraphicsBackend) -> Bool = { _ in true }
     /// The launchers and Chromium front ends in the bottle, by name, which
-    /// Recommended runs on DXVK whatever it picks for the games (#372).
+    /// Recommended runs on WineD3D whatever it picks for the games (#372).
     var chromiumPrograms: [String] = []
 
     private let columns = [GridItem(.flexible()), GridItem(.flexible())]
@@ -39,7 +35,6 @@ struct BackendPickerView: View {
                     BackendCard(
                         backend: backend,
                         isSelected: selection == backend,
-                        isAvailable: isBackendAvailable(backend),
                         resolvedBackend: backend == .recommended ? resolvedBackend : nil,
                         chromiumPrograms: chromiumPrograms
                     ) {
@@ -74,7 +69,6 @@ struct BackendPickerView: View {
 private struct BackendCard: View {
     let backend: GraphicsBackend
     let isSelected: Bool
-    let isAvailable: Bool
     let resolvedBackend: GraphicsBackend?
     let chromiumPrograms: [String]
     let action: () -> Void
@@ -121,17 +115,10 @@ private struct BackendCard: View {
                     .fontWeight(.semibold)
                     .foregroundStyle(isSelected ? .white : .primary)
 
-                if isAvailable {
-                    Text(backend.summary)
-                        .font(.caption2)
-                        .foregroundStyle(isSelected ? .white.opacity(0.8) : .secondary)
-                        .lineLimit(2)
-                } else {
-                    Text(unavailableReasonKey)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                }
+                Text(backend.summary)
+                    .font(.caption2)
+                    .foregroundStyle(isSelected ? .white.opacity(0.8) : .secondary)
+                    .lineLimit(2)
 
                 if backend == .recommended, isSelected, let resolved = resolvedBackend {
                     Text("config.graphics.currentlyUsing \(resolved.displayName)")
@@ -154,33 +141,21 @@ private struct BackendCard: View {
             )
         }
         .buttonStyle(.plain)
-        .disabled(!isAvailable)
-        .opacity(isAvailable ? 1 : 0.5)
     }
 
     // MARK: - Rationale
 
     /// Why Recommended picks what it does, and which programs in the bottle
-    /// it runs on DXVK instead, when the games get something else.
+    /// it runs on WineD3D instead, when the games get something else.
     private var rationale: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(GraphicsBackendResolver.rationale())
-            if let resolvedBackend, resolvedBackend != .dxvk, !chromiumPrograms.isEmpty {
+            if let resolvedBackend, resolvedBackend != .wined3d, !chromiumPrograms.isEmpty {
                 let names = ListFormatter.localizedString(byJoining: chromiumPrograms)
                 Text("config.graphics.backend.recommended.exceptions \(names) \(resolvedBackend.displayName)")
             }
         }
         .fixedSize(horizontal: false, vertical: true)
-    }
-
-    // MARK: - Unavailability
-
-    /// Only payload-dependent backends (DXMT, D3DMetal) can be unavailable;
-    /// each explains what is missing (issue #146).
-    private var unavailableReasonKey: LocalizedStringKey {
-        backend == .d3dMetal
-            ? "config.graphics.backend.d3dMetal.needsPayload"
-            : "config.graphics.backend.dxmt.unavailable"
     }
 
     // MARK: - Icon
@@ -189,10 +164,6 @@ private struct BackendCard: View {
         switch backend {
         case .recommended:
             "sparkles"
-        case .d3dMetal:
-            "display"
-        case .dxvk:
-            "arrow.triangle.2.circlepath"
         case .dxmt:
             "cube.transparent"
         case .wined3d:
@@ -206,10 +177,6 @@ private struct BackendCard: View {
         switch backend {
         case .recommended:
             nil
-        case .d3dMetal:
-            (String(localized: "config.graphics.tag.fast"), .green)
-        case .dxvk:
-            (String(localized: "config.graphics.tag.compatible"), .blue)
         case .dxmt:
             (String(localized: "config.graphics.tag.experimental"), .purple)
         case .wined3d:

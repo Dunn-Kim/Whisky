@@ -24,7 +24,7 @@ import Foundation
 /// ``BottleSettings`` and compares against `params["expected"]`, a value or
 /// a comma-separated list of the values that are fine (`"msync,esync"`).
 /// Supports common settings like `enhancedSync`, `graphicsBackend`,
-/// `windowsVersion`, `dxvk`, `metalHud`.
+/// `windowsVersion`, `metalHud`.
 public struct SettingValueCheck: TroubleshootingCheck {
     public let checkId = "setting.value_check"
 
@@ -115,16 +115,10 @@ public struct SettingValueCheck: TroubleshootingCheck {
             settings.graphicsBackend.rawValue
         case "windowsVersion":
             String(describing: settings.windowsVersion)
-        case "dxvk":
-            settings.dxvk ? "true" : "false"
-        case "dxvkAsync":
-            settings.dxvkAsync ? "true" : "false"
         case "metalHud":
             settings.metalHud ? "true" : "false"
         case "metalTrace":
             settings.metalTrace ? "true" : "false"
-        case "dxrEnabled":
-            settings.dxrEnabled ? "true" : "false"
         case "metalValidation":
             settings.metalValidation ? "true" : "false"
         case "sequoiaCompatMode":

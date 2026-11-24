@@ -34,7 +34,6 @@ import WhiskyKit
 /// reporter's language.
 enum LauncherConfigWarning: Hashable {
     case steamGPUSpoofing
-    case rockstarDXVK
     case eaGPUSpoofing
     case eaLocale
     case epicLocale
@@ -44,7 +43,7 @@ enum LauncherConfigWarning: Hashable {
     /// The severity marker shown in front of the message.
     var symbol: String {
         switch self {
-        case .rockstarDXVK, .eaGPUSpoofing: "❌"
+        case .eaGPUSpoofing: "❌"
         case .compatibilityModeOff: "💡"
         default: "⚠️"
         }
@@ -54,7 +53,6 @@ enum LauncherConfigWarning: Hashable {
     var localizedMessage: String {
         let message = switch self {
         case .steamGPUSpoofing: String(localized: "launcher.warning.steamGPUSpoofing")
-        case .rockstarDXVK: String(localized: "launcher.warning.rockstarDXVK")
         case .eaGPUSpoofing: String(localized: "launcher.warning.eaGPUSpoofing")
         case .eaLocale: String(localized: "launcher.warning.eaLocale")
         case .epicLocale: String(localized: "launcher.warning.epicLocale")
@@ -68,7 +66,6 @@ enum LauncherConfigWarning: Hashable {
     var diagnosticMessage: String {
         let message = switch self {
         case .steamGPUSpoofing: "GPU spoofing helps with game compatibility checks"
-        case .rockstarDXVK: "DXVK REQUIRED for Rockstar Launcher (logo won't display without it)"
         case .eaGPUSpoofing: "GPU spoofing REQUIRED for EA App (will show 'GPU not supported')"
         case .eaLocale: "en_US locale recommended for EA App launcher UI"
         case .epicLocale: "en_US locale recommended for Epic Games launcher"
@@ -108,18 +105,8 @@ enum LauncherDetection {
 
         switch launcher {
         case .steam:
-            // No DXVK check: Steam's own processes get DXVK through their own
-            // overrides, so a bottle on D3DMetal is the intended setup (#276).
             if !bottle.settings.gpuSpoofing {
                 warnings.append(.steamGPUSpoofing)
-            }
-
-        case .rockstar:
-            // Whether the launch really gets DXVK, not the bottle's backend
-            // alone: Recommended steers the launcher to DXVK, and the launcher
-            // auto-enable deploys it under any backend.
-            if !bottle.settings.deploysDXVK(whenLaunching: launcher) {
-                warnings.append(.rockstarDXVK)
             }
 
         case .eaApp:
@@ -140,7 +127,7 @@ enum LauncherDetection {
                 warnings.append(.battleNetLocale)
             }
 
-        case .ubisoft, .paradox, .zfGame, .rsiLauncher:
+        case .rockstar, .ubisoft, .paradox, .zfGame, .rsiLauncher:
             break
         }
 
@@ -164,7 +151,6 @@ enum LauncherDetection {
 
         summary += "Compatibility Mode: \(bottle.settings.launcherCompatibilityMode ? "✅ Enabled" : "❌ Disabled")\n"
         summary += "Locale: \(bottle.settings.launcherLocale.pretty())\n"
-        summary += "DXVK: \(bottle.settings.deploysDXVK(whenLaunching: launcher) ? "✅ Enabled" : "❌ Disabled")\n"
         let gpuStatus = bottle.settings.gpuSpoofing
             ? "✅ Enabled (\(bottle.settings.gpuVendor.rawValue))"
             : "❌ Disabled"

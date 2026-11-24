@@ -21,75 +21,14 @@ import WhiskyKit
 
 /// Bottle-level DLL override configuration section for ``ConfigView``.
 ///
-/// Displays managed overrides from DXVK toggle and launcher presets as read-only entries,
-/// and provides the ``DLLOverrideEditor`` for editing custom bottle-level overrides.
+/// Provides the ``DLLOverrideEditor`` for editing custom bottle-level overrides.
 struct DLLOverrideConfigSection: View {
     @ObservedObject var bottle: Bottle
     @Binding var isExpanded: Bool
 
-    /// A managed override, what applies it, and the label shown beside it.
-    private struct ManagedOverride {
-        let entry: DLLOverrideEntry
-        let source: DLLOverrideSource
-        let label: String
-    }
-
     var body: some View {
         Section("config.title.dllOverrides", isExpanded: $isExpanded) {
-            DLLOverrideEditor(
-                managedOverrides: computedManagedOverrides.map { (entry: $0.entry, source: $0.label) },
-                customOverrides: $bottle.settings.dllOverrides,
-                warnings: computedWarnings
-            )
+            DLLOverrideEditor(customOverrides: $bottle.settings.dllOverrides)
         }
-    }
-
-    /// Computes managed overrides from bottle state (graphics backend, launcher presets).
-    private var computedManagedOverrides: [ManagedOverride] {
-        var managed: [ManagedOverride] = []
-
-        // The backend, not the legacy `dxvk` flag: the launch path only honours
-        // that flag when no backend is set, so reading it here listed
-        // overrides that were not the ones being applied.
-        let backend = bottle.settings.graphicsBackend == .recommended
-            ? GraphicsBackendResolver.resolve()
-            : bottle.settings.graphicsBackend
-        let preset = DLLOverrideResolver.managedPreset(for: backend)
-        // Only DXVK and DXMT contribute a preset. Crediting the one that did is
-        // what keeps a conflict warning on a DXMT bottle from naming DXVK.
-        let backendSource: DLLOverrideSource = backend == .dxmt ? .dxmt : .dxvk
-        for entry in preset {
-            managed.append(ManagedOverride(entry: entry, source: backendSource, label: backend.displayName))
-        }
-
-        // Launcher managed entries (when launcher requires DXVK and autoEnableDXVK is on)
-        if bottle.settings.launcherCompatibilityMode,
-           bottle.settings.autoEnableDXVK,
-           let launcher = bottle.settings.detectedLauncher,
-           launcher.requiresDXVK {
-            for entry in DLLOverrideResolver.dxvkPreset()
-                where !managed.contains(where: { $0.entry.dllName == entry.dllName }) {
-                managed.append(ManagedOverride(
-                    entry: entry,
-                    source: .launcher(launcher.displayName),
-                    label: String(localized: "config.dllOverrides.source.launcher")
-                ))
-            }
-        }
-
-        return managed
-    }
-
-    /// Computes warnings using DLLOverrideResolver for custom overrides conflicting with managed ones.
-    private var computedWarnings: [DLLOverrideWarning] {
-        let managedEntries: [(entry: DLLOverrideEntry, source: DLLOverrideSource)] = computedManagedOverrides.map {
-            ($0.entry, $0.source)
-        }
-        let resolver = DLLOverrideResolver(
-            managed: managedEntries,
-            bottleCustom: bottle.settings.dllOverrides,
-            programCustom: []
-        )
-        return resolver.resolve().warnings
     }
 }

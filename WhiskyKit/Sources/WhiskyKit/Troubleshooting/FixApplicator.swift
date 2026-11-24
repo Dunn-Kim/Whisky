@@ -84,7 +84,6 @@ public struct FixPreview: Sendable {
 /// | Fix ID | Setting | Reversible |
 /// |--------|---------|------------|
 /// | `switch-backend` | Graphics backend | Yes |
-/// | `enable-dxvk-async` | DXVK async shader compilation | Yes |
 /// | `set-audio-driver` | Wine audio driver registry key | Yes |
 /// | `set-buffer-size` | DirectSound buffer size | Yes |
 /// | `enable-esync` | Enhanced sync mode (none to MSync) | Yes |
@@ -105,8 +104,8 @@ public enum FixApplicator { // swiftlint:disable:this type_body_length
     /// ``FlowValidator`` rejects flows that reference anything else, so a
     /// fix card can never render with a dead Apply button.
     public static let knownFixIds: Set<String> = [
-        "switch-backend", "enable-dxvk-async", "set-audio-driver",
-        "set-buffer-size", "enable-esync", "enable-controller-compat",
+        "switch-backend", "set-audio-driver", "set-buffer-size",
+        "enable-esync", "enable-controller-compat",
         "install-winetricks-verb", "run-enhanced-diagnostics",
         "restart-wineserver", "set-registry-value", "apply-launcher-fixes",
         "apply-game-config"
@@ -121,7 +120,7 @@ public enum FixApplicator { // swiftlint:disable:this type_body_length
     ///
     /// - Parameters:
     ///   - fixId: The stable fix identifier.
-    ///   - params: Parameters from the flow node (e.g., `"backend": "dxvk"`).
+    ///   - params: Parameters from the flow node (e.g., `"backend": "wined3d"`).
     ///   - bottle: The bottle to inspect.
     ///   - program: The program to inspect, if applicable.
     /// - Returns: A ``FixPreview`` describing the change, or `nil` if the fix ID is unknown.
@@ -143,15 +142,6 @@ public enum FixApplicator { // swiftlint:disable:this type_body_length
                 currentValue: current.displayName,
                 newValue: target.displayName,
                 scope: override == nil ? "bottle" : "program",
-                isReversible: true
-            )
-
-        case "enable-dxvk-async":
-            return FixPreview(
-                settingName: String(localized: "troubleshooting.fix.setting.dxvkAsync"),
-                currentValue: stateName(bottle.settings.dxvkAsync),
-                newValue: stateName(true),
-                scope: "bottle",
                 isReversible: true
             )
 
@@ -331,16 +321,6 @@ public enum FixApplicator { // swiftlint:disable:this type_body_length
                 afterValue: target.rawValue,
                 result: .applied,
                 params: params.merging([backendScopeKey: "bottle"]) { _, scope in scope }
-            )
-
-        case "enable-dxvk-async":
-            let before = String(bottle.settings.dxvkAsync)
-            bottle.settings.dxvkAsync = true
-            return FixAttempt(
-                fixId: fixId,
-                beforeValue: before,
-                afterValue: "true",
-                result: .applied
             )
 
         case "set-audio-driver":
@@ -531,11 +511,6 @@ public enum FixApplicator { // swiftlint:disable:this type_body_length
                 return true
             }
             bottle.settings.graphicsBackend = backend
-            return true
-
-        case "enable-dxvk-async":
-            guard let before = attempt.beforeValue else { return false }
-            bottle.settings.dxvkAsync = before == "true"
             return true
 
         case "set-audio-driver":

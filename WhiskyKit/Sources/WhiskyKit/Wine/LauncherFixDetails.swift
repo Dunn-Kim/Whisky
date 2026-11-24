@@ -42,11 +42,6 @@ extension LauncherType {
                     key: "STEAM_RUNTIME", value: "0",
                     reason: LauncherFixReason.steamRuntime,
                     category: .compatibility
-                ),
-                LauncherFixDetail(
-                    key: "DXVK_ASYNC", value: "1",
-                    reason: LauncherFixReason.steamDxvkAsync,
-                    category: .graphics
                 )
             ]
 
@@ -87,15 +82,6 @@ extension LauncherType {
                 )
             ]
 
-        case .ubisoft:
-            [
-                LauncherFixDetail(
-                    key: "DXVK_ASYNC", value: "1",
-                    reason: LauncherFixReason.ubisoftDxvkAsync,
-                    category: .graphics
-                )
-            ]
-
         case .battleNet:
             [
                 LauncherFixDetail(
@@ -105,20 +91,7 @@ extension LauncherType {
                 )
             ]
 
-        case .paradox:
-            []
-
-        case .zfGame:
-            [
-                LauncherFixDetail(
-                    key: "DXVK_ASYNC", value: "1",
-                    reason: LauncherFixReason.zfGameDxvkAsync,
-                    category: .graphics
-                )
-            ]
-
-        case .rsiLauncher:
-            // DXVK comes per executable from the resolver, not the environment.
+        case .ubisoft, .paradox, .zfGame, .rsiLauncher:
             []
         }
     }
@@ -134,12 +107,9 @@ extension LauncherType {
 private enum LauncherFixReason {
     static let steamCefSandbox = "Disables Steam-specific CEF sandbox (crashes under Wine)"
     static let steamRuntime = "Disables Steam Runtime (incompatible with Wine)"
-    static let steamDxvkAsync = "Reduces UI stuttering in Steam client"
     static let largeAddressAware = "Improves launcher initialization memory handling"
     static let rockstarLocale = "Sets locale for launcher UI rendering"
     static let chromiumLocale = "Fixes Chromium-based launcher locale issues"
-    static let ubisoftDxvkAsync = "Improves rendering for Anno 1800 and other Ubisoft games"
-    static let zfGameDxvkAsync = "Reduces stuttering in the launcher's web view"
 }
 
 extension LauncherFixDetail {
@@ -153,18 +123,12 @@ extension LauncherFixDetail {
             String(localized: "launcher.fix.reason.steamCefSandbox")
         case LauncherFixReason.steamRuntime:
             String(localized: "launcher.fix.reason.steamRuntime")
-        case LauncherFixReason.steamDxvkAsync:
-            String(localized: "launcher.fix.reason.steamDxvkAsync")
         case LauncherFixReason.largeAddressAware:
             String(localized: "launcher.fix.reason.largeAddressAware")
         case LauncherFixReason.rockstarLocale:
             String(localized: "launcher.fix.reason.rockstarLocale")
         case LauncherFixReason.chromiumLocale:
             String(localized: "launcher.fix.reason.chromiumLocale")
-        case LauncherFixReason.ubisoftDxvkAsync:
-            String(localized: "launcher.fix.reason.ubisoftDxvkAsync")
-        case LauncherFixReason.zfGameDxvkAsync:
-            String(localized: "launcher.fix.reason.zfGameDxvkAsync")
         default:
             reason
         }

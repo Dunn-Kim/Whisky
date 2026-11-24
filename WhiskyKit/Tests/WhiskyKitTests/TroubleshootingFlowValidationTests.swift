@@ -73,7 +73,7 @@ final class TroubleshootingFlowValidationTests: XCTestCase {
     func testCheckValidationCatchesParamAndRoutingMistakes() {
         let nodes: [String: FlowStepNode] = [
             "misnamed": FlowStepNode(
-                id: "misnamed", type: .check, phase: .checks, checkId: "dxvk.settings_check",
+                id: "misnamed", type: .check, phase: .checks, checkId: "setting.value_check",
                 params: ["check": "async_enabled"],
                 on: ["already_configured": "end", "fail": "end", "error": "end"]
             ),
@@ -91,10 +91,10 @@ final class TroubleshootingFlowValidationTests: XCTestCase {
         let messages = issues.map { "\($0.nodeId ?? "?"): \($0.message)" }
 
         XCTAssertTrue(
-            messages.contains("misnamed: Check 'dxvk.settings_check' does not read param 'check'"),
+            messages.contains("misnamed: Check 'setting.value_check' does not read param 'check'"),
             "\(messages)"
         )
-        XCTAssertTrue(messages.contains("misnamed: Check 'dxvk.settings_check' needs param 'setting'"), "\(messages)")
+        XCTAssertTrue(messages.contains("misnamed: Check 'setting.value_check' needs param 'setting'"), "\(messages)")
         XCTAssertTrue(messages.contains {
             $0.hasPrefix("unrouted:") && $0.contains("already_configured")
         }, "\(messages)")

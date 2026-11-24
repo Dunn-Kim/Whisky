@@ -21,50 +21,34 @@ import os.log
 
 /// The graphics translation backend for a Wine bottle.
 ///
-/// Controls which Direct3D translation layer is used at launch time.
-/// `.recommended` defers the choice to ``GraphicsBackendResolver`` which
-/// selects the best concrete backend based on GPU and macOS heuristics.
+/// The runtime ships its graphics layers built in and picks one per executable.
+/// `.recommended` is the runtime's default, which ``GraphicsBackendResolver``
+/// resolves to DXMT for `dxgi`, or to WineD3D for programs whose window Chromium draws.
+///
+/// A raw value this build does not know decodes as `.recommended`: settings
+/// written when DXVK and D3DMetal were choices (`"dxvk"`, `"d3dMetal"`) still load.
 public enum GraphicsBackend: String, Codable, CaseIterable, Equatable, Sendable {
-    /// Let Whisky choose the best backend for the current system.
+    /// The runtime's default.
     case recommended
-    /// Apple's Direct3D-to-Metal translation layer (Wine's built-in D3DMetal).
-    case d3dMetal
-    /// DXVK: Direct3D-to-Vulkan translation via MoltenVK.
-    case dxvk
-    /// DXMT: Direct3D-11-to-Metal translation. Requires a runtime that bundles
-    /// the DXMT payload (Wine Libraries ≥ 3.1.0).
+    /// DXMT: Direct3D-11-to-Metal translation.
     case dxmt
     /// Wine's built-in OpenGL-based Direct3D translation.
     case wined3d
+
+    public init(from decoder: Decoder) throws {
+        let raw = try decoder.singleValueContainer().decode(String.self)
+        self = Self(rawValue: raw) ?? .recommended
+    }
 
     /// A human-readable display name for this backend.
     public var displayName: String {
         switch self {
         case .recommended:
             String(localized: "config.graphics.backend.recommended")
-        case .d3dMetal:
-            "D3DMetal"
-        case .dxvk:
-            "DXVK"
         case .dxmt:
             "DXMT"
         case .wined3d:
             "WineD3D"
-        }
-    }
-
-    /// Whether this backend can actually be used with the given installed
-    /// runtime record. DXMT requires a runtime that bundles its payload
-    /// (Wine Libraries ≥ 3.1.0, signalled by `dxmtVersion` in the runtime
-    /// plist); every other backend ships with all runtimes. Pure so pickers
-    /// and tests can inject a record; production callers pass
-    /// `WhiskyWineInstaller.whiskyWineInfo()`.
-    public func isAvailable(runtimeInfo: WhiskyWineVersion?) -> Bool {
-        switch self {
-        case .dxmt:
-            runtimeInfo?.dxmtVersion != nil
-        case .recommended, .d3dMetal, .dxvk, .wined3d:
-            true
         }
     }
 
@@ -73,10 +57,6 @@ public enum GraphicsBackend: String, Codable, CaseIterable, Equatable, Sendable 
         switch self {
         case .recommended:
             String(localized: "config.graphics.backend.recommended.summary")
-        case .d3dMetal:
-            String(localized: "config.graphics.backend.d3dMetal.summary")
-        case .dxvk:
-            String(localized: "config.graphics.backend.dxvk.summary")
         case .dxmt:
             String(localized: "config.graphics.backend.dxmt.summary")
         case .wined3d:
@@ -93,7 +73,7 @@ extension KeyedDecodingContainer {
     /// a single unrecognized value bricking the whole bottle's settings.
     ///
     /// Only applies to `String`-raw-value enums; keyed-`Codable` enums
-    /// (e.g. `EnhancedSync`, `DXVKHUD`) are not covered and still decode strictly.
+    /// (e.g. `EnhancedSync`) are not covered and still decode strictly.
     func decodeLenientIfPresent<T: RawRepresentable>(
         _: T.Type,
         forKey key: Key
@@ -143,40 +123,13 @@ extension KeyedDecodingContainer {
 /// Stores the graphics backend choice for a bottle.
 ///
 /// This config is serialized alongside other bottle config groups in
-/// ``BottleSettings``. The defensive `init(from:)` decodes an unknown or
-/// malformed backend value gracefully to `.recommended` (via
-/// ``Swift/KeyedDecodingContainer/decodeLenientIfPresent(_:forKey:)``) rather
-/// than throwing out of the whole settings decode.
+/// ``BottleSettings``. The defensive `init(from:)` decodes a malformed backend
+/// value gracefully to `.recommended` rather than throwing out of the whole
+/// settings decode.
 public struct BottleGraphicsConfig: Codable, Equatable {
     /// The selected graphics backend. Defaults to `.recommended`.
     var backend: GraphicsBackend = .recommended
 
-    /// Whether this bottle opts in to D3DMetal's DLSS-to-MetalFX path.
-    ///
-    /// On by default. This started off opt-in on the theory that a game finding
-    /// the bridge takes its DLSS path instead of whatever it would otherwise
-    /// have used, which could regress as easily as help. Measured, it helps, so
-    /// the default flipped and the toggle stays for the titles it does not suit.
-    /// A tree with no bridge in it is unaffected either way: with nothing for
-    /// `DXGIAdapter::nvngxDLLLocation` to find, the variable is inert.
-    var metalFX: Bool = true
-
-    /// Whether games in this bottle may turn on DLSS frame generation.
-    ///
-    /// Off, and it should stay off until a title is known to survive it. The
-    /// only thing this controls is `CX_ACTIVE_GRAPHICS_BACKEND`, which makes
-    /// win32u answer `KMTQAITYPE_WDDM_2_7_CAPS`, and NVIDIA Streamline refuses
-    /// to enter its DLSS-G path without that answer. So leaving it unset is
-    /// what keeps frame generation off, and it costs nothing else: DLSS
-    /// upscaling reaches MetalFX through ``metalFX`` and does not read this.
-    ///
-    /// Measured on Ready or Not, macOS 27.0 on an M5, D3DMetal 4.0b2: with
-    /// frame generation on, every command buffer carrying MetalFX work fails
-    /// (542 in one 8 minute session against 8 with it off), and the session
-    /// ends when WindowServer blocks in `IOGPUFamily` and its watchdog kills
-    /// it. Two unrelated processes were parked in the same driver at the same
-    /// instant, so this is not something a bottle can be trusted to contain.
-    var frameGeneration: Bool = false
     /// How many frames a game may present per second.
     ///
     /// New bottles cap at the display's refresh rate, since frames rendered past
@@ -187,7 +140,7 @@ public struct BottleGraphicsConfig: Codable, Equatable {
 
     /// Whether DXMT runs its swapchain through MetalFX's spatial upscaler.
     ///
-    /// Not D3DMetal's ``metalFX``: DXMT doubles the output resolution, so a game
+    /// DXMT doubles the output resolution, so a game
     /// keeps rendering at the size it chose and reaches a Retina panel sharpened
     /// by MetalFX rather than stretched by the compositor. That is a quality
     /// trade, not a speedup — the upscale costs GPU time — so it is off unless
@@ -199,13 +152,7 @@ public struct BottleGraphicsConfig: Codable, Equatable {
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.backend = container.decodeLenientIfPresent(GraphicsBackend.self, forKey: .backend) ?? .recommended
-        // Matches the property default, so a bottle written before this key
-        // existed adopts the new default instead of decoding as off.
-        self.metalFX = (try? container.decodeIfPresent(Bool.self, forKey: .metalFX)) ?? true
-        // Off for a bottle written before the key existed, which is the same
-        // answer the property default gives a new one.
-        self.frameGeneration = (try? container.decodeIfPresent(Bool.self, forKey: .frameGeneration)) ?? false
+        self.backend = (try? container.decodeIfPresent(GraphicsBackend.self, forKey: .backend)) ?? .recommended
         // Int-raw enum, so the String-only lenient helper does not apply. An
         // unknown value decodes to `.unlimited` rather than failing the bottle.
         let rawLimit = try container.decodeIfPresent(Int.self, forKey: .frameRateLimit)

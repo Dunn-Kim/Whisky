@@ -150,17 +150,11 @@ public struct WhiskyWineSetupDiagnostics: Codable, Sendable {
     /// Builds the `[VERSION]` section for a runtime record. Pure and `internal`
     /// so the rendering can be unit-tested with injected values; the production
     /// path reads the installed record via `WhiskyWineInstaller.whiskyWineInfo()`.
-    /// The header is always emitted; the runtime/DXVK lines only when recorded.
+    /// The header is always emitted; the runtime line only when recorded.
     static func versionSectionLines(for info: WhiskyWineVersion?) -> [String] {
         var lines = ["[VERSION]"]
         if let version = info?.version.description {
             lines.append("WhiskyWine: \(version)")
-        }
-        if let dxvk = info?.dxvkVersion {
-            lines.append("DXVK: \(dxvk)")
-        }
-        if let dxmt = info?.dxmtVersion {
-            lines.append("DXMT: \(dxmt)")
         }
         lines.append("")
         return lines

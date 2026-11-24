@@ -248,7 +248,7 @@ public enum FlowValidator {
             )]
         }
         // A backend switch must name its target, or FixApplicator falls back
-        // to Recommended and a card promising DXVK changes nothing
+        // to Recommended and a card promising WineD3D changes nothing
         if fixId == "switch-backend",
            node.params?["backend"].flatMap(GraphicsBackend.init(rawValue:)) == nil {
             return [ValidationIssue(

@@ -1,54 +1,8 @@
 {
   "version": 1,
   "categoryId": "graphics",
-  "entryNodeId": "check_backend",
+  "entryNodeId": "check_crash_log",
   "nodes": {
-    "check_backend": {
-      "id": "check_backend",
-      "type": "check",
-      "phase": "checks",
-      "title": "Check graphics backend",
-      "description": "Verifying your current graphics translation layer.",
-      "checkId": "graphics.backend_is",
-      "params": {
-        "expected": "dxvk",
-        "scope": "program_or_bottle"
-      },
-      "on": {
-        "pass": "check_crash_log",
-        "already_configured": "check_crash_log",
-        "fail": "fix_enable_dxvk",
-        "unknown": "check_crash_log",
-        "error": "check_crash_log"
-      },
-      "evidenceMap": {
-        "current": "Current backend",
-        "expected": "Expected backend"
-      }
-    },
-    "fix_enable_dxvk": {
-      "id": "fix_enable_dxvk",
-      "type": "fix",
-      "phase": "fix",
-      "title": "Switch to DXVK",
-      "description": "DXVK provides better compatibility for many graphics issues. Switching the graphics backend to DXVK.",
-      "fixId": "switch-backend",
-      "params": {
-        "backend": "dxvk"
-      },
-      "fixPreview": {
-        "settingName": "Graphics Backend",
-        "currentValueKey": "current",
-        "newValue": "dxvk",
-        "scope": "bottle"
-      },
-      "isReversible": true,
-      "requiresConfirmation": false,
-      "on": {
-        "applied": "verify_fix",
-        "skipped": "check_crash_log"
-      }
-    },
     "check_crash_log": {
       "id": "check_crash_log",
       "type": "check",
@@ -58,10 +12,10 @@
       "checkId": "crash.log_classify",
       "params": {},
       "on": {
-        "pass": "check_dxvk_settings",
+        "pass": "check_game_config",
         "fail": "show_crash_findings",
-        "unknown": "check_dxvk_settings",
-        "error": "check_dxvk_settings"
+        "unknown": "check_game_config",
+        "error": "check_game_config"
       },
       "evidenceMap": {
         "primaryCategory": "Issue category",
@@ -74,52 +28,9 @@
       "type": "info",
       "phase": "checks",
       "title": "Graphics error detected in log",
-      "description": "The log analysis found graphics-related error patterns. Checking DXVK settings for potential fixes.",
+      "description": "The log analysis found graphics-related error patterns. Checking the game database for potential fixes.",
       "on": {
-        "continue": "check_dxvk_settings"
-      }
-    },
-    "check_dxvk_settings": {
-      "id": "check_dxvk_settings",
-      "type": "check",
-      "phase": "checks",
-      "title": "Check DXVK settings",
-      "description": "Checking whether DXVK async shader compilation is enabled for smoother rendering.",
-      "checkId": "dxvk.settings_check",
-      "params": {
-        "setting": "async",
-        "expected": "true"
-      },
-      "on": {
-        "pass": "check_game_config",
-        "already_configured": "check_game_config",
-        "fail": "fix_enable_async",
-        "unknown": "check_game_config",
-        "error": "check_game_config"
-      },
-      "evidenceMap": {
-        "current": "Async compilation",
-        "expected": "Recommended"
-      }
-    },
-    "fix_enable_async": {
-      "id": "fix_enable_async",
-      "type": "fix",
-      "phase": "fix",
-      "title": "Enable DXVK async compilation",
-      "description": "Enabling async shader compilation reduces stuttering caused by shader compilation at runtime.",
-      "fixId": "enable-dxvk-async",
-      "fixPreview": {
-        "settingName": "DXVK Async",
-        "currentValueKey": "current",
-        "newValue": "true",
-        "scope": "bottle"
-      },
-      "isReversible": true,
-      "requiresConfirmation": false,
-      "on": {
-        "applied": "verify_fix",
-        "skipped": "check_game_config"
+        "continue": "check_game_config"
       }
     },
     "check_game_config": {

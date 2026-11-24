@@ -22,7 +22,6 @@ import SemanticVersion
 @testable import WhiskyKit
 import XCTest
 
-// swiftlint:disable:next type_body_length
 final class WhiskyWineInstallerTests: XCTestCase {
     func testCleanupTarballRemovesExistingFile() throws {
         let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
@@ -107,15 +106,14 @@ final class WhiskyWineInstallerTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: tarURL.path))
     }
 
-    func testWhiskyWineInfoAtReadsVersionAndDXVK() throws {
+    func testWhiskyWineInfoAtReadsVersion() throws {
         let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: tempDir) }
 
         let plistURL = tempDir.appendingPathComponent("WhiskyWineVersion").appendingPathExtension("plist")
         let plist: [String: Any] = [
-            "version": ["major": 3, "minor": 0, "patch": 0],
-            "dxvkVersion": "1.10.3"
+            "version": ["major": 3, "minor": 0, "patch": 0]
         ]
         let data = try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0)
         try data.write(to: plistURL)
@@ -123,7 +121,6 @@ final class WhiskyWineInstallerTests: XCTestCase {
         let info = WhiskyWineInstaller.whiskyWineInfo(at: plistURL)
 
         XCTAssertEqual(info?.version, SemanticVersion(3, 0, 0))
-        XCTAssertEqual(info?.dxvkVersion, "1.10.3")
     }
 
     func testWhiskyWineInfoAtMissingFileReturnsNil() {
@@ -202,35 +199,6 @@ final class WhiskyWineInstallerTests: XCTestCase {
         try makeRuntime(in: tempDir, plist: false, wine: true)
 
         XCTAssertFalse(WhiskyWineInstaller.isRuntimePresent(inLibraryFolder: tempDir))
-    }
-
-    // MARK: - backendAvailability (issue #146)
-
-    func testD3DMetalNeverAvailable() {
-        let runtime = WhiskyWineVersion(version: SemanticVersion(3, 1, 1), dxmtVersion: "0.80")
-
-        XCTAssertFalse(WhiskyWineInstaller.backendAvailability(
-            .d3dMetal, runtimeInfo: runtime, dxmtRuntimeNative: true
-        ))
-    }
-
-    func testDXMTRequiresNativePayloadVariant() {
-        let runtime = WhiskyWineVersion(version: SemanticVersion(3, 1, 1), dxmtVersion: "0.80")
-
-        XCTAssertFalse(WhiskyWineInstaller.backendAvailability(
-            .dxmt, runtimeInfo: runtime, dxmtRuntimeNative: false
-        ))
-        XCTAssertTrue(WhiskyWineInstaller.backendAvailability(
-            .dxmt, runtimeInfo: runtime, dxmtRuntimeNative: true
-        ))
-    }
-
-    func testUniversalBackendsUnaffectedByMissingPayloads() {
-        for backend in [GraphicsBackend.recommended, .dxvk, .wined3d] {
-            XCTAssertTrue(WhiskyWineInstaller.backendAvailability(
-                backend, runtimeInfo: nil, dxmtRuntimeNative: false
-            ))
-        }
     }
 
     func testRuntimeNotPresentWhenFolderEmpty() {

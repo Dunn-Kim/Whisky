@@ -92,8 +92,6 @@ final class UnreadEnvironmentVariablesTests: XCTestCase {
             for name in unreadVariables {
                 XCTAssertNil(env[name], "\(name) in \(vendor.rawValue) spoof")
             }
-            // D3DMetal reads this one, so it stays.
-            XCTAssertEqual(env["D3DM_SUPPORT_DXR"], "1")
         }
     }
 

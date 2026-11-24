@@ -19,56 +19,19 @@
 import SwiftUI
 import WhiskyKit
 
-/// Reusable DLL override table editor with managed (read-only) display and custom (editable) entries.
+/// Reusable DLL override table editor for the user's custom entries.
 ///
-/// Used at both bottle and program levels to display managed overrides (from DXVK toggle,
-/// launcher presets) and allow editing of custom user overrides.
+/// Used at both bottle and program levels.
 struct DLLOverrideEditor: View {
-    /// Managed overrides (read-only display with source labels).
-    let managedOverrides: [(entry: DLLOverrideEntry, source: String)]
     /// Custom overrides (editable by the user).
     @Binding var customOverrides: [DLLOverrideEntry]
-    /// Warnings from DLLOverrideResolver for conflict display.
-    let warnings: [DLLOverrideWarning]
 
     @State private var newDLLName: String = ""
     @State private var newDLLMode: DLLOverrideMode = .nativeThenBuiltin
 
     var body: some View {
-        managedSection
         customSection
         addRow
-        presetsMenu
-    }
-
-    // MARK: - Managed Overrides Section
-
-    @ViewBuilder
-    private var managedSection: some View {
-        if !managedOverrides.isEmpty {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("config.dllOverrides.managed")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                ForEach(managedOverrides, id: \.entry.dllName) { item in
-                    HStack {
-                        Image(systemName: "lock.fill")
-                            .foregroundStyle(.secondary)
-                            .font(.caption)
-                        Text(item.entry.dllName)
-                            .font(.system(.body, design: .monospaced))
-                        Spacer()
-                        Text(item.entry.mode.displayName)
-                            .foregroundStyle(.secondary)
-                            .font(.caption)
-                        Text(item.source)
-                            .foregroundStyle(.tertiary)
-                            .font(.caption)
-                    }
-                    .padding(.vertical, 2)
-                }
-            }
-        }
     }
 
     // MARK: - Custom Overrides Section
@@ -84,7 +47,6 @@ struct DLLOverrideEditor: View {
                     HStack {
                         Text(entry.dllName)
                             .font(.system(.body, design: .monospaced))
-                        warningIcon(for: entry.dllName)
                         Spacer()
                         Picker("", selection: modeBinding(at: index)) {
                             ForEach(DLLOverrideMode.allCases, id: \.self) { mode in
@@ -138,16 +100,6 @@ struct DLLOverrideEditor: View {
         }
     }
 
-    // MARK: - Presets Menu
-
-    private var presetsMenu: some View {
-        Menu("config.dllOverrides.presets") {
-            Button("config.dllOverrides.preset.dxvk") {
-                applyDXVKPreset()
-            }
-        }
-    }
-
     // MARK: - Helpers
 
     private func modeBinding(at index: Int) -> Binding<DLLOverrideMode> {
@@ -164,20 +116,9 @@ struct DLLOverrideEditor: View {
         )
     }
 
-    @ViewBuilder
-    private func warningIcon(for dllName: String) -> some View {
-        if let warning = warnings.first(where: { $0.dllName == dllName }) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(.yellow)
-                .font(.caption)
-                .help(warning.message)
-        }
-    }
-
     private func entryExists(_ name: String) -> Bool {
         let normalizedName = name.lowercased().trimmingCharacters(in: .whitespaces)
         return customOverrides.contains { $0.dllName == normalizedName }
-            || managedOverrides.contains { $0.entry.dllName == normalizedName }
     }
 
     private func addEntry() {
@@ -185,15 +126,5 @@ struct DLLOverrideEditor: View {
         guard !name.isEmpty, !entryExists(name) else { return }
         customOverrides.append(DLLOverrideEntry(dllName: name, mode: newDLLMode))
         newDLLName = ""
-    }
-
-    private func applyDXVKPreset() {
-        for preset in DLLOverrideResolver.dxvkPreset() {
-            if let existingIndex = customOverrides.firstIndex(where: { $0.dllName == preset.dllName }) {
-                customOverrides[existingIndex] = preset
-            } else {
-                customOverrides.append(preset)
-            }
-        }
     }
 }

@@ -30,7 +30,7 @@ final class TroubleshootingFlowParamsTests: XCTestCase {
     }
 
     private func preflightContext(
-        graphicsBackend: String = "dxvk",
+        graphicsBackend: String = "dxmt",
         bottleGraphicsBackend: String? = nil,
         device: String? = "Speakers",
         sampleRate: Double? = nil
@@ -55,31 +55,18 @@ final class TroubleshootingFlowParamsTests: XCTestCase {
 
     // MARK: - Graphics
 
-    func testDXVKAsyncCheckReadsTheAsyncSetting() async throws {
-        let params = try params(flow: "graphics", node: "check_dxvk_settings")
-
-        let disabled = try CheckSummaryFixture.bottle(self) { $0.dxvkAsync = false }
-        let enabled = try CheckSummaryFixture.bottle(self) { $0.dxvkAsync = true }
-
-        let offResult = await DXVKSettingsCheck().run(params: params, context: disabled)
-        let onResult = await DXVKSettingsCheck().run(params: params, context: enabled)
-        XCTAssertEqual(offResult.outcome, .fail)
-        XCTAssertEqual(onResult.outcome, .alreadyConfigured)
-    }
-
     func testBackendCheckComparesTheBackendALaunchUses() async throws {
-        let params = try params(flow: "graphics", node: "check_backend")
-        XCTAssertEqual(params["scope"], "program_or_bottle")
-        let context = preflightContext(graphicsBackend: "dxvk", bottleGraphicsBackend: "d3dMetal")
+        let params = ["expected": "wined3d", "scope": "program_or_bottle"]
+        let context = preflightContext(graphicsBackend: "wined3d", bottleGraphicsBackend: "dxmt")
 
         let effective = await GraphicsBackendCheck().run(params: params, context: context)
         var bottleParams = params
         bottleParams["scope"] = "bottle"
         let bottleOnly = await GraphicsBackendCheck().run(params: bottleParams, context: context)
 
-        XCTAssertEqual(effective.outcome, .alreadyConfigured, "the program's DXVK override is what runs")
+        XCTAssertEqual(effective.outcome, .alreadyConfigured, "the program's WineD3D override is what runs")
         XCTAssertEqual(bottleOnly.outcome, .fail)
-        XCTAssertEqual(bottleOnly.evidence["current"], "d3dMetal")
+        XCTAssertEqual(bottleOnly.evidence["current"], "dxmt")
     }
 
     // MARK: - Audio

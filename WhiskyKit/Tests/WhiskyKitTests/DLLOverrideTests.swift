@@ -46,8 +46,8 @@ final class DLLOverrideTests: XCTestCase {
     func testManagedOnlyResolvesToCorrectString() {
         let resolver = DLLOverrideResolver(
             managed: [
-                (entry: DLLOverrideEntry(dllName: "dxgi", mode: .nativeThenBuiltin), source: .dxvk),
-                (entry: DLLOverrideEntry(dllName: "d3d11", mode: .nativeThenBuiltin), source: .dxvk)
+                (entry: DLLOverrideEntry(dllName: "dxgi", mode: .nativeThenBuiltin), source: .launcher("Steam")),
+                (entry: DLLOverrideEntry(dllName: "d3d11", mode: .nativeThenBuiltin), source: .launcher("Steam"))
             ],
             bottleCustom: [],
             programCustom: []
@@ -59,7 +59,7 @@ final class DLLOverrideTests: XCTestCase {
     func testBottleCustomOverridesManaged() {
         let resolver = DLLOverrideResolver(
             managed: [
-                (entry: DLLOverrideEntry(dllName: "dxgi", mode: .nativeThenBuiltin), source: .dxvk)
+                (entry: DLLOverrideEntry(dllName: "dxgi", mode: .nativeThenBuiltin), source: .launcher("Steam"))
             ],
             bottleCustom: [
                 DLLOverrideEntry(dllName: "dxgi", mode: .builtin)
@@ -73,7 +73,7 @@ final class DLLOverrideTests: XCTestCase {
     func testProgramCustomOverridesAll() {
         let resolver = DLLOverrideResolver(
             managed: [
-                (entry: DLLOverrideEntry(dllName: "dxgi", mode: .nativeThenBuiltin), source: .dxvk)
+                (entry: DLLOverrideEntry(dllName: "dxgi", mode: .nativeThenBuiltin), source: .launcher("Steam"))
             ],
             bottleCustom: [],
             programCustom: [
@@ -93,7 +93,7 @@ final class DLLOverrideTests: XCTestCase {
     func testMixedSourcesCompose() {
         let resolver = DLLOverrideResolver(
             managed: [
-                (entry: DLLOverrideEntry(dllName: "dxgi", mode: .nativeThenBuiltin), source: .dxvk)
+                (entry: DLLOverrideEntry(dllName: "dxgi", mode: .nativeThenBuiltin), source: .launcher("Steam"))
             ],
             bottleCustom: [
                 DLLOverrideEntry(dllName: "vcrun", mode: .native)
@@ -106,10 +106,10 @@ final class DLLOverrideTests: XCTestCase {
 
     // MARK: - DLL Override Warnings
 
-    func testDXVKWarningWhenManagedOverridden() {
+    func testWarningWhenManagedOverridden() {
         let resolver = DLLOverrideResolver(
             managed: [
-                (entry: DLLOverrideEntry(dllName: "dxgi", mode: .nativeThenBuiltin), source: .dxvk)
+                (entry: DLLOverrideEntry(dllName: "dxgi", mode: .nativeThenBuiltin), source: .launcher("Steam"))
             ],
             bottleCustom: [
                 DLLOverrideEntry(dllName: "dxgi", mode: .builtin)
@@ -119,13 +119,14 @@ final class DLLOverrideTests: XCTestCase {
         let result = resolver.resolve()
         XCTAssertEqual(result.warnings.count, 1)
         XCTAssertEqual(result.warnings.first?.dllName, "dxgi")
-        XCTAssertEqual(result.warnings.first?.overriddenSource, .dxvk)
+        XCTAssertEqual(result.warnings.first?.overriddenSource, .launcher("Steam"))
+        XCTAssertTrue(result.warnings.first?.message.contains("Steam") == true)
     }
 
     func testNoWarningWhenNoConflict() {
         let resolver = DLLOverrideResolver(
             managed: [
-                (entry: DLLOverrideEntry(dllName: "dxgi", mode: .nativeThenBuiltin), source: .dxvk)
+                (entry: DLLOverrideEntry(dllName: "dxgi", mode: .nativeThenBuiltin), source: .launcher("Steam"))
             ],
             bottleCustom: [
                 DLLOverrideEntry(dllName: "vcrun", mode: .native)
@@ -136,160 +137,36 @@ final class DLLOverrideTests: XCTestCase {
         XCTAssertTrue(result.warnings.isEmpty)
     }
 
-    // MARK: - DXVK Preset
-
-    func testDXVKPresetReturnsCorrectEntries() {
-        let expected: [String: DLLOverrideMode] = [
-            "dxgi": .nativeThenBuiltin,
-            "d3d9": .nativeThenBuiltin,
-            "d3d10core": .nativeThenBuiltin,
-            "d3d11": .nativeThenBuiltin
-        ]
-        let preset = DLLOverrideResolver.dxvkPreset()
-        let modesByName = Dictionary(uniqueKeysWithValues: preset.map { ($0.dllName, $0.mode) })
-        XCTAssertEqual(modesByName, expected)
-    }
-
-    // MARK: - DXMT Preset
-
-    func testDXMTPresetReturnsCorrectEntries() {
-        // The D3D translation trio loads native from the prefix; winemetal must
-        // stay builtin because its unixlib half only binds for builtin loads.
-        let expected: [String: DLLOverrideMode] = [
-            "dxgi": .nativeThenBuiltin,
-            "d3d10core": .nativeThenBuiltin,
-            "d3d11": .nativeThenBuiltin,
-            "winemetal": .builtin
-        ]
-        let preset = DLLOverrideResolver.dxmtPreset()
-        let modesByName = Dictionary(uniqueKeysWithValues: preset.map { ($0.dllName, $0.mode) })
-        XCTAssertEqual(modesByName, expected)
-    }
-
-    func testDXMTPresetResolvesToPinnedOverrideString() {
-        let resolver = DLLOverrideResolver(
-            managed: DLLOverrideResolver.dxmtPreset().map { (entry: $0, source: .dxmt) },
-            bottleCustom: [],
-            programCustom: []
-        )
-        XCTAssertEqual(resolver.resolve().overrides, "d3d10core=n,b;d3d11=n,b;dxgi=n,b;winemetal=b")
-    }
-
-    func testDXMTWarningWhenManagedOverridden() {
-        let resolver = DLLOverrideResolver(
-            managed: [
-                (entry: DLLOverrideEntry(dllName: "d3d11", mode: .nativeThenBuiltin), source: .dxmt)
-            ],
-            bottleCustom: [
-                DLLOverrideEntry(dllName: "d3d11", mode: .builtin)
-            ],
-            programCustom: []
-        )
-        let result = resolver.resolve()
-        XCTAssertEqual(result.warnings.count, 1)
-        XCTAssertEqual(result.warnings.first?.overriddenSource, .dxmt)
-        XCTAssertTrue(result.warnings.first?.message.contains("DXMT") == true)
-    }
-
-    // MARK: - d3d12 is left to Wine's own builtin
-
-    func testTranslationPresetsLeaveWinesOwnD3D12Loadable() {
-        // The builtin is Wine's own d3d12, which turns the foreign adapter away
-        // and lets the game fall back to D3D11. Disabling it made the DLL
-        // unloadable instead: Unity 6000.3 players delay-load d3d12.dll at
-        // startup and die with 0xC06D007E (#255, #257, #258).
-        for (name, preset) in [
-            ("DXVK", DLLOverrideResolver.dxvkPreset()),
-            ("DXMT", DLLOverrideResolver.dxmtPreset())
-        ] {
-            XCTAssertFalse(preset.contains { $0.dllName == "d3d12" }, "\(name) must leave Wine's d3d12 alone")
-        }
-    }
-
-    func testTranslationResetLeavesD3D12Alone() {
-        XCTAssertFalse(Wine.translationDLLResetEntries().contains { $0.dllName == "d3d12" })
-    }
-
-    func testDXVKBottleRendersNoD3D12Override() {
-        let resolver = DLLOverrideResolver(
-            managed: DLLOverrideResolver.dxvkPreset().map { ($0, DLLOverrideSource.dxvk) },
-            bottleCustom: [],
-            programCustom: []
-        )
-        let d3d12 = resolver.resolve().overrides.split(separator: ";").map(String.init)
-            .filter { $0.hasPrefix("d3d12=") }
-        XCTAssertEqual(d3d12, [])
-    }
-
-    func testCustomD3D12BuiltinStillWinsOverThePreset() {
-        // A bottle-level d3d12=b beats the backend's preset and says so.
-        for (source, preset) in [
-            (DLLOverrideSource.dxvk, DLLOverrideResolver.dxvkPreset()),
-            (DLLOverrideSource.dxmt, DLLOverrideResolver.dxmtPreset())
-        ] {
-            let resolver = DLLOverrideResolver(
-                managed: preset.map { ($0, source) },
-                bottleCustom: [DLLOverrideEntry(dllName: "d3d12", mode: .builtin)],
-                programCustom: []
-            )
-            let result = resolver.resolve()
-            XCTAssertTrue(result.overrides.split(separator: ";").contains("d3d12=b"), "\(source)")
-            XCTAssertTrue(result.warnings.isEmpty, "\(source): the preset says nothing about d3d12")
-        }
-    }
-
     // MARK: - What a launch gets
 
-    /// A game started straight from a DXMT bottle, which is where #255, #257
-    /// and #258 crashed: Recommended resolves games to DXMT on the stock
-    /// engine. Only the bottle's preset speaks about d3d12 here, and it says
-    /// nothing.
+    /// No preset reaches a launch: the runtime picks its graphics layer itself,
+    /// so what a bottle writes is its own custom entries.
     @MainActor
-    func testDXMTBottleLeavesD3D12Alone() throws {
+    func testBackendsContributeNoDLLOverrides() throws {
         let bottle = try makeBottle()
         defer { try? FileManager.default.removeItem(at: bottle.url) }
-        bottle.settings.graphicsBackend = .dxmt
 
-        let env = Wine.constructWineEnvironment(for: bottle)
-        XCTAssertEqual(env["WINEDLLOVERRIDES"], "d3d10core=n,b;d3d11=n,b;dxgi=n,b;winemetal=b")
+        for backend in GraphicsBackend.allCases {
+            bottle.settings.graphicsBackend = backend
+            let env = Wine.constructWineEnvironment(for: bottle)
+            XCTAssertNil(env["WINEDLLOVERRIDES"], "\(backend)")
+        }
     }
 
-    /// The launch composition `runProgram` uses. A bottle on DXMT, which is what
-    /// Recommended resolves to on the stock engine, launching steam.exe, which
-    /// `runProgram` pins to DXVK. When `-applaunch` starts the client itself,
-    /// every game in that session inherits this `WINEDLLOVERRIDES`, and Wine
-    /// reads it before the registry.
+    /// Custom entries keep the precedence they had: the program's beats the bottle's.
     @MainActor
-    func testSteamPinOnADXMTBottleLeavesD3D12Alone() throws {
+    func testCustomEntriesComposeAtLaunch() throws {
         let bottle = try makeBottle()
         defer { try? FileManager.default.removeItem(at: bottle.url) }
-        bottle.settings.graphicsBackend = .dxmt
-        var steamPin = ProgramOverrides()
-        steamPin.graphicsBackend = .dxvk
-
-        let env = Wine.constructWineEnvironment(for: bottle, programOverrides: steamPin)
-        XCTAssertEqual(env["WINEDLLOVERRIDES"], "d3d10core=n,b;d3d11=n,b;d3d9=n,b;dxgi=n,b;winemetal=b")
-    }
-
-    /// Custom entries keep the precedence they had: the bottle's beats the
-    /// bottle's backend preset, and the program's (a Steam game's own settings
-    /// ride along with the steam.exe pin) beats every preset.
-    @MainActor
-    func testCustomD3D12BuiltinStillWinsAtLaunch() throws {
-        let bottle = try makeBottle()
-        defer { try? FileManager.default.removeItem(at: bottle.url) }
-        bottle.settings.graphicsBackend = .dxmt
 
         bottle.settings.dllOverrides = [DLLOverrideEntry(dllName: "d3d12", mode: .builtin)]
         let direct = Wine.constructWineEnvironment(for: bottle)
-        XCTAssertEqual(direct["WINEDLLOVERRIDES"], "d3d10core=n,b;d3d11=n,b;d3d12=b;dxgi=n,b;winemetal=b")
+        XCTAssertEqual(direct["WINEDLLOVERRIDES"], "d3d12=b")
 
-        bottle.settings.dllOverrides = []
-        var gameUnderSteam = ProgramOverrides()
-        gameUnderSteam.graphicsBackend = .dxvk
-        gameUnderSteam.dllOverrides = [DLLOverrideEntry(dllName: "d3d12", mode: .builtin)]
-        let steam = Wine.constructWineEnvironment(for: bottle, programOverrides: gameUnderSteam)
-        XCTAssertEqual(steam["WINEDLLOVERRIDES"], "d3d10core=n,b;d3d11=n,b;d3d12=b;d3d9=n,b;dxgi=n,b;winemetal=b")
+        var program = ProgramOverrides()
+        program.dllOverrides = [DLLOverrideEntry(dllName: "d3d12", mode: .disabled)]
+        let overridden = Wine.constructWineEnvironment(for: bottle, programOverrides: program)
+        XCTAssertEqual(overridden["WINEDLLOVERRIDES"], "d3d12=")
     }
 
     @MainActor

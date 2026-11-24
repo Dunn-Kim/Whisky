@@ -58,7 +58,7 @@ final class TroubleshootingPreflightTests: XCTestCase {
         name: "Test Speakers", transportType: .usb, sampleRate: 48_000, outputChannelCount: 2, isDefault: true
     )
 
-    private static let d3dMetal = BackendResolution(backend: .d3dMetal, reason: .dxmt)
+    private static let dxmt = BackendResolution(backend: .dxmt, reason: .dxmt)
 
     // MARK: - Collection
 
@@ -98,7 +98,7 @@ final class TroubleshootingPreflightTests: XCTestCase {
 
         let inputs = PreflightCollector.inputs(bottle: bottle, program: game, programURL: nil)
         let preflight = PreflightCollector.gather(
-            inputs, logsFolder: logsFolder, audioDevice: { Self.fakeDevice }, recommendedBackend: { _ in Self.d3dMetal }
+            inputs, logsFolder: logsFolder, audioDevice: { Self.fakeDevice }, recommendedBackend: { _ in Self.dxmt }
         )
 
         XCTAssertEqual(preflight.launcherType, LauncherType.steam.rawValue)
@@ -108,22 +108,22 @@ final class TroubleshootingPreflightTests: XCTestCase {
         XCTAssertEqual(preflight.audioTransportType, AudioTransportType.usb.exportName)
         XCTAssertEqual(preflight.audioSampleRate, 48_000)
         XCTAssertEqual(preflight.graphicsBackend, "dxmt", "the program's override is what a launch uses")
-        XCTAssertEqual(preflight.bottleGraphicsBackend, "d3dMetal")
+        XCTAssertEqual(preflight.bottleGraphicsBackend, "dxmt")
         XCTAssertEqual(preflight.programName, "game.exe")
     }
 
     func testGatherReadsThePersistedOverrideWithoutAProgram() throws {
         let game = try makeProgram("drive_c/Games/game.exe")
         setOverride(.wined3d, on: game)
-        bottle.settings.graphicsBackend = .dxvk
+        bottle.settings.graphicsBackend = .wined3d
 
         let inputs = PreflightCollector.inputs(bottle: bottle, program: nil, programURL: game.url)
         let preflight = PreflightCollector.gather(
-            inputs, logsFolder: tempDir, audioDevice: { nil }, recommendedBackend: { _ in Self.d3dMetal }
+            inputs, logsFolder: tempDir, audioDevice: { nil }, recommendedBackend: { _ in Self.dxmt }
         )
 
         XCTAssertEqual(preflight.graphicsBackend, "wined3d")
-        XCTAssertEqual(preflight.bottleGraphicsBackend, "dxvk")
+        XCTAssertEqual(preflight.bottleGraphicsBackend, "wined3d")
         XCTAssertNil(preflight.audioDeviceName)
         XCTAssertNil(preflight.recentLogURL)
     }
@@ -151,8 +151,8 @@ final class TroubleshootingPreflightTests: XCTestCase {
     }
 
     func testResolvedBackendsFollowTheLaunch() {
-        let recommended: (DXVKSteering?) -> BackendResolution = { steering in
-            steering.map { BackendResolution(backend: .dxvk, reason: .steered($0)) } ?? Self.d3dMetal
+        let recommended: (BackendSteering?) -> BackendResolution = { steering in
+            steering.map { BackendResolution(backend: .wined3d, reason: .steered($0)) } ?? Self.dxmt
         }
         let game = URL(filePath: "/b/drive_c/Games/game.exe")
         let steam = URL(filePath: "/b/drive_c/Program Files (x86)/Steam/steam.exe")
@@ -160,21 +160,21 @@ final class TroubleshootingPreflightTests: XCTestCase {
         let plain = PreflightCollector.resolvedBackends(
             bottle: .recommended, programOverride: nil, programURL: game, recommended: recommended
         )
-        XCTAssertEqual(plain.effective, .d3dMetal)
-        XCTAssertEqual(plain.bottle, .d3dMetal)
+        XCTAssertEqual(plain.effective, .dxmt)
+        XCTAssertEqual(plain.bottle, .dxmt)
 
         let launcher = PreflightCollector.resolvedBackends(
             bottle: .recommended, programOverride: nil, programURL: steam, recommended: recommended
         )
-        XCTAssertEqual(launcher.effective, .dxvk, "Recommended steers a launcher to DXVK")
+        XCTAssertEqual(launcher.effective, .wined3d, "Recommended steers a launcher to WineD3D")
         XCTAssertEqual(launcher.reason, .steered(.launcher(.steam)))
 
         let frontEnd = PreflightCollector.resolvedBackends(
             bottle: .recommended, programOverride: nil,
             programURL: URL(filePath: "/b/drive_c/Games/3DMark/bin/x64/3DMark.exe"), recommended: recommended
         )
-        XCTAssertEqual(frontEnd.effective, .dxvk, "Recommended steers a Chromium front end to DXVK")
-        XCTAssertEqual(frontEnd.bottle, .d3dMetal)
+        XCTAssertEqual(frontEnd.effective, .wined3d, "Recommended steers a Chromium front end to WineD3D")
+        XCTAssertEqual(frontEnd.bottle, .dxmt)
         XCTAssertEqual(frontEnd.reason, .steered(.chromiumFrontEnd(.threeDMark)))
 
         let overridden = PreflightCollector.resolvedBackends(
@@ -188,7 +188,7 @@ final class TroubleshootingPreflightTests: XCTestCase {
     func testWineserverStateReplacesOnlyThatField() {
         let preflight = PreflightData(
             bottleURL: tempDir, bottleName: "B", launcherType: "Steam", isWineserverRunning: false,
-            processCount: 2, audioSampleRate: 44_100, graphicsBackend: "dxvk", bottleGraphicsBackend: "dxmt"
+            processCount: 2, audioSampleRate: 44_100, graphicsBackend: "wined3d", bottleGraphicsBackend: "dxmt"
         )
 
         let running = preflight.with(isWineserverRunning: true)
@@ -203,7 +203,7 @@ final class TroubleshootingPreflightTests: XCTestCase {
     func testSnapshotsSavedBeforeTheNewFieldsStillDecode() throws {
         let legacy = """
         {"bottleURL":"file:///tmp/b","bottleName":"B","isWineserverRunning":false,"processCount":0,\
-        "graphicsBackend":"dxvk","collectedAt":0}
+        "graphicsBackend":"wined3d","collectedAt":0}
         """
         let preflight = try JSONDecoder().decode(PreflightData.self, from: Data(legacy.utf8))
 
@@ -216,49 +216,49 @@ final class TroubleshootingPreflightTests: XCTestCase {
     func testSwitchBackendChangesTheProgramOverrideWhenOneIsSet() throws {
         bottle.settings.graphicsBackend = .recommended
         let game = try makeProgram("drive_c/Games/game.exe")
-        setOverride(.d3dMetal, on: game)
+        setOverride(.dxmt, on: game)
 
         let preview = try XCTUnwrap(FixApplicator.preview(
-            fixId: "switch-backend", params: ["backend": "dxvk"], bottle: bottle, program: game
+            fixId: "switch-backend", params: ["backend": "wined3d"], bottle: bottle, program: game
         ))
         XCTAssertEqual(preview.scope, "program")
-        XCTAssertEqual(preview.currentValue, GraphicsBackend.d3dMetal.displayName)
+        XCTAssertEqual(preview.currentValue, GraphicsBackend.dxmt.displayName)
 
         let attempt = FixApplicator.apply(
-            fixId: "switch-backend", params: ["backend": "dxvk"], bottle: bottle, program: game
+            fixId: "switch-backend", params: ["backend": "wined3d"], bottle: bottle, program: game
         )
-        XCTAssertEqual(game.settings.overrides?.graphicsBackend, .dxvk)
+        XCTAssertEqual(game.settings.overrides?.graphicsBackend, .wined3d)
         XCTAssertEqual(bottle.settings.graphicsBackend, .recommended, "the bottle was not where the value lived")
-        XCTAssertEqual(attempt.beforeValue, "d3dMetal")
+        XCTAssertEqual(attempt.beforeValue, "dxmt")
         XCTAssertEqual(attempt.params?["scope"], "program")
 
         XCTAssertTrue(FixApplicator.undo(attempt: attempt, bottle: bottle, program: game))
-        XCTAssertEqual(game.settings.overrides?.graphicsBackend, .d3dMetal)
+        XCTAssertEqual(game.settings.overrides?.graphicsBackend, .dxmt)
     }
 
     func testSwitchBackendChangesTheBottleWithoutAnOverride() throws {
-        bottle.settings.graphicsBackend = .d3dMetal
+        bottle.settings.graphicsBackend = .dxmt
         let game = try makeProgram("drive_c/Games/game.exe")
 
         let preview = try XCTUnwrap(FixApplicator.preview(
-            fixId: "switch-backend", params: ["backend": "dxvk"], bottle: bottle, program: game
+            fixId: "switch-backend", params: ["backend": "wined3d"], bottle: bottle, program: game
         ))
         let attempt = FixApplicator.apply(
-            fixId: "switch-backend", params: ["backend": "dxvk"], bottle: bottle, program: game
+            fixId: "switch-backend", params: ["backend": "wined3d"], bottle: bottle, program: game
         )
 
         XCTAssertEqual(preview.scope, "bottle")
-        XCTAssertEqual(bottle.settings.graphicsBackend, .dxvk)
+        XCTAssertEqual(bottle.settings.graphicsBackend, .wined3d)
         XCTAssertNil(game.settings.overrides?.graphicsBackend)
         XCTAssertEqual(attempt.params?["scope"], "bottle")
         XCTAssertTrue(FixApplicator.undo(attempt: attempt, bottle: bottle, program: game))
-        XCTAssertEqual(bottle.settings.graphicsBackend, .d3dMetal)
+        XCTAssertEqual(bottle.settings.graphicsBackend, .dxmt)
     }
 
     func testUndoingAProgramSwitchWithoutTheProgramFails() {
         let attempt = FixAttempt(
-            fixId: "switch-backend", beforeValue: "dxmt", afterValue: "dxvk", result: .applied,
-            params: ["backend": "dxvk", "scope": "program"]
+            fixId: "switch-backend", beforeValue: "dxmt", afterValue: "wined3d", result: .applied,
+            params: ["backend": "wined3d", "scope": "program"]
         )
 
         XCTAssertFalse(FixApplicator.undo(attempt: attempt, bottle: bottle, program: nil))

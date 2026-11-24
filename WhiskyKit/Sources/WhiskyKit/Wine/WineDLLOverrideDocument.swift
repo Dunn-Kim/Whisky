@@ -76,47 +76,22 @@ struct DLLOverrideRecord: Codable, Equatable {
 }
 
 extension Wine {
-    /// The DLL names Whisky writes on its own account: both translation
-    /// layer presets, `d3d12` (older versions turned it off under D3DMetal and
-    /// those entries are still taken back), and the NVIDIA
+    /// The DLL names Whisky writes on its own account: `d3d12` (older versions
+    /// turned it off and those entries are still taken back) and the NVIDIA
     /// bridges launcher helpers get disabled.
     ///
     /// A launch removes these from every key it writes unless it sets them,
-    /// whether or not a record says it wrote them, so a bottle last launched
-    /// by an older version still loses a stale DXVK set when it switches away.
-    static let managedDLLNames: Set<String> = {
-        let presets = DLLOverrideResolver.dxvkPreset()
-            + DLLOverrideResolver.dxmtPreset()
-        return Set(presets.map { $0.dllName.lowercased() }).union(["d3d12", "nvapi", "nvapi64", "nvngx"])
-    }()
-
-    /// The translation layer names in winetricks' spelling, `*name`, which
-    /// every key a launch writes loses.
-    ///
-    /// Winetricks writes each override with a leading `*` (`winetricks dxvk`
-    /// leaves `"*d3d11"="native"`), and Wine reads `*name` whenever a key has no
-    /// `name` of its own. A bottle on D3DMetal or wined3d writes no `d3d11` or
-    /// `dxgi`, so a starred one would run the game on whatever DXVK left in
-    /// `system32` while the backend picker says otherwise. Deleting the key
-    /// used to take these too, and the backend picker keeps that authority:
-    /// this overrides a winetricks choice on purpose. Its other overrides
-    /// (`*d3dx9_43`, `*xaudio2_7`) are not translation layers and stay.
-    static let starredBackendDLLNames: Set<String> = {
-        let presets = DLLOverrideResolver.dxvkPreset()
-            + DLLOverrideResolver.dxmtPreset()
-        return Set((presets.map { $0.dllName.lowercased() } + ["d3d12"]).map { "*" + $0 })
-    }()
+    /// whether or not a record says it wrote them.
+    static let managedDLLNames: Set<String> = ["d3d12", "nvapi", "nvapi64", "nvngx"]
 
     /// Renders a `.reg` giving each key `overrides` and taking back the values
     /// Whisky wrote there before and no longer wants.
     ///
     /// The key is not deleted and recreated: that also took every value
-    /// winetricks or winecfg wrote, so a D3DMetal launch, whose bottle key holds
-    /// nothing of Whisky's, emptied it. Values are removed one by one instead
+    /// winetricks or winecfg wrote, so a launch whose bottle key holds nothing
+    /// of Whisky's emptied it. Values are removed one by one instead
     /// (`"name"=-`), and only for names Whisky could have written: the managed
     /// names, and what `record` says an earlier launch wrote into that key.
-    /// The one exception is winetricks' starred translation layer names
-    /// (``starredBackendDLLNames``), which would otherwise outvote the backend.
     ///
     /// - Parameters:
     ///   - scopes: Each registry key and the overrides it should hold.
@@ -134,7 +109,6 @@ extension Wine {
             let removals = managedDLLNames.union(record.names(for: scope.key))
                 .subtracting(kept)
                 .filter { isRenderable(dll: $0, mode: "") }
-                .union(starredBackendDLLNames)
                 .sorted()
             lines.append("[\(scope.key)]")
             for dll in removals {

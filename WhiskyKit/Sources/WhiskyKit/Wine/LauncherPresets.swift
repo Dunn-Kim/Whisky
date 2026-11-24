@@ -27,7 +27,7 @@ public enum FixCategory: String, Codable, CaseIterable, Sendable {
     case locale
     /// Sandbox disablement or security boundary fixes
     case sandbox
-    /// Graphics driver or rendering fixes (DXVK, D3D, Metal)
+    /// Graphics driver or rendering fixes (D3D, Metal)
     case graphics
     /// Network timeout or connection pooling fixes
     case network
@@ -113,7 +113,6 @@ public struct LauncherFixDetail: Sendable {
 ///
 /// ### Configuration
 /// - ``environmentOverrides()``
-/// - ``requiresDXVK``
 /// - ``recommendedLocale``
 public enum LauncherType: String, Codable, CaseIterable, Sendable, Identifiable {
     /// Valve Steam platform
@@ -177,9 +176,8 @@ public enum LauncherType: String, Codable, CaseIterable, Sendable, Identifiable 
     ///
     /// These overrides address specific compatibility issues:
     /// - **Steam**: Fixes steamwebhelper crashes by disabling its CEF sandbox
-    /// - **Rockstar**: Requires DXVK for logo rendering (whisky-app/whisky#1335, #835)
+    /// - **Rockstar**: Locale and address-space fixes (whisky-app/whisky#1335, #835)
     /// - **EA App/Epic**: Chromium-based, need sandbox and locale fixes
-    /// - **Ubisoft**: DXVK async for Anno 1800 and other Ubisoft games (whisky-app/whisky#1004)
     ///
     /// - Note: For richer metadata including human-readable reasons and categories,
     ///   use ``fixDetails()`` instead.
@@ -202,13 +200,8 @@ public enum LauncherType: String, Codable, CaseIterable, Sendable, Identifiable 
             // Steam Runtime causes issues under Wine
             env["STEAM_RUNTIME"] = "0"
 
-            // Reduce UI stuttering in Steam client
-            env["DXVK_ASYNC"] = "1"
-
         case .rockstar:
             // Rockstar Launcher fixes (whisky-app/whisky#1335, #835, #1120)
-            // DXVK is required for the logo screen to render; requiresDXVK makes
-            // BottleSettings add the DXVK DLL overrides for it.
 
             // Note: CEF_DISABLE_SANDBOX is set globally in MacOSCompatibility.swift
 
@@ -230,9 +223,9 @@ public enum LauncherType: String, Codable, CaseIterable, Sendable, Identifiable 
             env["LC_ALL"] = "en_US.UTF-8"
 
         case .ubisoft:
-            // Ubisoft Connect fixes (whisky-app/whisky#1004)
-            // Anno 1800 and other Ubisoft games compatibility
-            env["DXVK_ASYNC"] = "1"
+            // No environment fix: the Anno 1800 workaround (whisky-app/whisky#1004)
+            // only set a variable no runtime reads any more.
+            break
 
         case .battleNet:
             // Blizzard Battle.net launcher
@@ -245,40 +238,18 @@ public enum LauncherType: String, Codable, CaseIterable, Sendable, Identifiable 
             break
 
         case .zfGame:
-            // ZFGame Browser is Chromium-based and will not paint on D3DMetal.
-            // Reduces stuttering while the launcher's web view animates. No
-            // locale override on purpose: these launchers render a CJK UI, and
-            // forcing en_US replaces their text with boxes.
-            env["DXVK_ASYNC"] = "1"
+            // ZFGame Browser is Chromium-based. No locale override on purpose:
+            // these launchers render a CJK UI, and forcing en_US replaces their
+            // text with boxes.
+            break
 
         case .rsiLauncher:
-            // No environment fix: what the launcher needs is DXVK, which the
-            // resolver gives it per executable (#168). Anything set here would
-            // reach the bottle's environment, and so Star Citizen as well.
+            // No environment fix: anything set here would reach the bottle's
+            // environment, and so Star Citizen as well.
             break
         }
 
         return env
-    }
-
-    /// Indicates whether this launcher requires DXVK to function.
-    ///
-    /// Some launchers (notably Rockstar) will not render their UI without DXVK enabled.
-    ///
-    /// This is the bottle-wide requirement: it puts the DXVK preset into the
-    /// overrides every program in the bottle runs with. Launchers whose own
-    /// executables carry DXVK through the resolver (the RSI Launcher, whose
-    /// Chromium children run as the same executable) stay `false`, so the
-    /// bottle's overrides stay the games'. A game such a launcher starts itself
-    /// still loads the DXVK files its launch left in the prefix wherever those
-    /// overrides prefer native DLLs, as DXMT's do (see `LauncherFixes.apply`).
-    public var requiresDXVK: Bool {
-        switch self {
-        case .rockstar, .zfGame:
-            true
-        default:
-            false
-        }
     }
 
     /// Executables this launcher spawns that must share its DLL overrides.
@@ -288,9 +259,9 @@ public enum LauncherType: String, Codable, CaseIterable, Sendable, Identifiable 
     /// leaves the window blank. Games a launcher starts are deliberately absent.
     ///
     /// Steam's overlay process is on the list because it draws the in-game
-    /// overlay with Direct3D in a process of its own, beside a game that may be
-    /// on D3DMetal. Current clients ship it as `gameoverlayui64.exe` only;
-    /// `GameOverlayUI.exe` is the name older ones used. Helpers that draw nothing (`steamerrorreporter.exe`,
+    /// overlay with Direct3D in a process of its own, beside the game. Current clients
+    /// ship it as `gameoverlayui64.exe` only; `GameOverlayUI.exe` is the name older
+    /// ones used. Helpers that draw nothing (`steamerrorreporter.exe`,
     /// `steam_monitor.exe`) run on the bottle's backend unharmed.
     public var helperExecutables: [String] {
         switch self {
@@ -318,10 +289,9 @@ public enum LauncherType: String, Codable, CaseIterable, Sendable, Identifiable 
     ///
     /// Rockstar's: a Rockstar title bought on Steam (Red Dead Redemption 2's
     /// `PlayRDR2.exe`) starts the Rockstar Games Launcher and Social Club inside
-    /// the Steam session. Both draw with Chromium and need DXVK the way Steam's
-    /// helper does. `Launcher.exe` also needs `d3d12` off: it asks D3D12 for
-    /// graphics information at startup, and with D3DMetal's `d3d12` reachable
-    /// that query hangs its shutdown, which keeps the game "running" in Steam
+    /// the Steam session. `Launcher.exe` needs `d3d12` off: it asks D3D12 for
+    /// graphics information at startup, and with `d3d12` reachable that query
+    /// hangs its shutdown, which keeps the game "running" in Steam
     /// (#276). Social Club gets the same entry, the layout measured there.
     public var chainExecutables: [String] {
         switch self {

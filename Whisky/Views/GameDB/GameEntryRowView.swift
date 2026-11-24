@@ -111,10 +111,6 @@ struct GameEntryRowView: View {
         guard let variant = entry.defaultVariant else { return nil }
         guard let backend = variant.settings.graphicsBackend else { return nil }
         switch backend {
-        case .d3dMetal:
-            return "D3DMetal"
-        case .dxvk:
-            return "DXVK"
         case .dxmt:
             return "DXMT"
         case .wined3d:

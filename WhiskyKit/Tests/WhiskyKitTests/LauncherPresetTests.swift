@@ -53,17 +53,13 @@ final class LauncherPresetTests: XCTestCase {
 
         // Steam should still set other important fixes
         XCTAssertEqual(env["STEAM_DISABLE_CEF_SANDBOX"], "1")
-        XCTAssertEqual(env["DXVK_ASYNC"], "1")
+        XCTAssertNil(env["DXVK_ASYNC"])
     }
 
-    func testRockstarRequiresDXVK() {
-        let launcher = LauncherType.rockstar
+    func testRockstarPresetSetsNoGraphicsVariables() {
+        let env = LauncherType.rockstar.environmentOverrides()
 
-        // Rockstar Launcher requires DXVK to display logo
-        XCTAssertTrue(launcher.requiresDXVK)
-
-        // DXVK is turned on through requiresDXVK, not an environment variable
-        let env = launcher.environmentOverrides()
+        XCTAssertEqual(env["WINE_LARGE_ADDRESS_AWARE"], "1")
         XCTAssertNil(env["DXVK_REQUIRED"], "No shipped runtime reads DXVK_REQUIRED")
         XCTAssertNil(env["D3DM_FORCE_D3D11"], "No shipped runtime reads D3DM_FORCE_D3D11")
     }
@@ -96,8 +92,7 @@ final class LauncherPresetTests: XCTestCase {
     func testUbisoftPreset() {
         let env = LauncherType.ubisoft.environmentOverrides()
 
-        XCTAssertEqual(env["DXVK_ASYNC"], "1")
-        XCTAssertNil(env["D3DM_FORCE_D3D11"])
+        XCTAssertTrue(env.isEmpty)
     }
 
     func testBattleNetPreset() {
@@ -119,12 +114,10 @@ final class LauncherPresetTests: XCTestCase {
     }
 
     func testRSILauncherPreset() {
-        // The RSI Launcher's fix is DXVK for its own executable (#168). Nothing
-        // goes into the environment or the bottle, which Star Citizen shares.
+        // Nothing goes into the environment or the bottle, which Star Citizen shares.
         let launcher = LauncherType.rsiLauncher
         XCTAssertTrue(launcher.environmentOverrides().isEmpty)
         XCTAssertTrue(launcher.fixDetails().isEmpty)
-        XCTAssertFalse(launcher.requiresDXVK, "a bottle-wide DXVK requirement would reach Star Citizen")
         XCTAssertEqual(launcher.recommendedLocale, .auto)
         XCTAssertFalse(launcher.usesClipboard)
         XCTAssertEqual(launcher.helperExecutables, [])

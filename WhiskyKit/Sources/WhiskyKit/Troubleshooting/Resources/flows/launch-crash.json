@@ -13,7 +13,7 @@
       "params": {},
       "on": {
         "pass": "check_winetricks",
-        "fail": "check_graphics_backend",
+        "fail": "check_winetricks",
         "unknown": "check_winetricks",
         "error": "check_winetricks"
       },
@@ -22,52 +22,6 @@
         "confidence": "Confidence",
         "headline": "Finding",
         "matchCount": "Patterns matched"
-      }
-    },
-    "check_graphics_backend": {
-      "id": "check_graphics_backend",
-      "type": "check",
-      "phase": "checks",
-      "title": "Check graphics backend",
-      "description": "The crash appears graphics-related. Checking the current graphics translation layer.",
-      "checkId": "graphics.backend_is",
-      "params": {
-        "expected": "dxvk",
-        "scope": "program_or_bottle"
-      },
-      "on": {
-        "pass": "check_winetricks",
-        "already_configured": "check_winetricks",
-        "fail": "fix_switch_backend",
-        "unknown": "check_winetricks",
-        "error": "check_winetricks"
-      },
-      "evidenceMap": {
-        "current": "Current backend",
-        "expected": "Expected backend"
-      }
-    },
-    "fix_switch_backend": {
-      "id": "fix_switch_backend",
-      "type": "fix",
-      "phase": "fix",
-      "title": "Switch to DXVK",
-      "description": "DXVK is the most broadly compatible graphics backend. Switching the graphics backend to DXVK may resolve the GPU-related crash.",
-      "fixId": "switch-backend",
-      "params": {
-        "backend": "dxvk"
-      },
-      "fixPreview": {
-        "settingName": "Graphics Backend",
-        "currentValueKey": "current",
-        "newValue": "dxvk",
-        "scope": "bottle"
-      },
-      "isReversible": true,
-      "requiresConfirmation": false,
-      "on": {
-        "applied": "verify_fix",
-        "skipped": "check_winetricks"
       }
     },
     "check_winetricks": {

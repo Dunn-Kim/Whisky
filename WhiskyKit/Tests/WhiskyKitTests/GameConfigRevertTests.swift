@@ -74,20 +74,20 @@ final class GameConfigRevertTests {
     @Test("Revert leaves program settings the apply did not set, including later edits")
     func revertKeepsOtherProgramSettings() throws {
         let game = try makeProgram("Games/Test/TestGame.exe")
-        game.settings.environment = ["KEEP": "1", "DXVK_HUD": "0"]
-        let variant = makeVariant(environment: ["DXVK_ASYNC": "1", "DXVK_HUD": "1"])
+        game.settings.environment = ["KEEP": "1", "GAME_FLAG_C": "0"]
+        let variant = makeVariant(environment: ["GAME_FLAG_A": "1", "GAME_FLAG_C": "1"])
         let snapshot = try GameConfigApplicator.apply(
             entry: makeEntry(variant: variant), variant: variant, to: bottle
         )
 
         // Changed after the apply: kept by the revert.
         game.settings.arguments = "-dx11"
-        game.settings.environment["DXVK_ASYNC"] = "0"
+        game.settings.environment["GAME_FLAG_A"] = "0"
         game.settings.environment["NEW"] = "1"
 
         _ = try GameConfigApplicator.revert(bottle: bottle, snapshot: snapshot)
         #expect(game.settings.arguments == "-dx11")
-        #expect(game.settings.environment == ["KEEP": "1", "DXVK_HUD": "0", "DXVK_ASYNC": "0", "NEW": "1"])
+        #expect(game.settings.environment == ["KEEP": "1", "GAME_FLAG_C": "0", "GAME_FLAG_A": "0", "NEW": "1"])
     }
 
     @Test("A configuration without variables leaves the game's program out of the snapshot")

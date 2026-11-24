@@ -60,9 +60,6 @@ public enum LaunchResolver {
     ///     the recommended variant is.
     ///   - entries: The GameDB entries to match against. Defaults to the
     ///     bundled database.
-    ///   - isBackendAvailable: Whether this machine can run a backend. A
-    ///     variant backend it can't run becomes Recommended, as it does when
-    ///     the configuration is applied to the bottle.
     /// - Returns: A plan; without a GameDB match it simply carries the user
     ///   overrides and empty profile environment.
     public static func plan(
@@ -70,8 +67,7 @@ public enum LaunchResolver {
         exeName: String? = nil,
         userOverrides: ProgramOverrides? = nil,
         appliedConfiguration: GameConfigSnapshot? = nil,
-        entries: [GameDBEntry]? = nil,
-        isBackendAvailable: (GraphicsBackend) -> Bool = WhiskyWineInstaller.isBackendAvailable
+        entries: [GameDBEntry]? = nil
     ) -> LaunchPlan {
         let database = entries ?? GameDBLoader.loadDefaults()
         let metadata = ProgramMetadata(exeName: exeName ?? "", steamAppId: steamAppId)
@@ -93,8 +89,7 @@ public enum LaunchResolver {
         }
 
         let overrides = merge(
-            variant: variant.settings, dllOverrides: variant.dllOverrides, under: userOverrides,
-            isBackendAvailable: isBackendAvailable
+            variant: variant.settings, dllOverrides: variant.dllOverrides, under: userOverrides
         )
 
         var plan = LaunchPlan(
@@ -131,25 +126,17 @@ public enum LaunchResolver {
     /// `winetricksVerbs` are not mapped: the first two have no per-program
     /// equivalent and verbs are an install-time action, not launch config.
     ///
-    /// The variant's backend goes through
-    /// ``GameConfigApplicator/effectiveBackend(_:isBackendAvailable:)``, so a
-    /// backend this machine can't run becomes Recommended instead of falling
-    /// back to WineD3D at launch. The user's own backend is left as chosen.
+    /// The user's own backend is left as chosen.
     static func merge(
         variant: GameConfigVariantSettings,
         dllOverrides: [DLLOverrideEntry]?,
-        under userOverrides: ProgramOverrides?,
-        isBackendAvailable: (GraphicsBackend) -> Bool = WhiskyWineInstaller.isBackendAvailable
+        under userOverrides: ProgramOverrides?
     ) -> ProgramOverrides {
         var merged = userOverrides ?? ProgramOverrides()
 
         if merged.graphicsBackend == nil, let backend = variant.graphicsBackend {
-            merged.graphicsBackend = GameConfigApplicator.effectiveBackend(
-                backend, isBackendAvailable: isBackendAvailable
-            )
+            merged.graphicsBackend = backend
         }
-        merged.dxvk = merged.dxvk ?? variant.dxvk
-        merged.dxvkAsync = merged.dxvkAsync ?? variant.dxvkAsync
         merged.enhancedSync = merged.enhancedSync ?? variant.enhancedSync
         merged.shaderCacheEnabled = merged.shaderCacheEnabled ?? variant.shaderCacheEnabled
         merged.dllOverrides = merged.dllOverrides ?? dllOverrides

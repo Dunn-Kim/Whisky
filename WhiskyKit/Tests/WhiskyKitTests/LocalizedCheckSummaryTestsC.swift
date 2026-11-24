@@ -19,85 +19,16 @@
 @testable import WhiskyKit
 import XCTest
 
-/// On-screen summaries of the checks that read bottle settings: DXVK settings,
-/// setting values, and environment variables. Each result comes from running
+/// On-screen summaries of the checks that read bottle settings: setting
+/// values and environment variables. Each result comes from running
 /// the check against a temporary bottle.
 final class LocalizedSettingsCheckSummaryTests: XCTestCase {
-    // MARK: - DXVKSettingsCheck
-
-    func testDXVKMissingSettingParameterKeepsTheEnglishSummary() async throws {
-        let result = try await DXVKSettingsCheck().run(params: [:], context: CheckSummaryFixture.bottle(self))
-
-        XCTAssertEqual(result.outcome, .error)
-        XCTAssertEqual(result.summary, "Missing 'setting' parameter")
-        XCTAssertNil(DXVKSettingsCheck.localizedSummary(for: result))
-    }
-
-    func testDXVKUnreadableSettingsIsLocalized() async throws {
-        let context = try CheckSummaryFixture.corruptBottle(self)
-        let result = await DXVKSettingsCheck().run(params: ["setting": "async"], context: context)
-
-        XCTAssertEqual(result.summary, "Failed to read bottle settings")
-        assertSummaryLookup(DXVKSettingsCheck.localizedSummary(for: result), "troubleshooting.check.settingsUnreadable")
-    }
-
-    func testDXVKUnknownSettingNamesTheSetting() async throws {
-        let context = try CheckSummaryFixture.bottle(self)
-        let result = await DXVKSettingsCheck().run(params: ["setting": "frobnicate"], context: context)
-
-        XCTAssertEqual(result.summary, "Unknown DXVK setting: frobnicate")
-        assertSummaryLookup(
-            DXVKSettingsCheck.localizedSummary(for: result),
-            "troubleshooting.check.dxvk.unknownSetting %@",
-            "frobnicate"
-        )
-    }
-
-    func testDXVKMatchNamesSettingAndValue() async throws {
-        let context = try CheckSummaryFixture.bottle(self) { $0.dxvkAsync = true }
-        // `expected` defaults to "true".
-        let result = await DXVKSettingsCheck().run(params: ["setting": "async"], context: context)
-
-        XCTAssertEqual(result.outcome, .alreadyConfigured)
-        XCTAssertEqual(result.summary, "DXVK async is already true")
-        assertSummaryLookup(
-            DXVKSettingsCheck.localizedSummary(for: result),
-            "troubleshooting.check.dxvk.matches %@ %@",
-            "async",
-            "true"
-        )
-    }
-
-    func testDXVKMismatchNamesSettingCurrentAndExpected() async throws {
-        let context = try CheckSummaryFixture.bottle(self) { $0.dxvkHud = .off }
-        let result = await DXVKSettingsCheck().run(params: ["setting": "hud", "expected": "fps"], context: context)
-
-        XCTAssertEqual(result.outcome, .fail)
-        XCTAssertEqual(result.summary, "DXVK hud is off, expected fps")
-        assertSummaryLookup(
-            DXVKSettingsCheck.localizedSummary(for: result),
-            "troubleshooting.check.dxvk.mismatch %@ %@ %@",
-            "hud",
-            "off",
-            "fps"
-        )
-    }
-
-    func testDXVKOtherOutcomesAndPartialEvidenceFallBack() {
-        XCTAssertNil(DXVKSettingsCheck.localizedSummary(for: CheckResult(outcome: .pass, summary: "x")))
-        XCTAssertNil(DXVKSettingsCheck.localizedSummary(for: CheckResult(outcome: .unknown, summary: "x")))
-        let noExpected = CheckResult(outcome: .alreadyConfigured, evidence: ["setting": "async"], summary: "x")
-        XCTAssertNil(DXVKSettingsCheck.localizedSummary(for: noExpected))
-        let noCurrent = CheckResult(outcome: .fail, evidence: ["setting": "hud", "expected": "fps"], summary: "x")
-        XCTAssertNil(DXVKSettingsCheck.localizedSummary(for: noCurrent))
-    }
-
     // MARK: - SettingValueCheck
 
     func testSettingValueMissingParametersKeepTheEnglishSummary() async throws {
         let context = try CheckSummaryFixture.bottle(self)
         let noSetting = await SettingValueCheck().run(params: ["expected": "true"], context: context)
-        let noExpected = await SettingValueCheck().run(params: ["setting": "dxvk"], context: context)
+        let noExpected = await SettingValueCheck().run(params: ["setting": "metalHud"], context: context)
 
         XCTAssertEqual(noSetting.summary, "Missing 'setting' parameter")
         XCTAssertEqual(noExpected.summary, "Missing 'expected' parameter")
@@ -107,7 +38,10 @@ final class LocalizedSettingsCheckSummaryTests: XCTestCase {
 
     func testSettingValueUnreadableSettingsIsLocalized() async throws {
         let context = try CheckSummaryFixture.corruptBottle(self)
-        let result = await SettingValueCheck().run(params: ["setting": "dxvk", "expected": "true"], context: context)
+        let result = await SettingValueCheck().run(
+            params: ["setting": "metalHud", "expected": "true"],
+            context: context
+        )
 
         XCTAssertEqual(result.outcome, .error)
         assertSummaryLookup(SettingValueCheck.localizedSummary(for: result), "troubleshooting.check.settingsUnreadable")
@@ -158,24 +92,12 @@ final class LocalizedSettingsCheckSummaryTests: XCTestCase {
         )
     }
 
-    func testSettingValueAndDXVKUseTheirOwnKeys() {
-        // The same evidence reads differently: DXVK summaries say "DXVK".
-        let evidence = ["setting": "async", "current": "false", "expected": "true"]
-        for outcome in [CheckOutcome.alreadyConfigured, .fail, .error] {
-            let result = CheckResult(outcome: outcome, evidence: evidence, summary: "x")
-            let dxvk = DXVKSettingsCheck.localizedSummary(for: result)
-            let value = SettingValueCheck.localizedSummary(for: result)
-            XCTAssertNotNil(dxvk, "\(outcome)")
-            XCTAssertNotEqual(dxvk, value, "\(outcome)")
-        }
-    }
-
     func testSettingValueOtherOutcomesAndPartialEvidenceFallBack() {
         XCTAssertNil(SettingValueCheck.localizedSummary(for: CheckResult(outcome: .pass, summary: "x")))
         XCTAssertNil(SettingValueCheck.localizedSummary(for: CheckResult(outcome: .unknown, summary: "x")))
-        let noExpected = CheckResult(outcome: .alreadyConfigured, evidence: ["setting": "dxvk"], summary: "x")
+        let noExpected = CheckResult(outcome: .alreadyConfigured, evidence: ["setting": "metalHud"], summary: "x")
         XCTAssertNil(SettingValueCheck.localizedSummary(for: noExpected))
-        let noCurrent = CheckResult(outcome: .fail, evidence: ["setting": "dxvk", "expected": "true"], summary: "x")
+        let noCurrent = CheckResult(outcome: .fail, evidence: ["setting": "metalHud", "expected": "true"], summary: "x")
         XCTAssertNil(SettingValueCheck.localizedSummary(for: noCurrent))
     }
 

@@ -68,7 +68,7 @@ public struct PreflightData: Codable, Sendable {
     public let audioSampleRate: Double?
 
     /// The graphics backend a launch of the program uses, resolved (e.g.,
-    /// "dxvk", "d3dMetal"): the program's override when it has one, the
+    /// "dxmt", "wined3d"): the program's override when it has one, the
     /// bottle's otherwise.
     public let graphicsBackend: String
 
@@ -77,7 +77,7 @@ public struct PreflightData: Codable, Sendable {
     public let bottleGraphicsBackend: String?
 
     /// Why Recommended picked ``graphicsBackend`` (a Chromium window steered to
-    /// DXVK, say), when the launch is on Recommended. `nil` for an explicit
+    /// WineD3D, say), when the launch is on Recommended. `nil` for an explicit
     /// choice and in snapshots taken before this was recorded.
     public let graphicsBackendReason: String?
 

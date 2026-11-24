@@ -76,21 +76,23 @@ struct DLLOverrideMergeTests {
 
     @Test("A program's own disable reaches the composed value in a bottle with overrides")
     func programDisableSurvives() throws {
-        let bottle = try makeBottle(.dxvk)
+        let bottle = try makeBottle(.recommended)
+        bottle.settings.dllOverrides = [DLLOverrideEntry(dllName: "d3dcompiler_47", mode: .native)]
         let env = Wine.constructWineEnvironment(
             for: bottle, environment: ["WINEDLLOVERRIDES": "winemenubuilder.exe=d"]
         )
         let overrides = Wine.parseDLLOverrides(env["WINEDLLOVERRIDES"] ?? "")
         #expect(overrides["winemenubuilder.exe"] == "")
-        #expect(overrides["d3d11"] == "n,b")
+        #expect(overrides["d3dcompiler_47"] == "n")
     }
 
-    @Test("A program's own WINEDLLOVERRIDES survives and beats the backend preset")
-    func programValueBeatsPreset() throws {
+    @Test("A program's own WINEDLLOVERRIDES survives and beats the bottle's custom overrides")
+    func programValueBeatsBottleOverrides() throws {
         let bottle = try makeBottle(.dxmt)
-
-        let preset = Wine.constructWineEnvironment(for: bottle)
-        #expect(preset["WINEDLLOVERRIDES"]?.contains("d3d11=n,b") == true)
+        bottle.settings.dllOverrides = [
+            DLLOverrideEntry(dllName: "d3d11", mode: .nativeThenBuiltin),
+            DLLOverrideEntry(dllName: "winemetal", mode: .builtin)
+        ]
 
         let merged = Wine.constructWineEnvironment(
             for: bottle, environment: ["WINEDLLOVERRIDES": "D3D11=B;xaudio2_7,dinput8=n"]
@@ -99,14 +101,15 @@ struct DLLOverrideMergeTests {
         #expect(overrides["d3d11"] == "b")
         #expect(overrides["xaudio2_7"] == "n")
         #expect(overrides["dinput8"] == "n")
-        #expect(overrides["winemetal"] == "b", "the rest of the DXMT preset is untouched")
+        #expect(overrides["winemetal"] == "b", "the rest of the bottle's overrides is untouched")
     }
 
-    @Test("A program's value beats its own backend override and its structured overrides")
+    @Test("A program's value beats its own structured overrides")
     func programValueBeatsProgramOverrides() throws {
-        let bottle = try makeBottle(.d3dMetal)
+        let bottle = try makeBottle(.recommended)
+        bottle.settings.dllOverrides = [DLLOverrideEntry(dllName: "d3d11", mode: .nativeThenBuiltin)]
         var programOverrides = ProgramOverrides()
-        programOverrides.graphicsBackend = .dxvk
+        programOverrides.graphicsBackend = .wined3d
         programOverrides.dllOverrides = [DLLOverrideEntry(dllName: "dinput8", mode: .builtin)]
 
         let env = Wine.constructWineEnvironment(
@@ -121,7 +124,7 @@ struct DLLOverrideMergeTests {
 
     @Test("A GameDB profile's WINEDLLOVERRIDES does not outrank the bottle's custom overrides")
     func gameProfileValueIsNotMerged() throws {
-        let bottle = try makeBottle(.d3dMetal)
+        let bottle = try makeBottle(.recommended)
         bottle.settings.dllOverrides = [DLLOverrideEntry(dllName: "dinput8", mode: .builtin)]
 
         let env = Wine.constructWineEnvironment(

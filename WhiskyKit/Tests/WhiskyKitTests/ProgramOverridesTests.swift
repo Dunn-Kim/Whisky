@@ -29,7 +29,7 @@ final class ProgramOverridesTests: XCTestCase {
 
     func testPartialOverrideNotEmpty() {
         var overrides = ProgramOverrides()
-        overrides.dxvk = true
+        overrides.graphicsBackend = .wined3d
         XCTAssertFalse(overrides.isEmpty)
     }
 
@@ -47,16 +47,16 @@ final class ProgramOverridesTests: XCTestCase {
 
     func testCodableRoundTripPartialValues() throws {
         var overrides = ProgramOverrides()
-        overrides.dxvk = true
+        overrides.graphicsBackend = .dxmt
         overrides.enhancedSync = .msync
 
         let encoder = PropertyListEncoder()
         encoder.outputFormat = .xml
         let data = try encoder.encode(overrides)
         let decoded = try PropertyListDecoder().decode(ProgramOverrides.self, from: data)
-        XCTAssertEqual(decoded.dxvk, true)
+        XCTAssertEqual(decoded.graphicsBackend, .dxmt)
         XCTAssertEqual(decoded.enhancedSync, .msync)
-        XCTAssertNil(decoded.dxvkAsync)
+        XCTAssertNil(decoded.shaderCacheEnabled)
     }
 
     // MARK: - Backward Compatibility
@@ -81,9 +81,9 @@ final class ProgramOverridesTests: XCTestCase {
         XCTAssertTrue(decoded.dllOverrides.isEmpty)
     }
 
-    func testUnknownGraphicsBackendDecodesToNil() throws {
+    func testUnknownGraphicsBackendDecodesToRecommended() throws {
         var overrides = ProgramOverrides()
-        overrides.graphicsBackend = .dxvk
+        overrides.graphicsBackend = .dxmt
         overrides.enhancedSync = .msync
 
         let encoder = PropertyListEncoder()
@@ -92,11 +92,11 @@ final class ProgramOverridesTests: XCTestCase {
 
         // Simulate overrides written by a newer Whisky with a backend this build doesn't know.
         let xml = try XCTUnwrap(String(data: data, encoding: .utf8))
-        XCTAssertTrue(xml.contains("<string>dxvk</string>"), "encoding shape changed; test no longer substitutes")
-        let mutated = xml.replacingOccurrences(of: "<string>dxvk</string>", with: "<string>someFutureBackend</string>")
+        XCTAssertTrue(xml.contains("<string>dxmt</string>"), "encoding shape changed; test no longer substitutes")
+        let mutated = xml.replacingOccurrences(of: "<string>dxmt</string>", with: "<string>someFutureBackend</string>")
         let decoded = try PropertyListDecoder().decode(ProgramOverrides.self, from: Data(mutated.utf8))
 
-        XCTAssertNil(decoded.graphicsBackend)
+        XCTAssertEqual(decoded.graphicsBackend, .recommended)
         XCTAssertEqual(decoded.enhancedSync, .msync)
     }
 

@@ -114,7 +114,7 @@ public extension LauncherType {
     }
 
     /// ZFGame Browser detection. Matters for more than presets: an undetected
-    /// Chromium launcher resolves to D3DMetal, where its window comes up and
+    /// Chromium launcher resolves to DXMT, where its window comes up and
     /// never paints.
     private static func isZFGame(filename: String, path: String) -> Bool {
         filename.contains("zfgame") || path.contains("/zfgame/") || path.contains("\\zfgame\\")

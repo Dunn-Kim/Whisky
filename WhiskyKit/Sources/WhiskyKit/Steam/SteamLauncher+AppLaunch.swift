@@ -41,9 +41,7 @@ extension SteamLauncher {
     ///
     /// The plan is the game's; `steam.exe` is only the vehicle. It goes into
     /// the game executables' own entries, so it reaches the game whichever
-    /// process starts it, and the client keeps DXVK even when this invocation
-    /// is what brings it up. A DXMT plan goes beside the scanned executables,
-    /// since the client's `system32` keeps DXVK (#378).
+    /// process starts it.
     ///
     /// - Parameters:
     ///   - appId: The game's Steam App ID.
@@ -60,43 +58,8 @@ extension SteamLauncher {
             gameProfileEnvironment: plan.gameProfileEnvironment,
             overridesApplyToDescendants: true,
             descendantExecutables: gameExecutables(scanned: scan?.planExecutables ?? [], plan: plan),
-            descendantExecutableURLs: scan?.planExecutables ?? [],
             ownSettingsExecutables: scan?.ownSettingsExecutables ?? [],
             descendantLaunchers: plan.startsLaunchers
         )
-    }
-
-    /// Takes back the DXMT copies beside every library game whose plan is no
-    /// longer DXMT.
-    ///
-    /// A launch from Whisky keeps a game's copies in step with its plan, but
-    /// Play in Steam's own window starts the game with whatever its folder
-    /// holds. So each start of `steam.exe` checks the games that have copies
-    /// against their current plans, the way `-applaunch` would resolve them.
-    ///
-    /// - Parameters:
-    ///   - bottle: The bottle whose Steam is starting.
-    ///   - recommendedBackend: What `.recommended` resolves to for the bottle's games.
-    ///   - payloadRoot: The DXMT payload.
-    @MainActor
-    static func retractStaleDXMTGameFolders(bottle: Bottle, recommendedBackend: GraphicsBackend, payloadRoot: URL) {
-        let installs = Set(
-            DXMTGameFolderRecord.load(from: bottle.url).folderKeys
-                .compactMap { DXMTGameFolder.steamInstallKey(of: $0)?.lowercased() }
-        )
-        guard !installs.isEmpty else { return }
-        for game in SteamLibrary.enumerate(bottleURL: bottle.url) {
-            guard let key = Wine.dxmtGameFolderKey(game.installURL, bottleURL: bottle.url),
-                  installs.contains(key.lowercased())
-            else { continue }
-            let scan = SteamLibrary.scanExecutables(under: game.installURL)
-            let choice = launchPlan(appId: game.appId, scan: scan, bottle: bottle).overrides.graphicsBackend
-                ?? bottle.settings.graphicsBackend
-            guard (choice == .recommended ? recommendedBackend : choice) != .dxmt else { continue }
-            Wine.reconcileDXMTGameFolders(
-                .remove, executables: scan.planExecutables, bottleURL: bottle.url, payloadRoot: payloadRoot,
-                folders: [game.installURL]
-            )
-        }
     }
 }

@@ -61,7 +61,7 @@ final class ProgramLaunchPreparationTests {
         try? FileManager.default.removeItem(at: tempRoot)
     }
 
-    /// A DXVK bottle with a custom `d2d1=n,b` override, the setup from #266.
+    /// A DXMT bottle with a custom `d2d1=n,b` override, the setup from #266.
     /// Its prefix counts as created, so launches don't try to bootstrap it.
     private func makeBottle() throws -> Bottle {
         let bottleURL = tempRoot.appending(path: "Bottle")
@@ -69,7 +69,7 @@ final class ProgramLaunchPreparationTests {
             at: bottleURL.appending(path: "drive_c/windows/system32"), withIntermediateDirectories: true
         )
         let bottle = Bottle(bottleUrl: bottleURL)
-        bottle.settings.graphicsBackend = .dxvk
+        bottle.settings.graphicsBackend = .dxmt
         bottle.settings.dllOverrides = [DLLOverrideEntry(dllName: "d2d1", mode: .nativeThenBuiltin)]
         return bottle
     }
@@ -171,11 +171,9 @@ final class ProgramLaunchPreparationTests {
 
         #expect(recorder.writes.count == 1)
         #expect(recorder.overrides(for: .bottle)?["d2d1"] == "n,b")
-        #expect(recorder.overrides(for: .bottle)?["d3d11"] == "n,b")
         // The program's own override wins in its AppDefaults entry, next to
-        // the bottle's DXVK set.
+        // the bottle's set.
         #expect(recorder.overrides(for: .program("Game.exe"))?["d2d1"] == "")
-        #expect(recorder.overrides(for: .program("Game.exe"))?["d3d11"] == "n,b")
     }
 
     @Test("Every run mode carries the program's diagnostic WINEDEBUG preset")
@@ -225,10 +223,10 @@ final class ProgramLaunchPreparationTests {
         try addCJKFonts(to: bottle, collection: true)
         let game = try makeExecutable("Games/Game.exe", in: bottle)
         let recorder = RegistryRecorder()
-        // The real import runs Wine for seconds, time enough to switch the bottle's backend.
+        // The real import runs Wine for seconds, time enough to change a bottle setting.
         let importer: Wine.RegistryImporter = { document, target in
             try await recorder.importer(document, target)
-            target.settings.graphicsBackend = .wined3d
+            target.settings.dllOverrides = [DLLOverrideEntry(dllName: "d3d11", mode: .nativeThenBuiltin)]
         }
 
         // What the public `runProgram` prepares, for the Run button, the library and Steam.
@@ -237,10 +235,11 @@ final class ProgramLaunchPreparationTests {
         )
 
         #expect(recorder.imports == [CJKFontReplacements.registryDocument(for: CJKFontReplacements.replacements)])
-        // The whole launch is wined3d's: none of it is the DXVK the bottle had before the import.
-        #expect(launch.environment["WINED3DMETAL"] == "0")
-        #expect(recorder.overrides(for: .bottle)?["d2d1"] == "n,b")
-        #expect(recorder.overrides(for: .bottle)?["d3d11"] == nil)
+        // The whole launch has the setting changed during the import: none of it is what the
+        // bottle had before.
+        #expect(launch.environment["WINEDLLOVERRIDES"] == nil)
+        #expect(recorder.overrides(for: .bottle)?["d2d1"] == nil)
+        #expect(recorder.overrides(for: .bottle)?["d3d11"] == "n,b")
     }
 
     @Test("A printed command runs the prepared launch")
@@ -280,7 +279,7 @@ final class ProgramLaunchPreparationTests {
         #expect(recorder.overrides(for: .program("RDR2.exe"))?["xinput1_3"] == "n")
         #expect(launch.arguments == ["start", "/unix", steam.path(percentEncoded: false), "-applaunch", "1174180"])
         // The launcher keeps its own set; the game's plan is not in it.
-        #expect(recorder.overrides(for: .program("steam.exe"))?["d3d11"] == "n,b")
+        #expect(recorder.overrides(for: .program("steam.exe"))?["d2d1"] == "n,b")
         #expect(recorder.overrides(for: .program("steam.exe"))?["xinput1_3"] == nil)
         #expect(recorder.overrides(for: .program("steamwebhelper.exe"))?["nvapi64"] == "")
     }
@@ -288,14 +287,14 @@ final class ProgramLaunchPreparationTests {
     @Test("A prepared launch prints exactly as prepared, without rebuilding its environment")
     func preparedLaunchPrintsVerbatim() {
         let launch = Wine.PreparedLaunch(
-            environment: ["WINEPREFIX": "/tmp/My Bottle", "DXVK_HUD": "fps"],
+            environment: ["WINEPREFIX": "/tmp/My Bottle", "MTL_HUD_ENABLED": "1"],
             arguments: ["start", "/unix", "/tmp/My Bottle/drive_c/Game.exe", "--name", "Player One"]
         )
 
         let command = Wine.generateRunCommand(for: launch)
 
         #expect(command.contains(#"WINEPREFIX=/tmp/My\ Bottle "#))
-        #expect(command.contains("DXVK_HUD=fps "))
+        #expect(command.contains("MTL_HUD_ENABLED=1 "))
         #expect(!command.contains("WINEDLLOVERRIDES="))
         #expect(command.hasSuffix(
             "env -u WINEDLLOVERRIDES \(Wine.wineBinary.esc) "

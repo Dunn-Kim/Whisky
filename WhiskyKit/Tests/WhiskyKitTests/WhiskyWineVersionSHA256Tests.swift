@@ -115,7 +115,6 @@ final class WhiskyWineVersionSHA256Tests: XCTestCase {
     func testRoundTripPreservesSHA256() throws {
         let original = WhiskyWineVersion(
             version: SemanticVersion(3, 0, 0),
-            dxvkVersion: "1.10.3",
             sha256: sampleHash
         )
 
@@ -125,7 +124,6 @@ final class WhiskyWineVersionSHA256Tests: XCTestCase {
         let decoded = try PropertyListDecoder().decode(WhiskyWineVersion.self, from: data)
 
         XCTAssertEqual(decoded.version, original.version)
-        XCTAssertEqual(decoded.dxvkVersion, "1.10.3")
         XCTAssertEqual(decoded.sha256, sampleHash)
     }
 

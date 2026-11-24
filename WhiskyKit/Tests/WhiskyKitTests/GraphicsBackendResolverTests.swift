@@ -16,53 +16,25 @@
 //  If not, see https://www.gnu.org/licenses/.
 //
 
-import SemanticVersion
 @testable import WhiskyKit
 import XCTest
 
 final class GraphicsBackendResolverTests: XCTestCase {
-    func testResolvesDXMTWhenRuntimeBundlesIt() {
-        let runtime = WhiskyWineVersion(version: SemanticVersion(3, 1, 1), dxmtVersion: "0.80")
-
-        XCTAssertEqual(
-            GraphicsBackendResolver.resolve(runtimeInfo: runtime, dxmtRuntimeNative: true),
-            .dxmt
-        )
-    }
-
-    /// The version record alone is not the gate the picker applies: a
-    /// builtin-variant or missing DXMT payload fails at launch, so auto must
-    /// not promise a backend the picker would refuse.
-    func testResolvesDXVKWhenDXMTPayloadNotNative() {
-        let runtime = WhiskyWineVersion(version: SemanticVersion(3, 1, 1), dxmtVersion: "0.80")
-
-        XCTAssertEqual(
-            GraphicsBackendResolver.resolve(runtimeInfo: runtime, dxmtRuntimeNative: false),
-            .dxvk
-        )
-    }
-
-    func testResolvesDXVKWhenNoDXMT() {
-        // Pre-3.1.0 runtimes bundle DXVK but not DXMT.
-        let runtime = WhiskyWineVersion(version: SemanticVersion(3, 0, 0))
-
-        XCTAssertEqual(
-            GraphicsBackendResolver.resolve(runtimeInfo: runtime, dxmtRuntimeNative: false),
-            .dxvk
-        )
-    }
-
-    func testResolvesDXVKWhenRuntimeRecordMissing() {
-        XCTAssertEqual(
-            GraphicsBackendResolver.resolve(runtimeInfo: nil, dxmtRuntimeNative: false),
-            .dxvk
-        )
+    /// `.recommended` is the runtime's default, which is DXMT for `dxgi`.
+    func testRecommendedResolvesToDXMT() {
+        XCTAssertEqual(GraphicsBackendResolver.resolve(), .dxmt)
     }
 
     func testNeverResolvesToRecommended() {
-        XCTAssertNotEqual(
-            GraphicsBackendResolver.resolve(runtimeInfo: nil, dxmtRuntimeNative: false),
-            .recommended
-        )
+        XCTAssertNotEqual(GraphicsBackendResolver.resolve(), .recommended)
+        for launcher in LauncherType.allCases {
+            XCTAssertNotEqual(GraphicsBackendResolver.resolve(for: launcher), .recommended)
+        }
+    }
+
+    func testResolutionNamesTheReason() {
+        XCTAssertEqual(GraphicsBackendResolver.resolution(for: nil).reason, .dxmt)
+        let steering = BackendSteering.launcher(.steam)
+        XCTAssertEqual(GraphicsBackendResolver.resolution(for: steering).reason, .steered(steering))
     }
 }

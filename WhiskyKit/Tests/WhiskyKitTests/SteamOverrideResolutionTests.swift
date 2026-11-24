@@ -125,7 +125,7 @@ struct SteamOverrideResolutionTests {
         let helper = fixture.installURL.appending(path: "bin").appending(path: "Helper.exe")
 
         var tuned = ProgramOverrides()
-        tuned.dxvk = true
+        tuned.metalHud = true
         var settings = ProgramSettings()
         settings.overrides = tuned
         let locations = Program.settingsLocations(
@@ -151,7 +151,7 @@ struct SteamOverrideResolutionTests {
         let bottle = Bottle(bottleUrl: fixture.bottleURL)
 
         var deep = ProgramOverrides()
-        deep.dxvk = true
+        deep.metalHud = true
         var shallow = ProgramOverrides()
         shallow.shaderCacheEnabled = false
         let helper = Program(
@@ -187,7 +187,7 @@ struct SteamOverrideResolutionTests {
         try garbage.write(to: corruptURL)
 
         var tuned = ProgramOverrides()
-        tuned.dxvkAsync = true
+        tuned.metalHud = true
         let helper = Program(
             url: fixture.installURL.appending(path: "bin").appending(path: "Helper.exe"),
             bottle: bottle, peFile: nil

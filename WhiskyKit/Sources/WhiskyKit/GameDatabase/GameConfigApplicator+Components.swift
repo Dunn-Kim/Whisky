@@ -114,7 +114,7 @@ extension GameConfigApplicator {
     /// Preview rows for the variant's environment variables.
     ///
     /// With an `entry`, each row compares against where
-    /// ``apply(entry:variant:to:programURL:isBackendAvailable:)`` will put the
+    /// ``apply(entry:variant:to:programURL:)`` will put the
     /// variable, and variables already set to the variant's value are left
     /// out. Without one, every variable is listed as not set.
     @MainActor

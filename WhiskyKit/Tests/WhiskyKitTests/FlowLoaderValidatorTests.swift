@@ -96,7 +96,7 @@ final class FlowLoaderValidatorTests: XCTestCase {
         // registers, without running any of them (several probe hardware).
         let implemented: Set<String> = Set(
             ([
-                CrashLogCheck(), GraphicsBackendCheck(), DXVKSettingsCheck(),
+                CrashLogCheck(), GraphicsBackendCheck(),
                 AudioDriverCheck(), AudioDeviceCheck(), AudioTestCheck(),
                 DependencyCheck(), WinetricksVerbCheck(),
                 LauncherTypeCheck(), ProcessRunningCheck(),

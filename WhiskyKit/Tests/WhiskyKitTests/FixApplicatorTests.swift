@@ -48,12 +48,12 @@ final class FixApplicatorTests: XCTestCase {
         bottle.settings.graphicsBackend = .wined3d
 
         let preview = try XCTUnwrap(FixApplicator.preview(
-            fixId: "switch-backend", params: ["backend": "dxvk"], bottle: bottle, program: nil
+            fixId: "switch-backend", params: ["backend": "dxmt"], bottle: bottle, program: nil
         ))
 
         XCTAssertEqual(preview.settingName, String(localized: "config.graphics.backend"))
         XCTAssertEqual(preview.currentValue, "WineD3D")
-        XCTAssertEqual(preview.newValue, "DXVK")
+        XCTAssertEqual(preview.newValue, "DXMT")
         XCTAssertTrue(preview.isReversible)
     }
 
@@ -92,16 +92,6 @@ final class FixApplicatorTests: XCTestCase {
 
         XCTAssertEqual(bottle.settings.graphicsBackend, .recommended)
         XCTAssertEqual(attempt.afterValue, "recommended")
-    }
-
-    func testApplyEnableDXVKAsync() {
-        bottle.settings.dxvkAsync = false
-
-        let attempt = FixApplicator.apply(fixId: "enable-dxvk-async", params: [:], bottle: bottle, program: nil)
-
-        XCTAssertTrue(bottle.settings.dxvkAsync)
-        XCTAssertEqual(attempt.beforeValue, "false")
-        XCTAssertEqual(attempt.result, .applied)
     }
 
     func testApplyEnableEsyncTurnsOnMSync() {
@@ -143,7 +133,7 @@ final class FixApplicatorTests: XCTestCase {
     // MARK: - Undo
 
     func testApplyThenUndoRestoresOriginalBackend() {
-        bottle.settings.graphicsBackend = .dxvk
+        bottle.settings.graphicsBackend = .wined3d
         let attempt = FixApplicator.apply(
             fixId: "switch-backend", params: ["backend": "dxmt"], bottle: bottle, program: nil
         )
@@ -152,7 +142,7 @@ final class FixApplicatorTests: XCTestCase {
         let undone = FixApplicator.undo(attempt: attempt, bottle: bottle, program: nil)
 
         XCTAssertTrue(undone)
-        XCTAssertEqual(bottle.settings.graphicsBackend, .dxvk)
+        XCTAssertEqual(bottle.settings.graphicsBackend, .wined3d)
     }
 
     func testUndoEsyncRestoresPriorMode() {
@@ -165,7 +155,7 @@ final class FixApplicatorTests: XCTestCase {
     }
 
     func testUndoWithMissingBeforeValueFails() {
-        let attempt = FixAttempt(fixId: "switch-backend", beforeValue: nil, afterValue: "dxvk", result: .applied)
+        let attempt = FixAttempt(fixId: "switch-backend", beforeValue: nil, afterValue: "dxmt", result: .applied)
 
         XCTAssertFalse(FixApplicator.undo(attempt: attempt, bottle: bottle, program: nil))
     }

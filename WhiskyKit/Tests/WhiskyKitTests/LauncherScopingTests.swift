@@ -53,9 +53,9 @@ final class ScopeRecorder {
     }
 }
 
-/// The DLL override layout of a Steam launch once DXVK is scoped to the
-/// launcher's processes instead of the bottle (#276). The runtime is pinned
-/// in every case, so the suite answers the same on any machine.
+/// The DLL override layout of a Steam launch: the bottle's own set in the prefix
+/// default, and the launcher's processes in entries of their own (#276). The
+/// runtime is pinned in every case, so the suite answers the same on any machine.
 @Suite("Launcher DLL override scoping")
 @MainActor
 final class LauncherScopingTests {
@@ -96,108 +96,71 @@ final class LauncherScopingTests {
 
     /// Prepares a Steam launch, `-silent` or `-applaunch`, against a pinned runtime.
     private func prepareSteam(
-        _ bottle: Bottle, applaunch: Bool, plan: ProgramOverrides? = nil,
-        recommended: GraphicsBackend = .d3dMetal, payload: Bool = true, recorder: ScopeRecorder
+        _ bottle: Bottle, applaunch: Bool, plan: ProgramOverrides? = nil, recorder: ScopeRecorder
     ) async throws -> Wine.PreparedLaunch {
         try await Wine.prepareProgramLaunch(
             at: steam(in: bottle), args: applaunch ? ["-applaunch", "1174180"] : ["-silent"], bottle: bottle,
             programOverrides: plan, overridesApplyToDescendants: applaunch,
-            recommendedBackend: recommended,
+            recommendedBackend: .dxmt,
             overrideWriter: recorder.writer, importer: recorder.importer
         )
     }
 
-    /// The DXVK set a launcher has to draw with over D3DMetal's builtins.
-    private func expectDXVK(_ overrides: [String: String]?, _ label: String) {
-        #expect(overrides?["dxgi"] == "n,b", "\(label): dxgi")
-        #expect(overrides?["d3d11"] == "n,b", "\(label): d3d11")
-        #expect(overrides?["d3d10core"] == "n,b", "\(label): d3d10core")
-    }
-
-    /// No translation layer in the prefix default: D3DMetal's builtins serve the games.
-    private func expectNoTranslationLayer(_ overrides: [String: String]?) {
-        for dll in ["dxgi", "d3d9", "d3d10core", "d3d11", "d3d12"] {
-            #expect(overrides?[dll] == nil, "the bottle scope must not mention \(dll)")
+    /// No translation layer anywhere: the runtime picks its graphics layer itself.
+    private func expectNoTranslationLayer(_ overrides: [String: String]?, _ label: String) {
+        for dll in ["dxgi", "d3d9", "d3d10core", "d3d11", "winemetal"] {
+            #expect(overrides?[dll] == nil, "\(label) must not mention \(dll)")
         }
     }
 
-    // MARK: - Matrix row 1: recommended over D3DMetal, steam.exe -silent
+    // MARK: - steam.exe -silent
 
-    @Test("Starting Steam on a Recommended bottle keeps DXVK out of the prefix default")
-    func silentLaunchScopesDXVK() async throws {
+    @Test("Starting Steam writes the client's and its helpers' entries, none of them a translation layer")
+    func silentLaunchWritesTheClientEntries() async throws {
         let bottle = try makeBottle(.recommended)
         let recorder = ScopeRecorder()
 
         let launch = try await prepareSteam(bottle, applaunch: false, recorder: recorder)
 
-        expectNoTranslationLayer(recorder.overrides(for: .bottle))
-        expectDXVK(recorder.overrides(for: .program("steam.exe")), "steam.exe")
-        expectDXVK(recorder.overrides(for: .program("steamwebhelper.exe")), "steamwebhelper.exe")
+        expectNoTranslationLayer(recorder.overrides(for: .bottle), "bottle")
+        expectNoTranslationLayer(recorder.overrides(for: .program("steam.exe")), "steam.exe")
+        expectNoTranslationLayer(recorder.overrides(for: .program("steamwebhelper.exe")), "steamwebhelper.exe")
         #expect(recorder.overrides(for: .program("steamwebhelper.exe"))?["nvapi64"] == "")
         #expect(launch.environment["WINEDLLOVERRIDES"] == nil)
     }
 
-    // MARK: - Matrix row 2: recommended, -applaunch with the client up
+    // MARK: - steam.exe -applaunch
 
-    @Test("A game launch keeps the helpers on DXVK and gives the game its own plan")
-    func applaunchKeepsHelpersOnDXVK() async throws {
+    @Test("A game launch keeps the helpers' entries and the environment free of overrides")
+    func applaunchKeepsHelperEntries() async throws {
         let bottle = try makeBottle(.recommended)
         let recorder = ScopeRecorder()
 
         let launch = try await prepareSteam(bottle, applaunch: true, recorder: recorder)
 
-        expectNoTranslationLayer(recorder.overrides(for: .bottle))
         // A helper restarting after this launch reads the entry written here.
-        expectDXVK(recorder.overrides(for: .program("steamwebhelper.exe")), "steamwebhelper.exe")
-        expectDXVK(recorder.overrides(for: .program("steamservice.exe")), "steamservice.exe")
         #expect(recorder.overrides(for: .program("steamwebhelper.exe"))?["nvapi64"] == "")
-        expectDXVK(recorder.overrides(for: .program("steam.exe")), "steam.exe")
-        // The game resolves the way the bottle's games do, not steered to DXVK,
-        // and the environment carries no overrides for anything to inherit.
+        #expect(recorder.overrides(for: .program("steamservice.exe")) != nil)
+        #expect(recorder.overrides(for: .program("steam.exe")) != nil)
         #expect(launch.environment["WINEDLLOVERRIDES"] == nil)
     }
 
-    // MARK: - Matrix row 3: -applaunch whose game plan says DXVK
-
-    @Test("A game whose own plan is DXVK keeps it out of the environment and the prefix default")
-    func applaunchKeepsTheGamesDXVKPlanScoped() async throws {
+    @Test("A game's own DLL overrides stay out of the environment and the prefix default")
+    func applaunchKeepsTheGamePlanScoped() async throws {
         let bottle = try makeBottle(.recommended)
         let recorder = ScopeRecorder()
         var plan = ProgramOverrides()
-        plan.graphicsBackend = .dxvk
+        plan.dllOverrides = [DLLOverrideEntry(dllName: "xaudio2_7", mode: .native)]
 
         let launch = try await prepareSteam(bottle, applaunch: true, plan: plan, recorder: recorder)
 
-        expectNoTranslationLayer(recorder.overrides(for: .bottle))
-        expectDXVK(recorder.overrides(for: .program("steamwebhelper.exe")), "steamwebhelper.exe")
+        #expect(recorder.overrides(for: .bottle)?["xaudio2_7"] == nil)
         // The plan goes to the game's own entries (SteamGameLaunchScopingTests).
         #expect(launch.environment["WINEDLLOVERRIDES"] == nil)
     }
 
-    // MARK: - Matrix row 4: DXVK chosen for the bottle
-
-    @Test("A bottle set to DXVK keeps DXVK in the prefix default")
-    func dxvkBottleKeepsDXVKBottleWide() async throws {
-        let bottle = try makeBottle(.dxvk)
-        let recorder = ScopeRecorder()
-
-        let launch = try await prepareSteam(bottle, applaunch: false, recorder: recorder)
-
-        expectDXVK(recorder.overrides(for: .bottle), "bottle")
-        expectDXVK(recorder.overrides(for: .program("steam.exe")), "steam.exe")
-        expectDXVK(recorder.overrides(for: .program("steamwebhelper.exe")), "steamwebhelper.exe")
-        #expect(launch.environment["WINEDLLOVERRIDES"] == nil)
-    }
-
-    // MARK: - Matrix row 6: any bottle backend on -applaunch
-
-    /// No `.dxmt`: a DXMT bottle's launch deploys DXMT's files from the installed
-    /// runtime, which a machine without that payload refuses, and the helper
-    /// entries never depend on the bottle's backend.
-    @Test("Helpers keep DXVK on a game launch whatever the bottle's own backend", arguments: [
-        GraphicsBackend.recommended, .d3dMetal, .wined3d, .dxvk
-    ])
-    func helpersKeepDXVKOnAnyBackend(_ backend: GraphicsBackend) async throws {
+    @Test("The helpers get their entries whatever the bottle's own backend", arguments: GraphicsBackend.allCases)
+    func helpersKeepEntriesOnAnyBackend(_ backend: GraphicsBackend) async throws {
         let bottle = try makeBottle(backend)
         bottle.settings.launcherMode = .manual
         bottle.settings.detectedLauncher = .steam
@@ -205,34 +168,11 @@ final class LauncherScopingTests {
 
         _ = try await prepareSteam(bottle, applaunch: true, recorder: recorder)
 
-        expectDXVK(recorder.overrides(for: .program("steamwebhelper.exe")), "steamwebhelper.exe on \(backend)")
-        expectDXVK(recorder.overrides(for: .program("steam.exe")), "steam.exe on \(backend)")
+        #expect(recorder.overrides(for: .program("steamwebhelper.exe")) != nil, "steamwebhelper.exe on \(backend)")
+        #expect(recorder.overrides(for: .program("steam.exe")) != nil, "steam.exe on \(backend)")
     }
 
-    // MARK: - Matrix row 7: payload-less runtime, DXMT recommended
-
-    @Test("Without the payload, Steam's entries are DXVK and d3d12 stays loadable")
-    func payloadlessRuntimeScopesDXVKWithoutD3D12() async throws {
-        let bottle = try makeBottle(.recommended)
-        let recorder = ScopeRecorder()
-
-        let launch = try await prepareSteam(
-            bottle, applaunch: false, recommended: .dxmt, payload: false, recorder: recorder
-        )
-
-        // The prefix default is the games', DXMT, and no part of it is DXVK's d3d9.
-        let bottleScope = recorder.overrides(for: .bottle)
-        #expect(bottleScope?["winemetal"] == "b")
-        #expect(bottleScope?["d3d9"] == nil)
-        let steamScope = recorder.overrides(for: .program("steam.exe"))
-        expectDXVK(steamScope, "steam.exe")
-        #expect(steamScope?["d3d9"] == "n,b")
-        #expect(steamScope?["d3d12"] == nil)
-        expectDXVK(recorder.overrides(for: .program("steamwebhelper.exe")), "steamwebhelper.exe")
-        #expect(launch.environment["WINEDLLOVERRIDES"] == nil)
-    }
-
-    // MARK: - Matrix row 8: Rockstar's chain inside a Steam session
+    // MARK: - Rockstar's chain inside a Steam session
 
     @Test(
         "A Steam launch writes Rockstar's launcher and Social Club entries once Rockstar is installed",
@@ -247,10 +187,9 @@ final class LauncherScopingTests {
 
         for executable in ["Launcher.exe", "SocialClubHelper.exe"] {
             let entry = recorder.overrides(for: .program(executable))
-            expectDXVK(entry, executable)
-            #expect(entry?["d3d12"] == "", "\(executable) must not reach D3DMetal's d3d12")
+            #expect(entry?["d3d12"] == "", "\(executable) must not reach d3d12")
         }
-        expectNoTranslationLayer(recorder.overrides(for: .bottle))
+        expectNoTranslationLayer(recorder.overrides(for: .bottle), "bottle")
     }
 
     @Test("No Rockstar entries in a bottle without Rockstar's launcher")
@@ -271,7 +210,7 @@ final class LauncherScopingTests {
         let recorder = ScopeRecorder()
 
         _ = try await Wine.prepareProgramLaunch(
-            at: launcher, bottle: bottle, recommendedBackend: .d3dMetal,
+            at: launcher, bottle: bottle, recommendedBackend: .dxmt,
             overrideWriter: recorder.writer, importer: recorder.importer
         )
 

@@ -28,21 +28,15 @@ import Foundation
 ///
 /// ```swift
 /// var overrides = ProgramOverrides()
-/// overrides.dxvk = false       // Disable DXVK for this program
+/// overrides.graphicsBackend = .wined3d // Force WineD3D for this program
 /// overrides.enhancedSync = .esync // Force ESync for this program
 /// // All other settings inherited from bottle
 /// ```
 public struct ProgramOverrides: Codable, Equatable, Sendable {
-    // MARK: - Graphics / DXVK
+    // MARK: - Graphics
 
     /// The graphics backend for this program. `nil` inherits from bottle.
     public var graphicsBackend: GraphicsBackend?
-    /// Whether DXVK is enabled. `nil` inherits from bottle.
-    public var dxvk: Bool?
-    /// Whether DXVK async shader compilation is enabled. `nil` inherits from bottle.
-    public var dxvkAsync: Bool?
-    /// The DXVK HUD display mode. `nil` inherits from bottle.
-    public var dxvkHud: DXVKHUD?
 
     /// Per-program frame rate cap. `nil` inherits the bottle's setting.
     public var frameRateLimit: FrameRateLimit?
@@ -52,14 +46,8 @@ public struct ProgramOverrides: Codable, Equatable, Sendable {
     /// The synchronization mode. `nil` inherits from bottle.
     public var enhancedSync: EnhancedSync?
 
-    // MARK: - D3D
+    // MARK: - Metal
 
-    /// Whether D3DMetal uses the Metal 4 command encoding backend. `nil` inherits from bottle.
-    ///
-    /// D3DMetal only takes that path for D3D12 devices, so this is the one
-    /// graphics setting a single D3D12 title needs to turn off on its own while
-    /// the rest of the bottle keeps it.
-    public var metal4Enabled: Bool?
     /// Whether Apple's Metal performance HUD is drawn. `nil` inherits from bottle.
     ///
     /// The bottle setting reaches every process in the prefix, so turning it on
@@ -118,12 +106,8 @@ public struct ProgramOverrides: Codable, Equatable, Sendable {
     /// not a settings override.
     public var isEmpty: Bool {
         graphicsBackend == nil
-            && dxvk == nil
-            && dxvkAsync == nil
-            && dxvkHud == nil
             && frameRateLimit == nil
             && enhancedSync == nil
-            && metal4Enabled == nil
             && metalHud == nil
             && shaderCacheEnabled == nil
             && controllerCompatibilityMode == nil
@@ -143,15 +127,11 @@ public struct ProgramOverrides: Codable, Equatable, Sendable {
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.graphicsBackend = container.decodeLenientIfPresent(GraphicsBackend.self, forKey: .graphicsBackend)
-        self.dxvk = try container.decodeIfPresent(Bool.self, forKey: .dxvk)
-        self.dxvkAsync = try container.decodeIfPresent(Bool.self, forKey: .dxvkAsync)
-        self.dxvkHud = try container.decodeIfPresent(DXVKHUD.self, forKey: .dxvkHud)
+        self.graphicsBackend = (try? container.decodeIfPresent(GraphicsBackend.self, forKey: .graphicsBackend)) ?? nil
         // Int-raw enum: an unknown value falls back to inheriting the bottle.
         let rawLimit = try container.decodeIfPresent(Int.self, forKey: .frameRateLimit)
         self.frameRateLimit = rawLimit.flatMap(FrameRateLimit.init(rawValue:))
         self.enhancedSync = try container.decodeIfPresent(EnhancedSync.self, forKey: .enhancedSync)
-        self.metal4Enabled = try container.decodeIfPresent(Bool.self, forKey: .metal4Enabled)
         self.metalHud = try container.decodeIfPresent(Bool.self, forKey: .metalHud)
         self.shaderCacheEnabled = try container.decodeIfPresent(Bool.self, forKey: .shaderCacheEnabled)
         self.controllerCompatibilityMode = try container.decodeIfPresent(

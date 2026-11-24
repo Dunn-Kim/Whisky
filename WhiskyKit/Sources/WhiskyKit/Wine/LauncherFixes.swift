@@ -93,13 +93,7 @@ public enum LauncherFixes {
     ///
     /// **Changes Applied:**
     /// - Enables launcher compatibility mode
-    /// - Configures DXVK if required
     /// - Enables GPU spoofing for compatibility checks
-    ///
-    /// **Steam and the bottle's backend:** the bottle goes to DXVK, since the
-    /// bottle's games resolve to DXMT, whose files share the prefix's
-    /// `d3d11.dll` with DXVK's. A switch from Recommended is recorded as the
-    /// profile's.
     ///
     /// **Important:** This method saves settings synchronously to disk via
     /// `bottle.saveBottleSettings()`, blocking until the write completes.
@@ -111,7 +105,6 @@ public enum LauncherFixes {
     ///   - launcher: The detected or manually selected launcher type
     ///   - force: If `true`, overrides existing settings; if `false`, only applies if not already configured
     @MainActor
-    // swiftlint:disable:next cyclomatic_complexity
     public static func apply(
         to bottle: Bottle, launcher: LauncherType, force: Bool = false
     ) {
@@ -129,19 +122,8 @@ public enum LauncherFixes {
         // whenever the fixes were applied again (#330, LauncherLocaleMigration).
         switch launcher {
         case .steam:
-            applySteamBackend(to: bottle, force: force)
-
             // GPU spoofing helps with game compatibility checks
             bottle.settings.gpuSpoofing = true
-
-        case .rockstar:
-            // Rockstar REQUIRES DXVK to display logo and UI. Still bottle-wide
-            // (the launcher layer adds the preset too): only Launcher.exe and
-            // SocialClubHelper.exe get entries of their own, and the rest of the
-            // standalone launcher's processes have not been mapped.
-            if bottle.settings.autoEnableDXVK {
-                bottle.settings.dxvk = true
-            }
 
         case .eaApp:
             // EA App needs GPU spoofing to pass checks
@@ -151,48 +133,11 @@ public enum LauncherFixes {
         case .epicGames:
             bottle.settings.gpuSpoofing = true
 
-        case .ubisoft:
-            // Enable DXVK async for Anno 1800 and other games. Still bottle-wide:
-            // Ubisoft Connect's Chromium helper has no AppDefaults entry yet
-            // (see `helperExecutables`), so scoping would leave it on D3DMetal.
-            if force || !bottle.settings.dxvk {
-                bottle.settings.dxvk = true
-                bottle.settings.dxvkAsync = true
-            }
-
         case .battleNet:
             bottle.settings.gpuSpoofing = true
 
-            // DXVK recommended. Still bottle-wide: Battle.net Launcher.exe starts
-            // Battle.net.exe, which no launch writes an AppDefaults entry for.
-            if force || !bottle.settings.dxvk {
-                bottle.settings.dxvk = true
-            }
-
-        case .paradox:
-            // Paradox's fix is environment-only (see LauncherPresets)
-            break
-
-        case .zfGame:
-            // ZFGame Browser needs DXVK to render at all. Setting dxvk is a
-            // bottle-wide backend switch, so honor the user's autoEnableDXVK
-            // choice the way Rockstar does.
-            if bottle.settings.autoEnableDXVK {
-                bottle.settings.dxvk = true
-            }
-
-        case .rsiLauncher:
-            // Nothing bottle-wide. The launcher draws only on DXVK, and gets it
-            // per executable: Recommended resolves it to DXVK and the launch
-            // writes that into its own `AppDefaults` entry (#168). What Star
-            // Citizen runs on when the launcher starts it depends on the games'
-            // backend. Over D3DMetal it keeps D3DMetal: the bottle scope names
-            // none of DXVK's DLLs. Without the payload it runs on DXVK: the
-            // bottle's DXMT overrides load the native `d3d11.dll` and
-            // `d3d10core.dll`, and the launcher's launch has just put DXVK's
-            // there. The bottle still stays on Recommended, so Star Citizen
-            // launched from Whisky, like every other game, gets DXMT's files
-            // back on its own launch.
+        case .rockstar, .ubisoft, .paradox, .zfGame, .rsiLauncher:
+            // Environment-only fixes (see LauncherPresets)
             break
         }
 
@@ -204,21 +149,5 @@ public enum LauncherFixes {
         Applied launcher fixes for \(launcher.rawValue) to bottle '\(bottle.settings.name)'. \
         Settings persisted successfully.
         """)
-    }
-
-    /// The Steam profile's part in the bottle's backend.
-    ///
-    /// The bottle goes to DXVK, and a switch from Recommended is marked as the
-    /// profile's. A DXVK the user picked is left alone.
-    @MainActor
-    private static func applySteamBackend(to bottle: Bottle, force: Bool) {
-        guard force || !bottle.settings.dxvk else { return }
-        let fromRecommended = bottle.settings.graphicsBackend == .recommended
-        bottle.settings.dxvk = true
-        bottle.settings.dxvkAsync = true
-        if fromRecommended {
-            // After the switch: changing the backend clears the mark.
-            bottle.settings.launcherSwitchedBackend = true
-        }
     }
 }

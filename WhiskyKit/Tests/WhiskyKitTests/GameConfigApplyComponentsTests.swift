@@ -80,18 +80,18 @@ final class GameConfigApplyComponentsTests {
     func environmentGoesToMatchingProgram() throws {
         let game = try makeProgram("Games/Test/testgame.exe")
         let other = try makeProgram("Games/Other/Other.exe")
-        game.settings.environment = ["KEEP": "1", "D3DM_SUPPORT_DXR": "1"]
-        let variant = makeVariant(environment: ["D3DM_SUPPORT_DXR": "0"])
+        game.settings.environment = ["KEEP": "1", "GAME_FLAG_B": "1"]
+        let variant = makeVariant(environment: ["GAME_FLAG_B": "0"])
 
         let snapshot = try GameConfigApplicator.apply(
             entry: makeEntry(variant: variant), variant: variant, to: bottle
         )
 
-        #expect(game.settings.environment == ["KEEP": "1", "D3DM_SUPPORT_DXR": "0"])
+        #expect(game.settings.environment == ["KEEP": "1", "GAME_FLAG_B": "0"])
         #expect(other.settings.environment.isEmpty)
         #expect(bottle.settings.gameConfigEnvironments.isEmpty)
         #expect(snapshot.programEnvironments == [game.url.absoluteString: GameConfigProgramEnvironment(
-            appliedValues: ["D3DM_SUPPORT_DXR": "0"], previousValues: ["D3DM_SUPPORT_DXR": "1"]
+            appliedValues: ["GAME_FLAG_B": "0"], previousValues: ["GAME_FLAG_B": "1"]
         )])
         #expect(snapshot.programSettingsData == nil)
     }
@@ -114,11 +114,11 @@ final class GameConfigApplyComponentsTests {
     func revertRestoresProgramEnvironment() throws {
         let game = try makeProgram("Games/Test/TestGame.exe")
         game.settings.environment = ["KEEP": "1"]
-        let variant = makeVariant(environment: ["DXVK_ASYNC": "1"])
+        let variant = makeVariant(environment: ["GAME_FLAG_A": "1"])
         let snapshot = try GameConfigApplicator.apply(
             entry: makeEntry(variant: variant), variant: variant, to: bottle
         )
-        #expect(game.settings.environment["DXVK_ASYNC"] == "1")
+        #expect(game.settings.environment["GAME_FLAG_A"] == "1")
 
         _ = try GameConfigApplicator.revert(bottle: bottle, snapshot: snapshot)
         #expect(game.settings.environment == ["KEEP": "1"])
@@ -207,7 +207,7 @@ final class GameConfigApplyComponentsTests {
         )
         bottle.settings.gameConfigEnvironments = [GameConfigEnvironment(
             entryId: "game", title: "Game", executables: ["Game.exe"],
-            variables: ["D3DM_SUPPORT_DXR": "0", "SHARED": "record"]
+            variables: ["GAME_FLAG_B": "0", "SHARED": "record"]
         )]
         let game = try makeProgram("Games/Game/game.exe").url
         let tool = try makeProgram("Games/Tool.exe").url
@@ -222,9 +222,9 @@ final class GameConfigApplyComponentsTests {
             at: tool, bottle: bottle, overrideWriter: noWrites, importer: noImports
         )
 
-        #expect(gameLaunch.environment["D3DM_SUPPORT_DXR"] == "0")
+        #expect(gameLaunch.environment["GAME_FLAG_B"] == "0")
         #expect(gameLaunch.environment["SHARED"] == "plan")
-        #expect(toolLaunch.environment["D3DM_SUPPORT_DXR"] == nil)
+        #expect(toolLaunch.environment["GAME_FLAG_B"] == nil)
     }
 
     // MARK: - Preview

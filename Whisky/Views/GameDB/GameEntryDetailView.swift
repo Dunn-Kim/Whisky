@@ -441,12 +441,6 @@ extension GameEntryDetailView {
                 value: backend.displayName
             ))
         }
-        if let dxvk = settings.dxvk {
-            items.append(SettingDisplay(name: "DXVK", value: enabledLabel(dxvk)))
-        }
-        if let dxvkAsync = settings.dxvkAsync {
-            items.append(SettingDisplay(name: String(localized: "config.dxvk.async"), value: enabledLabel(dxvkAsync)))
-        }
         if let sequoia = settings.sequoiaCompatMode {
             items.append(SettingDisplay(
                 name: String(localized: "config.sequoiaCompat"),

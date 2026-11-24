@@ -55,10 +55,6 @@ struct ProgramOverrideSettingsView: View {
     /// Read from the runtime's version plist when the sync group appears, not
     /// on every redraw, and assumed until then.
     @State private var runtimeImplementsEnhancedSync = true
-    /// Whether the program ships CEF and imports it, with no graphics import
-    /// of its own: read off the main actor once when the page appears, rather
-    /// than on every redraw.
-    @State private var shipsCEF = false
 
     var body: some View {
         dependencyBadgeSection
@@ -76,10 +72,6 @@ struct ProgramOverrideSettingsView: View {
         diagnosticsSection
         audioTroubleshootingSection
             .task {
-                let url = program.url
-                shipsCEF = await Task.detached(priority: .utility) {
-                    ChromiumRuntimeDetector.suggestsCEF(for: url)
-                }.value
                 await loadGameMatch()
                 await loadRecommendedDependencies()
             }
@@ -301,7 +293,7 @@ struct ProgramOverrideSettingsView: View {
         }
     }
 
-    // MARK: - Graphics / DXVK Group
+    // MARK: - Graphics Group
 
     private var graphicsGroup: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -312,20 +304,12 @@ struct ProgramOverrideSettingsView: View {
             if hasGraphicsOverride {
                 // Backend picker
                 Picker("config.graphics.backend", selection: graphicsBackendBinding) {
-                    // Payload-gated backends (DXMT on an old runtime) are not
-                    // offered — except when this program already uses one, so
-                    // the picker can still display the current selection.
-                    let current = program.settings.overrides?.graphicsBackend
-                    let offered = GraphicsBackend.allCases.filter { backend in
-                        WhiskyWineInstaller.isBackendAvailable(backend) || backend == current
-                    }
-                    ForEach(offered, id: \.self) { backend in
+                    ForEach(GraphicsBackend.allCases, id: \.self) { backend in
                         Text(backend.displayName).tag(backend)
                     }
                 }
 
-                // Frame cap applies to every backend that ships a limiter, not
-                // just DXVK, so it sits outside the DXVK-only controls below.
+                // Frame cap applies to every backend that ships a limiter.
                 if resolvedOverriddenBackend.supportsFrameRateLimit {
                     Picker("config.frameRateLimit", selection: frameRateLimitBinding) {
                         ForEach(FrameRateLimit.allCases, id: \.self) { limit in
@@ -341,21 +325,8 @@ struct ProgramOverrideSettingsView: View {
                     }
                 }
 
-                // Resolved, so a program on Recommended that runs DXVK does
-                // not hide the controls that are in effect.
-                if resolvedOverriddenBackend == .dxvk {
-                    graphicsControls
-                }
-
-                // D3DMetal only takes the Metal 4 path for D3D12 devices, so
-                // this is the one graphics setting a single title needs to be
-                // able to turn off while the bottle keeps it.
-                if resolvedOverriddenBackend == .d3dMetal {
-                    Toggle("config.metal4", isOn: metal4Binding)
-                }
-
                 // Not gated on the backend: the Metal HUD is Apple's, and it
-                // draws over DXVK titles too. The bottle value covers every
+                // draws over any title. The bottle value covers every
                 // process in the prefix, launcher windows included, so this is
                 // how one title gets the HUD to itself.
                 Toggle("config.metalHud", isOn: metalHudBinding)
@@ -367,53 +338,29 @@ struct ProgramOverrideSettingsView: View {
             } else {
                 // Resolved, or a bottle on Recommended reports "Recommended".
                 let backendName = resolvedBottleBackend.displayName
-                let asyncState = onOff(bottle.settings.dxvkAsync)
-                let hudState = hudDescription(bottle.settings.dxvkHud)
-                inheritedSummary(
-                    String(localized: "program.overrides.graphics.summary \(backendName) \(asyncState) \(hudState)")
-                )
+                inheritedSummary(backendName)
             }
 
             chromiumCaption
         }
     }
 
-    /// What Recommended does for a program whose window Chromium draws, or a
-    /// suggestion for an unlisted one that ships CEF (#372).
+    /// What Recommended does for a program whose window Chromium draws (#372).
     @ViewBuilder
     private var chromiumCaption: some View {
-        if let steering = dxvkSteering {
+        if let steering = backendSteering {
             switch effectiveBackendChoice {
             case .recommended:
-                // Nothing to explain where the games already run on DXVK.
-                if gamesBackend != .dxvk {
+                // Nothing to explain where the games already run on WineD3D.
+                if gamesBackend != .wined3d {
                     graphicsCaption(
                         GraphicsBackendResolver.resolution(for: steering).rationale(gamesBackend: gamesBackend)
                     )
                 }
-            case .dxvk where hasGraphicsOverride:
-                HStack {
-                    graphicsCaption(String(localized: "program.overrides.graphics.alreadyDXVK"))
-                    Button("program.overrides.graphics.useRecommended") {
-                        program.settings.overrides?.graphicsBackend = .recommended
-                    }
-                    .controlSize(.small)
-                }
-            case .dxvk:
+            case .wined3d:
                 EmptyView()
             default:
                 graphicsCaption(String(localized: "program.overrides.graphics.chromiumHint"))
-            }
-        } else if shipsCEF, effectiveResolvedBackend != .dxvk {
-            HStack {
-                graphicsCaption(String(localized: "program.overrides.graphics.cefSuggestion"))
-                Button("program.overrides.graphics.useDXVK") {
-                    if !hasGraphicsOverride {
-                        graphicsOverrideBinding.wrappedValue = true
-                    }
-                    program.settings.overrides?.graphicsBackend = .dxvk
-                }
-                .controlSize(.small)
             }
         }
     }
@@ -423,17 +370,6 @@ struct ProgramOverrideSettingsView: View {
             .font(.caption)
             .foregroundStyle(.secondary)
             .fixedSize(horizontal: false, vertical: true)
-    }
-
-    @ViewBuilder
-    private var graphicsControls: some View {
-        Toggle("config.dxvk.async", isOn: dxvkAsyncBinding)
-        Picker("config.dxvkHud", selection: dxvkHudBinding) {
-            Text("config.dxvkHud.full").tag(DXVKHUD.full)
-            Text("config.dxvkHud.partial").tag(DXVKHUD.partial)
-            Text("config.dxvkHud.fps").tag(DXVKHUD.fps)
-            Text("config.dxvkHud.off").tag(DXVKHUD.off)
-        }
     }
 
     // MARK: - Sync Group
@@ -605,11 +541,7 @@ struct ProgramOverrideSettingsView: View {
                 isOn: dllOverrideBinding
             )
             if hasDLLOverride {
-                DLLOverrideEditor(
-                    managedOverrides: computedManagedOverrides,
-                    customOverrides: programDLLOverridesBinding,
-                    warnings: computedDLLWarnings
-                )
+                DLLOverrideEditor(customOverrides: programDLLOverridesBinding)
             } else {
                 inheritedSummary(
                     String(
@@ -700,11 +632,11 @@ struct ProgramOverrideSettingsView: View {
         program.settings.overrides?.graphicsBackend != nil
     }
 
-    /// Why Recommended runs this program on DXVK, if it does: a launcher, a
+    /// Why Recommended runs this program on WineD3D, if it does: a launcher, a
     /// Chromium front end from the table, or an Electron or NW.js app. Read
     /// from the program's scan, never from its files.
-    private var dxvkSteering: DXVKSteering? {
-        program.dxvkSteering
+    private var backendSteering: BackendSteering? {
+        program.backendSteering
     }
 
     /// The backend this program's launches choose, before Recommended resolves.
@@ -719,22 +651,17 @@ struct ProgramOverrideSettingsView: View {
             : bottle.settings.graphicsBackend
     }
 
-    /// The backend this program actually launches with, with or without an override.
-    private var effectiveResolvedBackend: GraphicsBackend {
-        hasGraphicsOverride ? resolvedOverriddenBackend : resolvedBottleBackend
-    }
-
     /// The backend this program actually launches with. Recommended resolves
-    /// for the program, so a launcher or front end reports DXVK.
+    /// for the program, so a launcher or front end reports WineD3D.
     private var resolvedOverriddenBackend: GraphicsBackend {
         let backend = program.settings.overrides?.graphicsBackend ?? .recommended
-        return backend == .recommended ? GraphicsBackendResolver.resolution(for: dxvkSteering).backend : backend
+        return backend == .recommended ? GraphicsBackendResolver.resolution(for: backendSteering).backend : backend
     }
 
     /// The bottle's backend, resolved for this program, for the inherited summary.
     private var resolvedBottleBackend: GraphicsBackend {
         bottle.settings.graphicsBackend == .recommended
-            ? GraphicsBackendResolver.resolution(for: dxvkSteering).backend
+            ? GraphicsBackendResolver.resolution(for: backendSteering).backend
             : bottle.settings.graphicsBackend
     }
 
@@ -763,37 +690,6 @@ struct ProgramOverrideSettingsView: View {
         return (cache?.installedVerbs ?? []).sorted()
     }
 
-    /// The backend this program launches with and the DLL overrides it manages, chosen the way
-    /// `Wine.runProgram` chooses them: the program's backend override wins over the bottle's, and
-    /// `.recommended` resolves against this executable, so a launcher gets DXVK's.
-    private var launchPreset: (backend: GraphicsBackend, entries: [DLLOverrideEntry]) {
-        let choice = program.settings.overrides?.graphicsBackend ?? bottle.settings.graphicsBackend
-        let backend = choice == .recommended
-            ? GraphicsBackendResolver.resolve(for: LauncherType.detect(from: program.url))
-            : choice
-        let entries = DLLOverrideResolver.managedPreset(for: backend)
-        return (backend, entries)
-    }
-
-    private var computedManagedOverrides: [(entry: DLLOverrideEntry, source: String)] {
-        let preset = launchPreset
-        return preset.entries.map { (entry: $0, source: preset.backend.displayName) }
-    }
-
-    private var computedDLLWarnings: [DLLOverrideWarning] {
-        let preset = launchPreset
-        // Only DXVK and DXMT contribute a preset. Crediting the one that did is
-        // what keeps a conflict warning on a DXMT program from naming DXVK.
-        let source: DLLOverrideSource = preset.backend == .dxmt ? .dxmt : .dxvk
-        let programDLLs = program.settings.overrides?.dllOverrides ?? []
-        let resolver = DLLOverrideResolver(
-            managed: preset.entries.map { ($0, source) },
-            bottleCustom: bottle.settings.dllOverrides,
-            programCustom: programDLLs
-        )
-        return resolver.resolve().warnings
-    }
-
     // MARK: - Override Group Toggle Bindings
 
     private var graphicsOverrideBinding: Binding<Bool> {
@@ -803,19 +699,10 @@ struct ProgramOverrideSettingsView: View {
                 ensureOverrides()
                 if isOn {
                     program.settings.overrides?.graphicsBackend = bottle.settings.graphicsBackend
-                    // `dxvk` is not seeded: the launch path ignores it whenever
-                    // a backend override is set, and one is set right here.
-                    program.settings.overrides?.dxvkAsync = bottle.settings.dxvkAsync
-                    program.settings.overrides?.dxvkHud = bottle.settings.dxvkHud
-                    program.settings.overrides?.metal4Enabled = bottle.settings.metal4Enabled
                     program.settings.overrides?.metalHud = bottle.settings.metalHud
                 } else {
                     program.settings.overrides?.graphicsBackend = nil
-                    program.settings.overrides?.dxvk = nil
-                    program.settings.overrides?.dxvkAsync = nil
-                    program.settings.overrides?.dxvkHud = nil
                     program.settings.overrides?.frameRateLimit = nil
-                    program.settings.overrides?.metal4Enabled = nil
                     program.settings.overrides?.metalHud = nil
                 }
             }
@@ -916,31 +803,10 @@ struct ProgramOverrideSettingsView: View {
         )
     }
 
-    private var dxvkAsyncBinding: Binding<Bool> {
-        Binding(
-            get: { program.settings.overrides?.dxvkAsync ?? bottle.settings.dxvkAsync },
-            set: { program.settings.overrides?.dxvkAsync = $0 }
-        )
-    }
-
-    private var metal4Binding: Binding<Bool> {
-        Binding(
-            get: { program.settings.overrides?.metal4Enabled ?? bottle.settings.metal4Enabled },
-            set: { program.settings.overrides?.metal4Enabled = $0 }
-        )
-    }
-
     private var metalHudBinding: Binding<Bool> {
         Binding(
             get: { program.settings.overrides?.metalHud ?? bottle.settings.metalHud },
             set: { program.settings.overrides?.metalHud = $0 }
-        )
-    }
-
-    private var dxvkHudBinding: Binding<DXVKHUD> {
-        Binding(
-            get: { program.settings.overrides?.dxvkHud ?? bottle.settings.dxvkHud },
-            set: { program.settings.overrides?.dxvkHud = $0 }
         )
     }
 
@@ -1061,15 +927,6 @@ struct ProgramOverrideSettingsView: View {
     private func ensureOverrides() {
         if program.settings.overrides == nil {
             program.settings.overrides = ProgramOverrides()
-        }
-    }
-
-    private func hudDescription(_ hud: DXVKHUD) -> String {
-        switch hud {
-        case .full: String(localized: "config.dxvkHud.full")
-        case .partial: String(localized: "config.dxvkHud.partial")
-        case .fps: String(localized: "config.dxvkHud.fps")
-        case .off: String(localized: "config.dxvkHud.off")
         }
     }
 

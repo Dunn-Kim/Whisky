@@ -40,8 +40,8 @@ public enum ChromiumRuntimeKind: String, Sendable, Equatable {
 /// Finds Electron and NW.js executables by their files and imports (#372).
 ///
 /// Every window such an executable opens is drawn by Chromium, games built on
-/// it included, so DXVK is right for all of them and a false match costs
-/// nothing. CEF is not matched: a game can ship CEF for an overlay, and DXVK
+/// it included, so WineD3D is right for all of them and a false match costs
+/// nothing. CEF is not matched: a game can ship CEF for an overlay, and WineD3D
 /// has no Direct3D 12 on macOS, so CEF only gets a suggestion
 /// (``suggestsCEF(for:)``).
 ///
@@ -72,13 +72,13 @@ public enum ChromiumRuntimeDetector {
     /// front-end table do not know, read from disk the first time and cached.
     ///
     /// Not for a view body: a first look lists the executable's folder and
-    /// reads its import tables. ``DXVKSteering/inspect(executable:)`` puts the
+    /// reads its import tables. ``BackendSteering/inspect(executable:)`` puts the
     /// launcher list and the table first.
     ///
     /// - Parameter url: The executable.
     /// - Returns: `.chromiumRuntime` with the file that identified it, or `nil`.
-    public static func detect(executable url: URL) -> DXVKSteering? {
-        guard DXVKSteering.detect(executable: url) == nil, !isUnderWindowsFolder(url),
+    public static func detect(executable url: URL) -> BackendSteering? {
+        guard BackendSteering.detect(executable: url) == nil, !isUnderWindowsFolder(url),
               let key = CacheKey(url)
         else { return nil }
         if let cached = cache.result(for: key) {
@@ -91,7 +91,7 @@ public enum ChromiumRuntimeDetector {
         return outcome.steering
     }
 
-    /// Whether to offer DXVK for a program that ships CEF: `libcef.dll` sits
+    /// Whether to offer WineD3D for a program that ships CEF: `libcef.dll` sits
     /// beside it, it imports `libcef.dll` itself, and it imports no graphics
     /// DLL normally. Only feeds a suggestion; nothing is steered by it.
     public static func suggestsCEF(for url: URL) -> Bool {
@@ -108,13 +108,13 @@ public enum ChromiumRuntimeDetector {
     ///   - followSquirrel: Whether a Squirrel stub (`Update.exe` beside it,
     ///     the app in an `app-x.y.z` folder) is classified by the app it starts,
     ///     which runs under the same name and so reads the same entry.
-    static func classify(executable url: URL, followSquirrel: Bool = true) -> DXVKSteering? {
+    static func classify(executable url: URL, followSquirrel: Bool = true) -> BackendSteering? {
         evaluate(executable: url, followSquirrel: followSquirrel).steering
     }
 
     /// A result of the rule, and whether the cache can keep it.
     struct Outcome: Equatable {
-        var steering: DXVKSteering?
+        var steering: BackendSteering?
         /// Whether no file can change the result without changing the
         /// ``CacheKey``. A match is final. A miss is not when the files that
         /// decide it are a folder down, where the executable's folder keeps
@@ -252,17 +252,17 @@ public enum ChromiumRuntimeDetector {
         /// Entries kept before the cache starts over.
         private static let capacity = 4_096
         private let lock = NSLock()
-        private var entries: [String: (key: CacheKey, result: DXVKSteering?)] = [:]
+        private var entries: [String: (key: CacheKey, result: BackendSteering?)] = [:]
 
         /// The cached result: `.some(nil)` for an executable known not to match.
-        func result(for key: CacheKey) -> DXVKSteering?? {
+        func result(for key: CacheKey) -> BackendSteering?? {
             lock.lock()
             defer { lock.unlock() }
             guard let entry = entries[key.path], entry.key == key else { return nil }
             return .some(entry.result)
         }
 
-        func store(_ result: DXVKSteering?, for key: CacheKey) {
+        func store(_ result: BackendSteering?, for key: CacheKey) {
             lock.lock()
             defer { lock.unlock() }
             if entries.count >= Self.capacity, entries[key.path] == nil {
@@ -273,14 +273,14 @@ public enum ChromiumRuntimeDetector {
     }
 }
 
-public extension DXVKSteering {
+public extension BackendSteering {
     /// The steering for an executable, reading its files when the name alone
     /// does not decide: a launcher first, then the front-end table, then an
     /// Electron or NW.js app (``ChromiumRuntimeDetector``).
     ///
-    /// Not for a view body, which reads ``Program/dxvkSteering`` instead: a
+    /// Not for a view body, which reads ``Program/backendSteering`` instead: a
     /// first look at an unknown executable lists its folder.
-    static func inspect(executable url: URL) -> DXVKSteering? {
+    static func inspect(executable url: URL) -> BackendSteering? {
         detect(executable: url) ?? ChromiumRuntimeDetector.detect(executable: url)
     }
 }

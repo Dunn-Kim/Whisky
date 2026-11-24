@@ -75,21 +75,6 @@ public struct BottleLauncherConfig: Codable, Equatable {
     /// GPU vendor to spoof when `gpuSpoofing` is enabled.
     var gpuVendor: GPUVendor = .nvidia
 
-    /// Whether to automatically apply DXVK when launcher requires it.
-    ///
-    /// Some launchers (Rockstar) will not render UI without DXVK.
-    var autoEnableDXVK: Bool = true
-
-    /// Whether the graphics settings should say the migration put the bottle
-    /// back on Recommended, until the user dismisses it or picks a backend.
-    var backendResetNotice: Bool = false
-
-    /// Whether the bottle is on DXVK because a launcher profile switched it
-    /// there from Recommended, rather than because the user picked it.
-    ///
-    /// Any other change of backend clears it.
-    var backendSwitchedByLauncher: Bool = false
-
     /// The last ``LauncherLocaleMigration`` this bottle has been through.
     ///
     /// A bottle created by this version starts at the current one, since no
@@ -107,11 +92,6 @@ public struct BottleLauncherConfig: Codable, Equatable {
         self.launcherLocale = container.decodeLenientIfPresent(Locales.self, forKey: .launcherLocale) ?? .auto
         self.gpuSpoofing = try container.decodeIfPresent(Bool.self, forKey: .gpuSpoofing) ?? true
         self.gpuVendor = container.decodeLenientIfPresent(GPUVendor.self, forKey: .gpuVendor) ?? .nvidia
-        self.autoEnableDXVK = try container.decodeIfPresent(Bool.self, forKey: .autoEnableDXVK) ?? true
-        self.backendResetNotice = try container.decodeIfPresent(Bool.self, forKey: .backendResetNotice) ?? false
-        self.backendSwitchedByLauncher = try container.decodeIfPresent(
-            Bool.self, forKey: .backendSwitchedByLauncher
-        ) ?? false
         self.localeMigration = try container.decodeIfPresent(Int.self, forKey: .localeMigration) ?? 0
     }
 }

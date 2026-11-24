@@ -43,7 +43,7 @@ final class FrameRateLimitTests: XCTestCase {
     }
 
     func testBackendsWithoutLimiterSetNothing() {
-        for backend in [GraphicsBackend.d3dMetal, .wined3d, .recommended] {
+        for backend in [GraphicsBackend.wined3d, .recommended] {
             XCTAssertFalse(backend.supportsFrameRateLimit, "\(backend) should report no limiter")
             XCTAssertTrue(
                 backend.frameRateLimitEnvironment(fps: 60).isEmpty,
@@ -63,7 +63,7 @@ final class FrameRateLimitTests: XCTestCase {
         settings.graphicsBackend = backend
         settings.frameRateLimit = limit
         var builder = EnvironmentBuilder()
-        _ = settings.populateBottleManagedLayer(
+        settings.populateBottleManagedLayer(
             builder: &builder, displayRefreshRate: displayRefreshRate
         )
         return builder.resolve().0
@@ -72,26 +72,29 @@ final class FrameRateLimitTests: XCTestCase {
     func testBottleCapAppliesToDXMT() {
         let env = bottleEnvironment(backend: .dxmt, limit: .fps60)
         XCTAssertEqual(env["DXMT_CONFIG"], "d3d11.preferredMaxFrameRate=60")
-        XCTAssertNil(env["DXVK_FRAME_RATE"])
     }
 
-    func testBottleCapAppliesToDXVK() {
-        let env = bottleEnvironment(backend: .dxvk, limit: .matchDisplay)
-        XCTAssertEqual(env["DXVK_FRAME_RATE"], "144")
+    func testBottleCapAppliesToRecommended() {
+        // Recommended resolves to DXMT, which carries the limiter.
+        let env = bottleEnvironment(backend: .recommended, limit: .matchDisplay)
+        XCTAssertEqual(env["DXMT_CONFIG"], "d3d11.preferredMaxFrameRate=144")
+    }
+
+    func testBottleCapIsNotSetUnderWineD3D() {
+        let env = bottleEnvironment(backend: .wined3d, limit: .fps60)
         XCTAssertNil(env["DXMT_CONFIG"])
     }
 
     func testUnlimitedBottleSetsNoCap() {
         let env = bottleEnvironment(backend: .dxmt, limit: .unlimited)
         XCTAssertNil(env["DXMT_CONFIG"])
-        XCTAssertNil(env["DXVK_FRAME_RATE"])
     }
 
     /// An unknown refresh rate must not be guessed at: capping a 144 Hz panel to a
     /// made-up 60 would be a visible regression, so no cap is applied instead.
     func testMatchDisplayWithUnknownRefreshRateSetsNoCap() {
-        let env = bottleEnvironment(backend: .dxvk, limit: .matchDisplay, displayRefreshRate: nil)
-        XCTAssertNil(env["DXVK_FRAME_RATE"])
+        let env = bottleEnvironment(backend: .dxmt, limit: .matchDisplay, displayRefreshRate: nil)
+        XCTAssertNil(env["DXMT_CONFIG"])
     }
 
     // MARK: - Program overrides
@@ -108,10 +111,9 @@ final class FrameRateLimitTests: XCTestCase {
         settings.frameRateLimit = bottleLimit
         var builder = EnvironmentBuilder()
         var dllResolver = DLLOverrideResolver(managed: [], bottleCustom: [], programCustom: [])
-        let managed = settings.populateBottleManagedLayer(
+        settings.populateBottleManagedLayer(
             builder: &builder, displayRefreshRate: displayRefreshRate
         )
-        dllResolver.managed.append(contentsOf: managed)
         // The program's own environment lands in programUser before its overrides,
         // as in constructWineEnvironment.
         if let programDXMTConfig {
@@ -136,17 +138,16 @@ final class FrameRateLimitTests: XCTestCase {
     func testProgramUnlimitedClearsBottleCap() {
         var overrides = ProgramOverrides()
         overrides.frameRateLimit = .unlimited
-        let env = programEnvironment(bottleBackend: .dxvk, bottleLimit: .fps60, overrides: overrides)
-        XCTAssertNil(env["DXVK_FRAME_RATE"])
+        let env = programEnvironment(bottleBackend: .dxmt, bottleLimit: .fps60, overrides: overrides)
+        XCTAssertEqual(env["DXMT_CONFIG"], "d3d11.preferredMaxFrameRate=0")
     }
 
-    /// Switching backend per program has to move the cap onto that backend's own
-    /// variable, or the bottle's cap would sit on a variable nothing reads.
-    func testProgramBackendSwitchMovesCapToNewVariable() {
+    /// Moving a program off DXMT has to take the bottle's cap with it, or it
+    /// would sit on a variable nothing reads.
+    func testProgramBackendSwitchDropsTheCap() {
         var overrides = ProgramOverrides()
-        overrides.graphicsBackend = .dxvk
+        overrides.graphicsBackend = .wined3d
         let env = programEnvironment(bottleBackend: .dxmt, bottleLimit: .fps60, overrides: overrides)
-        XCTAssertEqual(env["DXVK_FRAME_RATE"], "60")
         XCTAssertNil(env["DXMT_CONFIG"])
     }
 
@@ -193,14 +194,14 @@ final class FrameRateLimitTests: XCTestCase {
     /// Bottles written before this setting existed must keep behaving exactly as
     /// they did, so a missing key decodes to `.unlimited`, not to the new default.
     func testLegacyConfigWithoutKeyDecodesToUnlimited() throws {
-        let json = Data(#"{"backend":"dxvk"}"#.utf8)
+        let json = Data(#"{"backend":"dxmt"}"#.utf8)
         let config = try JSONDecoder().decode(BottleGraphicsConfig.self, from: json)
         XCTAssertEqual(config.frameRateLimit, .unlimited)
-        XCTAssertEqual(config.backend, .dxvk)
+        XCTAssertEqual(config.backend, .dxmt)
     }
 
     func testUnknownStoredValueDecodesToUnlimited() throws {
-        let json = Data(#"{"backend":"dxvk","frameRateLimit":37}"#.utf8)
+        let json = Data(#"{"backend":"dxmt","frameRateLimit":37}"#.utf8)
         let config = try JSONDecoder().decode(BottleGraphicsConfig.self, from: json)
         XCTAssertEqual(config.frameRateLimit, .unlimited)
     }

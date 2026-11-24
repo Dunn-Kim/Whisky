@@ -35,7 +35,7 @@ final class ProgramPrefixBootstrapTests {
         try? FileManager.default.removeItem(at: tempRoot)
     }
 
-    /// A DXVK bottle whose program disables a DLL the bottle loads natively,
+    /// A DXMT bottle whose program disables a DLL the bottle loads natively,
     /// so a launch has per-executable overrides to write.
     private func makeProgram(bootstrapped: Bool) throws -> Program {
         let bottleURL = tempRoot.appending(path: "Bottle")
@@ -44,7 +44,7 @@ final class ProgramPrefixBootstrapTests {
             withIntermediateDirectories: true
         )
         let bottle = Bottle(bottleUrl: bottleURL)
-        bottle.settings.graphicsBackend = .dxvk
+        bottle.settings.graphicsBackend = .dxmt
         bottle.settings.dllOverrides = [DLLOverrideEntry(dllName: "d2d1", mode: .nativeThenBuiltin)]
 
         let exe = bottleURL.appending(path: "drive_c/Games/Game.exe")

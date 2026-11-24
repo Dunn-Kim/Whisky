@@ -35,17 +35,6 @@ import SemanticVersion
 public struct WhiskyWineVersion: Codable {
     public var version: SemanticVersion
 
-    /// The bundled DXVK (macOS) version recorded alongside the runtime version,
-    /// e.g. `"1.10.3"`. Optional so runtime plists written before this key
-    /// existed still decode.
-    public var dxvkVersion: String?
-
-    /// The bundled DXMT version recorded alongside the runtime version,
-    /// e.g. `"0.80"`. Optional so runtime plists from before v3.1.0 (which
-    /// introduced the DXMT payload) still decode; `nil` also signals to the
-    /// app that the installed runtime cannot offer the DXMT backend.
-    public var dxmtVersion: String?
-
     /// The expected SHA-256 of the `Libraries.tar.gz` archive for this runtime
     /// version, as a lowercase hex string. When present, the downloader verifies
     /// the fetched archive against it before installing. Optional so runtime
@@ -58,9 +47,8 @@ public struct WhiskyWineVersion: Codable {
     /// Wine only takes either path when its own `ntdll.so` and `wineserver`
     /// read `WINEMSYNC` and `WINEESYNC`. In Wine Libraries 3.1.1 (upstream
     /// Wine 11.0) neither name appears in either binary, so Wine ignores the
-    /// Enhanced Sync setting. Whisky still sets the variables, because
-    /// D3DMetal checks `WINEESYNC` itself (the enhanced sync block of
-    /// `BottleSettings.populateBottleManagedLayer`).
+    /// Enhanced Sync setting. Whisky still sets the variables (the enhanced
+    /// sync block of `BottleSettings.populateBottleManagedLayer`).
     ///
     /// A runtime whose Wine carries the msync patches advertises `true` here.
     /// ``implementsEnhancedSync`` treats an absent key as not implemented. To
@@ -68,7 +56,7 @@ public struct WhiskyWineVersion: Codable {
     public var msyncCapable: Bool?
 
     /// Whether the Enhanced Sync setting changes how this runtime's Wine
-    /// synchronizes threads, rather than only how D3DMetal behaves.
+    /// synchronizes threads.
     ///
     /// True only when the runtime's plist sets ``msyncCapable`` to `true`.
     /// Runtimes that do not say, such as the stock 3.x ones, count as not
@@ -79,22 +67,16 @@ public struct WhiskyWineVersion: Codable {
 
     enum CodingKeys: String, CodingKey {
         case version
-        case dxvkVersion
-        case dxmtVersion
         case sha256
         case msyncCapable
     }
 
     public init(
         version: SemanticVersion,
-        dxvkVersion: String? = nil,
-        dxmtVersion: String? = nil,
         sha256: String? = nil,
         msyncCapable: Bool? = nil
     ) {
         self.version = version
-        self.dxvkVersion = Self.normalized(dxvkVersion)
-        self.dxmtVersion = Self.normalized(dxmtVersion)
         self.sha256 = Self.normalizedDigest(sha256)
         self.msyncCapable = msyncCapable
     }
@@ -106,17 +88,8 @@ public struct WhiskyWineVersion: Codable {
         let minor = try versionDict.decode(Int.self, forKey: .minor)
         let patch = try versionDict.decode(Int.self, forKey: .patch)
         version = SemanticVersion(major, minor, patch)
-        dxvkVersion = try Self.normalized(container.decodeIfPresent(String.self, forKey: .dxvkVersion))
-        dxmtVersion = try Self.normalized(container.decodeIfPresent(String.self, forKey: .dxmtVersion))
         sha256 = try Self.normalizedDigest(container.decodeIfPresent(String.self, forKey: .sha256))
         msyncCapable = try container.decodeIfPresent(Bool.self, forKey: .msyncCapable)
-    }
-
-    /// Collapses an empty string to `nil` so "absent" and "blank" map to the
-    /// same state (and never render as a dangling `DXVK:` line).
-    private static func normalized(_ value: String?) -> String? {
-        guard let value, !value.isEmpty else { return nil }
-        return value
     }
 
     /// Normalizes an advertised SHA-256: trims surrounding whitespace, lowercases,
@@ -144,8 +117,6 @@ public struct WhiskyWineVersion: Codable {
         try versionDict.encode(version.major, forKey: .major)
         try versionDict.encode(version.minor, forKey: .minor)
         try versionDict.encode(version.patch, forKey: .patch)
-        try container.encodeIfPresent(dxvkVersion, forKey: .dxvkVersion)
-        try container.encodeIfPresent(dxmtVersion, forKey: .dxmtVersion)
         try container.encodeIfPresent(sha256, forKey: .sha256)
         try container.encodeIfPresent(msyncCapable, forKey: .msyncCapable)
     }

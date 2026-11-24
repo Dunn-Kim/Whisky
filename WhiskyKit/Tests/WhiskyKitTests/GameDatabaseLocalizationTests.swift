@@ -153,8 +153,7 @@ final class GameDatabaseLocalizationTests: XCTestCase {
             id: "all",
             label: "All",
             settings: GameConfigVariantSettings(
-                dxvk: !current.dxvk,
-                dxvkAsync: !current.dxvkAsync,
+                graphicsBackend: .wined3d,
                 enhancedSync: wantedSync,
                 shaderCacheEnabled: !current.shaderCacheEnabled,
                 avxEnabled: !current.avxEnabled
@@ -164,12 +163,10 @@ final class GameDatabaseLocalizationTests: XCTestCase {
             winetricksVerbs: ["vcrun2019"]
         )
 
-        let changes = GameConfigApplicator.previewChanges(
-            variant: variant, bottle: bottle, isBackendAvailable: { _ in true }
-        )
+        let changes = GameConfigApplicator.previewChanges(variant: variant, bottle: bottle)
         let byKind = Dictionary(grouping: changes, by: \.kind)
         let expected: [ConfigChange.Kind] = [
-            .dxvk, .dxvkAsync, .enhancedSync, .shaderCache, .avx, .dllOverride, .environmentVariable, .winetricksVerb
+            .graphicsBackend, .enhancedSync, .shaderCache, .avx, .dllOverride, .environmentVariable, .winetricksVerb
         ]
         XCTAssertEqual(Set(byKind.keys), Set(expected))
 
@@ -179,22 +176,20 @@ final class GameDatabaseLocalizationTests: XCTestCase {
         }
 
         // Names that are identifiers stay as they are; the rest are catalog keys.
-        XCTAssertEqual(byKind[.dxvk]?.first?.settingName, "DXVK")
         XCTAssertEqual(byKind[.dllOverride]?.first?.settingName, "dxgi")
         XCTAssertEqual(byKind[.environmentVariable]?.first?.settingName, "WINE_TEST_FLAG")
         XCTAssertEqual(byKind[.environmentVariable]?.first?.newValue, "1")
         XCTAssertEqual(byKind[.winetricksVerb]?.first?.settingName, "vcrun2019")
-        for kind: ConfigChange.Kind in [.dxvkAsync, .enhancedSync, .shaderCache, .avx] {
+        for kind: ConfigChange.Kind in [.graphicsBackend, .enhancedSync, .shaderCache, .avx] {
             try assertCatalogKey(XCTUnwrap(byKind[kind]?.first).settingName)
         }
-        for kind: ConfigChange.Kind in [.dxvk, .dxvkAsync, .enhancedSync, .shaderCache, .avx, .winetricksVerb] {
+        for kind: ConfigChange.Kind in [.enhancedSync, .shaderCache, .avx, .winetricksVerb] {
             try assertCatalogKey(XCTUnwrap(byKind[kind]?.first).newValue)
         }
 
         let graphics = String(localized: "gameConfig.detail.graphics")
         let performance = String(localized: "gameConfig.detail.performance")
-        XCTAssertEqual(byKind[.dxvk]?.first?.category, graphics)
-        XCTAssertEqual(byKind[.dxvkAsync]?.first?.category, graphics)
+        XCTAssertEqual(byKind[.graphicsBackend]?.first?.category, graphics)
         XCTAssertEqual(byKind[.avx]?.first?.category, performance)
         XCTAssertEqual(byKind[.environmentVariable]?.first?.category, String(localized: "program.env"))
         XCTAssertEqual(byKind[.dllOverride]?.first?.currentValue, String(localized: "gameConfig.preview.value.notSet"))
@@ -263,7 +258,7 @@ final class GameDatabaseLocalizationTests: XCTestCase {
             id: "backend", label: "Backend", settings: GameConfigVariantSettings(graphicsBackend: .wined3d)
         )
         let change = try XCTUnwrap(
-            GameConfigApplicator.previewChanges(variant: variant, bottle: bottle, isBackendAvailable: { _ in true })
+            GameConfigApplicator.previewChanges(variant: variant, bottle: bottle)
                 .first { $0.kind == .graphicsBackend }
         )
         XCTAssertEqual(change.category, String(localized: "gameConfig.detail.graphics"))

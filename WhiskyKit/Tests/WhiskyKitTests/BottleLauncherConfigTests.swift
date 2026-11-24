@@ -29,7 +29,6 @@ final class BottleLauncherConfigTests: XCTestCase {
         XCTAssertEqual(config.launcherLocale, .auto)
         XCTAssertTrue(config.gpuSpoofing)
         XCTAssertEqual(config.gpuVendor, .nvidia)
-        XCTAssertTrue(config.autoEnableDXVK)
     }
 
     func testLauncherConfigCodable() throws {
@@ -129,20 +128,16 @@ final class BottleLauncherConfigTests: XCTestCase {
         // GPU spoofing should not be applied if launcher compat is off
     }
 
-    func testAutoEnableDXVKForRockstar() {
+    func testRockstarAddsNoDLLOverrides() {
         var settings = BottleSettings()
         settings.launcherCompatibilityMode = true
         settings.detectedLauncher = .rockstar
-        settings.autoEnableDXVK = true
-        settings.dxvk = false // Explicitly disabled
 
         var env: [String: String] = [:]
         settings.environmentVariables(wineEnv: &env)
 
-        // Should still enable DXVK overrides because Rockstar requires it
-        // DLL overrides are now composed per-DLL via DLLOverrideResolver (sorted alphabetically).
-        // d3d12 is left to Wine's own builtin.
-        XCTAssertEqual(env["WINEDLLOVERRIDES"], "d3d10core=n,b;d3d11=n,b;d3d9=n,b;dxgi=n,b")
+        // No launcher preset reaches WINEDLLOVERRIDES: the runtime picks its graphics layer.
+        XCTAssertNil(env["WINEDLLOVERRIDES"])
     }
 
     func testNoInventedNetworkVariables() {

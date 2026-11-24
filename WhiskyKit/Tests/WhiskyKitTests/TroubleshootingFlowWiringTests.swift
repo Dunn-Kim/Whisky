@@ -71,7 +71,7 @@ final class TroubleshootingFlowWiringTests: XCTestCase {
             launcherType: launcherType,
             isWineserverRunning: false,
             processCount: 0,
-            graphicsBackend: "d3dMetal"
+            graphicsBackend: "dxmt"
         )
         return TroubleshootingFlowEngine(
             flowDefinitions: FlowLoader.loadAllFlows(),
@@ -106,47 +106,44 @@ final class TroubleshootingFlowWiringTests: XCTestCase {
 
     // MARK: - Applied fix, verify, retry
 
-    func testAppliedFixLeadsToVerifyAndNotFixedLeadsToTheNextCheck() async {
+    func testAppliedFixLeadsToVerifyAndNotFixedSkipsTheTriedFix() async {
         let engine = makeEngine(scripted: [
-            "graphics.backend_is": .fail,
             "crash.log_classify": .pass,
-            "dxvk.settings_check": .fail
+            "game.config_available": .pass
         ])
         engine.selectCategory(.graphics)
-        await waitUntil("backend fix offered") { engine.currentNode?.id == "fix_enable_dxvk" }
+        await waitUntil("game config fix offered") { engine.currentNode?.id == "suggest_game_config" }
 
-        engine.applyFix(fixId: "switch-backend", beforeValue: "recommended", afterValue: "dxvk")
-        XCTAssertEqual(engine.currentNode?.id, "fix_enable_dxvk", "the fix step stays up until the fix lands")
-        XCTAssertEqual(engine.session.fixAttempts.last?.nodeId, "fix_enable_dxvk")
+        engine.applyFix(fixId: "apply-game-config", beforeValue: nil, afterValue: nil)
+        XCTAssertEqual(engine.currentNode?.id, "suggest_game_config", "the fix step stays up until the fix lands")
+        XCTAssertEqual(engine.session.fixAttempts.last?.nodeId, "suggest_game_config")
 
-        engine.confirmFixApplied(fixId: "switch-backend")
+        engine.confirmFixApplied(fixId: "apply-game-config")
         XCTAssertEqual(engine.currentNode?.id, "verify_fix")
         XCTAssertEqual(engine.session.phase, .verify)
 
         engine.userReportsNotFixed()
-        await waitUntil("next fix offered") { engine.currentNode?.id == "fix_enable_async" }
-        XCTAssertEqual(engine.session.phase, .fix)
+        await waitUntil("escalation") { engine.currentNode?.id == "escalation_summary" }
         XCTAssertEqual(engine.session.failedFixCount, 1)
-
-        applyCurrentFix(engine)
-        XCTAssertEqual(engine.currentNode?.id, "verify_fix")
-        XCTAssertEqual(engine.session.fixAttempts.count, 2, "the second attempt is counted")
+        XCTAssertEqual(engine.session.fixAttempts.count, 1)
     }
 
     func testThirdFixThatDidNotHelpEscalates() async {
         let engine = makeEngine(scripted: [
-            "graphics.backend_is": .fail,
             "crash.log_classify": .pass,
-            "dxvk.settings_check": .fail,
             "game.config_available": .pass
         ])
+        // Two earlier fixes that landed and did not help.
+        for fixId in ["enable-esync", "enable-controller-compat"] {
+            var earlier = FixAttempt(fixId: fixId, result: .failed)
+            earlier.wasApplied = true
+            engine.session.fixAttempts.append(earlier)
+        }
         engine.selectCategory(.graphics)
 
-        for fixStep in ["fix_enable_dxvk", "fix_enable_async", "suggest_game_config"] {
-            await waitUntil("\(fixStep) offered") { engine.currentNode?.id == fixStep }
-            applyCurrentFix(engine)
-            engine.userReportsNotFixed()
-        }
+        await waitUntil("suggest_game_config offered") { engine.currentNode?.id == "suggest_game_config" }
+        applyCurrentFix(engine)
+        engine.userReportsNotFixed()
 
         XCTAssertEqual(engine.session.failedFixCount, 3)
         XCTAssertEqual(engine.session.phase, .escalation)
@@ -154,9 +151,9 @@ final class TroubleshootingFlowWiringTests: XCTestCase {
     }
 
     func testVerifiedFixResolvesTheSession() async {
-        let engine = makeEngine(scripted: ["graphics.backend_is": .fail])
+        let engine = makeEngine(scripted: ["crash.log_classify": .pass, "game.config_available": .pass])
         engine.selectCategory(.graphics)
-        await waitUntil("backend fix offered") { engine.currentNode?.id == "fix_enable_dxvk" }
+        await waitUntil("game config fix offered") { engine.currentNode?.id == "suggest_game_config" }
 
         applyCurrentFix(engine)
         engine.userReportsFixed()
@@ -167,18 +164,18 @@ final class TroubleshootingFlowWiringTests: XCTestCase {
     }
 
     func testFixThatFailedToApplyStaysOnItsStepUntilTheCap() async {
-        let engine = makeEngine(scripted: ["graphics.backend_is": .fail])
+        let engine = makeEngine(scripted: ["crash.log_classify": .pass, "game.config_available": .pass])
         engine.selectCategory(.graphics)
-        await waitUntil("backend fix offered") { engine.currentNode?.id == "fix_enable_dxvk" }
+        await waitUntil("game config fix offered") { engine.currentNode?.id == "suggest_game_config" }
 
         for _ in 1 ... 2 {
-            engine.applyFix(fixId: "switch-backend", beforeValue: nil, afterValue: nil)
-            engine.markFixFailed(fixId: "switch-backend")
-            XCTAssertEqual(engine.currentNode?.id, "fix_enable_dxvk")
+            engine.applyFix(fixId: "apply-game-config", beforeValue: nil, afterValue: nil)
+            engine.markFixFailed(fixId: "apply-game-config")
+            XCTAssertEqual(engine.currentNode?.id, "suggest_game_config")
             XCTAssertEqual(engine.session.phase, .fix)
         }
-        engine.applyFix(fixId: "switch-backend", beforeValue: nil, afterValue: nil)
-        engine.markFixFailed(fixId: "switch-backend")
+        engine.applyFix(fixId: "apply-game-config", beforeValue: nil, afterValue: nil)
+        engine.markFixFailed(fixId: "apply-game-config")
 
         XCTAssertEqual(engine.session.phase, .escalation)
     }
@@ -245,7 +242,7 @@ final class TroubleshootingFlowWiringTests: XCTestCase {
                 isWineserverRunning: false,
                 processCount: 0,
                 recentLogURL: newLog,
-                graphicsBackend: "dxvk"
+                graphicsBackend: "dxmt"
             )
         }
         engine.escalate()

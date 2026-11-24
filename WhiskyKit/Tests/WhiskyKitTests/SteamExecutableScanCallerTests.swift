@@ -63,7 +63,7 @@ final class SteamExecutableScanCallerTests {
         let bottle = Bottle(bottleUrl: bottleURL)
         let steamExe = bottleURL.appending(path: "drive_c/Program Files (x86)/Steam/steam.exe")
         var overrides = ProgramOverrides()
-        overrides.graphicsBackend = .dxvk
+        overrides.dllOverrides = [DLLOverrideEntry(dllName: "d3dcompiler_47", mode: .native)]
         let plan = LaunchPlan(overrides: overrides, gameProfileEnvironment: [:], provenance: [])
         let recorder = ScopeRecorder()
 
@@ -73,13 +73,13 @@ final class SteamExecutableScanCallerTests {
             at: steamExe, args: ["-applaunch", "548430"], bottle: bottle,
             programOverrides: plan.overrides, overridesApplyToDescendants: true,
             descendantExecutables: executables,
-            recommendedBackend: .d3dMetal,
+            recommendedBackend: .dxmt,
             overrideWriter: recorder.writer, importer: recorder.importer
         )
 
         #expect(executables == ["FSD.exe", "FSD-Win64-Shipping.exe"])
         for game in executables {
-            #expect(recorder.overrides(for: .program(game))?["d3d11"] == "n,b", "\(game)")
+            #expect(recorder.overrides(for: .program(game))?["d3dcompiler_47"] == "n", "\(game)")
         }
         #expect(!recorder.programScopes.contains("CrashReportClient.exe"))
         #expect(!recorder.programScopes.contains("UnrealCEFSubProcess.exe"))
@@ -123,7 +123,7 @@ final class SteamExecutableScanCallerTests {
     @Test("A Chromium front end keeps its own settings on a Steam launch; the workloads keep the game's plan")
     func chromiumHostKeepsItsOwnSettings() async throws {
         var frontEnd = ProgramOverrides()
-        frontEnd.graphicsBackend = .dxvk
+        frontEnd.dllOverrides = [DLLOverrideEntry(dllName: "d3dcompiler_47", mode: .native)]
         let fixture = try make3DMarkBottle(tuning: frontEnd)
         let (bottle, install, steamExe) = (fixture.bottle, fixture.install, fixture.steamExe)
         let plan = LaunchResolver.plan(
@@ -140,15 +140,15 @@ final class SteamExecutableScanCallerTests {
             programOverrides: plan.overrides, overridesApplyToDescendants: true,
             descendantExecutables: executables,
             ownSettingsExecutables: SteamLibrary.scanExecutables(under: install).chromiumHosts,
-            recommendedBackend: .d3dMetal,
+            recommendedBackend: .dxmt,
             overrideWriter: recorder.writer, importer: recorder.importer
         )
 
         #expect(SteamLauncher.userOverrides(forInstallURL: install, bottle: bottle) == nil)
         #expect(executables == ["Workload.exe"])
-        #expect(recorder.overrides(for: .program("3DMark.exe"))?["d3d11"] == "n,b")
+        #expect(recorder.overrides(for: .program("3DMark.exe"))?["d3dcompiler_47"] == "n")
         #expect(recorder.overrides(for: .program("Workload.exe")) != nil)
-        #expect(recorder.overrides(for: .program("Workload.exe"))?["d3d11"] != "n,b")
+        #expect(recorder.overrides(for: .program("Workload.exe"))?["d3dcompiler_47"] == nil)
     }
 
     @Test("A Chromium host outside the front-end table nobody tuned gets no entry from a Steam launch")
@@ -161,7 +161,7 @@ final class SteamExecutableScanCallerTests {
             at: steamExe, args: ["-applaunch", "223850"], bottle: bottle, overridesApplyToDescendants: true,
             descendantExecutables: SteamLauncher.gameExecutables(installURL: install, plan: Self.emptyPlan),
             ownSettingsExecutables: SteamLibrary.scanExecutables(under: install).chromiumHosts,
-            recommendedBackend: .d3dMetal,
+            recommendedBackend: .dxmt,
             overrideWriter: recorder.writer, importer: recorder.importer
         )
 
@@ -176,7 +176,7 @@ final class SteamExecutableScanCallerTests {
         try touch(unrealLayout, in: install)
         let bottle = Bottle(bottleUrl: bottleURL)
         var tuned = ProgramOverrides()
-        tuned.graphicsBackend = .dxvk
+        tuned.metalHud = true
         let shipping = install.appending(path: "FSD/Binaries/Win64/FSD-Win64-Shipping.exe")
         Program(url: shipping, bottle: bottle, peFile: nil).settings.overrides = tuned
 

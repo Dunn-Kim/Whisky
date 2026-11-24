@@ -82,11 +82,11 @@ struct LaunchResolverTests {
                             "label": "Recommended",
                             "isDefault": true,
                             "settings": {
-                                "graphicsBackend": "dxvk",
-                                "dxvkAsync": true
+                                "graphicsBackend": "wined3d",
+                                "shaderCacheEnabled": true
                             },
                             "environmentVariables": {
-                                "DXVK_FRAME_RATE": "120"
+                                "GAME_FLAG": "120"
                             },
                             "dllOverrides": [],
                             "launchArguments": ["--in-process-gpu"]
@@ -97,7 +97,7 @@ struct LaunchResolverTests {
                             "isDefault": false,
                             "settings": {
                                 "graphicsBackend": "dxmt",
-                                "dxvkAsync": false
+                                "shaderCacheEnabled": false
                             },
                             "environmentVariables": {
                                 "DXMT_METALFX_SPATIAL_SWAPCHAIN": "1"
@@ -118,19 +118,13 @@ struct LaunchResolverTests {
         return try GameDBLoader.loadEntries(from: url)
     }
 
-    private static func everyBackend(_: GraphicsBackend) -> Bool {
-        true
-    }
-
     @Test("Plans from a GameDB match by App ID")
     func plansFromMatch() throws {
-        let plan = try LaunchResolver.plan(
-            steamAppId: 4_576_510, entries: fixtureEntries(), isBackendAvailable: Self.everyBackend
-        )
+        let plan = try LaunchResolver.plan(steamAppId: 4_576_510, entries: fixtureEntries())
 
-        #expect(plan.overrides.graphicsBackend == .dxvk)
-        #expect(plan.overrides.dxvkAsync == true)
-        #expect(plan.gameProfileEnvironment["DXVK_FRAME_RATE"] == "120")
+        #expect(plan.overrides.graphicsBackend == .wined3d)
+        #expect(plan.overrides.shaderCacheEnabled == true)
+        #expect(plan.gameProfileEnvironment["GAME_FLAG"] == "120")
         #expect(plan.launchArguments == ["--in-process-gpu"])
         #expect(plan.provenance.count == 1)
         #expect(plan.provenance[0].contains("Casualties: Unknown Demo"))
@@ -141,12 +135,11 @@ struct LaunchResolverTests {
         let applied = GameConfigSnapshot(appliedEntryId: "casualties-unknown-demo", appliedVariantId: "metal")
 
         let plan = try LaunchResolver.plan(
-            steamAppId: 4_576_510, appliedConfiguration: applied, entries: fixtureEntries(),
-            isBackendAvailable: Self.everyBackend
+            steamAppId: 4_576_510, appliedConfiguration: applied, entries: fixtureEntries()
         )
 
         #expect(plan.overrides.graphicsBackend == .dxmt)
-        #expect(plan.overrides.dxvkAsync == false)
+        #expect(plan.overrides.shaderCacheEnabled == false)
         #expect(plan.gameProfileEnvironment == ["DXMT_METALFX_SPATIAL_SWAPCHAIN": "1"])
         #expect(plan.launchArguments.isEmpty)
         #expect(plan.provenance.first?.contains("Metal") == true)
@@ -157,12 +150,11 @@ struct LaunchResolverTests {
         let applied = GameConfigSnapshot(appliedEntryId: "another-game", appliedVariantId: "metal")
 
         let plan = try LaunchResolver.plan(
-            steamAppId: 4_576_510, appliedConfiguration: applied, entries: fixtureEntries(),
-            isBackendAvailable: Self.everyBackend
+            steamAppId: 4_576_510, appliedConfiguration: applied, entries: fixtureEntries()
         )
 
-        #expect(plan.overrides.graphicsBackend == .dxvk)
-        #expect(plan.gameProfileEnvironment == ["DXVK_FRAME_RATE": "120"])
+        #expect(plan.overrides.graphicsBackend == .wined3d)
+        #expect(plan.gameProfileEnvironment == ["GAME_FLAG": "120"])
     }
 
     @Test("An applied variant the entry no longer has leaves the recommended variant")
@@ -170,53 +162,25 @@ struct LaunchResolverTests {
         let applied = GameConfigSnapshot(appliedEntryId: "casualties-unknown-demo", appliedVariantId: "gone")
 
         let plan = try LaunchResolver.plan(
-            steamAppId: 4_576_510, appliedConfiguration: applied, entries: fixtureEntries(),
-            isBackendAvailable: Self.everyBackend
+            steamAppId: 4_576_510, appliedConfiguration: applied, entries: fixtureEntries()
         )
 
-        #expect(plan.overrides.graphicsBackend == .dxvk)
+        #expect(plan.overrides.graphicsBackend == .wined3d)
         #expect(plan.launchArguments == ["--in-process-gpu"])
-    }
-
-    @Test("A variant backend this machine can't run becomes Recommended")
-    func unavailableVariantBackendBecomesRecommended() throws {
-        let applied = GameConfigSnapshot(appliedEntryId: "casualties-unknown-demo", appliedVariantId: "metal")
-
-        let plan = try LaunchResolver.plan(
-            steamAppId: 4_576_510, appliedConfiguration: applied, entries: fixtureEntries(),
-            isBackendAvailable: { $0 != .dxmt }
-        )
-
-        #expect(plan.overrides.graphicsBackend == .recommended)
-        #expect(plan.overrides.dxvkAsync == false)
-    }
-
-    @Test("The user's own backend is kept even when this machine can't run it")
-    func userBackendIsNotRerouted() throws {
-        var user = ProgramOverrides()
-        user.graphicsBackend = .d3dMetal
-
-        let plan = try LaunchResolver.plan(
-            steamAppId: 4_576_510, userOverrides: user, entries: fixtureEntries(),
-            isBackendAvailable: { _ in false }
-        )
-
-        #expect(plan.overrides.graphicsBackend == .d3dMetal)
     }
 
     @Test("User overrides win over GameDB fields")
     func userOverridesWin() throws {
         var user = ProgramOverrides()
         user.graphicsBackend = .dxmt
-        user.dxvkAsync = false
+        user.shaderCacheEnabled = false
 
         let plan = try LaunchResolver.plan(
             steamAppId: 4_576_510, userOverrides: user, entries: fixtureEntries()
         )
 
         #expect(plan.overrides.graphicsBackend == .dxmt)
-        #expect(plan.overrides.dxvkAsync == false)
-        // Fields the user left unset still come from the variant
+        #expect(plan.overrides.shaderCacheEnabled == false)
     }
 
     @Test("No match passes user overrides through untouched")

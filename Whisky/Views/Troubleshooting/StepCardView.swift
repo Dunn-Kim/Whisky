@@ -197,7 +197,6 @@ extension StepCardView {
         CrashLogCheck().checkId: CrashLogCheck.localizedSummary(for:),
         DependencyCheck().checkId: DependencyCheck.localizedSummary(for:),
         DiagnosticsEnhanceCheck().checkId: DiagnosticsEnhanceCheck.localizedSummary(for:),
-        DXVKSettingsCheck().checkId: DXVKSettingsCheck.localizedSummary(for:),
         EnvironmentCheck().checkId: EnvironmentCheck.localizedSummary(for:),
         GameConfigAvailableCheck().checkId: GameConfigAvailableCheck.localizedSummary(for:),
         GraphicsBackendCheck().checkId: GraphicsBackendCheck.localizedSummary(for:),

@@ -71,17 +71,14 @@ struct TerminalEnvironmentCommandTests {
         let root = try TestShell.makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: root) }
 
-        // A custom bottle location can contain any of these; WINEPREFIX and
-        // DXVK_CONFIG_FILE carry the path into the environment.
+        // A custom bottle location can contain any of these; WINEPREFIX carries
+        // the path into the environment.
         let bottleURL = root.appending(path: #"Games it's "odd" $HOME `id` back\slash; a=b"#)
         try FileManager.default.createDirectory(at: bottleURL, withIntermediateDirectories: true)
-        try Data().write(to: bottleURL.appending(path: "dxvk.conf"))
         let bottle = Bottle(bottleUrl: bottleURL, isAvailable: true)
-        bottle.settings.graphicsBackend = .dxvk
         // Override names come from the bottle's Metadata.plist. The last one ran its
         // substitution in fish while backslashes were left inside the single quotes.
-        // The report's list had DXVK's `d3d12=`, which the preset now only sets over
-        // D3DMetal's builtin, so the empty value is set by hand to keep it under test.
+        // The report's list had `d3d12=`, so the empty value stays under test.
         let marker = root.appending(path: "expanded")
         bottle.settings.dllOverrides = [
             DLLOverrideEntry(dllName: "d2d1", mode: .nativeThenBuiltin),
@@ -97,9 +94,8 @@ struct TerminalEnvironmentCommandTests {
         // test into the values, starting with the override list from the report.
         let prefix = try #require(expected["WINEPREFIX"])
         let overrides = try #require(expected["WINEDLLOVERRIDES"])
-        #expect(overrides.hasPrefix("d2d1=n,b;d3d10core=n,b;d3d11=n,b;d3d12=;d3d9=n,b;dxgi=n,b;"))
+        #expect(overrides.hasPrefix("d2d1=n,b;d3d12=;"))
         #expect(overrides.contains(#"x\'$(touch "#))
-        #expect(expected["DXVK_CONFIG_FILE"] == "Z:\(prefix)/dxvk.conf")
         for character in Self.trickyCharacters {
             #expect(prefix.contains(character), "WINEPREFIX lacks \(character)")
             #expect(overrides.contains(character), "WINEDLLOVERRIDES lacks \(character)")

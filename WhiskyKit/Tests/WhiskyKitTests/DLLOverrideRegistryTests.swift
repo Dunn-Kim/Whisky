@@ -48,7 +48,7 @@ final class DLLOverrideRegistryTests: XCTestCase {
 
     // MARK: - Parsing
 
-    func testParsesDXVKPreset() {
+    func testParsesAMultiDLLClause() {
         let parsed = Wine.parseDLLOverrides("d3d10core=n,b;d3d11=n,b;d3d9=n,b;dxgi=n,b")
         XCTAssertEqual(parsed.count, 4)
         XCTAssertEqual(parsed["d3d11"], "n,b")
@@ -127,39 +127,29 @@ final class DLLOverrideRegistryTests: XCTestCase {
         XCTAssertTrue(doc.contains(#"[HKCU\Software\Wine\DllOverrides]"#))
         XCTAssertTrue(doc.contains(#""d3d11"="n,b""#))
         // The managed names it does not set are taken back one by one.
-        XCTAssertTrue(doc.contains(#""dxgi"=-"#))
+        XCTAssertTrue(doc.contains(#""nvapi64"=-"#))
         XCTAssertFalse(doc.contains(#""d3d11"=-"#))
     }
 
-    /// An empty scope still takes back what Whisky wrote, since clearing a
-    /// backend has to remove what the previous one wrote, and winetricks'
-    /// starred spelling of the translation layers.
+    /// An empty scope still takes back what Whisky wrote.
     func testEmptyScopeRemovesOnlyManagedNames() {
         let doc = Wine.registryDocument(for: [(key: #"HKCU\X"#, overrides: [:])])
-        for dll in Wine.managedDLLNames.union(Wine.starredBackendDLLNames) {
+        for dll in Wine.managedDLLNames {
             XCTAssertTrue(doc.contains("\"\(dll)\"=-"), dll)
         }
         XCTAssertFalse(doc.contains("[-"))
-        XCTAssertFalse(doc.contains(#""*nvapi64"=-"#), "only translation layers are starred")
         XCTAssertEqual(
             doc.components(separatedBy: "\r\n").filter { $0.hasPrefix("\"") }.count,
-            Wine.managedDLLNames.count + Wine.starredBackendDLLNames.count
+            Wine.managedDLLNames.count
         )
     }
 
-    func testManagedNamesCoverEveryPresetAndTheNVIDIABridges() {
-        for payload in [true, false] {
-            let presets = DLLOverrideResolver.dxvkPreset()
-                + DLLOverrideResolver.dxmtPreset()
-            for entry in presets {
-                XCTAssertTrue(Wine.managedDLLNames.contains(entry.dllName), entry.dllName)
-            }
-        }
-        for dll in ["nvapi", "nvapi64", "nvngx"] {
+    func testManagedNamesAreTheNVIDIABridgesAndD3D12() {
+        for dll in ["d3d12", "nvapi", "nvapi64", "nvngx"] {
             XCTAssertTrue(Wine.managedDLLNames.contains(dll), dll)
         }
         // Names only other tools write must never be swept up.
-        for dll in ["d3dx9_43", "mscoree", "winemenubuilder", "xaudio2_7", "msvcp140"] {
+        for dll in ["d3dx9_43", "mscoree", "winemenubuilder", "xaudio2_7", "msvcp140", "dxgi", "d3d11"] {
             XCTAssertFalse(Wine.managedDLLNames.contains(dll), dll)
         }
     }
@@ -252,7 +242,7 @@ final class DLLOverrideRegistryTests: XCTestCase {
 
     func testScopeWhoseOverridesAreAllUnrenderableIsStillPruned() {
         let doc = Wine.registryDocument(for: [(key: #"HKCU\A"#, overrides: [#"bad"name"#: "native"])])
-        XCTAssertTrue(doc.contains(#""dxgi"=-"#), "the prune must still be emitted")
+        XCTAssertTrue(doc.contains(#""nvapi64"=-"#), "the prune must still be emitted")
         XCTAssertFalse(doc.contains("bad"))
     }
 }

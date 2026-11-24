@@ -48,7 +48,7 @@ final class GPUDetectionTests: XCTestCase {
     func testGPUSpoofingOmitsUnreadFeatureLevelKeys() {
         let env = GPUDetection.spoofGPU(vendor: .nvidia)
 
-        // D3DMetal, Wine, DXVK and DXMT read none of these, so the spoof
+        // Wine and DXMT read none of these, so the spoof
         // doesn't set them.
         XCTAssertNil(env["D3DM_FEATURE_LEVEL_12_1"])
         XCTAssertNil(env["D3DM_FEATURE_LEVEL_12_0"])
@@ -61,13 +61,6 @@ final class GPUDetectionTests: XCTestCase {
         // Should report OpenGL 4.6
         XCTAssertEqual(env["MESA_GL_VERSION_OVERRIDE"], "4.6")
         XCTAssertEqual(env["MESA_GLSL_VERSION_OVERRIDE"], "460")
-    }
-
-    func testGPUSpoofingIncludesRayTracing() {
-        let env = GPUDetection.spoofGPU(vendor: .nvidia)
-
-        // Should report DXR support
-        XCTAssertEqual(env["D3DM_SUPPORT_DXR"], "1")
     }
 
     func testAppleSiliconSpoofing() {

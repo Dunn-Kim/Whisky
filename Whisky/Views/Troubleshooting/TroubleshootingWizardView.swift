@@ -359,7 +359,6 @@ extension FixAttempt {
     var localizedFixName: String {
         switch fixId {
         case "switch-backend": String(localized: "troubleshooting.fixName.switchBackend")
-        case "enable-dxvk-async": String(localized: "troubleshooting.fixName.enableDxvkAsync")
         case "set-audio-driver": String(localized: "troubleshooting.fixName.setAudioDriver")
         case "set-buffer-size": String(localized: "troubleshooting.fixName.setBufferSize")
         case "enable-esync": String(localized: "troubleshooting.fixName.enableEsync")

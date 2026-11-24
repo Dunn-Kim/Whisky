@@ -134,7 +134,7 @@ extension Bottle {
             let pinURLs = settings.pins.compactMap(\.url)
 
             // Walk Program Files, parse each PE, and classify each executable's
-            // DXVK steering off the main actor (both are Sendable). Pinned
+            // WineD3D steering off the main actor (both are Sendable). Pinned
             // programs outside Program Files are read there too, so a view never
             // looks at a program's files (#372).
             let scanned: [ScannedProgram] = await Task.detached(priority: .userInitiated) {
@@ -144,7 +144,7 @@ extension Bottle {
                     ScannedProgram(
                         url: $0,
                         peFile: try? PEFile(url: $0),
-                        steering: DXVKSteering.inspect(executable: $0)
+                        steering: BackendSteering.inspect(executable: $0)
                     )
                 }
             }.value
@@ -153,7 +153,7 @@ extension Bottle {
             var added: Set<URL> = []
             for entry in scanned where added.insert(entry.url).inserted {
                 programs.append(
-                    Program(url: entry.url, bottle: self, peFile: entry.peFile, dxvkSteering: entry.steering)
+                    Program(url: entry.url, bottle: self, peFile: entry.peFile, backendSteering: entry.steering)
                 )
             }
 
@@ -278,5 +278,5 @@ extension BottleVM: BottleRegistry {
 private struct ScannedProgram: Sendable {
     let url: URL
     let peFile: PEFile?
-    let steering: DXVKSteering?
+    let steering: BackendSteering?
 }

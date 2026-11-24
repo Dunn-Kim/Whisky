@@ -49,8 +49,6 @@ final class GameApplicatorTests: XCTestCase {
     private func makeTestVariant(
         id: String = "test-variant",
         graphicsBackend: GraphicsBackend? = nil,
-        dxvk: Bool? = nil,
-        dxvkAsync: Bool? = nil,
         enhancedSync: EnhancedSync? = nil,
         shaderCacheEnabled: Bool? = nil,
         avxEnabled: Bool? = nil,
@@ -65,8 +63,6 @@ final class GameApplicatorTests: XCTestCase {
             isDefault: true,
             settings: GameConfigVariantSettings(
                 graphicsBackend: graphicsBackend,
-                dxvk: dxvk,
-                dxvkAsync: dxvkAsync,
                 enhancedSync: enhancedSync,
                 shaderCacheEnabled: shaderCacheEnabled,
                 avxEnabled: avxEnabled,
@@ -95,7 +91,7 @@ final class GameApplicatorTests: XCTestCase {
         let bottle = try makeTestBottle()
         defer { cleanupBottle(bottle) }
 
-        let variant = makeTestVariant(graphicsBackend: .dxvk)
+        let variant = makeTestVariant(graphicsBackend: .wined3d)
         let entry = makeTestEntry(variant: variant)
 
         let snapshot = try GameConfigApplicator.apply(entry: entry, variant: variant, to: bottle)
@@ -110,29 +106,6 @@ final class GameApplicatorTests: XCTestCase {
         XCTAssertEqual(loaded?.appliedEntryId, "test-game")
     }
 
-    @MainActor
-    func testExplicitBackendSurvivesTheLegacyDXVKFlag() throws {
-        let bottle = try makeTestBottle()
-        defer { cleanupBottle(bottle) }
-
-        // Real entries pair an explicit backend with `dxvk: false`; the legacy
-        // setter maps that `false` to Recommended, which used to undo the backend.
-        // D3DMetal is pinned as installed; a missing payload is covered in
-        // GameConfigBackendAvailabilityTests.
-        let variant = makeTestVariant(graphicsBackend: .d3dMetal, dxvk: false)
-        let entry = makeTestEntry(variant: variant)
-
-        _ = try GameConfigApplicator.apply(
-            entry: entry, variant: variant, to: bottle, isBackendAvailable: { _ in true }
-        )
-
-        XCTAssertEqual(bottle.settings.graphicsBackend, .d3dMetal)
-        let changes = GameConfigApplicator.previewChanges(
-            variant: variant, bottle: bottle, isBackendAvailable: { _ in true }
-        )
-        XCTAssertFalse(changes.contains { $0.settingName == "DXVK" }, "no DXVK row when the backend is explicit")
-    }
-
     // MARK: - Test 2: Apply Mutates Bottle Settings
 
     @MainActor
@@ -143,13 +116,13 @@ final class GameApplicatorTests: XCTestCase {
         // Verify starting state
         XCTAssertEqual(bottle.settings.graphicsBackend, .recommended)
 
-        let variant = makeTestVariant(graphicsBackend: .dxvk, dxvkAsync: true)
+        let variant = makeTestVariant(graphicsBackend: .wined3d, enhancedSync: .esync)
         let entry = makeTestEntry(variant: variant)
 
         _ = try GameConfigApplicator.apply(entry: entry, variant: variant, to: bottle)
 
-        XCTAssertEqual(bottle.settings.graphicsBackend, .dxvk, "Graphics backend should be changed to DXVK")
-        XCTAssertTrue(bottle.settings.dxvkAsync, "DXVK async should be enabled")
+        XCTAssertEqual(bottle.settings.graphicsBackend, .wined3d, "Graphics backend should be changed to WineD3D")
+        XCTAssertEqual(bottle.settings.enhancedSync, .esync, "Enhanced sync should be changed")
     }
 
     // MARK: - Test 3: Apply Adds DLL Overrides
@@ -197,14 +170,14 @@ final class GameApplicatorTests: XCTestCase {
 
         // Record original state
         let originalBackend = bottle.settings.graphicsBackend
-        let originalDxvkAsync = bottle.settings.dxvkAsync
+        let originalSync = bottle.settings.enhancedSync
         let originalShaderCache = bottle.settings.shaderCacheEnabled
 
         // Apply changes that differ from defaults:
-        // graphicsBackend default = .recommended, dxvkAsync default = true, shaderCacheEnabled default = true
+        // graphicsBackend default = .recommended, enhancedSync default = .msync, shaderCacheEnabled default = true
         let variant = makeTestVariant(
-            graphicsBackend: .dxvk,
-            dxvkAsync: false,
+            graphicsBackend: .wined3d,
+            enhancedSync: .esync,
             shaderCacheEnabled: false
         )
         let entry = makeTestEntry(variant: variant)
@@ -212,7 +185,7 @@ final class GameApplicatorTests: XCTestCase {
 
         // Verify settings changed
         XCTAssertNotEqual(bottle.settings.graphicsBackend, originalBackend)
-        XCTAssertNotEqual(bottle.settings.dxvkAsync, originalDxvkAsync)
+        XCTAssertNotEqual(bottle.settings.enhancedSync, originalSync)
         XCTAssertNotEqual(bottle.settings.shaderCacheEnabled, originalShaderCache)
 
         // Revert
@@ -225,9 +198,9 @@ final class GameApplicatorTests: XCTestCase {
             "Graphics backend should be restored"
         )
         XCTAssertEqual(
-            bottle.settings.dxvkAsync,
-            originalDxvkAsync,
-            "DXVK async should be restored"
+            bottle.settings.enhancedSync,
+            originalSync,
+            "Enhanced sync should be restored"
         )
         XCTAssertEqual(
             bottle.settings.shaderCacheEnabled,
@@ -278,7 +251,7 @@ final class GameApplicatorTests: XCTestCase {
 
         // Start with default settings (graphicsBackend = .recommended, enhancedSync = .msync)
         let variant = makeTestVariant(
-            graphicsBackend: .dxvk,
+            graphicsBackend: .wined3d,
             enhancedSync: .esync,
             dllOverrides: [DLLOverrideEntry(dllName: "dxgi", mode: .nativeThenBuiltin)]
         )
@@ -288,7 +261,7 @@ final class GameApplicatorTests: XCTestCase {
         // Should have at least graphics backend change
         let backendChange = changes.first { $0.kind == .graphicsBackend }
         XCTAssertNotNil(backendChange, "Should include graphics backend change")
-        XCTAssertEqual(backendChange?.newValue, GraphicsBackend.dxvk.displayName)
+        XCTAssertEqual(backendChange?.newValue, GraphicsBackend.wined3d.displayName)
         XCTAssertTrue(backendChange?.isHighImpact == true, "Graphics backend change should be high impact")
 
         // Should have enhanced sync change
@@ -357,7 +330,6 @@ final class GameApplicatorTests: XCTestCase {
 
         let variant = makeTestVariant(
             graphicsBackend: .wined3d,
-            dxvkAsync: false,
             enhancedSync: .esync,
             shaderCacheEnabled: false,
             avxEnabled: true,
@@ -368,7 +340,6 @@ final class GameApplicatorTests: XCTestCase {
         _ = try GameConfigApplicator.apply(entry: entry, variant: variant, to: bottle)
 
         XCTAssertEqual(bottle.settings.graphicsBackend, .wined3d)
-        XCTAssertFalse(bottle.settings.dxvkAsync)
         XCTAssertEqual(bottle.settings.enhancedSync, .esync)
         XCTAssertFalse(bottle.settings.shaderCacheEnabled)
         XCTAssertTrue(bottle.settings.avxEnabled)
