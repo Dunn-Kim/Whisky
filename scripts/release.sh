@@ -57,8 +57,8 @@ xcodebuild \
     -exportOptionsPlist scripts/exportOptions.plist \
     -allowProvisioningUpdates
 
-APP_PATH="$EXPORT_PATH/Whisky.app"
-[ -d "$APP_PATH" ] || { echo "Whisky.app not found at $APP_PATH"; exit 1; }
+APP_PATH="$EXPORT_PATH/WhiskyNative.app"
+[ -d "$APP_PATH" ] || { echo "WhiskyNative.app not found at $APP_PATH"; exit 1; }
 
 echo "==> Verifying signature"
 codesign --verify --deep --strict --verbose=2 "$APP_PATH"
