@@ -53,7 +53,7 @@ This branch builds **WhiskyNative**. It runs Windows programs on an arm64 Wine r
 
 - **Installs next to Whisky.** WhiskyNative has its own bundle ID (`io.github.dunn-kim.WhiskyNative`), its own data, the `whisky-native://` URL scheme and the `whisky-native` command line tool. It shares nothing with the Rosetta build.
 - **Build and install.** No release and no arm64 runtime are published yet, so you build the app and install a runtime yourself. See the steps below.
-- **Move your bottles.** **File → Migrate from the Original Whisky…** copies a bottle from the Rosetta build of Whisky, or from the original Whisky, into a new arm64 bottle. It copies the program files, program settings, user registry keys and fonts. It does not copy Windows dependencies, so reinstall those with winetricks. It never writes to the source bottle, and it refuses to run while the source app is open.
+- **Move your bottles.** **File → Copy Bottles from Another Whisky…** copies a bottle from the Rosetta build of Whisky, or from the original Whisky, into a new arm64 bottle. It copies the program files, program settings, user registry keys and fonts. It does not copy Windows dependencies; most programs need none on this engine. It never writes to the source bottle, and it refuses to run while the source app is open.
 - **What is gone.** Rosetta 2, GPTK/D3DMetal and DXVK. Whisky no longer copies DLLs into bottles. The graphics backends are Recommended, DXMT and WineD3D. Chromium front ends run on WineD3D.
 - **Visual C++ runtime.** Microsoft's x64 VC++ and UCRT DLLs break the runtime's own arm64 processes. Whisky keeps them out of `system32` and `syswow64` and moves them into the bottle's `VC Runtime` folder before each start. Only Unity games use the Microsoft runtime, and they get it per game.
 - **Known limits.** No runtime is published. The runtime's loader must be signed with Apple's cross-architecture entitlement, or x86 programs do not start. A Unity game has been tested end to end; the branch is experimental and many programs are untested.
@@ -90,7 +90,7 @@ There is no release of WhiskyNative yet, so build it from source. The Homebrew c
 
 ### Copying bottles from Whisky
 
-WhiskyNative cannot use a bottle of the Rosetta build in place: an x86_64 prefix does not work with the arm64 runtime. Choose **File → Migrate from the Original Whisky…** to copy bottles into new arm64 bottles. It lists the bottles of the Rosetta build of Whisky (`~/Library/Containers/com.franke.Whisky/`) and of the original [whisky-app/whisky](https://github.com/whisky-app/whisky) (`~/Library/Containers/com.isaacmarovitz.Whisky/`). Quit the other app first.
+WhiskyNative cannot use a bottle of the Rosetta build in place: an x86_64 prefix does not work with the arm64 runtime. Choose **File → Copy Bottles from Another Whisky…** to copy bottles into new arm64 bottles. It lists the bottles of the Rosetta build of Whisky (`~/Library/Containers/com.franke.Whisky/`) and of the original [whisky-app/whisky](https://github.com/whisky-app/whisky) (`~/Library/Containers/com.isaacmarovitz.Whisky/`). Quit the other app first.
 
 The source bottle is only read. The old **Bottle → Export** and **File → Import Bottle** route still works if you would rather move a bottle by hand or to another Mac.
 

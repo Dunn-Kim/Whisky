@@ -47,13 +47,13 @@ The macOS-gaming audience lives in a few places. Seeding them is the cheapest re
 - **AppleGamingWiki** — Whisky is referenced on game pages but has no dedicated, fork-aware page.
   Create/claim one that names this fork as the maintained Whisky.
 - **r/macgaming, r/macapps** — a single honest "the original Whisky was archived; I've been maintaining a
-  fork" post (link the migration wizard — `File → Migrate from the Original Whisky` makes switching one
+  fork" post (link the migration wizard — `File → Copy Bottles from Another Whisky` makes switching one
   click). Don't spam; one good post + answering replies.
 - **A Discord** (or a pinned GitHub Discussion) as the support hangout, linked from the README.
 
 ## 4. Lower the switching cost
 
-- One-click **File → Migrate from the Original Whisky** imports the original app's bottles in place
+- One-click **File → Copy Bottles from Another Whisky** copies the original app's bottles into new bottles
   (shipped in 3.1.0).
 - Lead with that in any launch post — "keep your existing bottles, one click" is the message that
   converts archived-app users.

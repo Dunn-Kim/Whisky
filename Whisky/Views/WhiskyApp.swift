@@ -206,7 +206,7 @@ struct WhiskyApp: App {
                     }
                 }
                 .keyboardShortcut("I", modifiers: [.command])
-                Button("Migrate from the Original Whisky…") {
+                Button("Copy Bottles from Another Whisky…") {
                     showMigrate = true
                 }
             }
