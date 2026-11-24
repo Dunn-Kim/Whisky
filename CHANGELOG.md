@@ -11,6 +11,51 @@ What [Dunn-Kim/Whisky](https://github.com/Dunn-Kim/Whisky) carries on top of
 [frankea/Whisky](https://github.com/frankea/Whisky). Everything below this
 section is upstream's changelog, unchanged.
 
+### arm64-native branch (unreleased)
+
+The `arm64-native` branch builds WhiskyNative, which runs Windows programs
+on an arm64 Wine runtime and the FEX x86 emulator instead of Rosetta 2.
+Apple ends Rosetta 2 for most apps in macOS 28. The entries below belong to
+that branch only.
+
+#### Added
+- WhiskyNative, an arm64-only build with its own bundle ID
+  (`io.github.dunn-kim.WhiskyNative`), the `whisky-native://` URL scheme and
+  the `whisky-native` command line tool, so it runs next to the Rosetta
+  build of Whisky and shares no data with it.
+- `scripts/install-arm64-runtime.sh`, which installs a local arm64 Wine
+  runtime. No arm64 runtime is published yet.
+- The migration sheet copies bottles from the Rosetta build of Whisky, or
+  from the original Whisky, into new arm64 bottles: program files, program
+  settings, user registry keys, fonts, and the bottle's own Desktop and
+  Documents. It never writes to the source and refuses to run while the
+  source app is open.
+- The graphics backend reaches the runtime as `WINE_COMPATDB` rules. Chromium
+  front ends and launchers run on WineD3D.
+- FEX keeps its translated code in a `FEXCache` folder in Application
+  Support, so later runs of a program skip most of the translation work.
+
+#### Changed
+- The graphics backends are Recommended, DXMT and WineD3D. Recommended
+  resolves to DXMT. A DXVK or D3DMetal backend saved in an existing bottle,
+  program override or Game Configuration loads as Recommended.
+- Enhanced Sync is None or msync. Settings saved as esync load as msync.
+- Native VC++ and UCRT DLLs stay out of a bottle's `system32` and `syswow64`.
+  Whisky moves them into the bottle's `VC Runtime` folder before each Wine
+  start, because the runtime's own arm64 processes crash on Microsoft's x64
+  `ucrtbase.dll`. Only Unity games use the Microsoft VC++ runtime, per game.
+
+#### Removed
+- Rosetta 2 support and the Rosetta AVX switch.
+- Game Porting Toolkit and D3DMetal, with their settings and variables.
+- DXVK, and every DLL Whisky copied into a prefix, a game folder or the
+  runtime, including DXMT's.
+- The `esync` and `fsync` variables.
+- `scripts/assemble-runtime.sh`, which assembled the x86_64 runtime.
+
+#### Fixed
+- A migrated bottle keeps its own Desktop and Documents folders.
+
 ### Added
 - A frame rate limit for a bottle and for a program (unlimited, match the
   display, or 30 to 144 fps), in the Graphics settings and the program's
