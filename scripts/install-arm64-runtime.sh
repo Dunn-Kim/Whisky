@@ -34,6 +34,10 @@ if pgrep -f "$LIB/Wine/" >/dev/null; then
     exit 1
 fi
 
+# The app offers Enhanced Sync only on a runtime that says it implements msync.
+msync=false
+if grep -qa msync_abandon_mutexes "$SRC/bin/wineserver"; then msync=true; fi
+
 # Assemble beside the old runtime and swap at the end, so a failed copy leaves it in place.
 rm -rf "$LIB.new"
 mkdir -p "$LIB.new"
@@ -52,6 +56,8 @@ cat > "$LIB.new/WhiskyWineVersion.plist" <<EOF
 		<key>patch</key>
 		<integer>${BASH_REMATCH[3]}</integer>
 	</dict>
+	<key>msyncCapable</key>
+	<${msync}/>
 </dict>
 </plist>
 EOF
