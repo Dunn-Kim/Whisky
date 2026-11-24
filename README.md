@@ -12,8 +12,8 @@
   > **This repository is a fork of that fork.** [Dunn-Kim/Whisky](https://github.com/Dunn-Kim/Whisky)
   > follows [frankea/Whisky](https://github.com/frankea/Whisky) and carries a few changes of its own,
   > listed under [Fork changes](CHANGELOG.md#fork-changes). Everything else here, this README
-  > included, is upstream's. Builds from this fork don't check for updates and ship without
-  > upstream's telemetry token. If something breaks, check that it also happens on upstream's build
+  > included, is upstream's. Builds from this fork don't check for updates, ship without
+  > upstream's telemetry token and install this fork's own Wine runtime. If something breaks, check that it also happens on upstream's build
   > before reporting it there. Not affiliated with frankea/Whisky, the original project or
   > getwhisky.app.
 

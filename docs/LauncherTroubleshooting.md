@@ -500,6 +500,7 @@ The Chromium launcher shell several publishers ship, detected by a `zfgame` exec
 
 **Must Have:**
 - ✅ DXVK (the launcher does not paint on D3DMetal). "Use DXVK for Rockstar Games Launcher" also governs it: with the toggle on, Launcher Compatibility Mode switches the bottle to DXVK
+- ✅ This fork's Wine runtime (4.8.9 or later). On upstream's 4.8 runtimes `gs:0x8` is not the thread's stack base, and the browser's renderer crashes in a loop ("ZFGameBrowser.exe has encountered a serious problem"); this fork's runtime puts the stack base there for `ZFGameBrowser.exe` whichever program starts it
 
 **Critical Settings:**
 - `DXVK_ASYNC=1` (less stutter in the launcher's web view)

@@ -30,6 +30,12 @@ section is upstream's changelog, unchanged.
   is gone from the menu, and the WhiskyWine update toggle in Settings is off
   by default.
 - Builds carry no telemetry project token.
+- Whisky installs this fork's own Wine runtime, built from the
+  `expose-stack-base` branch of
+  [Dunn-Kim/winecx-gptk](https://github.com/Dunn-Kim/winecx-gptk), which
+  carries patches upstream's runtime does not. The engine feed is
+  `dist/pages/WhiskyWineVersion-v4.plist` in this repository, read from its
+  `main` branch, and the engine downloads from this repository's releases.
 - Games launch at user-interactive quality of service.
 - The Processes page lists Wine processes again only when a native scan sees
   them change, or every 15 seconds while some are listed, instead of on
@@ -47,9 +53,12 @@ section is upstream's changelog, unchanged.
 - A program shows its own icon in the Dock on the 4.8 runtimes. Some
   programs stayed on macOS's generic executable icon there; Whisky now hands
   the runtime the icon as a file.
-- The Mecharashi Game Configuration sets `WINE_EXPOSE_STACK_BASE=1`, which a
-  4.8 runtime carrying the stack base patch needs to keep the game's embedded
-  browser from crashing. Other runtimes ignore it.
+- ZFGame Browser (Mecharashi's launcher and in-game browser) no longer
+  crashes its renderer in a loop, whether the game, its launcher or its
+  installer starts it. This fork's runtime puts the thread's stack base at
+  `gs:0x8`, where the browser reads it, for `ZFGameBrowser.exe` by itself;
+  the Mecharashi Game Configuration no longer sets `WINE_EXPOSE_STACK_BASE`,
+  which reached the browser only when the game started it.
 
 ## [Unreleased]
 

@@ -30,14 +30,19 @@ public enum DistributionConfig {
     /// its D3DMetal, DLL override and environment fixes, so older apps are not
     /// offered an engine switch nobody tested them with. This feed is the one
     /// that moves.
-    public static let versionPlistURL = "\(baseURL)/WhiskyWineVersion-v4.plist"
+    ///
+    /// This fork serves the feed from its own repository: its engine carries
+    /// patches upstream's does not, so an upstream engine would install
+    /// without them and be offered as an update over them.
+    public static let versionPlistURL =
+        "https://raw.githubusercontent.com/Dunn-Kim/Whisky/main/dist/pages/WhiskyWineVersion-v4.plist"
 
     /// The feed apps before 3.10.0 read, frozen on the stock 3.1.1 engine.
     static let legacyVersionPlistURL = "\(baseURL)/WhiskyWineVersion.plist"
 
-    /// The GitHub Releases page, which lists app releases and the Wine
-    /// Libraries engine builds.
-    public static let releasesPageURL = "https://github.com/frankea/Whisky/releases"
+    /// The GitHub Releases page, which lists the Wine Libraries engine builds
+    /// this fork's feed names.
+    public static let releasesPageURL = "https://github.com/Dunn-Kim/Whisky/releases"
 
     /// Base URL for GitHub Releases downloads
     public static let releasesBaseURL = "\(releasesPageURL)/download"

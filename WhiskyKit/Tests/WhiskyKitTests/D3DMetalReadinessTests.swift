@@ -107,7 +107,7 @@ struct D3DMetalReadinessTests {
 
     @Test("The engine releases link points at this project's releases page")
     func engineReleasesURL() {
-        #expect(D3DMetalReadiness.engineReleasesURL?.absoluteString == "https://github.com/frankea/Whisky/releases")
+        #expect(D3DMetalReadiness.engineReleasesURL?.absoluteString == "https://github.com/Dunn-Kim/Whisky/releases")
     }
 
     // MARK: - Reading the disk
