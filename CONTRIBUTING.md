@@ -6,6 +6,16 @@ Thanks for your interest! First, make a fork of Whisky, create a new branch for 
 
 Whisky is built using **Xcode 16** on **macOS Sequoia 15.0** or later. All external dependencies are handled through the Swift Package Manager.
 
+### Cloning
+
+The repository's early history carries the Wine runtime the app used to bundle. That includes Gecko's `xul.dll` files of 69–86 MB and `libicudata.72.1.dylib` of 60 MB. Nothing in the current tree is that large, and the runtime is not built from git: the app downloads and installs it separately. A full clone is about 1.3 GB. A blobless clone fetches only the files of the commit it checks out, about 26 MB:
+
+```bash
+git clone --filter=blob:none https://github.com/Dunn-Kim/Whisky.git
+```
+
+Git fetches older file versions only when a command needs them, so `git log -p`, `git blame` or checking out an old commit is slower the first time. The history is not moved into Git LFS: that would rewrite every commit and cut the history off from upstream's.
+
 ## Code Style
 
 ### Linting with SwiftLint
