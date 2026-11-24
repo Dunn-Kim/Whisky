@@ -20781,7 +20781,7 @@
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@ is running. Quit it, then try again."
+            "value" : "%@ or a program it started is running. Quit them, then try again."
           }
         }
       }
@@ -34233,7 +34233,7 @@
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "How Wine threads wait for each other. MSync and ESync can lower CPU overhead in some games, but only on a Wine runtime built with them. On macOS 15.4 and later, None turns on ESync as well, for stability."
+            "value" : "How Wine threads wait for each other. MSync can lower CPU overhead in some games, on a Wine runtime built with it. None turns it off."
           }
         }
       }
@@ -34693,7 +34693,7 @@
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The installed Wine runtime does not support MSync or ESync, so this setting can only affect D3DMetal."
+            "value" : "The installed Wine runtime does not implement MSync, so this setting has no effect."
           }
         }
       }
@@ -34869,7 +34869,7 @@
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The active graphics backend has no frame limiter. This setting applies to DXVK and DXMT only."
+            "value" : "The active graphics backend has no frame limiter. This setting applies to DXMT only."
           }
         },
         "ko" : {
@@ -58822,7 +58822,7 @@
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Runs the launcher on DXVK so its window draws"
+            "value" : "Runs the launcher on WineD3D so its window draws"
           }
         }
       }
@@ -58873,7 +58873,7 @@
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Fixes the blank launcher window caused by D3DMetal"
+            "value" : "Runs the launcher on WineD3D so its Chromium window draws"
           }
         }
       }
@@ -60212,7 +60212,7 @@
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "This program draws its window with Chromium. If the window stays black, choose DXVK or Recommended."
+            "value" : "This program draws its window with Chromium. If the window stays black, choose WineD3D or Recommended."
           }
         }
       }
@@ -60554,7 +60554,7 @@
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Chromium draws the windows of %@. They may stay black on this backend; Recommended draws them with DXVK."
+            "value" : "Chromium draws the windows of %@. They may stay black on this backend; Recommended draws them with WineD3D."
           }
         }
       }
@@ -102847,7 +102847,7 @@
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Recommended uses DXVK for this program. It is an Electron app (%@ found beside it), and Chromium windows stay black on D3DMetal and DXMT."
+            "value" : "Recommended uses WineD3D for this program. It is an Electron app (%@ found beside it), and Chromium windows stay black on DXMT."
           }
         }
       }
@@ -102863,7 +102863,7 @@
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "In this bottle, Recommended runs %1$@ on DXVK, because Chromium draws those windows. Games keep %2$@."
+            "value" : "In this bottle, Recommended runs %1$@ on WineD3D, because Chromium draws those windows. Games keep %2$@."
           }
         }
       }
@@ -102880,7 +102880,7 @@
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Recommended uses DXVK for this program. Its window is drawn by Chromium, which stays black on D3DMetal and DXMT. Programs it starts keep %@."
+            "value" : "Recommended uses WineD3D for this program. Its window is drawn by Chromium, which stays black on DXMT. Programs it starts keep %@."
           }
         }
       }
@@ -102897,7 +102897,7 @@
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Recommended uses DXVK for launchers. Their windows are drawn by Chromium, which stays black on D3DMetal and DXMT. Games they start keep %@."
+            "value" : "Recommended uses WineD3D for launchers. Their windows are drawn by Chromium, which stays black on DXMT. Games they start keep %@."
           }
         }
       }
@@ -102914,7 +102914,7 @@
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Recommended uses DXVK for this program. It is an NW.js app (%@ found beside it), and Chromium windows stay black on D3DMetal and DXMT."
+            "value" : "Recommended uses WineD3D for this program. It is an NW.js app (%@ found beside it), and Chromium windows stay black on DXMT."
           }
         }
       }
@@ -103546,7 +103546,7 @@
         "en-GB" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Direct3D-11-to-Metal translation. Can outperform D3DMetal in some DX11 titles."
+            "value" : "Direct3D-11-to-Metal translation, and the runtime's default."
           }
         },
         "es" : {

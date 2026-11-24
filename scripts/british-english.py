@@ -154,8 +154,12 @@ def main() -> int:
         region = raw[start:end]
         if '"en-GB" : {' in region:
             head = region.index('        "en-GB" : {')
-            tail = region.index("        },\n", head) + len("        },\n")
-            region = region[:head] + block(value) + region[tail:]
+            closing = region.index("\n        }", head) + len("\n        }")
+            if region[closing:closing + 1] == ",":
+                region = region[:head] + block(value) + region[closing + 2:]
+            else:
+                # en-GB is the last language here, so its block has no comma.
+                region = region[:head] + block(value).rstrip(",\n") + region[closing:]
         elif '        "en" : {' in region:
             at = region.index('        "en" : {')
             closing = region.index("\n        }", at) + len("\n        }")
