@@ -96,9 +96,13 @@ extension Wine {
     /// - Parameters:
     ///   - scopes: Each registry key and the overrides it should hold.
     ///   - record: What earlier launches wrote beyond the managed names.
+    ///   - staleNativeNames: Value names to remove from the bottle scope's key, as
+    ///     spelled in the registry (`*ucrtbase`): native VC++ overrides a
+    ///     winetricks install left (``VCRuntimeIsolation/staleOverrides(in:keeping:)``).
     static func registryDocument(
         for scopes: [(key: String, overrides: [String: String])],
-        record: DLLOverrideRecord = DLLOverrideRecord()
+        record: DLLOverrideRecord = DLLOverrideRecord(),
+        staleNativeNames: [String] = []
     ) -> String {
         var lines = ["Windows Registry Editor Version 5.00", ""]
         for scope in scopes {
@@ -111,6 +115,11 @@ extension Wine {
                 .filter { isRenderable(dll: $0, mode: "") }
                 .sorted()
             lines.append("[\(scope.key)]")
+            if scope.key == DLLOverrideScope.bottle.registryKey {
+                for name in staleNativeNames where !kept.contains(name.lowercased().trimmingPrefix("*").description) {
+                    lines.append("\"\(name)\"=-")
+                }
+            }
             for dll in removals {
                 lines.append("\"\(dll)\"=-")
             }

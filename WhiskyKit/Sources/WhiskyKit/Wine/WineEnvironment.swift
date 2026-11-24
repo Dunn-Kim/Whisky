@@ -55,10 +55,17 @@ extension Wine {
         gameProfileEnvironment: [String: String] = [:],
         recommendedBackend: GraphicsBackend? = nil,
         steeredExecutables: [String] = [],
-        programBackends: [(executable: String, backend: GraphicsBackend)] = []
+        programBackends: [(executable: String, backend: GraphicsBackend)] = [],
+        unityDLLs: [String] = []
     ) -> [String: String] {
         var builder = EnvironmentBuilder()
-        var dllResolver = DLLOverrideResolver(managed: [], bottleCustom: [], programCustom: [])
+        // The lowest layer, so the user's own override for the same DLL wins.
+        var dllResolver = DLLOverrideResolver(
+            managed: unityDLLs.map {
+                (entry: DLLOverrideEntry(dllName: $0, mode: .nativeThenBuiltin), source: .launcher("Unity"))
+            },
+            bottleCustom: [], programCustom: []
+        )
 
         // Layer 1: Base -- WINEPREFIX, default WINEDEBUG, GST_DEBUG
         builder.set("WINEPREFIX", bottle.url.path, layer: .base)

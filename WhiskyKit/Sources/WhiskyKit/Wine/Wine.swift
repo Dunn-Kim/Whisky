@@ -155,6 +155,7 @@ public class Wine {
         fileHandle.writeApplicationInfo()
         fileHandle.writeInfo(for: bottle)
 
+        isolateVCRuntime(bottleURL: bottle.url)
         WineUserProfile.reconcile(bottleURL: bottle.url)
         ensureFEXCacheFolder()
         let wineEnvironment = constructWineEnvironment(for: bottle, environment: environment)
@@ -438,6 +439,13 @@ public class Wine {
         importer: RegistryImporter = { try await importRegistry(document: $0, bottle: $1) },
         virtualDesktopQuery: VirtualDesktopQuery = { try await isVirtualDesktopEnabled(bottle: $0) }
     ) async throws -> PreparedLaunch {
+        // Before any Wine process, the font alias import's `reg.exe` included.
+        isolateVCRuntime(bottleURL: bottle.url)
+        // A Unity game gets Microsoft's VC++ DLLs next to it, loaded for this launch only.
+        let unityDLLs = VCRuntimeIsolation.placeForUnity(
+            executable: url, store: VCRuntimeIsolation.store(prefix: bottle.url)
+        )
+
         // Font aliases first, before any setting is read: their import can take
         // a few seconds, and a setting changed during it would leave this launch
         // with one backend's environment and another's. It must finish
@@ -479,6 +487,7 @@ public class Wine {
 
         var wineEnvironment = launchEnvironment(
             for: url, bottle: bottle, backend: effectiveBackend, environment: environment,
+            unityDLLs: unityDLLs,
             programOverrides: programOverrides, programSettings: programSettings, callerProfile: gameProfileEnvironment,
             descendantExecutables: overridesApplyToDescendants ? descendantExecutables : nil,
             ownSettingsExecutables: ownSettingsExecutables, steering: steering,
@@ -548,6 +557,7 @@ public class Wine {
     static func launchEnvironment(
         for url: URL, bottle: Bottle, backend: GraphicsBackend,
         environment: [String: String] = [:],
+        unityDLLs: [String] = [],
         programOverrides: ProgramOverrides? = nil, programSettings: ProgramSettings? = nil,
         callerProfile: [String: String] = [:],
         descendantExecutables: [String]? = nil,
@@ -583,7 +593,7 @@ public class Wine {
             for: bottle, environment: environment, programOverrides: programOverrides,
             programSettings: programSettings, gameProfileEnvironment: gameProfileEnvironment,
             recommendedBackend: recommendedBackend,
-            steeredExecutables: steered, programBackends: programBackends
+            steeredExecutables: steered, programBackends: programBackends, unityDLLs: unityDLLs
         )
         nameDXMTCaptureExecutable(
             in: &wineEnvironment, backend: backend, metalTrace: bottle.settings.metalTrace,
@@ -760,6 +770,7 @@ public class Wine {
     ) -> String {
         // Escape args and environment values to prevent shell injection from user-editable settings
         let escapedArgs = preEscaped ? args : args.esc
+        isolateVCRuntime(bottleURL: bottle.url)
         WineUserProfile.reconcile(bottleURL: bottle.url)
         ensureFEXCacheFolder()
         let wineEnv = constructWineEnvironment(for: bottle, environment: environment)
@@ -830,6 +841,7 @@ public class Wine {
     /// - Returns: A multi-line string of shell export commands and aliases.
     @MainActor
     public static func generateTerminalEnvironmentCommand(bottle: Bottle) -> String {
+        isolateVCRuntime(bottleURL: bottle.url)
         ensureFEXCacheFolder()
         return generateTerminalEnvironmentCommand(
             binFolder: WhiskyWineInstaller.binFolder,
@@ -949,6 +961,7 @@ public class Wine {
         let fileHandle = try createsLogFile ? makeFileHandle() : nil
         fileHandle?.writeApplicationInfo()
         fileHandle?.writeInfo(for: bottle)
+        isolateVCRuntime(bottleURL: bottle.url)
         WineUserProfile.reconcile(bottleURL: bottle.url)
         ensureFEXCacheFolder()
         let wineEnvironment = constructWineEnvironment(for: bottle, environment: environment)

@@ -67,8 +67,9 @@ struct MigrateBottlesSheet: View {
             Text(
                 """
                 The selected bottles are copied into new bottles for this build. The originals stay \
-                untouched and keep working in the other app. Windows dependencies installed with \
-                winetricks aren't carried over; reinstall them in the new bottle.
+                untouched and keep working in the other app. Dependencies installed in the old bottle \
+                with winetricks aren't copied. Most programs need none on this engine, and the \
+                Microsoft Visual C++ runtime, if installed, is used only by Unity games.
                 """
             )
             .font(.subheadline)

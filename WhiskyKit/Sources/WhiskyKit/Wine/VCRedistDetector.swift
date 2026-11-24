@@ -43,10 +43,17 @@ public enum VCRedistDetector {
     ///
     /// - Parameter prefixURL: The Wine prefix root (the bottle folder holding `drive_c`).
     /// - Returns: `true` when `system32` or `syswow64` holds native copies of
-    ///   both runtime DLLs.
+    ///   both runtime DLLs, or the bottle's VC Runtime store does
+    ///   (``VCRuntimeIsolation`` moves them there).
     public static func isInstalled(prefixURL: URL) -> Bool {
+        let store = VCRuntimeIsolation.store(prefix: prefixURL)
+        let stored = ["x64", "x86"].contains { machine in
+            runtimeDLLs.allSatisfy {
+                FileManager.default.fileExists(atPath: store.appending(path: machine).appending(path: $0).path)
+            }
+        }
         let windows = prefixURL.appending(path: "drive_c").appending(path: "windows")
-        return systemFolders.contains { folder in
+        return stored || systemFolders.contains { folder in
             let directory = windows.appending(path: folder)
             return runtimeDLLs.allSatisfy { isNativePE(directory.appending(path: $0)) }
         }

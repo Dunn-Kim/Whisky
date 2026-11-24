@@ -110,7 +110,19 @@ public extension Wine {
     ) async throws {
         let planned = scopes.map { (key: $0.scope.registryKey, overrides: parseDLLOverrides($0.overrides)) }
         let snapshot = DLLOverrideRecord.load(from: bottle.url)
-        try await importer(registryDocument(for: planned, record: snapshot), bottle)
+        // A winetricks VC++ install leaves global native overrides that make
+        // every Wine process load Microsoft's UCRT. Those go, unless the user
+        // set the name in the bottle's own override list.
+        let userNames = Set(bottle.settings.dllOverrides.map(\.dllName))
+        for name in userNames.intersection(VCRuntimeIsolation.isolatedNames)
+            where bottle.settings.dllOverrides.contains(where: { $0.dllName == name && $0.mode != .builtin }) {
+            dllOverrideLogger.warning(
+                "Bottle-wide override for \(name, privacy: .public) kept; native VC++ files can stop Wine starting"
+            )
+        }
+        let stale = WineRegistryFile.rawValues(bottleURL: bottle.url, key: DLLOverrideScope.bottle.registryKey)
+            .map { VCRuntimeIsolation.staleOverrides(in: $0, keeping: userNames) } ?? []
+        try await importer(registryDocument(for: planned, record: snapshot, staleNativeNames: stale), bottle)
         // Only after the import: a failed one leaves the old names recorded, so
         // the next launch still takes them back. Read again rather than saving
         // `snapshot`, so names saved some other way during the import (the
