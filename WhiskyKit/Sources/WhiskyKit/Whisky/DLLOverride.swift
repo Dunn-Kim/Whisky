@@ -191,37 +191,16 @@ public struct DLLOverrideResolver: Sendable {
         return result
     }
 
-    /// The standard DXVK DLL override preset.
-    ///
-    /// Applies `n,b` (native then builtin) to the four core DXVK DLLs, and
-    /// turns `d3d12` off when the builtin behind it is D3DMetal's.
-    ///
-    /// DXVK ships no `d3d12`, so the name falls through to the runtime's
-    /// builtin. With the GPTK payload deployed, that builtin is D3DMetal's
-    /// forwarder: a DX12 game took its adapter from DXVK's DXGI and handed it to
-    /// D3DMetal's `D3D12CreateDevice`, which dereferenced a vtable slot on an
-    /// object it had not created and jumped to null. Disabling it keeps the
-    /// bottle on one implementation, so such a game falls back to D3D11 instead
-    /// of half-landing on the other one. A bottle or program set to D3DMetal
-    /// resets this to builtin and gets real DX12.
-    ///
-    /// Without the payload the builtin is Wine's own vkd3d-based `d3d12`, which
-    /// turns the foreign adapter away with an error the game can handle, so the
-    /// name is left alone. Disabling it there guarded nothing and broke games
-    /// that load it at startup: Unity 6000.3 players delay-load `d3d12.dll`, and
-    /// a DLL that cannot load at all raises 0xC06D007E, where a failed device
-    /// creation lets them carry on in D3D11.
-    ///
-    /// - Parameter builtinD3D12IsD3DMetal: Whether the runtime's builtin `d3d12`
-    ///   is D3DMetal's, which is the case once the GPTK payload is deployed
-    ///   (``GPTKImporter/isDeployed()``).
-    public static func dxvkPreset(builtinD3D12IsD3DMetal: Bool) -> [DLLOverrideEntry] {
+    /// The standard DXVK DLL override preset: `n,b` (native then builtin) for
+    /// the four core DXVK DLLs. DXVK ships no `d3d12`, so that name is left to
+    /// Wine's own builtin.
+    public static func dxvkPreset() -> [DLLOverrideEntry] {
         [
             DLLOverrideEntry(dllName: "dxgi", mode: .nativeThenBuiltin),
             DLLOverrideEntry(dllName: "d3d9", mode: .nativeThenBuiltin),
             DLLOverrideEntry(dllName: "d3d10core", mode: .nativeThenBuiltin),
             DLLOverrideEntry(dllName: "d3d11", mode: .nativeThenBuiltin)
-        ] + d3d12Entries(builtinD3D12IsD3DMetal: builtinD3D12IsD3DMetal)
+        ]
     }
 
     /// The DXMT DLL override preset.
@@ -232,27 +211,13 @@ public struct DLLOverrideResolver: Sendable {
     /// unixlib binding (`__wine_unix_call`) to reach `winemetal.so`, which only
     /// works for builtin-loaded modules — a native copy in the prefix would
     /// load but be unable to call into Metal.
-    ///
-    /// DXMT has no `d3d12` either, so it gets the treatment described under
-    /// ``dxvkPreset(builtinD3D12IsD3DMetal:)``: off when the builtin behind the
-    /// name is D3DMetal's, left alone when it is Wine's own.
-    ///
-    /// - Parameter builtinD3D12IsD3DMetal: Whether the runtime's builtin `d3d12`
-    ///   is D3DMetal's (``GPTKImporter/isDeployed()``).
-    public static func dxmtPreset(builtinD3D12IsD3DMetal: Bool) -> [DLLOverrideEntry] {
+    public static func dxmtPreset() -> [DLLOverrideEntry] {
         [
             DLLOverrideEntry(dllName: "dxgi", mode: .nativeThenBuiltin),
             DLLOverrideEntry(dllName: "d3d10core", mode: .nativeThenBuiltin),
             DLLOverrideEntry(dllName: "d3d11", mode: .nativeThenBuiltin),
             DLLOverrideEntry(dllName: "winemetal", mode: .builtin)
-        ] + d3d12Entries(builtinD3D12IsD3DMetal: builtinD3D12IsD3DMetal)
-    }
-
-    /// `d3d12` for a translation layer that ships none: disabled when the
-    /// builtin it would fall through to is D3DMetal's, and not mentioned at all
-    /// when it is Wine's own.
-    private static func d3d12Entries(builtinD3D12IsD3DMetal: Bool) -> [DLLOverrideEntry] {
-        builtinD3D12IsD3DMetal ? [DLLOverrideEntry(dllName: "d3d12", mode: .disabled)] : []
+        ]
     }
 
     /// The DLL overrides a graphics backend contributes at bottle level.
@@ -261,18 +226,13 @@ public struct DLLOverrideResolver: Sendable {
     /// pick between themselves with `WINED3DMETAL`. Resolve `.recommended`
     /// before calling, or a bottle gets credited with the wrong set.
     ///
-    /// - Parameters:
-    ///   - backend: The resolved backend.
-    ///   - builtinD3D12IsD3DMetal: Whether the runtime's builtin `d3d12` is
-    ///     D3DMetal's, which decides whether DXVK and DXMT turn it off.
-    public static func managedPreset(
-        for backend: GraphicsBackend, builtinD3D12IsD3DMetal: Bool
-    ) -> [DLLOverrideEntry] {
+    /// - Parameter backend: The resolved backend.
+    public static func managedPreset(for backend: GraphicsBackend) -> [DLLOverrideEntry] {
         switch backend {
         case .dxvk:
-            dxvkPreset(builtinD3D12IsD3DMetal: builtinD3D12IsD3DMetal)
+            dxvkPreset()
         case .dxmt:
-            dxmtPreset(builtinD3D12IsD3DMetal: builtinD3D12IsD3DMetal)
+            dxmtPreset()
         case .d3dMetal, .wined3d, .recommended:
             []
         }

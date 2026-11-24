@@ -44,13 +44,13 @@ final class SteamDXMTAppLaunchTests {
 
     private func prepareAppLaunch(
         _ bottle: Bottle, gameURL: URL, plan: ProgramOverrides? = nil, recommendedBackend: GraphicsBackend,
-        builtinD3D12IsD3DMetal: Bool, recorder: ScopeRecorder = ScopeRecorder()
+        recorder: ScopeRecorder = ScopeRecorder()
     ) async throws {
         _ = try await Wine.prepareProgramLaunch(
             at: fixture.steam(in: bottle), args: ["-applaunch", "480"], bottle: bottle,
             programOverrides: plan, overridesApplyToDescendants: true, descendantExecutables: [game],
             descendantExecutableURLs: [gameURL],
-            recommendedBackend: recommendedBackend, builtinD3D12IsD3DMetal: builtinD3D12IsD3DMetal,
+            recommendedBackend: recommendedBackend,
             overrideWriter: recorder.writer, importer: recorder.importer,
             dxvkFolder: fixture.makeDXVKPayload(), dxmtFolder: fixture.makeDXMTPayload()
         )
@@ -61,7 +61,7 @@ final class SteamDXMTAppLaunchTests {
         recorder: ScopeRecorder = ScopeRecorder()
     ) async throws {
         _ = try await Wine.prepareProgramLaunch(
-            at: gameURL, bottle: bottle, recommendedBackend: recommendedBackend, builtinD3D12IsD3DMetal: true,
+            at: gameURL, bottle: bottle, recommendedBackend: recommendedBackend,
             overrideWriter: recorder.writer, importer: recorder.importer,
             dxvkFolder: fixture.makeDXVKPayload(), dxmtFolder: fixture.makeDXMTPayload()
         )
@@ -98,7 +98,7 @@ final class SteamDXMTAppLaunchTests {
         let recorder = ScopeRecorder()
 
         try await prepareAppLaunch(
-            bottle, gameURL: gameURL, recommendedBackend: .dxmt, builtinD3D12IsD3DMetal: false, recorder: recorder
+            bottle, gameURL: gameURL, recommendedBackend: .dxmt, recorder: recorder
         )
 
         expectLauncherKeepsDXVK(bottle)
@@ -113,7 +113,7 @@ final class SteamDXMTAppLaunchTests {
         let recorder = ScopeRecorder()
 
         try await prepareAppLaunch(
-            bottle, gameURL: gameURL, recommendedBackend: .d3dMetal, builtinD3D12IsD3DMetal: true, recorder: recorder
+            bottle, gameURL: gameURL, recommendedBackend: .d3dMetal, recorder: recorder
         )
 
         expectLauncherKeepsDXVK(bottle)
@@ -130,7 +130,7 @@ final class SteamDXMTAppLaunchTests {
         plan.graphicsBackend = .dxmt
 
         try await prepareAppLaunch(
-            bottle, gameURL: gameURL, plan: plan, recommendedBackend: .d3dMetal, builtinD3D12IsD3DMetal: true,
+            bottle, gameURL: gameURL, plan: plan, recommendedBackend: .d3dMetal,
             recorder: recorder
         )
 
@@ -143,11 +143,11 @@ final class SteamDXMTAppLaunchTests {
     func laterD3DMetalAppLaunchRemovesTheCopies() async throws {
         let bottle = try fixture.makeBottle(.recommended)
         let gameURL = try fixture.makeGame(in: bottle)
-        try await prepareAppLaunch(bottle, gameURL: gameURL, recommendedBackend: .dxmt, builtinD3D12IsD3DMetal: false)
+        try await prepareAppLaunch(bottle, gameURL: gameURL, recommendedBackend: .dxmt)
         #expect(Fixture.holdsDXMT(gameURL.deletingLastPathComponent()))
 
         try await prepareAppLaunch(
-            bottle, gameURL: gameURL, recommendedBackend: .d3dMetal, builtinD3D12IsD3DMetal: true
+            bottle, gameURL: gameURL, recommendedBackend: .d3dMetal
         )
 
         #expect(Fixture.holdsNoTrio(gameURL.deletingLastPathComponent()))
@@ -157,7 +157,7 @@ final class SteamDXMTAppLaunchTests {
     func laterDirectD3DMetalLaunchRemovesTheCopies() async throws {
         let bottle = try fixture.makeBottle(.recommended)
         let gameURL = try fixture.makeGame(in: bottle)
-        try await prepareAppLaunch(bottle, gameURL: gameURL, recommendedBackend: .dxmt, builtinD3D12IsD3DMetal: false)
+        try await prepareAppLaunch(bottle, gameURL: gameURL, recommendedBackend: .dxmt)
 
         try await prepareDirectLaunch(bottle, gameURL: gameURL)
 
@@ -173,7 +173,7 @@ final class SteamDXMTAppLaunchTests {
         let recorder = ScopeRecorder()
 
         try await prepareAppLaunch(
-            bottle, gameURL: gameURL, recommendedBackend: .d3dMetal, builtinD3D12IsD3DMetal: true, recorder: recorder
+            bottle, gameURL: gameURL, recommendedBackend: .d3dMetal, recorder: recorder
         )
 
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: folder.path)
@@ -205,7 +205,7 @@ final class SteamDXMTAppLaunchTests {
         let recorder = ScopeRecorder()
 
         try await prepareAppLaunch(
-            bottle, gameURL: gameURL, recommendedBackend: .d3dMetal, builtinD3D12IsD3DMetal: true, recorder: recorder
+            bottle, gameURL: gameURL, recommendedBackend: .d3dMetal, recorder: recorder
         )
 
         let entry = recorder.overrides(for: .program(game))
@@ -226,7 +226,7 @@ final class SteamDXMTAppLaunchTests {
         let recorder = ScopeRecorder()
 
         try await prepareAppLaunch(
-            bottle, gameURL: gameURL, recommendedBackend: .d3dMetal, builtinD3D12IsD3DMetal: true, recorder: recorder
+            bottle, gameURL: gameURL, recommendedBackend: .d3dMetal, recorder: recorder
         )
 
         #expect(recorder.overrides(for: .program(game))?["d3d11"] == "n,b")
@@ -242,7 +242,7 @@ final class SteamDXMTAppLaunchTests {
 
         _ = try await Wine.prepareProgramLaunch(
             at: fixture.steam(in: bottle), args: ["-silent"], bottle: bottle,
-            recommendedBackend: .d3dMetal, builtinD3D12IsD3DMetal: true,
+            recommendedBackend: .d3dMetal,
             overrideWriter: recorder.writer, importer: recorder.importer,
             dxvkFolder: fixture.makeDXVKPayload(), dxmtFolder: fixture.makeDXMTPayload()
         )

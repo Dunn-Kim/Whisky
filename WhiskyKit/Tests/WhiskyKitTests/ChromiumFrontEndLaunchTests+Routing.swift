@@ -48,26 +48,6 @@ extension ChromiumFrontEndLaunchTests {
         expectNotDXVK(ahead.overrides(for: .bottle), "the bottle scope")
     }
 
-    // MARK: - MetalFX
-
-    @Test("Launching 3DMark leaves the MetalFX placeholder its D3DMetal benchmarks need")
-    func frontEndLaunchKeepsMetalFXPlaceholder() async throws {
-        let install = try installSteam3DMark()
-        let bottle = makeBottle()
-        bottle.settings.metalFX = true
-        let placeholder = bottleURL.appending(path: "drive_c/windows/system32")
-            .appending(path: GPTKImporter.metalFXBridgeName)
-        // Builtin-marked, the kind the launch removes when it clears.
-        var stub = Data(count: 0x40)
-        stub.append(Data("Wine builtin DLL".utf8))
-        try stub.write(to: placeholder)
-
-        _ = try await prepare(install.appending(path: "bin/x64/3DMark.exe"), in: bottle, recorder: ScopeRecorder())
-
-        #expect(dxvkDeployed, "the front end itself runs on DXVK")
-        #expect(FileManager.default.fileExists(atPath: placeholder.path(percentEncoded: false)))
-    }
-
     // MARK: - DXMT
 
     @Test("Without GPTK, 3DMark still gets DXVK and the bottle scope keeps DXMT")

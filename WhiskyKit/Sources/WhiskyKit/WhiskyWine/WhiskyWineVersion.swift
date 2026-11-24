@@ -53,15 +53,6 @@ public struct WhiskyWineVersion: Codable {
     /// path stays backward-compatible when no hash is advertised).
     public var sha256: String?
 
-    /// Whether this runtime's Wine build can execute Apple's GPTK/D3DMetal
-    /// payload. The payload's forwarder DLLs are C++ with exception handling,
-    /// and unwinding them requires personality-routine support for builtin
-    /// modules that upstream Wine lacks — on a build without it, every process
-    /// that runs D3DMetal code dies on its first internal throw. Absent (all
-    /// runtimes to date) means not capable; a future GPTK-ready runtime build
-    /// advertises `true` here.
-    public var gptkCapable: Bool?
-
     /// Whether this runtime's Wine implements msync and esync.
     ///
     /// Wine only takes either path when its own `ntdll.so` and `wineserver`
@@ -72,23 +63,18 @@ public struct WhiskyWineVersion: Codable {
     /// `BottleSettings.populateBottleManagedLayer`).
     ///
     /// A runtime whose Wine carries the msync patches advertises `true` here.
-    /// No published plist sets it yet, so ``implementsEnhancedSync`` decides
-    /// an absent key by lineage. To check a build, run `strings` on its
-    /// `ntdll.so` and `wineserver` and look for `WINEMSYNC` and `WINEESYNC`.
+    /// ``implementsEnhancedSync`` treats an absent key as not implemented. To
+    /// check a build, run `strings` on its `ntdll.so` and `wineserver` and look for `WINEMSYNC` and `WINEESYNC`.
     public var msyncCapable: Bool?
 
     /// Whether the Enhanced Sync setting changes how this runtime's Wine
     /// synchronizes threads, rather than only how D3DMetal behaves.
     ///
-    /// An explicit ``msyncCapable`` wins. Without it, the runtime counts as
-    /// capable when it is ``gptkCapable``: only the CrossOver-based v4
-    /// engines set that key, and they implement msync and esync, while the
-    /// stock 3.x runtimes set neither key and implement neither. The v4
-    /// betas installed by hand carry plists written before `msyncCapable`
-    /// existed, so this keeps them from being told their engine ignores the
-    /// setting.
+    /// True only when the runtime's plist sets ``msyncCapable`` to `true`.
+    /// Runtimes that do not say, such as the stock 3.x ones, count as not
+    /// implementing it.
     public var implementsEnhancedSync: Bool {
-        msyncCapable ?? (gptkCapable == true)
+        msyncCapable == true
     }
 
     enum CodingKeys: String, CodingKey {
@@ -96,7 +82,6 @@ public struct WhiskyWineVersion: Codable {
         case dxvkVersion
         case dxmtVersion
         case sha256
-        case gptkCapable
         case msyncCapable
     }
 
@@ -105,14 +90,12 @@ public struct WhiskyWineVersion: Codable {
         dxvkVersion: String? = nil,
         dxmtVersion: String? = nil,
         sha256: String? = nil,
-        gptkCapable: Bool? = nil,
         msyncCapable: Bool? = nil
     ) {
         self.version = version
         self.dxvkVersion = Self.normalized(dxvkVersion)
         self.dxmtVersion = Self.normalized(dxmtVersion)
         self.sha256 = Self.normalizedDigest(sha256)
-        self.gptkCapable = gptkCapable
         self.msyncCapable = msyncCapable
     }
 
@@ -126,7 +109,6 @@ public struct WhiskyWineVersion: Codable {
         dxvkVersion = try Self.normalized(container.decodeIfPresent(String.self, forKey: .dxvkVersion))
         dxmtVersion = try Self.normalized(container.decodeIfPresent(String.self, forKey: .dxmtVersion))
         sha256 = try Self.normalizedDigest(container.decodeIfPresent(String.self, forKey: .sha256))
-        gptkCapable = try container.decodeIfPresent(Bool.self, forKey: .gptkCapable)
         msyncCapable = try container.decodeIfPresent(Bool.self, forKey: .msyncCapable)
     }
 
@@ -165,7 +147,6 @@ public struct WhiskyWineVersion: Codable {
         try container.encodeIfPresent(dxvkVersion, forKey: .dxvkVersion)
         try container.encodeIfPresent(dxmtVersion, forKey: .dxmtVersion)
         try container.encodeIfPresent(sha256, forKey: .sha256)
-        try container.encodeIfPresent(gptkCapable, forKey: .gptkCapable)
         try container.encodeIfPresent(msyncCapable, forKey: .msyncCapable)
     }
 

@@ -52,7 +52,7 @@ extension Wine {
     ///     games; `nil` asks ``GraphicsBackendResolver``.
     ///   - launcherSet: Composes the launcher set from the user's own overrides
     ///     for the executable:
-    ///     ``launcherDLLOverrides(bottle:userOverrides:recommendedBackend:builtinD3D12IsD3DMetal:)``.
+    ///     ``launcherDLLOverrides(bottle:userOverrides:recommendedBackend:)``.
     @MainActor
     static func addFrontEndScopes(
         _ executables: @autoclosure () -> [URL],

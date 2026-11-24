@@ -149,8 +149,8 @@ final class DLLOverrideRegistryTests: XCTestCase {
 
     func testManagedNamesCoverEveryPresetAndTheNVIDIABridges() {
         for payload in [true, false] {
-            let presets = DLLOverrideResolver.dxvkPreset(builtinD3D12IsD3DMetal: payload)
-                + DLLOverrideResolver.dxmtPreset(builtinD3D12IsD3DMetal: payload)
+            let presets = DLLOverrideResolver.dxvkPreset()
+                + DLLOverrideResolver.dxmtPreset()
             for entry in presets {
                 XCTAssertTrue(Wine.managedDLLNames.contains(entry.dllName), entry.dllName)
             }

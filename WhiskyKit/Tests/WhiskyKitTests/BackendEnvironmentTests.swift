@@ -33,7 +33,7 @@ struct BackendEnvironmentTests {
         var builder = EnvironmentBuilder()
         var dllResolver = DLLOverrideResolver(managed: [], bottleCustom: [], programCustom: [])
         _ = settings.populateBottleManagedLayer(
-            builder: &builder, resolvedBackend: .d3dMetal, builtinD3D12IsD3DMetal: false
+            builder: &builder, resolvedBackend: .d3dMetal
         )
         // As constructWineEnvironment does: the program's own environment
         // goes into its layer first, then its overrides.
@@ -42,7 +42,7 @@ struct BackendEnvironmentTests {
         }
         Wine.applyProgramOverrides(
             overrides, dxvkAsync: settings.dxvkAsync, programEnvironmentKeys: Set(programEnvironment.keys),
-            recommendedBackend: .d3dMetal, builtinD3D12IsD3DMetal: false,
+            recommendedBackend: .d3dMetal,
             builder: &builder, dllResolver: &dllResolver
         )
         return builder.resolve().environment
@@ -245,7 +245,7 @@ struct BackendEnvironmentTests {
 
         let env = Wine.constructWineEnvironment(
             for: bottle, environment: ["DXVK_ASYNC": "0"], programOverrides: overrides,
-            recommendedBackend: .d3dMetal, builtinD3D12IsD3DMetal: false
+            recommendedBackend: .d3dMetal
         )
         #expect(env["DXVK_ASYNC"] == "0")
         #expect(env[Self.concurrentCompile] == "1")

@@ -58,7 +58,7 @@ final class TroubleshootingPreflightTests: XCTestCase {
         name: "Test Speakers", transportType: .usb, sampleRate: 48_000, outputChannelCount: 2, isDefault: true
     )
 
-    private static let d3dMetal = BackendResolution(backend: .d3dMetal, reason: .d3dMetal)
+    private static let d3dMetal = BackendResolution(backend: .d3dMetal, reason: .dxmt)
 
     // MARK: - Collection
 

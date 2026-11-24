@@ -27,12 +27,9 @@ import os.log
 public enum GraphicsBackendResolver {
     /// Resolves the recommended graphics backend for the current system.
     ///
-    /// D3DMetal is the best-supported path on macOS 15+ Apple Silicon, but only
-    /// GPTK-based runtimes bundle its payload. Recommending it on a runtime
-    /// without the payload makes launches silently fall back to wined3d, which
-    /// cannot bring up D3D11 on current macOS — so the resolver only recommends
-    /// backends that are actually installed: DXMT (native D3D11-to-Metal) when
-    /// the runtime bundles it, otherwise DXVK, which ships with every runtime.
+    /// The resolver only recommends backends that are actually installed: DXMT
+    /// (native D3D11-to-Metal) when the runtime bundles it, otherwise DXVK,
+    /// which ships with every runtime.
     ///
     /// - Parameters:
     ///   - launcher: The launcher this launch targets, if any. Launchers always
@@ -40,8 +37,6 @@ public enum GraphicsBackendResolver {
     ///   - macOSVersion: The macOS version to consider. Defaults to the running system.
     ///   - runtimeInfo: The runtime record to consider. Defaults to the installed
     ///     runtime's version plist.
-    ///   - d3dMetalInstalled: Whether the D3DMetal payload exists on disk. Defaults
-    ///     to checking the installed runtime.
     ///   - dxmtRuntimeNative: Whether the runtime's DXMT payload is the native
     ///     variant. Defaults to checking the installed runtime.
     /// - Returns: A concrete ``GraphicsBackend`` (never `.recommended`).
@@ -49,12 +44,11 @@ public enum GraphicsBackendResolver {
         for launcher: LauncherType? = nil,
         macOSVersion: MacOSVersion = .current,
         runtimeInfo: WhiskyWineVersion? = WhiskyWineInstaller.whiskyWineInfo(),
-        d3dMetalInstalled: Bool = WhiskyWineInstaller.isD3DMetalInstalled(),
         dxmtRuntimeNative: Bool = Wine.isDXMTRuntimeNative()
     ) -> GraphicsBackend {
         resolution(
             for: launcher.map { DXVKSteering.launcher($0) }, macOSVersion: macOSVersion,
-            runtimeInfo: runtimeInfo, d3dMetalInstalled: d3dMetalInstalled, dxmtRuntimeNative: dxmtRuntimeNative
+            runtimeInfo: runtimeInfo, dxmtRuntimeNative: dxmtRuntimeNative
         ).backend
     }
 
@@ -69,8 +63,6 @@ public enum GraphicsBackendResolver {
     ///   - macOSVersion: The macOS version to consider. Defaults to the running system.
     ///   - runtimeInfo: The runtime record to consider. Defaults to the installed
     ///     runtime's version plist.
-    ///   - d3dMetalInstalled: Whether the D3DMetal payload exists on disk. Defaults
-    ///     to checking the installed runtime.
     ///   - dxmtRuntimeNative: Whether the runtime's DXMT payload is the native
     ///     variant. Defaults to checking the installed runtime.
     /// - Returns: A concrete backend (never `.recommended`) and why it was picked.
@@ -78,7 +70,6 @@ public enum GraphicsBackendResolver {
         for steering: DXVKSteering?,
         macOSVersion: MacOSVersion = .current,
         runtimeInfo: WhiskyWineVersion? = WhiskyWineInstaller.whiskyWineInfo(),
-        d3dMetalInstalled: Bool = WhiskyWineInstaller.isD3DMetalInstalled(),
         dxmtRuntimeNative: Bool = Wine.isDXMTRuntimeNative()
     ) -> BackendResolution {
         // Launcher clients and Chromium front ends cannot render on D3DMetal or
@@ -89,9 +80,6 @@ public enum GraphicsBackendResolver {
         if let steering {
             return BackendResolution(backend: .dxvk, reason: .steered(steering))
         }
-        if d3dMetalInstalled {
-            return BackendResolution(backend: .d3dMetal, reason: .d3dMetal)
-        }
         // The same gate the backend picker applies, not the version record
         // alone: a version-only check lets auto promise DXMT on a runtime
         // whose payload is missing or builtin-variant, which then throws
@@ -99,7 +87,6 @@ public enum GraphicsBackendResolver {
         if WhiskyWineInstaller.backendAvailability(
             .dxmt,
             runtimeInfo: runtimeInfo,
-            d3dMetalInstalled: d3dMetalInstalled,
             dxmtRuntimeNative: dxmtRuntimeNative
         ) {
             return BackendResolution(backend: .dxmt, reason: .dxmt)
@@ -191,11 +178,9 @@ public enum DXVKSteering: Sendable, Equatable {
 public enum RecommendedReason: Sendable, Equatable {
     /// The executable's window is drawn by Chromium, so it runs on DXVK.
     case steered(DXVKSteering)
-    /// The GPTK payload is installed.
-    case d3dMetal
-    /// The runtime bundles a native DXMT payload, and there is no GPTK.
+    /// The runtime bundles a native DXMT payload.
     case dxmt
-    /// Neither is available; DXVK ships with every runtime.
+    /// DXMT is not available; DXVK ships with every runtime.
     case dxvkFallback
 
     /// A short, stable description for diagnostics exports. Not localized.
@@ -203,12 +188,10 @@ public enum RecommendedReason: Sendable, Equatable {
         switch self {
         case let .steered(steering):
             "steered to DXVK (\(steering.evidence))"
-        case .d3dMetal:
-            "D3DMetal payload installed"
         case .dxmt:
-            "native DXMT payload, no D3DMetal"
+            "native DXMT payload"
         case .dxvkFallback:
-            "DXVK fallback, no D3DMetal or DXMT"
+            "DXVK fallback, no DXMT"
         }
     }
 }

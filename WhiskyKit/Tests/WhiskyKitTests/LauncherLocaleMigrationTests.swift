@@ -59,7 +59,7 @@ final class LauncherLocaleMigrationTests: LauncherFixesTestCase {
         let bottle = makeLegacyBottle()
         LauncherLocaleMigration.migrateIfNeeded(bottle)
 
-        let env = Wine.constructWineEnvironment(for: bottle, builtinD3D12IsD3DMetal: false)
+        let env = Wine.constructWineEnvironment(for: bottle)
 
         XCTAssertNil(env["LC_ALL"])
         XCTAssertNil(env["LANG"])
@@ -84,7 +84,7 @@ final class LauncherLocaleMigrationTests: LauncherFixesTestCase {
 
             XCTAssertEqual(bottle.settings.launcherLocale, .auto, "\(launcher.rawValue)")
             // Their presets still carry en_US, so Auto launches the same.
-            let env = Wine.constructWineEnvironment(for: bottle, builtinD3D12IsD3DMetal: false)
+            let env = Wine.constructWineEnvironment(for: bottle)
             XCTAssertEqual(env["LC_ALL"], "en_US.UTF-8", "\(launcher.rawValue)")
         }
     }
@@ -111,10 +111,10 @@ final class LauncherLocaleMigrationTests: LauncherFixesTestCase {
         LauncherLocaleMigration.migrateIfNeeded(bottle)
 
         // The next Steam client start applies the Steam fixes again.
-        LauncherFixes.apply(to: bottle, launcher: .steam, recommendedBackend: .d3dMetal)
+        LauncherFixes.apply(to: bottle, launcher: .steam)
 
         XCTAssertEqual(bottle.settings.detectedLauncher, .steam)
-        let env = Wine.constructWineEnvironment(for: bottle, builtinD3D12IsD3DMetal: false)
+        let env = Wine.constructWineEnvironment(for: bottle)
         XCTAssertNil(env["LC_ALL"])
         XCTAssertNil(env["LANG"])
     }

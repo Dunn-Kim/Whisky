@@ -77,7 +77,7 @@ final class RSILauncherTests {
     ) async throws -> Wine.PreparedLaunch {
         try await Wine.prepareProgramLaunch(
             at: url, bottle: bottle, programOverrides: programOverrides,
-            recommendedBackend: .d3dMetal, builtinD3D12IsD3DMetal: true,
+            recommendedBackend: .d3dMetal,
             overrideWriter: recorder.writer, importer: recorder.importer
         )
     }
@@ -137,11 +137,10 @@ final class RSILauncherTests {
     @Test("Recommended resolves the launcher to DXVK on every runtime")
     func resolverGivesTheLauncherDXVK() {
         let runtime = WhiskyWineVersion(version: SemanticVersion(3, 1, 1), dxmtVersion: "0.80")
-        for (d3dMetal, dxmtNative) in [(true, false), (false, true), (false, false)] {
+        for dxmtNative in [true, false] {
             #expect(
                 GraphicsBackendResolver.resolve(
-                    for: .rsiLauncher, runtimeInfo: runtime,
-                    d3dMetalInstalled: d3dMetal, dxmtRuntimeNative: dxmtNative
+                    for: .rsiLauncher, runtimeInfo: runtime, dxmtRuntimeNative: dxmtNative
                 ) == .dxvk
             )
         }
@@ -152,10 +151,9 @@ final class RSILauncherTests {
         let url = URL(fileURLWithPath: "C:/\(Self.gameFolder)/StarCitizen.exe")
         let runtime = WhiskyWineVersion(version: SemanticVersion(3, 1, 1), dxmtVersion: "0.80")
         let launcher = LauncherType.detect(from: url)
-        #expect(GraphicsBackendResolver.resolve(for: launcher, d3dMetalInstalled: true) == .d3dMetal)
         #expect(
             GraphicsBackendResolver.resolve(
-                for: launcher, runtimeInfo: runtime, d3dMetalInstalled: false, dxmtRuntimeNative: true
+                for: launcher, runtimeInfo: runtime, dxmtRuntimeNative: true
             ) == .dxmt
         )
     }
@@ -221,7 +219,7 @@ final class RSILauncherTests {
 
         _ = try await Wine.prepareProgramLaunch(
             at: rsiLauncher(in: bottle), bottle: bottle,
-            recommendedBackend: .dxmt, builtinD3D12IsD3DMetal: false,
+            recommendedBackend: .dxmt,
             overrideWriter: recorder.writer, importer: recorder.importer, dxvkFolder: dxvkFolder
         )
 
@@ -260,7 +258,7 @@ final class RSILauncherTests {
         // No bottle-wide DXVK requirement, which the launcher auto-enable would deploy.
         #expect(bottle.settings.detectedLauncher?.requiresDXVK == false)
         let env = Wine.constructWineEnvironment(
-            for: bottle, recommendedBackend: .d3dMetal, builtinD3D12IsD3DMetal: true
+            for: bottle, recommendedBackend: .d3dMetal
         )
         for key in ["LC_ALL", "LANG"] {
             #expect(env[key] == nil, "\(key)")

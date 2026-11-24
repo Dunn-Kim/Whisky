@@ -44,10 +44,6 @@ extension Wine {
     ///   - recommendedBackend: What `.recommended` resolves to, for the bottle and
     ///     for a program set to it. Defaults to `nil`, which asks
     ///     ``GraphicsBackendResolver`` about the installed runtime.
-    ///   - builtinD3D12IsD3DMetal: Whether the runtime's builtin `d3d12` is
-    ///     D3DMetal's, which decides whether the DXVK and DXMT presets turn it
-    ///     off. Defaults to whether the GPTK payload is deployed, read once so
-    ///     every layer of this launch agrees.
     /// - Returns: The fully resolved environment dictionary for passing to a Wine process.
     @MainActor
     public static func constructWineEnvironment(
@@ -56,8 +52,7 @@ extension Wine {
         programOverrides: ProgramOverrides? = nil,
         programSettings: ProgramSettings? = nil,
         gameProfileEnvironment: [String: String] = [:],
-        recommendedBackend: GraphicsBackend? = nil,
-        builtinD3D12IsD3DMetal: Bool = GPTKImporter.isDeployed()
+        recommendedBackend: GraphicsBackend? = nil
     ) -> [String: String] {
         var builder = EnvironmentBuilder()
         var dllResolver = DLLOverrideResolver(managed: [], bottleCustom: [], programCustom: [])
@@ -97,7 +92,6 @@ extension Wine {
         let displayRefreshRate = FrameRateLimit.mainDisplayRefreshRate()
         let managedOverrides = bottle.settings.populateBottleManagedLayer(
             builder: &builder, resolvedBackend: recommendedBackend,
-            builtinD3D12IsD3DMetal: builtinD3D12IsD3DMetal,
             displayRefreshRate: displayRefreshRate
         )
         dllResolver.managed.append(contentsOf: managedOverrides)
@@ -117,7 +111,7 @@ extension Wine {
 
         // Layer 4: Launcher managed -- launcher compatibility overrides
         let launcherOverrides = bottle.settings.populateLauncherManagedLayer(
-            builder: &builder, builtinD3D12IsD3DMetal: builtinD3D12IsD3DMetal
+            builder: &builder
         )
         dllResolver.managed.append(contentsOf: launcherOverrides)
 
@@ -155,7 +149,6 @@ extension Wine {
                 dxvkAsync: bottle.settings.dxvkAsync,
                 programEnvironmentKeys: Set(environment.keys),
                 recommendedBackend: recommendedBackend,
-                builtinD3D12IsD3DMetal: builtinD3D12IsD3DMetal,
                 builder: &builder,
                 dllResolver: &dllResolver,
                 bottleBackend: bottle.settings.graphicsBackend,
@@ -204,12 +197,9 @@ extension Wine {
     /// overridden — the union of the DXVK and DXMT presets. Used when a
     /// program-level backend override selects a builtin-backed path
     /// (D3DMetal/wined3d) and must neutralize whatever the bottle enabled.
-    ///
-    /// Built from the same runtime state as the presets it undoes, so `d3d12`
-    /// is only reset where a preset could have turned it off.
-    static func translationDLLResetEntries(builtinD3D12IsD3DMetal: Bool) -> [DLLOverrideEntry] {
-        let presets = DLLOverrideResolver.dxvkPreset(builtinD3D12IsD3DMetal: builtinD3D12IsD3DMetal)
-            + DLLOverrideResolver.dxmtPreset(builtinD3D12IsD3DMetal: builtinD3D12IsD3DMetal)
+    static func translationDLLResetEntries() -> [DLLOverrideEntry] {
+        let presets = DLLOverrideResolver.dxvkPreset()
+            + DLLOverrideResolver.dxmtPreset()
         return Set(presets.map(\.dllName)).sorted().map { DLLOverrideEntry(dllName: $0, mode: .builtin) }
     }
 
@@ -219,10 +209,7 @@ extension Wine {
     /// in the ``EnvironmentLayer/programUser`` layer, which has higher priority than
     /// bottleManaged and launcherManaged layers.
     ///
-    /// `builtinD3D12IsD3DMetal` says whether the runtime's builtin `d3d12` is
-    /// D3DMetal's, which decides whether the DXVK and DXMT presets turn it off
-    /// and whether the reset union puts it back. Defaults to whether the GPTK
-    /// payload is deployed. `recommendedBackend` is what a program set to
+    /// `recommendedBackend` is what a program set to
     /// `.recommended` gets; `nil` asks ``GraphicsBackendResolver``.
     /// `dxvkAsync` is the bottle's async setting, which a program moved onto
     /// DXVK inherits. `programEnvironmentKeys` are the variables the program's
@@ -233,16 +220,15 @@ extension Wine {
         dxvkAsync: Bool = true,
         programEnvironmentKeys: Set<String> = [],
         recommendedBackend: GraphicsBackend? = nil,
-        builtinD3D12IsD3DMetal: Bool = GPTKImporter.isDeployed(),
         builder: inout EnvironmentBuilder,
         dllResolver: inout DLLOverrideResolver,
         bottleBackend: GraphicsBackend = .recommended,
         bottleFrameRateLimit: FrameRateLimit = .unlimited,
         displayRefreshRate: Int? = nil
     ) {
-        let dxvkPreset = DLLOverrideResolver.dxvkPreset(builtinD3D12IsD3DMetal: builtinD3D12IsD3DMetal)
-        let dxmtPreset = DLLOverrideResolver.dxmtPreset(builtinD3D12IsD3DMetal: builtinD3D12IsD3DMetal)
-        let translationReset = translationDLLResetEntries(builtinD3D12IsD3DMetal: builtinD3D12IsD3DMetal)
+        let dxvkPreset = DLLOverrideResolver.dxvkPreset()
+        let dxmtPreset = DLLOverrideResolver.dxmtPreset()
+        let translationReset = translationDLLResetEntries()
 
         // What the bottle layer sets under DXVK, for a program moved onto DXVK
         // in a bottle running something else: without it the program compiled

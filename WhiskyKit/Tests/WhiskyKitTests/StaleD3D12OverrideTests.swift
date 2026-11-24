@@ -86,7 +86,7 @@ final class StaleD3D12OverrideTests {
             at: steam(in: bottle), args: ["-applaunch", "1174180"], bottle: bottle,
             programOverrides: plan, overridesApplyToDescendants: true,
             descendantExecutables: ["PlayRDR2.exe", "RDR2.exe"],
-            recommendedBackend: payload ? .d3dMetal : .dxvk, builtinD3D12IsD3DMetal: payload,
+            recommendedBackend: payload ? .d3dMetal : .dxvk,
             overrideWriter: recorder.writer, importer: recorder.importer
         )
     }
@@ -124,21 +124,6 @@ final class StaleD3D12OverrideTests {
         }
     }
 
-    @Test("A game whose own plan still turns d3d12 off over D3DMetal keeps it off")
-    func steamGameLaunchKeepsD3D12TheGameStillDisables() async throws {
-        let bottle = try makeBottle(.recommended)
-        try addStaleD3D12(to: bottle, rdr2Native: false)
-        let recorder = ScopeRecorder()
-        var plan = ProgramOverrides()
-        plan.graphicsBackend = .dxvk
-
-        try await prepareGameLaunch(bottle, plan: plan, payload: true, recorder: recorder)
-
-        let entry = recorder.overrides(for: .program("RDR2.exe"))
-        #expect(entry?["d3d12"] == "")
-        #expect(entry?["dxgi"] == "n,b")
-    }
-
     @Test("A direct launch replaces the game's own entry, which drops a stale d3d12")
     func directLaunchReplacesTheGamesEntry() async throws {
         let bottle = try makeBottle(.recommended)
@@ -147,7 +132,7 @@ final class StaleD3D12OverrideTests {
         let recorder = ScopeRecorder()
 
         _ = try await Wine.prepareProgramLaunch(
-            at: game, bottle: bottle, recommendedBackend: .d3dMetal, builtinD3D12IsD3DMetal: true,
+            at: game, bottle: bottle, recommendedBackend: .d3dMetal,
             overrideWriter: recorder.writer, importer: recorder.importer
         )
 

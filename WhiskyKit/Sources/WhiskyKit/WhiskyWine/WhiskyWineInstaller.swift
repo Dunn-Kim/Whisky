@@ -130,29 +130,6 @@ public class WhiskyWineInstaller {
         return FileManager.default.fileExists(atPath: wineBinary.path(percentEncoded: false))
     }
 
-    /// Checks whether the installed runtime bundles Apple's D3DMetal layer.
-    ///
-    /// GPTK-based Wine builds carry D3DMetal under `Wine/lib/external/` as
-    /// `D3DMetal.framework` with `libd3dshared.dylib` alongside. Runtimes built
-    /// without GPTK ship neither, and a bottle configured for D3DMetal silently
-    /// falls back to wined3d at launch.
-    ///
-    /// - Returns: `true` only if the D3DMetal payload is present on disk.
-    public static func isD3DMetalInstalled() -> Bool {
-        isD3DMetalPresent(inLibraryFolder: libraryFolder)
-    }
-
-    /// Whether the D3DMetal payload exists under `folder`. Factored out of
-    /// ``isD3DMetalInstalled()`` so it can be tested against a temp directory.
-    static func isD3DMetalPresent(inLibraryFolder folder: URL) -> Bool {
-        let external = folder.appending(path: "Wine").appending(path: "lib").appending(path: "external")
-        let candidates = [
-            external.appending(path: "D3DMetal.framework"),
-            external.appending(path: "libd3dshared.dylib")
-        ]
-        return candidates.contains { FileManager.default.fileExists(atPath: $0.path(percentEncoded: false)) }
-    }
-
     /// Installs WhiskyWine from a downloaded tarball.
     ///
     /// This method extracts the WhiskyWine tarball to the application support
@@ -306,10 +283,6 @@ public class WhiskyWineInstaller {
         uninstall()
 
         removeBottleStorage(defaultBottlesDir: BottleData.defaultBottleDir, registryFile: BottleData.bottleEntriesDir)
-
-        // The GPTK store sits outside Libraries so it survives engine updates;
-        // a full uninstall is the one case where it should not.
-        try? FileManager.default.removeItem(at: GPTKImporter.storeFolder)
     }
 
     /// Removes the default bottles directory and the registry file that lists
@@ -411,14 +384,12 @@ public class WhiskyWineInstaller {
     /// ``GraphicsBackend/isAvailable(runtimeInfo:)`` version gate with the
     /// payload checks version records can't express: DXMT needs the *native*
     /// payload variant (an older builtin-variant payload would silently
-    /// redirect to wined3d), and D3DMetal needs the GPTK payload on disk —
-    /// without it a d3dMetal bottle silently degrades to wined3d at launch
-    /// (issue #146).
+    /// redirect to wined3d), and D3DMetal is never available (no payload is
+    /// deployed on this build).
     public static func isBackendAvailable(_ backend: GraphicsBackend) -> Bool {
         backendAvailability(
             backend,
             runtimeInfo: whiskyWineInfo(),
-            d3dMetalInstalled: isD3DMetalInstalled(),
             dxmtRuntimeNative: Wine.isDXMTRuntimeNative()
         )
     }
@@ -429,7 +400,6 @@ public class WhiskyWineInstaller {
     static func backendAvailability(
         _ backend: GraphicsBackend,
         runtimeInfo: WhiskyWineVersion?,
-        d3dMetalInstalled: Bool,
         dxmtRuntimeNative: Bool
     ) -> Bool {
         let versionAvailable = backend.isAvailable(runtimeInfo: runtimeInfo)
@@ -437,7 +407,7 @@ public class WhiskyWineInstaller {
         case .dxmt:
             return versionAvailable && dxmtRuntimeNative
         case .d3dMetal:
-            return versionAvailable && d3dMetalInstalled
+            return false
         case .recommended, .dxvk, .wined3d:
             return versionAvailable
         }

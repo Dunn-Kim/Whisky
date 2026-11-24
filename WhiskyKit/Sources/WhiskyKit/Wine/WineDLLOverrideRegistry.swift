@@ -167,8 +167,6 @@ public extension Wine {
     ///   own, whose ``LauncherType/chainExecutables`` need entries ahead of time.
     /// - Parameter recommendedBackend: What `.recommended` resolves to for the
     ///   bottle; `nil` asks ``GraphicsBackendResolver``.
-    /// - Parameter builtinD3D12IsD3DMetal: Whether the runtime's builtin `d3d12`
-    ///   is D3DMetal's, passed on to every composition written here.
     /// - Parameter writer: What performs the registry write.
     @MainActor
     static func applyDLLOverrides(
@@ -180,18 +178,17 @@ public extension Wine {
         ownSettingsExecutables: [URL] = [],
         descendantLaunchers: [LauncherType] = [],
         recommendedBackend: GraphicsBackend? = nil,
-        builtinD3D12IsD3DMetal: Bool = GPTKImporter.isDeployed(),
         writer: DLLOverrideWriter = { try await syncDLLOverrides(bottle: $0, scopes: $1) }
     ) async throws {
         let bottleOverrides = constructWineEnvironment(
-            for: bottle, recommendedBackend: recommendedBackend, builtinD3D12IsD3DMetal: builtinD3D12IsD3DMetal
+            for: bottle, recommendedBackend: recommendedBackend
         )["WINEDLLOVERRIDES"] ?? ""
         var scopes = DLLOverrideScopes(bottle: bottleOverrides)
         let launcher = LauncherType.detect(from: url)
         let launcherSet = { (userOverrides: ProgramOverrides?) in
             launcherDLLOverrides(
                 bottle: bottle, userOverrides: userOverrides,
-                recommendedBackend: recommendedBackend, builtinD3D12IsD3DMetal: builtinD3D12IsD3DMetal
+                recommendedBackend: recommendedBackend
             )
         }
 
@@ -248,7 +245,7 @@ public extension Wine {
         if let gamePlan {
             for (executable, own) in ownSettingsDLLOverrides(
                 for: ownSettingsExecutables, bottle: bottle,
-                recommendedBackend: recommendedBackend, builtinD3D12IsD3DMetal: builtinD3D12IsD3DMetal
+                recommendedBackend: recommendedBackend
             ) {
                 scopes.add([executable], own)
             }
@@ -309,13 +306,11 @@ public extension Wine {
     ///   - userOverrides: The user's persisted overrides for the launcher's
     ///     executable (its custom DLL overrides, say), if any.
     ///   - recommendedBackend: What `.recommended` resolves to for the bottle.
-    ///   - builtinD3D12IsD3DMetal: Whether the runtime's builtin `d3d12` is D3DMetal's.
     @MainActor
     static func launcherDLLOverrides(
         bottle: Bottle,
         userOverrides: ProgramOverrides? = nil,
-        recommendedBackend: GraphicsBackend? = nil,
-        builtinD3D12IsD3DMetal: Bool = GPTKImporter.isDeployed()
+        recommendedBackend: GraphicsBackend? = nil
     ) -> String {
         var pinned = userOverrides ?? ProgramOverrides()
         if pinned.graphicsBackend == nil || pinned.graphicsBackend == .recommended {
@@ -323,7 +318,7 @@ public extension Wine {
         }
         return constructWineEnvironment(
             for: bottle, programOverrides: pinned,
-            recommendedBackend: recommendedBackend, builtinD3D12IsD3DMetal: builtinD3D12IsD3DMetal
+            recommendedBackend: recommendedBackend
         )["WINEDLLOVERRIDES"] ?? ""
     }
 

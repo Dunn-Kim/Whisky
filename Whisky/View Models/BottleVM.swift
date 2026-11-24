@@ -106,9 +106,7 @@ final class BottleVM: ObservableObject {
 
     /// Runs the launcher migrations on every bottle, here so WhiskyCmd never rewrites settings.
     func migrateLauncherBackends() {
-        let d3dMetalInstalled = WhiskyWineInstaller.isD3DMetalInstalled()
         for bottle in bottles where bottle.isAvailable && !bottle.inFlight {
-            LauncherBackendMigration.migrateIfNeeded(bottle, d3dMetalInstalled: d3dMetalInstalled)
             LauncherLocaleMigration.migrateIfNeeded(bottle)
         }
     }

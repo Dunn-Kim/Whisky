@@ -771,9 +771,7 @@ struct ProgramOverrideSettingsView: View {
         let backend = choice == .recommended
             ? GraphicsBackendResolver.resolve(for: LauncherType.detect(from: program.url))
             : choice
-        let entries = DLLOverrideResolver.managedPreset(
-            for: backend, builtinD3D12IsD3DMetal: GPTKImporter.isDeployed()
-        )
+        let entries = DLLOverrideResolver.managedPreset(for: backend)
         return (backend, entries)
     }
 

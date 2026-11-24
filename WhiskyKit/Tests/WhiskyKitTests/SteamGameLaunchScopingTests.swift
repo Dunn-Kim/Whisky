@@ -72,14 +72,14 @@ final class SteamGameLaunchScopingTests {
             at: steam(in: bottle), args: ["-applaunch", "1174180"], bottle: bottle,
             programOverrides: plan, overridesApplyToDescendants: true,
             descendantExecutables: games, descendantLaunchers: launchers,
-            recommendedBackend: .d3dMetal, builtinD3D12IsD3DMetal: true,
+            recommendedBackend: .d3dMetal,
             overrideWriter: recorder.writer, importer: recorder.importer
         )
     }
 
     private func prepareDirectLaunch(_ url: URL, _ bottle: Bottle, recorder: ScopeRecorder) async throws {
         _ = try await Wine.prepareProgramLaunch(
-            at: url, bottle: bottle, recommendedBackend: .d3dMetal, builtinD3D12IsD3DMetal: true,
+            at: url, bottle: bottle, recommendedBackend: .d3dMetal,
             overrideWriter: recorder.writer, importer: recorder.importer
         )
     }
@@ -115,7 +115,6 @@ final class SteamGameLaunchScopingTests {
         for game in games {
             let entry = recorder.overrides(for: .program(game))
             expectDXVK(entry, game)
-            #expect(entry?["d3d12"] == "", "\(game): DXVK's adapter must not reach D3DMetal's d3d12")
         }
         expectSteamOnDXVK(recorder)
         #expect(recorder.overrides(for: .bottle)?["d3d11"] == nil)
@@ -187,7 +186,7 @@ final class SteamGameLaunchScopingTests {
         _ = try await Wine.prepareProgramLaunch(
             at: steam(in: bottle), args: ["-applaunch", "1"], bottle: bottle,
             overridesApplyToDescendants: true, descendantExecutables: ["Game.exe", "STEAMWEBHELPER.exe"],
-            recommendedBackend: .d3dMetal, builtinD3D12IsD3DMetal: true,
+            recommendedBackend: .d3dMetal,
             overrideWriter: recorder.writer, importer: recorder.importer
         )
 
@@ -212,7 +211,7 @@ final class SteamGameLaunchScopingTests {
         _ = try await Wine.prepareProgramLaunch(
             at: steamExe, args: ["-silent"], bottle: bottle,
             programOverrides: Program.persistedOverrides(for: steamExe, bottleURL: bottle.url),
-            recommendedBackend: .d3dMetal, builtinD3D12IsD3DMetal: true,
+            recommendedBackend: .d3dMetal,
             overrideWriter: clientStart.writer, importer: clientStart.importer
         )
 
@@ -298,7 +297,7 @@ final class SteamGameLaunchScopingTests {
         _ = try await Wine.prepareProgramLaunch(
             at: steam(in: bottle), args: ["-applaunch", "1"], bottle: bottle,
             overridesApplyToDescendants: true, descendantExecutables: ["Launcher.exe", "Game.exe"],
-            recommendedBackend: .d3dMetal, builtinD3D12IsD3DMetal: true,
+            recommendedBackend: .d3dMetal,
             overrideWriter: recorder.writer, importer: recorder.importer
         )
 

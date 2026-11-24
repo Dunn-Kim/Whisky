@@ -102,7 +102,7 @@ final class LauncherScopingTests {
         try await Wine.prepareProgramLaunch(
             at: steam(in: bottle), args: applaunch ? ["-applaunch", "1174180"] : ["-silent"], bottle: bottle,
             programOverrides: plan, overridesApplyToDescendants: applaunch,
-            recommendedBackend: recommended, builtinD3D12IsD3DMetal: payload,
+            recommendedBackend: recommended,
             overrideWriter: recorder.writer, importer: recorder.importer
         )
     }
@@ -271,46 +271,11 @@ final class LauncherScopingTests {
         let recorder = ScopeRecorder()
 
         _ = try await Wine.prepareProgramLaunch(
-            at: launcher, bottle: bottle, recommendedBackend: .d3dMetal, builtinD3D12IsD3DMetal: true,
+            at: launcher, bottle: bottle, recommendedBackend: .d3dMetal,
             overrideWriter: recorder.writer, importer: recorder.importer
         )
 
         #expect(recorder.programScopes.filter { $0.lowercased() == "launcher.exe" }.count == 1)
         #expect(recorder.programScopes.contains("SocialClubHelper.exe"))
-    }
-
-    // MARK: - Matrix row 9: the MetalFX placeholder
-
-    @Test("Starting Steam leaves the MetalFX placeholder its games need")
-    func steamLaunchKeepsMetalFXPlaceholder() async throws {
-        let bottle = try makeBottle(.recommended)
-        bottle.settings.metalFX = true
-        let placeholder = bottle.url.appending(path: "drive_c/windows/system32")
-            .appending(path: GPTKImporter.metalFXBridgeName)
-        // Builtin-marked, the kind the launch removes when it clears.
-        var stub = Data(count: 0x40)
-        stub.append(Data("Wine builtin DLL".utf8))
-        try stub.write(to: placeholder)
-
-        _ = try await prepareSteam(bottle, applaunch: false, recorder: ScopeRecorder())
-
-        #expect(FileManager.default.fileExists(atPath: placeholder.path(percentEncoded: false)))
-    }
-
-    @Test("A game set to DXVK still takes the placeholder away for its launch")
-    func dxvkGameStillClearsMetalFXPlaceholder() async throws {
-        let bottle = try makeBottle(.recommended)
-        bottle.settings.metalFX = true
-        let placeholder = bottle.url.appending(path: "drive_c/windows/system32")
-            .appending(path: GPTKImporter.metalFXBridgeName)
-        var stub = Data(count: 0x40)
-        stub.append(Data("Wine builtin DLL".utf8))
-        try stub.write(to: placeholder)
-        var plan = ProgramOverrides()
-        plan.graphicsBackend = .dxvk
-
-        _ = try await prepareSteam(bottle, applaunch: true, plan: plan, recorder: ScopeRecorder())
-
-        #expect(!FileManager.default.fileExists(atPath: placeholder.path(percentEncoded: false)))
     }
 }

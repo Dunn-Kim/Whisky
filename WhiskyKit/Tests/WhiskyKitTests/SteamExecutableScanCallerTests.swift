@@ -73,7 +73,7 @@ final class SteamExecutableScanCallerTests {
             at: steamExe, args: ["-applaunch", "548430"], bottle: bottle,
             programOverrides: plan.overrides, overridesApplyToDescendants: true,
             descendantExecutables: executables,
-            recommendedBackend: .d3dMetal, builtinD3D12IsD3DMetal: true,
+            recommendedBackend: .d3dMetal,
             overrideWriter: recorder.writer, importer: recorder.importer
         )
 
@@ -140,7 +140,7 @@ final class SteamExecutableScanCallerTests {
             programOverrides: plan.overrides, overridesApplyToDescendants: true,
             descendantExecutables: executables,
             ownSettingsExecutables: SteamLibrary.scanExecutables(under: install).chromiumHosts,
-            recommendedBackend: .d3dMetal, builtinD3D12IsD3DMetal: true,
+            recommendedBackend: .d3dMetal,
             overrideWriter: recorder.writer, importer: recorder.importer
         )
 
@@ -161,7 +161,7 @@ final class SteamExecutableScanCallerTests {
             at: steamExe, args: ["-applaunch", "223850"], bottle: bottle, overridesApplyToDescendants: true,
             descendantExecutables: SteamLauncher.gameExecutables(installURL: install, plan: Self.emptyPlan),
             ownSettingsExecutables: SteamLibrary.scanExecutables(under: install).chromiumHosts,
-            recommendedBackend: .d3dMetal, builtinD3D12IsD3DMetal: true,
+            recommendedBackend: .d3dMetal,
             overrideWriter: recorder.writer, importer: recorder.importer
         )
 

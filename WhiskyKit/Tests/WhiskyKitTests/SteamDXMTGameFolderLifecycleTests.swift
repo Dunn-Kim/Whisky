@@ -51,7 +51,7 @@ final class SteamDXMTGameFolderLifecycleTests {
         _ = try await Wine.prepareProgramLaunch(
             at: fixture.steam(in: bottle), bottle: bottle,
             request: SteamLauncher.appLaunchRequest(appId: appId, scan: scan, plan: plan),
-            recommendedBackend: recommendedBackend, builtinD3D12IsD3DMetal: recommendedBackend == .d3dMetal,
+            recommendedBackend: recommendedBackend,
             overrideWriter: recorder.writer, importer: recorder.importer,
             dxvkFolder: fixture.makeDXVKPayload(), dxmtFolder: fixture.makeDXMTPayload()
         )
@@ -63,7 +63,7 @@ final class SteamDXMTGameFolderLifecycleTests {
         let recorder = ScopeRecorder()
         _ = try await Wine.prepareProgramLaunch(
             at: url, args: args, bottle: bottle,
-            recommendedBackend: recommendedBackend, builtinD3D12IsD3DMetal: recommendedBackend == .d3dMetal,
+            recommendedBackend: recommendedBackend,
             overrideWriter: recorder.writer, importer: recorder.importer,
             dxvkFolder: fixture.makeDXVKPayload(), dxmtFolder: fixture.makeDXMTPayload()
         )

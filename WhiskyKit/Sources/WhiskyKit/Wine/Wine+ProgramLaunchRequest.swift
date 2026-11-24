@@ -79,7 +79,6 @@ extension Wine {
     ///   - bottle: The ``Bottle`` in which to run the program.
     ///   - request: What the launch asks for.
     ///   - recommendedBackend: What `.recommended` resolves to for the bottle's games.
-    ///   - builtinD3D12IsD3DMetal: Whether the runtime's builtin `d3d12` is D3DMetal's.
     ///   - overrideWriter: What writes the DLL overrides into the prefix registry.
     ///   - importer: What imports the CJK font aliases the prefix is missing.
     ///   - dxvkFolder: The DXVK payload.
@@ -91,7 +90,6 @@ extension Wine {
     static func prepareProgramLaunch(
         at url: URL, bottle: Bottle, request: ProgramLaunchRequest,
         recommendedBackend: GraphicsBackend = GraphicsBackendResolver.resolve(),
-        builtinD3D12IsD3DMetal: Bool = GPTKImporter.isDeployed(),
         overrideWriter: DLLOverrideWriter = { try await syncDLLOverrides(bottle: $0, scopes: $1) },
         importer: RegistryImporter = { try await importRegistry(document: $0, bottle: $1) },
         dxvkFolder: URL = Wine.dxvkFolder,
@@ -106,7 +104,7 @@ extension Wine {
             descendantExecutableURLs: request.descendantExecutableURLs,
             ownSettingsExecutables: request.ownSettingsExecutables,
             descendantLaunchers: request.descendantLaunchers,
-            recommendedBackend: recommendedBackend, builtinD3D12IsD3DMetal: builtinD3D12IsD3DMetal,
+            recommendedBackend: recommendedBackend,
             overrideWriter: overrideWriter, importer: importer,
             dxvkFolder: dxvkFolder, dxmtFolder: dxmtFolder
         )

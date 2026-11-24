@@ -71,7 +71,6 @@ struct SettingsView: View {
             Section("settings.updates") {
                 Toggle("settings.toggle.whiskywine.updates", isOn: $checkWhiskyWineUpdates)
             }
-            GPTKSettingsSection()
             Section("settings.privacy") {
                 Toggle("settings.toggle.telemetry", isOn: telemetryOptIn)
                     .help("setup.telemetry.consent.help")

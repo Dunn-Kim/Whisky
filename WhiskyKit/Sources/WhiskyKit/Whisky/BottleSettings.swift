@@ -660,13 +660,7 @@ public struct BottleSettings: Codable, Equatable {
         set { launcherConfig.autoEnableDXVK = newValue }
     }
 
-    /// The last ``LauncherBackendMigration`` this bottle has been through.
-    var launcherBackendMigration: Int {
-        get { launcherConfig.backendMigration }
-        set { launcherConfig.backendMigration = newValue }
-    }
-
-    /// Whether the graphics settings say that ``LauncherBackendMigration`` put
+    /// Whether the graphics settings say that a launcher-backend migration put
     /// this bottle back on Recommended. Cleared once the user has seen it.
     public var launcherBackendResetNotice: Bool {
         get { launcherConfig.backendResetNotice }
@@ -902,14 +896,10 @@ public struct BottleSettings: Codable, Equatable {
     ///     ``GraphicsBackendResolver`` and therefore depends on the machine's
     ///     installed runtime — tests pin an explicit value so the suite answers
     ///     the same everywhere.
-    ///   - builtinD3D12IsD3DMetal: Whether the runtime's builtin `d3d12` is
-    ///     D3DMetal's, which decides whether the DXVK and DXMT presets turn it
-    ///     off. Defaults to whether the GPTK payload is deployed.
     /// - Returns: Managed DLL override entries with their sources for the DLLOverrideResolver.
     public func populateBottleManagedLayer(
         builder: inout EnvironmentBuilder,
         resolvedBackend: GraphicsBackend? = nil,
-        builtinD3D12IsD3DMetal: Bool = GPTKImporter.isDeployed(),
         displayRefreshRate: Int? = nil
     ) -> [(entry: DLLOverrideEntry, source: DLLOverrideSource)] {
         var managedDLLOverrides: [(entry: DLLOverrideEntry, source: DLLOverrideSource)] = []
@@ -934,8 +924,7 @@ public struct BottleSettings: Codable, Equatable {
             if frameGeneration {
                 builder.set("CX_ACTIVE_GRAPHICS_BACKEND", "d3dmetal", layer: .bottleManaged)
             }
-            // The DLL placement that actually gates the DLSS-to-MetalFX path
-            // happens in `Wine.applyMetalFX` at launch; this is the opt-in.
+            // The opt-in for the DLSS-to-MetalFX path.
             if metalFX {
                 builder.set("D3DM_ENABLE_METALFX", "1", layer: .bottleManaged)
             }
@@ -949,7 +938,7 @@ public struct BottleSettings: Codable, Equatable {
 
         case .dxvk:
             // DXVK: DLL overrides + env vars
-            for entry in DLLOverrideResolver.dxvkPreset(builtinD3D12IsD3DMetal: builtinD3D12IsD3DMetal) {
+            for entry in DLLOverrideResolver.dxvkPreset() {
                 managedDLLOverrides.append((entry: entry, source: .dxvk))
             }
             switch dxvkHud {
@@ -977,7 +966,7 @@ public struct BottleSettings: Codable, Equatable {
             // DXMT: native overrides for the D3D11 trio plus the builtin
             // winemetal bridge. No env vars in v1; the file placement happens
             // in `Wine.enableDXMT` at launch.
-            for entry in DLLOverrideResolver.dxmtPreset(builtinD3D12IsD3DMetal: builtinD3D12IsD3DMetal) {
+            for entry in DLLOverrideResolver.dxmtPreset() {
                 managedDLLOverrides.append((entry: entry, source: .dxmt))
             }
             if dxmtMetalFXUpscale {
@@ -1084,13 +1073,9 @@ public struct BottleSettings: Codable, Equatable {
     ///
     /// - Parameters:
     ///   - builder: The environment builder to populate.
-    ///   - builtinD3D12IsD3DMetal: Whether the runtime's builtin `d3d12` is
-    ///     D3DMetal's, passed on to the DXVK preset a launcher can require.
-    ///     Defaults to whether the GPTK payload is deployed.
     /// - Returns: Launcher-required DLL override entries with their sources.
     public func populateLauncherManagedLayer(
-        builder: inout EnvironmentBuilder,
-        builtinD3D12IsD3DMetal: Bool = GPTKImporter.isDeployed()
+        builder: inout EnvironmentBuilder
     ) -> [(entry: DLLOverrideEntry, source: DLLOverrideSource)] {
         var launcherDLLOverrides: [(entry: DLLOverrideEntry, source: DLLOverrideSource)] = []
 
@@ -1104,7 +1089,7 @@ public struct BottleSettings: Codable, Equatable {
 
             // Auto-enable DXVK DLL overrides if launcher requires it
             if autoEnableDXVK, launcher.requiresDXVK {
-                for entry in DLLOverrideResolver.dxvkPreset(builtinD3D12IsD3DMetal: builtinD3D12IsD3DMetal) {
+                for entry in DLLOverrideResolver.dxvkPreset() {
                     launcherDLLOverrides.append((entry: entry, source: .launcher(launcher.displayName)))
                 }
             }

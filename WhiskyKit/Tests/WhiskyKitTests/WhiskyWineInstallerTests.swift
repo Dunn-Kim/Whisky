@@ -204,49 +204,13 @@ final class WhiskyWineInstallerTests: XCTestCase {
         XCTAssertFalse(WhiskyWineInstaller.isRuntimePresent(inLibraryFolder: tempDir))
     }
 
-    // MARK: - isD3DMetalPresent (GPTK payload)
-
-    func testD3DMetalPresentWhenFrameworkExists() throws {
-        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        defer { try? FileManager.default.removeItem(at: tempDir) }
-        let external = tempDir.appending(path: "Wine").appending(path: "lib").appending(path: "external")
-        try FileManager.default.createDirectory(
-            at: external.appending(path: "D3DMetal.framework"),
-            withIntermediateDirectories: true
-        )
-
-        XCTAssertTrue(WhiskyWineInstaller.isD3DMetalPresent(inLibraryFolder: tempDir))
-    }
-
-    func testD3DMetalNotPresentInRuntimeWithoutGPTKPayload() throws {
-        // The layout the current Libraries bundle actually ships: Wine, DXVK
-        // and DXMT, but no D3DMetal payload under Wine/lib/external.
-        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        defer { try? FileManager.default.removeItem(at: tempDir) }
-        try makeRuntime(in: tempDir, plist: true, wine: true)
-        try FileManager.default.createDirectory(
-            at: tempDir.appending(path: "DXVK").appending(path: "x64"),
-            withIntermediateDirectories: true
-        )
-
-        XCTAssertFalse(WhiskyWineInstaller.isD3DMetalPresent(inLibraryFolder: tempDir))
-    }
-
     // MARK: - backendAvailability (issue #146)
 
-    func testD3DMetalUnavailableWithoutPayload() {
+    func testD3DMetalNeverAvailable() {
         let runtime = WhiskyWineVersion(version: SemanticVersion(3, 1, 1), dxmtVersion: "0.80")
 
         XCTAssertFalse(WhiskyWineInstaller.backendAvailability(
-            .d3dMetal, runtimeInfo: runtime, d3dMetalInstalled: false, dxmtRuntimeNative: true
-        ))
-    }
-
-    func testD3DMetalAvailableWithPayload() {
-        let runtime = WhiskyWineVersion(version: SemanticVersion(3, 1, 1), dxmtVersion: "0.80")
-
-        XCTAssertTrue(WhiskyWineInstaller.backendAvailability(
-            .d3dMetal, runtimeInfo: runtime, d3dMetalInstalled: true, dxmtRuntimeNative: true
+            .d3dMetal, runtimeInfo: runtime, dxmtRuntimeNative: true
         ))
     }
 
@@ -254,17 +218,17 @@ final class WhiskyWineInstallerTests: XCTestCase {
         let runtime = WhiskyWineVersion(version: SemanticVersion(3, 1, 1), dxmtVersion: "0.80")
 
         XCTAssertFalse(WhiskyWineInstaller.backendAvailability(
-            .dxmt, runtimeInfo: runtime, d3dMetalInstalled: true, dxmtRuntimeNative: false
+            .dxmt, runtimeInfo: runtime, dxmtRuntimeNative: false
         ))
         XCTAssertTrue(WhiskyWineInstaller.backendAvailability(
-            .dxmt, runtimeInfo: runtime, d3dMetalInstalled: false, dxmtRuntimeNative: true
+            .dxmt, runtimeInfo: runtime, dxmtRuntimeNative: true
         ))
     }
 
     func testUniversalBackendsUnaffectedByMissingPayloads() {
         for backend in [GraphicsBackend.recommended, .dxvk, .wined3d] {
             XCTAssertTrue(WhiskyWineInstaller.backendAvailability(
-                backend, runtimeInfo: nil, d3dMetalInstalled: false, dxmtRuntimeNative: false
+                backend, runtimeInfo: nil, dxmtRuntimeNative: false
             ))
         }
     }

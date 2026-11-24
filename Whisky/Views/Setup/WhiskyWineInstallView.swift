@@ -168,9 +168,6 @@ struct WhiskyWineInstallView: View {
             // Only cleanup tarball after verified successful installation
             // This preserves it for retry attempts if installation fails
             WhiskyWineInstaller.cleanupTarball(at: capturedTarURL)
-            // The install may have brought D3DMetal with it (a stored GPTK
-            // payload redeploys), which lets Steam bottles off bottle-wide DXVK.
-            BottleVM.shared.migrateLauncherBackends()
             try? await Task.sleep(for: Self.installSuccessDelay)
             proceed()
         }
@@ -222,9 +219,6 @@ struct WhiskyWineInstallView: View {
                     // Extraction reported success but the runtime isn't usable.
                     return .failure(reason: .runtimeIncomplete, message: nil, diagnosticMessage: nil)
                 }
-                // The install replaced Libraries, so any deployed GPTK payload
-                // went with it; the store outlives it and redeploys here.
-                GPTKImporter.deployStoredPayloadIfCapable()
                 return .success
             } catch {
                 let reason: Telemetry.InstallFailureReason =

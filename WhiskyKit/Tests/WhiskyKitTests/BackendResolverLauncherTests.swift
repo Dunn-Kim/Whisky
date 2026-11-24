@@ -21,55 +21,39 @@ import SemanticVersion
 import XCTest
 
 final class BackendResolverLauncherTests: XCTestCase {
-    /// The whole point: with D3DMetal installed a game gets it, because that is
-    /// the reason to install it.
-    func testGameGetsD3DMetalWhenInstalled() {
-        let backend = GraphicsBackendResolver.resolve(for: nil, d3dMetalInstalled: true)
-        XCTAssertEqual(backend, .d3dMetal)
-    }
-
-    /// And a launcher does not. Chromium cannot render on D3DMetal: the window
-    /// comes up, the process tree looks healthy, nothing paints.
-    func testLauncherGetsDXVKWhenD3DMetalIsInstalled() {
+    /// A launcher does not get what a game does. Chromium cannot render on
+    /// DXMT: the window comes up, the process tree looks healthy, nothing paints.
+    func testLauncherGetsDXVK() {
         for launcher in LauncherType.allCases {
             XCTAssertEqual(
-                GraphicsBackendResolver.resolve(for: launcher, d3dMetalInstalled: true),
+                GraphicsBackendResolver.resolve(for: launcher, runtimeInfo: nil, dxmtRuntimeNative: true),
                 .dxvk,
                 "\(launcher.displayName) resolved to a backend its client cannot render on"
             )
         }
     }
 
-    /// DXMT is just as unrenderable for Chromium as D3DMetal, so on a runtime
-    /// that would recommend DXMT a launcher still gets DXVK. This is the
-    /// payload-less default install: without the steer, the first Steam launch
-    /// deploys DXMT and the client never shows a window.
+    /// DXMT is unrenderable for Chromium, so on a runtime that would recommend
+    /// DXMT a launcher still gets DXVK. Without the steer, the first Steam
+    /// launch deploys DXMT and the client never shows a window.
     func testLauncherGetsDXVKWhenDXMTWouldBeRecommended() {
         let runtime = WhiskyWineVersion(version: SemanticVersion(3, 1, 1), dxmtVersion: "0.80")
         XCTAssertEqual(
-            GraphicsBackendResolver.resolve(
-                for: nil, runtimeInfo: runtime, d3dMetalInstalled: false, dxmtRuntimeNative: true
-            ),
+            GraphicsBackendResolver.resolve(for: nil, runtimeInfo: runtime, dxmtRuntimeNative: true),
             .dxmt
         )
         XCTAssertEqual(
-            GraphicsBackendResolver.resolve(
-                for: .steam, runtimeInfo: runtime, d3dMetalInstalled: false, dxmtRuntimeNative: true
-            ),
+            GraphicsBackendResolver.resolve(for: .steam, runtimeInfo: runtime, dxmtRuntimeNative: true),
             .dxvk
         )
     }
 
-    /// With neither D3DMetal nor DXMT the answer is DXVK for everyone, so the
-    /// steer changes nothing there.
+    /// Without DXMT the answer is DXVK for everyone, so the steer changes
+    /// nothing there.
     func testLauncherAndGameAgreeWhenOnlyDXVKExists() {
         let runtime = WhiskyWineVersion(version: SemanticVersion(3, 0, 0))
-        let game = GraphicsBackendResolver.resolve(
-            for: nil, runtimeInfo: runtime, d3dMetalInstalled: false
-        )
-        let launcher = GraphicsBackendResolver.resolve(
-            for: .steam, runtimeInfo: runtime, d3dMetalInstalled: false
-        )
+        let game = GraphicsBackendResolver.resolve(for: nil, runtimeInfo: runtime, dxmtRuntimeNative: false)
+        let launcher = GraphicsBackendResolver.resolve(for: .steam, runtimeInfo: runtime, dxmtRuntimeNative: false)
         XCTAssertEqual(game, .dxvk)
         XCTAssertEqual(game, launcher)
     }
@@ -78,8 +62,8 @@ final class BackendResolverLauncherTests: XCTestCase {
     /// call site is unaffected.
     func testDefaultArgumentMatchesTheGameCase() {
         XCTAssertEqual(
-            GraphicsBackendResolver.resolve(d3dMetalInstalled: true),
-            GraphicsBackendResolver.resolve(for: nil, d3dMetalInstalled: true)
+            GraphicsBackendResolver.resolve(runtimeInfo: nil, dxmtRuntimeNative: true),
+            GraphicsBackendResolver.resolve(for: nil, runtimeInfo: nil, dxmtRuntimeNative: true)
         )
     }
 
@@ -90,9 +74,16 @@ final class BackendResolverLauncherTests: XCTestCase {
         XCTAssertNil(LauncherType.detect(from: url))
         XCTAssertEqual(
             GraphicsBackendResolver.resolve(
-                for: LauncherType.detect(from: url), d3dMetalInstalled: true
+                for: LauncherType.detect(from: url), runtimeInfo: nil, dxmtRuntimeNative: false
             ),
-            .d3dMetal
+            .dxvk
+        )
+        let runtime = WhiskyWineVersion(version: SemanticVersion(3, 1, 1), dxmtVersion: "0.80")
+        XCTAssertEqual(
+            GraphicsBackendResolver.resolve(
+                for: LauncherType.detect(from: url), runtimeInfo: runtime, dxmtRuntimeNative: true
+            ),
+            .dxmt
         )
     }
 
@@ -101,7 +92,7 @@ final class BackendResolverLauncherTests: XCTestCase {
         XCTAssertEqual(LauncherType.detect(from: url), .steam)
         XCTAssertEqual(
             GraphicsBackendResolver.resolve(
-                for: LauncherType.detect(from: url), d3dMetalInstalled: true
+                for: LauncherType.detect(from: url), runtimeInfo: nil, dxmtRuntimeNative: true
             ),
             .dxvk
         )

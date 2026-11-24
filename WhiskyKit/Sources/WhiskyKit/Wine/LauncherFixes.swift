@@ -96,19 +96,10 @@ public enum LauncherFixes {
     /// - Configures DXVK if required
     /// - Enables GPU spoofing for compatibility checks
     ///
-    /// **Steam and the bottle's backend:** a bottle left on Recommended over
-    /// D3DMetal keeps that backend. Steam's own processes get DXVK per
-    /// executable instead: the resolver steers the client to DXVK and the launch
-    /// writes it into their `AppDefaults` entries, so the games Steam starts stay
-    /// on D3DMetal. Switching the whole bottle to DXVK turned `d3d12` off for
-    /// every one of them, and a DirectX 12 game with no D3D11 path never started
-    /// (#276). A forced apply (Apply Launcher Fixes in troubleshooting) does the
-    /// same, or it would undo the fix it is meant to apply. Anywhere else the
-    /// bottle still goes to DXVK as before: an explicit backend is never
-    /// steered, and without the payload the bottle's games resolve to DXMT,
-    /// whose files share the prefix's `d3d11.dll` with DXVK's. A switch from
-    /// Recommended is recorded as the profile's, so the bottle goes back to
-    /// Recommended once the payload is installed (``LauncherBackendMigration``).
+    /// **Steam and the bottle's backend:** the bottle goes to DXVK, since the
+    /// bottle's games resolve to DXMT, whose files share the prefix's
+    /// `d3d11.dll` with DXVK's. A switch from Recommended is recorded as the
+    /// profile's.
     ///
     /// **Important:** This method saves settings synchronously to disk via
     /// `bottle.saveBottleSettings()`, blocking until the write completes.
@@ -119,13 +110,10 @@ public enum LauncherFixes {
     ///   - bottle: The bottle to configure
     ///   - launcher: The detected or manually selected launcher type
     ///   - force: If `true`, overrides existing settings; if `false`, only applies if not already configured
-    ///   - recommendedBackend: What `.recommended` resolves to for the bottle's
-    ///     games. Defaults to the resolver's answer for the installed runtime.
     @MainActor
     // swiftlint:disable:next cyclomatic_complexity
     public static func apply(
-        to bottle: Bottle, launcher: LauncherType, force: Bool = false,
-        recommendedBackend: GraphicsBackend = GraphicsBackendResolver.resolve()
+        to bottle: Bottle, launcher: LauncherType, force: Bool = false
     ) {
         // Enable launcher compatibility mode
         if !bottle.settings.launcherCompatibilityMode || force {
@@ -141,7 +129,7 @@ public enum LauncherFixes {
         // whenever the fixes were applied again (#330, LauncherLocaleMigration).
         switch launcher {
         case .steam:
-            applySteamBackend(to: bottle, force: force, recommendedBackend: recommendedBackend)
+            applySteamBackend(to: bottle, force: force)
 
             // GPU spoofing helps with game compatibility checks
             bottle.settings.gpuSpoofing = true
@@ -220,24 +208,10 @@ public enum LauncherFixes {
 
     /// The Steam profile's part in the bottle's backend.
     ///
-    /// Over D3DMetal, a bottle on Recommended stays there, and one the profile
-    /// switched to DXVK before goes back (with the same notice the migration
-    /// shows), forced or not. Otherwise the bottle goes to DXVK, and a switch
-    /// from Recommended is marked as the profile's. A DXVK the user picked is
-    /// left alone either way.
+    /// The bottle goes to DXVK, and a switch from Recommended is marked as the
+    /// profile's. A DXVK the user picked is left alone.
     @MainActor
-    private static func applySteamBackend(
-        to bottle: Bottle, force: Bool, recommendedBackend: GraphicsBackend
-    ) {
-        if recommendedBackend == .d3dMetal {
-            if bottle.settings.graphicsBackend == .recommended {
-                return
-            }
-            if LauncherBackendMigration.isRestorable(bottle.settings) {
-                LauncherBackendMigration.restore(&bottle.settings)
-                return
-            }
-        }
+    private static func applySteamBackend(to bottle: Bottle, force: Bool) {
         guard force || !bottle.settings.dxvk else { return }
         let fromRecommended = bottle.settings.graphicsBackend == .recommended
         bottle.settings.dxvk = true

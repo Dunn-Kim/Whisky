@@ -21,22 +21,11 @@ import SemanticVersion
 import XCTest
 
 final class GraphicsBackendResolverTests: XCTestCase {
-    func testResolvesD3DMetalWhenPayloadInstalled() {
+    func testResolvesDXMTWhenRuntimeBundlesIt() {
         let runtime = WhiskyWineVersion(version: SemanticVersion(3, 1, 1), dxmtVersion: "0.80")
 
         XCTAssertEqual(
-            GraphicsBackendResolver.resolve(runtimeInfo: runtime, d3dMetalInstalled: true),
-            .d3dMetal
-        )
-    }
-
-    func testResolvesDXMTWhenNoD3DMetalButRuntimeBundlesIt() {
-        let runtime = WhiskyWineVersion(version: SemanticVersion(3, 1, 1), dxmtVersion: "0.80")
-
-        XCTAssertEqual(
-            GraphicsBackendResolver.resolve(
-                runtimeInfo: runtime, d3dMetalInstalled: false, dxmtRuntimeNative: true
-            ),
+            GraphicsBackendResolver.resolve(runtimeInfo: runtime, dxmtRuntimeNative: true),
             .dxmt
         )
     }
@@ -48,36 +37,32 @@ final class GraphicsBackendResolverTests: XCTestCase {
         let runtime = WhiskyWineVersion(version: SemanticVersion(3, 1, 1), dxmtVersion: "0.80")
 
         XCTAssertEqual(
-            GraphicsBackendResolver.resolve(
-                runtimeInfo: runtime, d3dMetalInstalled: false, dxmtRuntimeNative: false
-            ),
+            GraphicsBackendResolver.resolve(runtimeInfo: runtime, dxmtRuntimeNative: false),
             .dxvk
         )
     }
 
-    func testResolvesDXVKWhenNoD3DMetalAndNoDXMT() {
+    func testResolvesDXVKWhenNoDXMT() {
         // Pre-3.1.0 runtimes bundle DXVK but not DXMT.
         let runtime = WhiskyWineVersion(version: SemanticVersion(3, 0, 0))
 
         XCTAssertEqual(
-            GraphicsBackendResolver.resolve(runtimeInfo: runtime, d3dMetalInstalled: false),
+            GraphicsBackendResolver.resolve(runtimeInfo: runtime, dxmtRuntimeNative: false),
             .dxvk
         )
     }
 
     func testResolvesDXVKWhenRuntimeRecordMissing() {
         XCTAssertEqual(
-            GraphicsBackendResolver.resolve(runtimeInfo: nil, d3dMetalInstalled: false),
+            GraphicsBackendResolver.resolve(runtimeInfo: nil, dxmtRuntimeNative: false),
             .dxvk
         )
     }
 
     func testNeverResolvesToRecommended() {
-        for installed in [true, false] {
-            XCTAssertNotEqual(
-                GraphicsBackendResolver.resolve(runtimeInfo: nil, d3dMetalInstalled: installed),
-                .recommended
-            )
-        }
+        XCTAssertNotEqual(
+            GraphicsBackendResolver.resolve(runtimeInfo: nil, dxmtRuntimeNative: false),
+            .recommended
+        )
     }
 }

@@ -310,7 +310,7 @@ final class ChromiumRuntimeDetectorTests {
     func resolution() {
         let steering = DXVKSteering.chromiumRuntime(kind: .electron, evidence: "resources/app.asar")
         let resolution = GraphicsBackendResolver.resolution(
-            for: steering, runtimeInfo: nil, d3dMetalInstalled: true, dxmtRuntimeNative: false
+            for: steering, runtimeInfo: nil, dxmtRuntimeNative: false
         )
         #expect(resolution.backend == .dxvk)
         #expect(resolution.reason == .steered(steering))

@@ -78,7 +78,7 @@ struct DLLOverrideMergeTests {
     func programDisableSurvives() throws {
         let bottle = try makeBottle(.dxvk)
         let env = Wine.constructWineEnvironment(
-            for: bottle, environment: ["WINEDLLOVERRIDES": "winemenubuilder.exe=d"], builtinD3D12IsD3DMetal: false
+            for: bottle, environment: ["WINEDLLOVERRIDES": "winemenubuilder.exe=d"]
         )
         let overrides = Wine.parseDLLOverrides(env["WINEDLLOVERRIDES"] ?? "")
         #expect(overrides["winemenubuilder.exe"] == "")
@@ -89,12 +89,11 @@ struct DLLOverrideMergeTests {
     func programValueBeatsPreset() throws {
         let bottle = try makeBottle(.dxmt)
 
-        let preset = Wine.constructWineEnvironment(for: bottle, builtinD3D12IsD3DMetal: false)
+        let preset = Wine.constructWineEnvironment(for: bottle)
         #expect(preset["WINEDLLOVERRIDES"]?.contains("d3d11=n,b") == true)
 
         let merged = Wine.constructWineEnvironment(
-            for: bottle, environment: ["WINEDLLOVERRIDES": "D3D11=B;xaudio2_7,dinput8=n"],
-            builtinD3D12IsD3DMetal: false
+            for: bottle, environment: ["WINEDLLOVERRIDES": "D3D11=B;xaudio2_7,dinput8=n"]
         )
         let overrides = Wine.parseDLLOverrides(merged["WINEDLLOVERRIDES"] ?? "")
         #expect(overrides["d3d11"] == "b")
@@ -112,7 +111,7 @@ struct DLLOverrideMergeTests {
 
         let env = Wine.constructWineEnvironment(
             for: bottle, environment: ["WINEDLLOVERRIDES": "dxgi=b;dinput8=n"],
-            programOverrides: programOverrides, builtinD3D12IsD3DMetal: false
+            programOverrides: programOverrides
         )
         let overrides = Wine.parseDLLOverrides(env["WINEDLLOVERRIDES"] ?? "")
         #expect(overrides["dxgi"] == "b")
@@ -126,7 +125,7 @@ struct DLLOverrideMergeTests {
         bottle.settings.dllOverrides = [DLLOverrideEntry(dllName: "dinput8", mode: .builtin)]
 
         let env = Wine.constructWineEnvironment(
-            for: bottle, gameProfileEnvironment: ["WINEDLLOVERRIDES": "dinput8=n"], builtinD3D12IsD3DMetal: false
+            for: bottle, gameProfileEnvironment: ["WINEDLLOVERRIDES": "dinput8=n"]
         )
         #expect(Wine.parseDLLOverrides(env["WINEDLLOVERRIDES"] ?? "")["dinput8"] == "b")
     }

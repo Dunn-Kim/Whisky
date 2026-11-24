@@ -188,7 +188,7 @@ struct DLLOverrideEditor: View {
     }
 
     private func applyDXVKPreset() {
-        for preset in DLLOverrideResolver.dxvkPreset(builtinD3D12IsD3DMetal: GPTKImporter.isDeployed()) {
+        for preset in DLLOverrideResolver.dxvkPreset() {
             if let existingIndex = customOverrides.firstIndex(where: { $0.dllName == preset.dllName }) {
                 customOverrides[existingIndex] = preset
             } else {

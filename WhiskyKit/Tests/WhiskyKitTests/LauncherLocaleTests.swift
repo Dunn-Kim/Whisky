@@ -34,7 +34,7 @@ private func launcherEnvironment(
     settings.detectedLauncher = launcher
     settings.launcherLocale = locale
     var builder = EnvironmentBuilder()
-    _ = settings.populateLauncherManagedLayer(builder: &builder, builtinD3D12IsD3DMetal: false)
+    _ = settings.populateLauncherManagedLayer(builder: &builder)
     return builder.resolve()
 }
 
@@ -59,7 +59,7 @@ struct LauncherLocaleTests {
         let bottle = Bottle(bottleUrl: FileManager.default.temporaryDirectory.appending(path: "steam_locale"))
         bottle.settings.launcherCompatibilityMode = true
         bottle.settings.detectedLauncher = .steam
-        let env = Wine.constructWineEnvironment(for: bottle, builtinD3D12IsD3DMetal: false)
+        let env = Wine.constructWineEnvironment(for: bottle)
         for key in ["LC_ALL", "LANG", "LC_TIME", "LC_NUMERIC"] {
             #expect(env[key] == nil, "\(key)")
         }
@@ -117,8 +117,8 @@ struct LauncherLocaleTests {
             bottle.settings.launcherLocale = locale
 
             // Steam's orchestrator applies the fixes on every client start.
-            LauncherFixes.apply(to: bottle, launcher: launcher, recommendedBackend: .d3dMetal)
-            LauncherFixes.apply(to: bottle, launcher: launcher, force: true, recommendedBackend: .d3dMetal)
+            LauncherFixes.apply(to: bottle, launcher: launcher)
+            LauncherFixes.apply(to: bottle, launcher: launcher, force: true)
 
             #expect(bottle.settings.launcherLocale == locale)
             let persisted = try BottleSettings.decode(from: bottleURL.appending(path: "Metadata.plist"))

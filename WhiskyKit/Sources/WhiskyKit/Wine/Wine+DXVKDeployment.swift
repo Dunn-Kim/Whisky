@@ -126,7 +126,6 @@ extension BottleSettings {
             ? GraphicsBackendResolver.resolve(
                 for: launcher,
                 runtimeInfo: nil,
-                d3dMetalInstalled: false,
                 dxmtRuntimeNative: false
             )
             : graphicsBackend

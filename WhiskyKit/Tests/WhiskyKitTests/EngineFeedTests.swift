@@ -49,7 +49,6 @@ struct EngineFeedTests {
         )
         #expect(legacy.version == SemanticVersion(3, 1, 1))
         #expect(current.version.major == 4)
-        #expect(current.gptkCapable == true)
         #expect(current.sha256?.count == 64)
     }
 }

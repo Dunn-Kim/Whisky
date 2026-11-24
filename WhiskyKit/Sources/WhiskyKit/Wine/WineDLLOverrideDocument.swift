@@ -77,16 +77,17 @@ struct DLLOverrideRecord: Codable, Equatable {
 
 extension Wine {
     /// The DLL names Whisky writes on its own account: both translation
-    /// layer presets, whichever builtin is behind `d3d12`, and the NVIDIA
+    /// layer presets, `d3d12` (older versions turned it off under D3DMetal and
+    /// those entries are still taken back), and the NVIDIA
     /// bridges launcher helpers get disabled.
     ///
     /// A launch removes these from every key it writes unless it sets them,
     /// whether or not a record says it wrote them, so a bottle last launched
     /// by an older version still loses a stale DXVK set when it switches away.
     static let managedDLLNames: Set<String> = {
-        let presets = DLLOverrideResolver.dxvkPreset(builtinD3D12IsD3DMetal: true)
-            + DLLOverrideResolver.dxmtPreset(builtinD3D12IsD3DMetal: true)
-        return Set(presets.map { $0.dllName.lowercased() }).union(["nvapi", "nvapi64", "nvngx"])
+        let presets = DLLOverrideResolver.dxvkPreset()
+            + DLLOverrideResolver.dxmtPreset()
+        return Set(presets.map { $0.dllName.lowercased() }).union(["d3d12", "nvapi", "nvapi64", "nvngx"])
     }()
 
     /// The translation layer names in winetricks' spelling, `*name`, which
@@ -101,9 +102,9 @@ extension Wine {
     /// this overrides a winetricks choice on purpose. Its other overrides
     /// (`*d3dx9_43`, `*xaudio2_7`) are not translation layers and stay.
     static let starredBackendDLLNames: Set<String> = {
-        let presets = DLLOverrideResolver.dxvkPreset(builtinD3D12IsD3DMetal: true)
-            + DLLOverrideResolver.dxmtPreset(builtinD3D12IsD3DMetal: true)
-        return Set(presets.map { "*" + $0.dllName.lowercased() })
+        let presets = DLLOverrideResolver.dxvkPreset()
+            + DLLOverrideResolver.dxmtPreset()
+        return Set((presets.map { $0.dllName.lowercased() } + ["d3d12"]).map { "*" + $0 })
     }()
 
     /// Renders a `.reg` giving each key `overrides` and taking back the values

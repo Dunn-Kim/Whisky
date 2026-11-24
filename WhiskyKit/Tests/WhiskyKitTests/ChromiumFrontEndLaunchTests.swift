@@ -104,7 +104,7 @@ final class ChromiumFrontEndLaunchTests {
     ) async throws -> Wine.PreparedLaunch {
         try await Wine.prepareProgramLaunch(
             at: url, bottle: bottle, programOverrides: programOverrides,
-            recommendedBackend: recommendedBackend, builtinD3D12IsD3DMetal: recommendedBackend == .d3dMetal,
+            recommendedBackend: recommendedBackend,
             overrideWriter: recorder.writer, importer: recorder.importer, dxvkFolder: dxvkFolder
         )
     }
@@ -172,7 +172,7 @@ final class ChromiumFrontEndLaunchTests {
 
         _ = try await Wine.prepareProgramLaunch(
             at: install.appending(path: "bin/x64/3DMark.exe"), bottle: bottle, overridesApplyToDescendants: true,
-            recommendedBackend: .d3dMetal, builtinD3D12IsD3DMetal: true,
+            recommendedBackend: .d3dMetal,
             overrideWriter: recorder.writer, importer: recorder.importer, dxvkFolder: dxvkFolder
         )
 
@@ -194,7 +194,7 @@ final class ChromiumFrontEndLaunchTests {
             programOverrides: plan.overrides, overridesApplyToDescendants: true,
             descendantExecutables: SteamLauncher.gameExecutables(scanned: scan.planExecutables, plan: plan),
             ownSettingsExecutables: scan.ownSettingsExecutables,
-            recommendedBackend: .d3dMetal, builtinD3D12IsD3DMetal: true,
+            recommendedBackend: .d3dMetal,
             overrideWriter: recorder.writer, importer: recorder.importer, dxvkFolder: dxvkFolder
         )
     }
@@ -318,7 +318,7 @@ final class ChromiumFrontEndLaunchTests {
                 plan: LaunchPlan(overrides: ProgramOverrides(), gameProfileEnvironment: [:], provenance: [])
             ),
             ownSettingsExecutables: scan.ownSettingsExecutables,
-            recommendedBackend: .d3dMetal, builtinD3D12IsD3DMetal: true,
+            recommendedBackend: .d3dMetal,
             overrideWriter: recorder.writer, importer: recorder.importer, dxvkFolder: dxvkFolder
         )
 

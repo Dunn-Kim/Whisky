@@ -135,38 +135,33 @@ struct ChromiumFrontEndTests {
     @Test("A front end resolves to DXVK, steered, on every runtime")
     func frontEndResolvesToDXVK() {
         let runtime = WhiskyWineVersion(version: SemanticVersion(3, 1, 1), dxmtVersion: "0.80")
-        for (d3dMetal, dxmtNative) in [(true, false), (false, true), (false, false)] {
+        for dxmtNative in [true, false] {
             let resolution = GraphicsBackendResolver.resolution(
-                for: .chromiumFrontEnd(.threeDMark), runtimeInfo: runtime,
-                d3dMetalInstalled: d3dMetal, dxmtRuntimeNative: dxmtNative
+                for: .chromiumFrontEnd(.threeDMark), runtimeInfo: runtime, dxmtRuntimeNative: dxmtNative
             )
             #expect(resolution == BackendResolution(backend: .dxvk, reason: .steered(.chromiumFrontEnd(.threeDMark))))
         }
     }
 
-    @Test("An unsteered executable keeps the D3DMetal, DXMT, DXVK chain, with its reason")
+    @Test("An unsteered executable keeps the DXMT, DXVK chain, with its reason")
     func unsteeredKeepsTheChain() {
         let runtime = WhiskyWineVersion(version: SemanticVersion(3, 1, 1), dxmtVersion: "0.80")
-        let cases: [(payloads: (d3dMetal: Bool, dxmtNative: Bool), expected: BackendResolution)] = [
-            ((true, false), BackendResolution(backend: .d3dMetal, reason: .d3dMetal)),
-            ((false, true), BackendResolution(backend: .dxmt, reason: .dxmt)),
-            ((false, false), BackendResolution(backend: .dxvk, reason: .dxvkFallback))
+        let cases: [(dxmtNative: Bool, expected: BackendResolution)] = [
+            (true, BackendResolution(backend: .dxmt, reason: .dxmt)),
+            (false, BackendResolution(backend: .dxvk, reason: .dxvkFallback))
         ]
-        for (payloads, expected) in cases {
-            let (d3dMetal, dxmtNative) = payloads
+        for (dxmtNative, expected) in cases {
             let resolution = GraphicsBackendResolver.resolution(
-                for: nil, runtimeInfo: runtime, d3dMetalInstalled: d3dMetal, dxmtRuntimeNative: dxmtNative
+                for: nil, runtimeInfo: runtime, dxmtRuntimeNative: dxmtNative
             )
             #expect(resolution == expected)
             // The launcher wrapper answers the same as before.
             #expect(
-                GraphicsBackendResolver.resolve(
-                    runtimeInfo: runtime, d3dMetalInstalled: d3dMetal, dxmtRuntimeNative: dxmtNative
-                ) == expected.backend
+                GraphicsBackendResolver.resolve(runtimeInfo: runtime, dxmtRuntimeNative: dxmtNative) == expected.backend
             )
             #expect(
                 GraphicsBackendResolver.resolve(
-                    for: .steam, runtimeInfo: runtime, d3dMetalInstalled: d3dMetal, dxmtRuntimeNative: dxmtNative
+                    for: .steam, runtimeInfo: runtime, dxmtRuntimeNative: dxmtNative
                 ) == .dxvk
             )
         }
@@ -175,7 +170,7 @@ struct ChromiumFrontEndTests {
     @Test("Every reason has a rationale and an export name")
     func everyReasonExplainsItself() {
         let reasons: [RecommendedReason] = [
-            .steered(.launcher(.steam)), .steered(.chromiumFrontEnd(.threeDMark)), .d3dMetal, .dxmt, .dxvkFallback
+            .steered(.launcher(.steam)), .steered(.chromiumFrontEnd(.threeDMark)), .dxmt, .dxvkFallback
         ]
         for reason in reasons {
             for games in [GraphicsBackend.d3dMetal, .dxmt, .dxvk] {

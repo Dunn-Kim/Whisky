@@ -80,7 +80,7 @@ final class ChromiumRuntimeLaunchTests {
     ) async throws {
         _ = try await Wine.prepareProgramLaunch(
             at: appFolder.appending(path: name), bottle: bottle, programOverrides: programOverrides,
-            recommendedBackend: .d3dMetal, builtinD3D12IsD3DMetal: true,
+            recommendedBackend: .d3dMetal,
             overrideWriter: recorder.writer, importer: recorder.importer, dxvkFolder: dxvkFolder
         )
     }
@@ -153,7 +153,7 @@ final class ChromiumRuntimeLaunchTests {
             programOverrides: plan.overrides, overridesApplyToDescendants: true,
             descendantExecutables: SteamLauncher.gameExecutables(scanned: scan.planExecutables, plan: plan),
             ownSettingsExecutables: scan.ownSettingsExecutables,
-            recommendedBackend: .d3dMetal, builtinD3D12IsD3DMetal: true,
+            recommendedBackend: .d3dMetal,
             overrideWriter: recorder.writer, importer: recorder.importer, dxvkFolder: dxvkFolder
         )
     }
@@ -216,11 +216,11 @@ final class ChromiumRuntimeLaunchTests {
         let backends = PreflightCollector.resolvedBackends(
             bottle: .recommended, programOverride: nil, programURL: appFolder.appending(path: "Chat.exe"),
             recommended: { GraphicsBackendResolver.resolution(
-                for: $0, runtimeInfo: nil, d3dMetalInstalled: true, dxmtRuntimeNative: false
+                for: $0, runtimeInfo: nil, dxmtRuntimeNative: false
             ) }
         )
         #expect(backends.effective == .dxvk)
-        #expect(backends.bottle == .d3dMetal)
+        #expect(backends.bottle == .dxvk)
         #expect(backends.reason == .steered(.chromiumRuntime(kind: .electron, evidence: "resources/app.asar")))
     }
 }

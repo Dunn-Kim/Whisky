@@ -99,11 +99,11 @@ final class DLLOverridePreservationTests {
     /// Runs a launch's DLL override sync against the simulated registry.
     private func launch(_ url: URL, in bottle: Bottle) async throws {
         var environment = Wine.constructWineEnvironment(
-            for: bottle, recommendedBackend: .d3dMetal, builtinD3D12IsD3DMetal: false
+            for: bottle, recommendedBackend: .d3dMetal
         )
         try await Wine.applyDLLOverrides(
             for: url, bottle: bottle, wineEnvironment: &environment, applyToDescendants: false,
-            recommendedBackend: .d3dMetal, builtinD3D12IsD3DMetal: false,
+            recommendedBackend: .d3dMetal,
             writer: { bottle, scopes in
                 try await Wine.syncDLLOverrides(bottle: bottle, scopes: scopes, importer: self.registry.importer)
             }

@@ -73,37 +73,6 @@ struct WhiskyApp: App {
         Telemetry.startIfConsented()
     }
 
-    /// Brings a deployed GPTK payload up to date at launch, in one background
-    /// task so the steps never run over each other.
-    ///
-    /// - The stored payload is checked first if nothing has checked it as it
-    ///   is now (a store imported before imports verified Apple's signature),
-    ///   and a deployment of a store that fails is taken back out.
-    /// - A stored payload goes into a GPTK-capable engine that has no D3DMetal
-    ///   yet. Those engines are installed by hand with Whisky quit, so this is
-    ///   the first chance to deploy into one (#358). Bottles Steam's profile
-    ///   had to switch to DXVK can then go back to Recommended.
-    /// - The MetalFX and NVAPI bridges and the D3D12 video processor go into
-    ///   runtimes that already hold the payload. Deploying does this too, but
-    ///   an install set up before they existed never deploys again, so without
-    ///   this they would stay missing until it happened to reimport. Each step
-    ///   is idempotent and a no-op on runtimes it does not apply to.
-    private func updateGPTKPayloadIfNeeded() {
-        var data = BottleData()
-        let bottles = data.loadBottles().map(\.url)
-        Task.detached(priority: .background) {
-            GPTKImporter.verifyStoredPayload()
-            if GPTKImporter.deployStoredPayloadIfMissing() {
-                await MainActor.run {
-                    BottleVM.shared.migrateLauncherBackends()
-                }
-            }
-            GPTKImporter.ensureMetalFXBridgeInstalled()
-            GPTKImporter.ensureNVAPIBridgeInstalled()
-            GPTKImporter.ensureVideoProcessorInstalled(bottles: bottles)
-        }
-    }
-
     /// Offers the original-Whisky import once, when the archived app left
     /// bottles this fork hasn't registered yet. Most people installing the fork
     /// are coming from the original app, and the import is otherwise only
@@ -136,7 +105,6 @@ struct WhiskyApp: App {
                     Task.detached {
                         await WhiskyApp.deleteOldLogs()
                     }
-                    updateGPTKPayloadIfNeeded()
                     startAudioDeviceListening()
                     // Without a runtime, ContentView is about to present setup;
                     // the onChange below offers the import once that closes.

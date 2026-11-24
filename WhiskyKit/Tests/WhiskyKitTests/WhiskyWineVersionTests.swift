@@ -16,6 +16,7 @@
 //  If not, see https://www.gnu.org/licenses/.
 //
 
+// swiftlint:disable file_length
 import SemanticVersion
 @testable import WhiskyKit
 import XCTest
@@ -35,6 +36,20 @@ final class WhiskyWineVersionDecodingTests: XCTestCase {
         XCTAssertEqual(versionInfo.version.minor, 5)
         XCTAssertEqual(versionInfo.version.patch, 0)
         XCTAssertEqual(versionInfo.version, SemanticVersion(2, 5, 0))
+    }
+
+    /// Plists published before the key was dropped still carry the retired GPTK key.
+    func testDecodeIgnoresRetiredGPTKKey() throws {
+        let plist: [String: Any] = [
+            "version": ["major": 4, "minor": 6, "patch": 4],
+            "gptkCapable": true
+        ]
+
+        let data = try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0)
+        let versionInfo = try PropertyListDecoder().decode(WhiskyWineVersion.self, from: data)
+
+        XCTAssertEqual(versionInfo.version, SemanticVersion(4, 6, 4))
+        XCTAssertNil(versionInfo.msyncCapable)
     }
 
     func testDecodeWithDifferentVersions() throws {
