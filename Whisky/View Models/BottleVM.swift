@@ -21,6 +21,8 @@ import os.log
 import SemanticVersion
 import WhiskyKit
 
+// swiftlint:disable file_length
+
 // MARK: - Bottle Creation Errors
 
 enum BottleCreationError: LocalizedError, Equatable {
@@ -35,6 +37,8 @@ enum BottleCreationError: LocalizedError, Equatable {
     /// localized, user-facing message (built at the throw site) since the alert
     /// displays `errorDescription` verbatim.
     case locationUnsuitable(message: String)
+    /// The app the bottle is copied from is running, so its files aren't consistent.
+    case sourceAppRunning(app: String)
 
     var errorDescription: String? {
         switch self {
@@ -50,6 +54,11 @@ enum BottleCreationError: LocalizedError, Equatable {
             String(localized: "bottle.creation.error.runtimeMissing")
         case let .locationUnsuitable(message):
             message
+        case let .sourceAppRunning(app):
+            String(
+                localized: "bottle.migration.error.sourceRunning",
+                defaultValue: "\(app) is running. Quit it, then try again."
+            )
         }
     }
 }
@@ -79,6 +88,7 @@ private let bottleVMLogger = Logger(
 )
 
 @MainActor
+// swiftlint:disable:next type_body_length
 final class BottleVM: ObservableObject {
     static let shared = BottleVM()
 
@@ -210,6 +220,71 @@ final class BottleVM: ObservableObject {
             createdBottle.isAvailable = true
             createdBottle.inFlight = false
             Telemetry.capture(.firstBottleCreated)
+        } catch {
+            handleBottleCreationFailure(error, request: request, bottle: bottle)
+        }
+    }
+
+    /// Copies bottles of other Whisky apps into new bottles, one after another.
+    func migrateLegacyBottles(_ sources: [LegacyBottleImport.DiscoveredBottle]) async {
+        for source in sources {
+            await migrateLegacyBottle(source)
+        }
+    }
+
+    /// Copies one bottle of another Whisky app into a new bottle of this app. The source is only read.
+    private func migrateLegacyBottle(_ source: LegacyBottleImport.DiscoveredBottle) async {
+        let newBottleDir = BottleData.defaultBottleDir.appending(path: UUID().uuidString)
+        let request = BottleCreationRequest(
+            bottleName: source.name,
+            winVersion: .win10,
+            bottleURL: BottleData.defaultBottleDir,
+            newBottleDir: newBottleDir
+        )
+        var bottle: Bottle?
+        do {
+            guard WhiskyWineInstaller.isWhiskyWineInstalled() else {
+                throw BottleCreationError.runtimeMissing
+            }
+            guard !LegacyBottleImport.isRunning(source.app) else {
+                throw BottleCreationError.sourceAppRunning(app: source.app.displayName)
+            }
+
+            try createBottleDirectory(at: newBottleDir)
+            let sourceURL = source.url
+            try await Task.detached {
+                try LegacyBottleImport.copySettings(from: sourceURL, to: newBottleDir)
+                try LegacyBottleImport.rewriteSettings(in: newBottleDir, from: sourceURL)
+            }.value
+            let settings = try BottleSettings.decode(
+                from: newBottleDir.appending(path: "Metadata").appendingPathExtension("plist")
+            )
+
+            let created = Bottle(bottleUrl: newBottleDir, inFlight: true)
+            bottle = created
+            bottles.append(created)
+
+            // The new prefix is arm64. The source's files are merged into it once its
+            // wineserver has stopped and written the registry.
+            try await Wine.bootstrapPrefix(bottle: created)
+            Wine.killBottleAndWait(bottle: created, timeout: 30)
+
+            try await Task.detached {
+                try LegacyBottleImport.mergeDriveC(
+                    from: sourceURL.appending(path: "drive_c"), to: newBottleDir.appending(path: "drive_c")
+                )
+                try LegacyBottleImport.spliceRegistries(from: sourceURL, to: newBottleDir)
+            }.value
+
+            // Creating the bottle dropped the pins whose programs weren't copied yet.
+            var restored = settings
+            restored.wineVersion = created.settings.wineVersion
+            created.settings = restored
+
+            try persistBottleCreation(request: request)
+            loadBottles()
+            created.isAvailable = true
+            created.inFlight = false
         } catch {
             handleBottleCreationFailure(error, request: request, bottle: bottle)
         }

@@ -73,6 +73,8 @@ public struct BottleInfo: Codable, Equatable {
     var blocklist: [URL] = []
     /// Programs the user unpinned, which the Start Menu scan must not pin again.
     var unpinnedPrograms: [URL] = []
+    /// The bottle of another Whisky app this one was copied from, if any.
+    var migratedFrom: URL?
 
     /// Creates a new BottleInfo with default values.
     public init() {}
@@ -83,6 +85,7 @@ public struct BottleInfo: Codable, Equatable {
         self.pins = try container.decodeIfPresent([PinnedProgram].self, forKey: .pins) ?? []
         self.blocklist = try container.decodeIfPresent([URL].self, forKey: .blocklist) ?? []
         self.unpinnedPrograms = try container.decodeIfPresent([URL].self, forKey: .unpinnedPrograms) ?? []
+        self.migratedFrom = try container.decodeIfPresent(URL.self, forKey: .migratedFrom)
     }
 }
 
@@ -278,6 +281,15 @@ public struct BottleSettings: Codable, Equatable {
     public var unpinnedPrograms: [URL] {
         get { info.unpinnedPrograms }
         set { info.unpinnedPrograms = newValue }
+    }
+
+    /// The bottle of another Whisky app this bottle was copied from.
+    ///
+    /// Set by ``LegacyBottleImport``; the migration sheet hides a source that
+    /// a bottle of this app already names here.
+    public var migratedFrom: URL? {
+        get { info.migratedFrom }
+        set { info.migratedFrom = newValue }
     }
 
     /// The synchronization mode for Wine.

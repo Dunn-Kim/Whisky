@@ -16,131 +16,145 @@
 //  If not, see https://www.gnu.org/licenses/.
 //
 
+import AppKit
 import Foundation
 import os.log
 
-/// Discovery of bottles created by the archived original Whisky app
-/// (bundle identifier `com.isaacmarovitz.Whisky`) so this fork can import them.
+/// Discovery of bottles created by the other Whisky apps, so this build can copy them.
 ///
-/// The fork uses a different bundle identifier, so it doesn't see the original app's
-/// bottles automatically. It is not sandboxed, though, so it can read the original
-/// container directly. Discovered bottles are referenced **in place** (no copy) —
-/// the same way custom-path bottles already work — so importing is non-destructive
-/// and the original app keeps working if it's still installed.
+/// Bottles made by the Rosetta (x86_64) builds hold an x86_64 prefix, which this arm64
+/// runtime can't use in place, and the runtime would rewrite the other app's prefix.
+/// So a bottle is never registered where it is: ``LegacyBottleImport`` finds it, and
+/// the migration functions in `LegacyBottleMigration.swift` copy it into a new bottle.
+/// Nothing here writes to a source container.
 public enum LegacyBottleImport {
     private static let logger = Logger(
         subsystem: Bundle.whiskyBundleIdentifier,
         category: "LegacyBottleImport"
     )
 
-    /// Bundle identifier of the archived original Whisky app.
-    public static let legacyBundleIdentifier = "com.isaacmarovitz.Whisky"
+    /// A Whisky app whose bottles can be copied.
+    public struct SourceApp: Hashable, Sendable {
+        /// The app's bundle identifier, which names its container and its running process.
+        public let bundleIdentifier: String
+        /// What the migration sheet calls the app.
+        public let displayName: String
+        /// The app's container directory.
+        public let container: URL
 
-    /// `~/Library/Containers/com.isaacmarovitz.Whisky`.
-    public static var legacyContainerDirectory: URL {
-        FileManager.default.homeDirectoryForCurrentUser
-            .appending(path: "Library")
-            .appending(path: "Containers")
-            .appending(path: legacyBundleIdentifier)
+        public init(bundleIdentifier: String, displayName: String, container: URL? = nil) {
+            self.bundleIdentifier = bundleIdentifier
+            self.displayName = displayName
+            self.container = container ?? FileManager.default.homeDirectoryForCurrentUser
+                .appending(path: "Library")
+                .appending(path: "Containers")
+                .appending(path: bundleIdentifier)
+        }
     }
 
-    /// Minimal decode of the original app's bottle registry. Same plist shape as
+    /// The apps bottles are copied from, the Rosetta build of this fork first.
+    public static let sourceApps = [
+        SourceApp(bundleIdentifier: "com.franke.Whisky", displayName: "Whisky (Rosetta build)"),
+        SourceApp(bundleIdentifier: "com.isaacmarovitz.Whisky", displayName: "Whisky (original)")
+    ]
+
+    /// Minimal decode of a source app's bottle registry. Same plist shape as
     /// ``BottleData`` — we only need the registered paths.
     private struct LegacyRegistry: Decodable {
         var paths: [URL]
     }
 
-    /// Whether the original app's container exists at all. Used to decide whether the
+    /// Whether any source app's container exists at all. Used to decide whether the
     /// migration option is worth offering in the UI.
-    public static func legacyContainerExists(at container: URL = legacyContainerDirectory) -> Bool {
-        FileManager.default.fileExists(atPath: container.path(percentEncoded: false))
+    public static func containerExists(apps: [SourceApp] = sourceApps) -> Bool {
+        apps.contains { FileManager.default.fileExists(atPath: $0.container.path(percentEncoded: false)) }
     }
 
-    /// URLs of original-app bottles that are valid (contain a `Metadata.plist`) and are
-    /// not already registered in `existingPaths`.
-    ///
-    /// Sources, in order: the original app's `BottleVM.plist` registry (which also covers
-    /// bottles stored at custom paths outside the default Bottles directory), then a scan
-    /// of the default `Bottles` directory as a fallback. Results are de-duplicated and
+    /// Whether `app` is running. Its files, above all its registry, aren't consistent
+    /// while its wineserver writes them, so its bottles aren't copied until it quits.
+    public static func isRunning(_ app: SourceApp) -> Bool {
+        !NSRunningApplication.runningApplications(withBundleIdentifier: app.bundleIdentifier).isEmpty
+    }
+
+    /// An importable bottle of a source app, with the display name read from its settings.
+    public struct DiscoveredBottle: Identifiable, Hashable, Sendable {
+        /// The bottle's directory URL (also its identity).
+        public let url: URL
+        /// The bottle's display name, read from its settings (falls back to the directory name).
+        public let name: String
+        /// The app the bottle came from.
+        public let app: SourceApp
+        public var id: URL {
+            url
+        }
+    }
+
+    /// The bottles of `apps` that are valid (contain a `Metadata.plist`) and that no bottle in
+    /// `existingPaths` records as its migration source, `apps` in order and each app's bottles
     /// sorted by directory name.
     ///
+    /// Per app: its `BottleVM.plist` registry (which also covers bottles at custom paths
+    /// outside the default Bottles directory), then a scan of its `Bottles` directory.
+    /// Settings are read **non-destructively** (see ``readOnlySettings(at:)``).
+    ///
     /// - Parameters:
-    ///   - legacyContainer: the original app's container directory (injectable for testing).
-    ///   - existingPaths: bottle paths already registered in this fork, to avoid duplicates.
-    public static func importableBottleURLs(
-        legacyContainer: URL = legacyContainerDirectory,
+    ///   - apps: the source apps (injectable for testing).
+    ///   - existingPaths: bottle paths registered in this app; their `migratedFrom` marks
+    ///     the sources already copied.
+    public static func importableBottles(
+        apps: [SourceApp] = sourceApps,
         existingPaths: [URL]
-    ) -> [URL] {
-        let existing = Set(existingPaths.map(\.standardizedFileURL))
+    ) -> [DiscoveredBottle] {
+        let migrated = Set(existingPaths.compactMap { readOnlySettings(at: $0)?.migratedFrom?.standardizedFileURL })
+        var seen = Set<URL>()
+        var result: [DiscoveredBottle] = []
+        for app in apps {
+            let found = bottleURLs(in: app.container)
+                .filter { !migrated.contains($0) && seen.insert($0).inserted }
+                .sorted { $0.lastPathComponent < $1.lastPathComponent }
+            result += found.map { url in
+                DiscoveredBottle(url: url, name: readOnlySettings(at: url)?.name ?? url.lastPathComponent, app: app)
+            }
+        }
+        logger.info("Discovered \(result.count) importable bottle(s)")
+        return result
+    }
+
+    private static func bottleURLs(in container: URL) -> [URL] {
         var candidates: [URL] = []
 
-        // 1. The registry plist lists every bottle the original app knew about, including
+        // 1. The registry plist lists every bottle the app knew about, including
         //    bottles stored at custom paths outside the Bottles directory.
-        let registryURL = legacyContainer.appending(path: "BottleVM").appendingPathExtension("plist")
+        let registryURL = container.appending(path: "BottleVM").appendingPathExtension("plist")
         if let data = try? Data(contentsOf: registryURL),
            let registry = try? PropertyListDecoder().decode(LegacyRegistry.self, from: data) {
             candidates.append(contentsOf: registry.paths)
         }
 
         // 2. Scan the default Bottles directory in case the registry is missing or stale.
-        let bottlesDir = legacyContainer.appending(path: "Bottles")
         if let entries = try? FileManager.default.contentsOfDirectory(
-            at: bottlesDir,
+            at: container.appending(path: "Bottles"),
             includingPropertiesForKeys: [.isDirectoryKey]
         ) {
             candidates.append(contentsOf: entries)
         }
 
         var seen = Set<URL>()
-        var result: [URL] = []
-        for candidate in candidates {
-            let standardized = candidate.standardizedFileURL
-            guard !existing.contains(standardized), seen.insert(standardized).inserted else { continue }
-            guard isBottle(at: standardized) else { continue }
-            result.append(standardized)
-        }
-
-        logger.info("Discovered \(result.count) importable legacy bottle(s)")
-        return result.sorted { $0.lastPathComponent < $1.lastPathComponent }
+        return candidates.map(\.standardizedFileURL).filter { seen.insert($0).inserted && isBottle(at: $0) }
     }
 
-    /// An importable original-app bottle, with the display name read from its settings.
-    public struct DiscoveredBottle: Identifiable, Hashable, Sendable {
-        /// The bottle's directory URL (also its identity).
-        public let url: URL
-        /// The bottle's display name, read from its settings (falls back to the directory name).
-        public let name: String
-        public var id: URL {
-            url
-        }
-    }
-
-    /// Like ``importableBottleURLs(legacyContainer:existingPaths:)`` but also reads each bottle's
-    /// display name. Names are read **non-destructively** (see ``readOnlyName(at:)``) — discovery
-    /// must never mutate the original app's bottles.
-    public static func importableBottles(
-        legacyContainer: URL = legacyContainerDirectory,
-        existingPaths: [URL]
-    ) -> [DiscoveredBottle] {
-        importableBottleURLs(legacyContainer: legacyContainer, existingPaths: existingPaths).map { url in
-            DiscoveredBottle(url: url, name: readOnlyName(at: url) ?? url.lastPathComponent)
-        }
-    }
-
-    /// Reads a bottle's display name from its `Metadata.plist` **without writing anything**.
+    /// Reads a bottle's settings from its `Metadata.plist` **without writing anything**.
     ///
     /// This decodes `BottleSettings` directly via `PropertyListDecoder` (whose `init(from:)` is
     /// pure). It deliberately does **not** use `BottleSettings.decode(from:)` or construct a
     /// `Bottle`: both of those rewrite the metadata file when the bottle's file/wine version
-    /// differs from the current app's defaults — which a bottle from the original app almost
-    /// always does — and that would silently mutate the user's original bottles just by opening
-    /// the migration sheet. Returns `nil` if the metadata is missing or undecodable.
-    private static func readOnlyName(at bottleURL: URL) -> String? {
+    /// differs from the current app's defaults, and that would silently mutate the user's
+    /// original bottles just by opening the migration sheet. Returns `nil` if the metadata
+    /// is missing or undecodable.
+    static func readOnlySettings(at bottleURL: URL) -> BottleSettings? {
         let metadata = bottleURL.appending(path: "Metadata").appendingPathExtension("plist")
-        guard let data = try? Data(contentsOf: metadata),
-              let settings = try? PropertyListDecoder().decode(BottleSettings.self, from: data)
-        else { return nil }
-        return settings.name
+        guard let data = try? Data(contentsOf: metadata) else { return nil }
+        return try? PropertyListDecoder().decode(BottleSettings.self, from: data)
     }
 
     /// A directory is treated as a bottle when it contains a `Metadata.plist`, the marker

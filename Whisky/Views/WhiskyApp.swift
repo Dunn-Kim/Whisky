@@ -83,9 +83,9 @@ struct WhiskyApp: App {
     /// never competes with the first-launch setup sheet for presentation.
     private func offerLegacyMigrationIfNeeded() {
         guard !Self.isUITesting, !hasOfferedLegacyMigration, !showSetup, !showMigrate,
-              LegacyBottleImport.legacyContainerExists()
+              LegacyBottleImport.containerExists()
         else { return }
-        let importable = LegacyBottleImport.importableBottleURLs(
+        let importable = LegacyBottleImport.importableBottles(
             existingPaths: BottleVM.shared.bottlesList.paths
         )
         guard !importable.isEmpty else { return }

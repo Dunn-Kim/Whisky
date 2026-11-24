@@ -19,9 +19,9 @@
 import SwiftUI
 import WhiskyKit
 
-/// Lets the user import bottles created by the archived original Whisky app, which this
-/// fork doesn't see automatically because it uses a different bundle identifier. Bottles
-/// are referenced in place (not copied), so the import is non-destructive.
+/// Lets the user copy bottles created by the other Whisky apps into new bottles of this
+/// build, which runs an arm64 prefix the originals' x86_64 prefixes can't be used as.
+/// The originals are only read.
 struct MigrateBottlesSheet: View {
     @EnvironmentObject var bottleVM: BottleVM
     @Environment(\.dismiss) private var dismiss
@@ -32,17 +32,20 @@ struct MigrateBottlesSheet: View {
     private struct Row: Identifiable {
         let bottle: LegacyBottleImport.DiscoveredBottle
         var isSelected: Bool
+        /// The app the bottle came from is running; its files aren't consistent until it quits.
+        let sourceRunning: Bool
         var id: URL {
             bottle.url
         }
     }
 
     private var selectedCount: Int {
-        rows.filter(\.isSelected).count
+        rows.filter { $0.isSelected && !$0.sourceRunning }.count
     }
 
     private var allSelected: Bool {
-        !rows.isEmpty && rows.allSatisfy(\.isSelected)
+        let available = rows.filter { !$0.sourceRunning }
+        return !available.isEmpty && available.allSatisfy(\.isSelected)
     }
 
     var body: some View {
@@ -59,12 +62,13 @@ struct MigrateBottlesSheet: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Import Bottles from the Original Whisky")
+            Text("Copy Bottles from Another Whisky")
                 .font(.headline)
             Text(
                 """
-                These bottles were created by the archived original Whisky app. Importing references \
-                them in place: your files aren't moved or copied, and the original app keeps working.
+                The selected bottles are copied into new bottles for this build. The originals stay \
+                untouched and keep working in the other app. Windows dependencies installed with \
+                winetricks aren't carried over; reinstall them in the new bottle.
                 """
             )
             .font(.subheadline)
@@ -81,7 +85,7 @@ struct MigrateBottlesSheet: View {
                 Image(systemName: "tray")
                     .font(.largeTitle)
                     .foregroundStyle(.secondary)
-                Text("No bottles from the original Whisky were found.")
+                Text("No bottles from another Whisky were found.")
                     .foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -91,6 +95,16 @@ struct MigrateBottlesSheet: View {
                     Toggle(isOn: $row.isSelected) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(row.bottle.name)
+                            Text(row.bottle.app.displayName)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            if row.sourceRunning {
+                                Text(
+                                    "Quit \(row.bottle.app.displayName) first: its files change while it runs."
+                                )
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                            }
                             Text(row.bottle.url.path(percentEncoded: false))
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
@@ -98,6 +112,7 @@ struct MigrateBottlesSheet: View {
                                 .truncationMode(.middle)
                         }
                     }
+                    .disabled(row.sourceRunning)
                 }
             }
         }
@@ -111,7 +126,7 @@ struct MigrateBottlesSheet: View {
             Spacer()
             Button("button.cancel", role: .cancel) { dismiss() }
                 .keyboardShortcut(.cancelAction)
-            Button("Import Selected", action: importSelected)
+            Button("Copy Selected", action: importSelected)
                 .keyboardShortcut(.defaultAction)
                 .disabled(selectedCount == 0)
         }
@@ -120,7 +135,7 @@ struct MigrateBottlesSheet: View {
 
     private func toggleAll() {
         let target = !allSelected
-        for index in rows.indices {
+        for index in rows.indices where !rows[index].sourceRunning {
             rows[index].isSelected = target
         }
     }
@@ -130,18 +145,17 @@ struct MigrateBottlesSheet: View {
         didLoad = true
         rows = LegacyBottleImport
             .importableBottles(existingPaths: bottleVM.bottlesList.paths)
-            .map { Row(bottle: $0, isSelected: true) }
+            .map {
+                let running = LegacyBottleImport.isRunning($0.app)
+                return Row(bottle: $0, isSelected: !running, sourceRunning: running)
+            }
     }
 
     private func importSelected() {
-        let existing = bottleVM.bottlesList.paths
-        let toAdd = rows.filter(\.isSelected).map(\.bottle.url).filter { !existing.contains($0) }
-        if !toAdd.isEmpty {
-            // Assign once: `BottleData.paths` re-encodes the registry plist in its didSet,
-            // so appending in a loop would rewrite it N times.
-            bottleVM.bottlesList.paths = existing + toAdd
-        }
-        bottleVM.loadBottles()
+        let selected = rows.filter { $0.isSelected && !$0.sourceRunning }.map(\.bottle)
         dismiss()
+        Task {
+            await bottleVM.migrateLegacyBottles(selected)
+        }
     }
 }
