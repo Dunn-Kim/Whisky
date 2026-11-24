@@ -52,11 +52,23 @@ Whisky provides a clean and easy-to-use graphical wrapper for Wine built in nati
 This branch builds **WhiskyNative**. It runs Windows programs on an arm64 Wine runtime and the FEX x86 emulator, with no Rosetta 2. Apple ends Rosetta 2 for most apps in macOS 28, and the Rosetta build of Whisky stops working then.
 
 - **Installs next to Whisky.** WhiskyNative has its own bundle ID (`io.github.dunn-kim.WhiskyNative`), its own data, the `whisky-native://` URL scheme and the `whisky-native` command line tool. It shares nothing with the Rosetta build.
-- **Install a runtime.** No arm64 runtime is published yet, so the app cannot download one. Install a local one with `scripts/install-arm64-runtime.sh <runtime folder> <version>`, for example `scripts/install-arm64-runtime.sh ~/Downloads/mach9/wine 0.4.0`. Quit WhiskyNative first.
+- **Build and install.** No release and no arm64 runtime are published yet, so you build the app and install a runtime yourself. See the steps below.
 - **Move your bottles.** **File → Migrate from the Original Whisky…** copies a bottle from the Rosetta build of Whisky, or from the original Whisky, into a new arm64 bottle. It copies the program files, program settings, user registry keys and fonts. It does not copy Windows dependencies, so reinstall those with winetricks. It never writes to the source bottle, and it refuses to run while the source app is open.
 - **What is gone.** Rosetta 2, GPTK/D3DMetal and DXVK. Whisky no longer copies DLLs into bottles. The graphics backends are Recommended, DXMT and WineD3D. Chromium front ends run on WineD3D.
 - **Visual C++ runtime.** Microsoft's x64 VC++ and UCRT DLLs break the runtime's own arm64 processes. Whisky keeps them out of `system32` and `syswow64` and moves them into the bottle's `VC Runtime` folder before each start. Only Unity games use the Microsoft runtime, and they get it per game.
 - **Known limits.** No runtime is published. The runtime's loader must be signed with Apple's cross-architecture entitlement, or x86 programs do not start. A Unity game has been tested end to end; the branch is experimental and many programs are untested.
+
+### Build and run
+
+1. Clone the branch. A blobless clone is much smaller; [CONTRIBUTING.md](CONTRIBUTING.md#cloning) explains why:
+
+   ```sh
+   git clone --filter=blob:none -b arm64-native https://github.com/Dunn-Kim/Whisky.git
+   ```
+
+2. Open `Whisky.xcodeproj` in Xcode 16 or later on an Apple Silicon Mac, then build and run. The project signs ad hoc by default (`Signing.xcconfig`), so it needs no Apple developer account. To sign with your own team, create `Signing.local.xcconfig` next to it (git ignores it) with `DEVELOPMENT_TEAM = <your team ID>` and `CODE_SIGN_IDENTITY = Apple Development`.
+3. Quit WhiskyNative, then install a runtime: `scripts/install-arm64-runtime.sh <runtime folder> <version>`. For example, use the `wine` folder of a Mach9 v0.4.0 release (Zlib licence): `scripts/install-arm64-runtime.sh ~/Downloads/mach9/wine 0.4.0`. Its loader is already signed with the cross-architecture entitlement.
+4. Open the app again. Copy your bottles with the migration sheet, or create new ones.
 
 ## Key Features
 
@@ -74,11 +86,7 @@ This branch builds **WhiskyNative**. It runs Windows programs on an arm64 Wine r
 
 ## Installation
 
-There is no release of WhiskyNative yet, so build it from source. The Homebrew cask and the DMGs of [frankea/Whisky](https://github.com/frankea/Whisky) install the Rosetta build, **Whisky.app**, not this one.
-
-1. Clone this branch and build it. [CONTRIBUTING.md](CONTRIBUTING.md#build-environment) has the build steps. The app is `WhiskyNative.app`.
-2. Install an arm64 Wine runtime with `scripts/install-arm64-runtime.sh <runtime folder> <version>`. See [arm64-native branch](#arm64-native-branch-experimental).
-3. Launch WhiskyNative and create a bottle, or copy one from the Rosetta build.
+There is no release of WhiskyNative yet, so build it from source. The Homebrew cask and the DMGs of [frankea/Whisky](https://github.com/frankea/Whisky) install the Rosetta build, **Whisky.app**, not this one. The steps are under [Build and run](#build-and-run). The app is `WhiskyNative.app`.
 
 ### Copying bottles from Whisky
 

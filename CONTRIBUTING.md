@@ -6,6 +6,8 @@ Thanks for your interest! First, make a fork of Whisky, create a new branch for 
 
 Whisky is built using **Xcode 16** on **macOS Sequoia 15.0** or later. All external dependencies are handled through the Swift Package Manager.
 
+Signing comes from `Signing.xcconfig` at the repository root, which signs ad hoc by default. To use your own team, put `DEVELOPMENT_TEAM` and `CODE_SIGN_IDENTITY` in `Signing.local.xcconfig` next to it; git ignores that file.
+
 ### Cloning
 
 The repository's early history carries the Wine runtime the app used to bundle. That includes Gecko's `xul.dll` files of 69–86 MB and `libicudata.72.1.dylib` of 60 MB. Nothing in the current tree is that large, and the runtime is not built from git: the app downloads and installs it separately. A full clone is about 1.3 GB. A blobless clone fetches only the files of the commit it checks out, about 26 MB:
