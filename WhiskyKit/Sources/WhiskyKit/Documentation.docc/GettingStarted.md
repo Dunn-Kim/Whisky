@@ -12,7 +12,6 @@ Before using WhiskyKit, ensure that:
 
 1. Your app runs on macOS 15.0 or later
 2. WhiskyWine is installed via ``WhiskyWineInstaller``
-3. Rosetta 2 is installed (for Apple Silicon Macs)
 
 ## Adding WhiskyKit to Your Project
 

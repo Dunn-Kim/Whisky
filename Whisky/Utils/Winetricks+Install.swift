@@ -111,7 +111,7 @@ extension Winetricks {
         process.arguments = WinetricksInstallArguments.arguments(verb: verb, winetricksPath: winetricksPath)
         process.environment = [
             "WINEPREFIX": bottleURL.path(percentEncoded: false),
-            "WINE": "wine64",
+            "WINE": "wine",
             "PATH": [
                 WhiskyWineInstaller.binFolder.path(percentEncoded: false),
                 resourcesURL.path(percentEncoded: false),

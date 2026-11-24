@@ -110,12 +110,12 @@ struct TerminalEnvironmentCommandTests {
             #expect(exported[key] == value, "\(key)")
         }
         #expect(exported["PATH"] == "\(WhiskyWineInstaller.binFolder.path):\(TestShell.basePath)")
-        #expect(exported["WINE"] == "wine64")
+        #expect(exported["WINE"] == "wine")
         #expect(!FileManager.default.fileExists(atPath: marker.path))
     }
 
     @Test(
-        "A bin folder with spaces and quotes goes first on PATH and wine64 resolves",
+        "A bin folder with spaces and quotes goes first on PATH and wine resolves",
         arguments: TestShell.loginShells
     )
     func binFolderSurvivesEval(shell: TestShell) async throws {
@@ -126,9 +126,9 @@ struct TerminalEnvironmentCommandTests {
             .appending(path: #"it's "odd" $HOME `id` back\slash; a=b"#)
             .appending(path: "bin")
         try FileManager.default.createDirectory(at: binFolder, withIntermediateDirectories: true)
-        let wine64 = binFolder.appending(path: "wine64")
-        try Data("#!/bin/sh\necho wine-stub\n".utf8).write(to: wine64)
-        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: wine64.path)
+        let wine = binFolder.appending(path: "wine")
+        try Data("#!/bin/sh\necho wine-stub\n".utf8).write(to: wine)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: wine.path)
 
         let output = Wine.generateTerminalEnvironmentCommand(binFolder: binFolder, environment: [:])
 
@@ -136,10 +136,10 @@ struct TerminalEnvironmentCommandTests {
         #expect(exported["PATH"] == "\(binFolder.path):\(TestShell.basePath)")
 
         // The reported symptom: with a literal backslash left in the PATH entry, the
-        // lookup missed and `wine64` exited 127.
-        let lookup = try await Self.evaluate(output, in: shell, home: root, then: "command -v wine64 && wine64")
+        // lookup missed and `wine` exited 127.
+        let lookup = try await Self.evaluate(output, in: shell, home: root, then: "command -v wine && wine")
         #expect(lookup.status == 0, "\(lookup.errors)")
-        #expect(lookup.output == "\(wine64.path)\nwine-stub\n")
+        #expect(lookup.output == "\(wine.path)\nwine-stub\n")
     }
 
     @Test("Values a shell would expand, split or unescape come back verbatim", arguments: TestShell.loginShells)

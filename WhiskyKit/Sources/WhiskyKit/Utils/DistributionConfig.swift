@@ -22,6 +22,7 @@ public enum DistributionConfig {
     /// Base URL for GitHub Pages distribution
     public static let baseURL = "https://frankea.github.io/Whisky"
 
+    // shortcut: no arm64 runtime is published yet, so this feed 404s; publish the plist when one is.
     /// URL for the WhiskyWine version plist file, which names the engine to
     /// install and offers as an update.
     ///
@@ -35,10 +36,11 @@ public enum DistributionConfig {
     /// patches upstream's does not, so an upstream engine would install
     /// without them and be offered as an update over them.
     public static let versionPlistURL =
-        "https://raw.githubusercontent.com/Dunn-Kim/Whisky/main/dist/pages/WhiskyWineVersion-v4.plist"
+        "https://raw.githubusercontent.com/Dunn-Kim/Whisky/arm64-native/dist/pages/WhiskyWineVersion-arm64.plist"
 
-    /// The feed apps before 3.10.0 read, frozen on the stock 3.1.1 engine.
-    static let legacyVersionPlistURL = "\(baseURL)/WhiskyWineVersion.plist"
+    /// The feed apps before 3.10.0 read. This arm64 build has no stock engine to
+    /// freeze on, so it shares the arm64 feed.
+    static let legacyVersionPlistURL = versionPlistURL
 
     /// The GitHub Releases page, which lists the Wine Libraries engine builds
     /// this fork's feed names.

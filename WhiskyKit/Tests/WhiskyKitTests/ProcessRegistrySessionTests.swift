@@ -213,7 +213,7 @@ final class ProcessRegistrySessionTests: XCTestCase {
     }
 
     func testLauncherThatCannotStartLeavesNoEntry() {
-        let launcher = process("/nonexistent/wine64-\(UUID().uuidString)")
+        let launcher = process("/nonexistent/wine-\(UUID().uuidString)")
 
         XCTAssertThrowsError(
             try Wine.startTrackedProgram(launcher, name: "game.exe", bottle: bottle, fileHandle: nil)

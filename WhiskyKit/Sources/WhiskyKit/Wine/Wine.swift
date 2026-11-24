@@ -85,11 +85,11 @@ public class Wine {
     /// URL to the installed DXMT payload containing Direct3D-11-to-Metal translation libraries.
     /// Absent on runtimes older than Wine Libraries 3.1.0.
     static let dxmtFolder: URL = WhiskyWineInstaller.libraryFolder.appending(path: "DXMT")
-    /// The URL to the `wine64` binary executable.
+    /// The URL to the `wine` binary executable.
     ///
     /// This is the main Wine binary used to execute Windows applications.
     /// The binary is located within the WhiskyWine installation directory.
-    public static let wineBinary: URL = WhiskyWineInstaller.binFolder.appending(path: "wine64")
+    public static let wineBinary: URL = WhiskyWineInstaller.binFolder.appending(path: "wine")
     /// URL to the `wineserver` binary for Wine server management.
     private static let wineserverBinary: URL = WhiskyWineInstaller.binFolder.appending(path: "wineserver")
 
@@ -225,13 +225,13 @@ public class Wine {
     /// Returned by `prepareProgramLaunch`, and turned into a shell command by
     /// ``generateRunCommand(for:wineBinary:)``.
     struct PreparedLaunch: Equatable, Sendable {
-        /// The environment `wine64` runs with.
+        /// The environment `wine` runs with.
         ///
         /// Holds no `WINEDLLOVERRIDES` unless the overrides are meant for a
         /// process this launch spawns: preparation moved the launch's own
         /// overrides into the prefix registry, where no child inherits them.
         let environment: [String: String]
-        /// The arguments `wine64` runs with: `start /unix` and the program,
+        /// The arguments `wine` runs with: `start /unix` and the program,
         /// preceded by `start explorer /desktop=...` for a program given its own
         /// virtual desktop or kept out of the bottle's.
         let arguments: [String]
@@ -280,7 +280,7 @@ public class Wine {
     ///     own settings instead of the descendants' overrides, when those apply to descendants.
     ///   - descendantLaunchers: Launchers what this launch starts brings up on its own.
     ///   - onOutput: Receives the launch's output events as they arrive, starting with
-    ///     ``ProcessOutput/started`` once the `wine64` process is running. ``ProcessOutput/terminated(_:)``
+    ///     ``ProcessOutput/started`` once the `wine` process is running. ``ProcessOutput/terminated(_:)``
     ///     is not the last event: what the program and the bottle's processes write after the
     ///     launcher exits keeps arriving, after this method has returned, until the result's
     ///     `outputCompletion` completes.
@@ -453,7 +453,7 @@ public class Wine {
     ///   - dxmtFolder: The DXMT payload a launch on DXMT copies into the prefix and, for a
     ///     launcher carrying a DXMT plan or a game with copies already recorded, beside the
     ///     game's executables. Defaults to the installed one; tests pass their own.
-    /// - Returns: The environment and `wine64` arguments the launch runs with.
+    /// - Returns: The environment and `wine` arguments the launch runs with.
     /// - Throws: An error if a backend's files cannot be deployed or the DLL override import
     ///   cannot be started. A failed font alias import is only logged.
     @MainActor
@@ -715,7 +715,7 @@ public class Wine {
         return lowercased.hasPrefix("unins") || markers.contains { lowercased.contains($0) }
     }
 
-    /// The `wine64` arguments for a launch, honoring a program's virtual desktop override.
+    /// The `wine` arguments for a launch, honoring a program's virtual desktop override.
     ///
     /// `explorer /desktop=<name>` starts the program on the named desktop. A
     /// program set to On gets its own virtual desktop at its resolution. `root`
@@ -816,11 +816,11 @@ public class Wine {
     /// since the command only adds to the environment of the shell it runs in, and
     /// that shell may export the bottle's overrides already (`WhiskyCmd shellenv`
     /// and Open in Terminal do). So unless the launch sets the variable itself,
-    /// `wine64` runs through `env -u WINEDLLOVERRIDES`.
+    /// `wine` runs through `env -u WINEDLLOVERRIDES`.
     ///
     /// - Parameters:
     ///   - launch: A launch from `prepareProgramLaunch`.
-    ///   - wineBinary: The `wine64` the command runs. Tests substitute a stub.
+    ///   - wineBinary: The `wine` the command runs. Tests substitute a stub.
     /// - Returns: A shell-safe command string ready for execution.
     static func generateRunCommand(for launch: PreparedLaunch, wineBinary: URL = Wine.wineBinary) -> String {
         var words = [wineBinary.path(percentEncoded: false)] + launch.arguments
@@ -887,17 +887,16 @@ public class Wine {
     static func generateTerminalEnvironmentCommand(binFolder: URL, environment: [String: String]) -> String {
         var cmd = """
         export PATH=\(ShellQuoting.quoted(binFolder.path)):\"$PATH\"
-        export WINE=\"wine64\"
-        alias wine=\"wine64\"
-        alias winecfg=\"wine64 winecfg\"
-        alias msiexec=\"wine64 msiexec\"
-        alias regedit=\"wine64 regedit\"
-        alias regsvr32=\"wine64 regsvr32\"
-        alias wineboot=\"wine64 wineboot\"
-        alias wineconsole=\"wine64 wineconsole\"
-        alias winedbg=\"wine64 winedbg\"
-        alias winefile=\"wine64 winefile\"
-        alias winepath=\"wine64 winepath\"
+        export WINE=\"wine\"
+        alias winecfg=\"wine winecfg\"
+        alias msiexec=\"wine msiexec\"
+        alias regedit=\"wine regedit\"
+        alias regsvr32=\"wine regsvr32\"
+        alias wineboot=\"wine wineboot\"
+        alias wineconsole=\"wine wineconsole\"
+        alias winedbg=\"wine winedbg\"
+        alias winefile=\"wine winefile\"
+        alias winepath=\"wine winepath\"
         """
 
         for (key, value) in environment.sorted(by: { $0.key < $1.key }) {

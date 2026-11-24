@@ -23,13 +23,14 @@ import Testing
 
 @Suite("Engine update feeds")
 struct EngineFeedTests {
-    /// Apps before 3.10.0 keep reading the old feed, which stays on the stock
-    /// engine. This app must read a different one, or a bump meant for it
-    /// would reach them too.
-    @Test("The app reads the 4.x feed, not the frozen one older apps read")
-    func readsTheVersionedFeed() {
-        #expect(DistributionConfig.versionPlistURL != DistributionConfig.legacyVersionPlistURL)
-        #expect(DistributionConfig.legacyVersionPlistURL == "https://frankea.github.io/Whisky/WhiskyWineVersion.plist")
+    /// This arm64 build must never read a feed naming an x86_64 engine, which
+    /// it could download but not run.
+    @Test("The app reads the arm64 feed for both feed URLs")
+    func readsTheArm64Feed() {
+        let arm64Feed = "https://raw.githubusercontent.com/Dunn-Kim/Whisky/arm64-native"
+            + "/dist/pages/WhiskyWineVersion-arm64.plist"
+        #expect(DistributionConfig.versionPlistURL == arm64Feed)
+        #expect(DistributionConfig.legacyVersionPlistURL == arm64Feed)
     }
 
     /// The published feeds decode as the app reads them: the old one still on

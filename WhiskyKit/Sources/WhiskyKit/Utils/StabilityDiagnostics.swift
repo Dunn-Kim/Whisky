@@ -85,7 +85,6 @@ public enum StabilityDiagnostics {
         // slice through Rosetta would otherwise misreport the host as Intel.
         if HostArchitecture.isAppleSilicon {
             info += "Architecture: Apple Silicon (arm64)\n"
-            info += "Rosetta 2: \(Rosetta2.isRosettaInstalled ? "✅ Installed" : "❌ Not Installed")\n"
         } else {
             info += "Architecture: Intel (x86_64)\n"
         }

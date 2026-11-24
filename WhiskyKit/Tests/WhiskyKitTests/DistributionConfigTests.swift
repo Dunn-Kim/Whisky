@@ -34,7 +34,8 @@ final class DistributionConfigTests: XCTestCase {
     // MARK: - Version Plist URL Tests
 
     func testVersionPlistURL() {
-        let expectedURL = "https://raw.githubusercontent.com/Dunn-Kim/Whisky/main/dist/pages/WhiskyWineVersion-v4.plist"
+        let expectedURL = "https://raw.githubusercontent.com/Dunn-Kim/Whisky/arm64-native"
+            + "/dist/pages/WhiskyWineVersion-arm64.plist"
         XCTAssertEqual(DistributionConfig.versionPlistURL, expectedURL)
     }
 
@@ -167,7 +168,7 @@ final class DistributionConfigTests: XCTestCase {
         )
         XCTAssertEqual(
             expectedURL,
-            "https://raw.githubusercontent.com/Dunn-Kim/Whisky/main/dist/pages/WhiskyWineVersion-v4.plist",
+            "https://raw.githubusercontent.com/Dunn-Kim/Whisky/arm64-native/dist/pages/WhiskyWineVersion-arm64.plist",
             "WhiskyWineInstaller should use the fork's feed"
         )
     }

@@ -102,12 +102,12 @@ public class WhiskyWineInstaller {
 
     /// The URL to the Wine binary directory.
     ///
-    /// This folder contains `wine64`, `wineserver`, and other Wine executables.
+    /// This folder contains `wine`, `wineserver`, and other Wine executables.
     public static let binFolder: URL = libraryFolder.appending(path: "Wine").appending(path: "bin")
 
     /// Checks whether WhiskyWine is currently installed and usable.
     ///
-    /// Requires both a readable version plist *and* the `wine64` binary on disk:
+    /// Requires both a readable version plist *and* the `wine` binary on disk:
     /// a half-extracted or partially-removed runtime can leave the plist behind
     /// without the binary, and reporting that as "installed" makes every bottle
     /// fail confusingly instead of prompting a re-install.
@@ -118,15 +118,15 @@ public class WhiskyWineInstaller {
     }
 
     /// Whether a usable runtime exists under `folder` — both the version plist
-    /// and the `wine64` binary the app actually executes. Factored out of
+    /// and the `wine` binary the app actually executes. Factored out of
     /// ``isWhiskyWineInstalled()`` so it can be tested against a temp directory.
     static func isRuntimePresent(inLibraryFolder folder: URL) -> Bool {
         let versionPlist = folder.appending(path: "WhiskyWineVersion").appendingPathExtension("plist")
         guard whiskyWineInfo(at: versionPlist) != nil else { return false }
 
-        // Mirrors `Wine.wineBinary` (binFolder/wine64), the executable used to
+        // Mirrors `Wine.wineBinary` (binFolder/wine), the executable used to
         // launch every program — if it's missing the runtime isn't usable.
-        let wineBinary = folder.appending(path: "Wine").appending(path: "bin").appending(path: "wine64")
+        let wineBinary = folder.appending(path: "Wine").appending(path: "bin").appending(path: "wine")
         return FileManager.default.fileExists(atPath: wineBinary.path(percentEncoded: false))
     }
 

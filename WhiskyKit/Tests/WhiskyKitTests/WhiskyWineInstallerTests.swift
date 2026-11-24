@@ -160,11 +160,11 @@ final class WhiskyWineInstallerTests: XCTestCase {
         XCTAssertNil(WhiskyWineInstaller.whiskyWineInfo(at: partialURL))
     }
 
-    // MARK: - isRuntimePresent (plist + wine64)
+    // MARK: - isRuntimePresent (plist + wine)
 
     /// Builds a runtime tree under `folder` with an optional version plist and an
-    /// optional `wine64` binary, mirroring the layout the installer extracts.
-    private func makeRuntime(in folder: URL, plist: Bool, wine64: Bool) throws {
+    /// optional `wine` binary, mirroring the layout the installer extracts.
+    private func makeRuntime(in folder: URL, plist: Bool, wine: Bool) throws {
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         if plist {
             let plistURL = folder.appending(path: "WhiskyWineVersion").appendingPathExtension("plist")
@@ -172,26 +172,26 @@ final class WhiskyWineInstallerTests: XCTestCase {
             let data = try PropertyListSerialization.data(fromPropertyList: contents, format: .xml, options: 0)
             try data.write(to: plistURL)
         }
-        if wine64 {
+        if wine {
             let binDir = folder.appending(path: "Wine").appending(path: "bin")
             try FileManager.default.createDirectory(at: binDir, withIntermediateDirectories: true)
-            try Data("#!/bin/sh\n".utf8).write(to: binDir.appending(path: "wine64"))
+            try Data("#!/bin/sh\n".utf8).write(to: binDir.appending(path: "wine"))
         }
     }
 
     func testRuntimePresentWhenPlistAndBinaryExist() throws {
         let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: tempDir) }
-        try makeRuntime(in: tempDir, plist: true, wine64: true)
+        try makeRuntime(in: tempDir, plist: true, wine: true)
 
         XCTAssertTrue(WhiskyWineInstaller.isRuntimePresent(inLibraryFolder: tempDir))
     }
 
     func testRuntimeNotPresentWhenBinaryMissing() throws {
-        // The #63 case: a half-extracted runtime keeps the plist but loses wine64.
+        // The #63 case: a half-extracted runtime keeps the plist but loses wine.
         let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: tempDir) }
-        try makeRuntime(in: tempDir, plist: true, wine64: false)
+        try makeRuntime(in: tempDir, plist: true, wine: false)
 
         XCTAssertFalse(WhiskyWineInstaller.isRuntimePresent(inLibraryFolder: tempDir))
     }
@@ -199,7 +199,7 @@ final class WhiskyWineInstallerTests: XCTestCase {
     func testRuntimeNotPresentWhenPlistMissing() throws {
         let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: tempDir) }
-        try makeRuntime(in: tempDir, plist: false, wine64: true)
+        try makeRuntime(in: tempDir, plist: false, wine: true)
 
         XCTAssertFalse(WhiskyWineInstaller.isRuntimePresent(inLibraryFolder: tempDir))
     }
@@ -223,7 +223,7 @@ final class WhiskyWineInstallerTests: XCTestCase {
         // and DXMT, but no D3DMetal payload under Wine/lib/external.
         let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: tempDir) }
-        try makeRuntime(in: tempDir, plist: true, wine64: true)
+        try makeRuntime(in: tempDir, plist: true, wine: true)
         try FileManager.default.createDirectory(
             at: tempDir.appending(path: "DXVK").appending(path: "x64"),
             withIntermediateDirectories: true

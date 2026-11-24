@@ -21,7 +21,7 @@ import Foundation
 
 /// Cheap, native enumeration of running Wine processes.
 ///
-/// A `wine64 tasklist.exe` round trip costs seconds of wall time and over a billion
+/// A `wine tasklist.exe` round trip costs seconds of wall time and over a billion
 /// retired instructions, and boots a wineserver session on an otherwise idle bottle.
 /// `proc_listpids` + `proc_pidpath` answer "did the set of Wine processes change?"
 /// in about a millisecond, so periodic pollers can reserve the expensive tasklist
@@ -32,7 +32,7 @@ import Foundation
 /// (`C:\windows\system32\services.exe`), which `ps` and name-based matching would
 /// miss entirely. The kernel-reported executable path is authoritative — every
 /// Windows process runs the loader under the Whisky Wine distribution folder
-/// (`lib/wine/x86_64-unix/wine`, or `bin/wine64` momentarily at spawn).
+/// (`lib/wine/aarch64-unix/wine.app/Contents/MacOS/wine`, or `bin/wine` momentarily at spawn).
 public enum WineProcessScanner {
     /// The Wine distribution root every Wine executable lives under, with a
     /// trailing separator so prefix matching cannot cross into sibling folders.

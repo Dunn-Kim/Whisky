@@ -219,9 +219,7 @@ struct ContentView: View {
             // sheet over the main window and race every toolbar interaction.
             guard !WhiskyApp.isUITesting else { return }
 
-            // Rosetta too: a major macOS update can remove it, and the x86_64 Wine
-            // then fails every launch with "Bad CPU type in executable".
-            if !WhiskyWineInstaller.isWhiskyWineInstalled() || !Rosetta2.isRosettaInstalled {
+            if !WhiskyWineInstaller.isWhiskyWineInstalled() {
                 showSetup = true
             }
             // Settings' "Automatically check for WhiskyWine updates" gates only

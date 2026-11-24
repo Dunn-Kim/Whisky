@@ -51,7 +51,7 @@ enum Telemetry {
         case verifyFailed = "verify_failed"
         case downloadFailed = "download_failed"
         /// Extraction reported success but the runtime is not actually usable
-        /// afterwards (e.g. the `wine64` binary is missing).
+        /// afterwards (e.g. the `wine` binary is missing).
         case runtimeIncomplete = "runtime_incomplete"
     }
 

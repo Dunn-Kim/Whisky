@@ -20,7 +20,6 @@ import SwiftUI
 import WhiskyKit
 
 enum SetupStage {
-    case rosetta
     case whiskyWineDownload
     case whiskyWineInstall
 }
@@ -39,8 +38,6 @@ struct SetupView: View {
                     .navigationBarBackButtonHidden(true)
                     .navigationDestination(for: SetupStage.self) { stage in
                         switch stage {
-                        case .rosetta:
-                            RosettaView(path: $path, showSetup: $showSetup)
                         case .whiskyWineDownload:
                             WhiskyWineDownloadView(
                                 tarLocation: $tarLocation,
@@ -68,11 +65,8 @@ struct SetupView: View {
             // still undecided) we must show it even when the runtime is missing —
             // otherwise the opt-in would be unreachable. The only call site
             // (ContentView) always passes `firstTime: false`, so the consent check,
-            // not `firstTime`, is what keeps the welcome screen reachable. A missing
-            // Rosetta also keeps it, since the welcome screen routes to the Rosetta
-            // step first and the download stage would skip it.
-            if !firstTime, Telemetry.consent != .undecided, Rosetta2.isRosettaInstalled,
-               !WhiskyWineInstaller.isWhiskyWineInstalled() {
+            // not `firstTime`, is what keeps the welcome screen reachable.
+            if !firstTime, Telemetry.consent != .undecided, !WhiskyWineInstaller.isWhiskyWineInstalled() {
                 path = [.whiskyWineDownload]
             }
         }

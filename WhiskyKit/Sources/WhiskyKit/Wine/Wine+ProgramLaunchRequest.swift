@@ -84,7 +84,7 @@ extension Wine {
     ///   - importer: What imports the CJK font aliases the prefix is missing.
     ///   - dxvkFolder: The DXVK payload.
     ///   - dxmtFolder: The DXMT payload.
-    /// - Returns: The environment and `wine64` arguments the launch runs with.
+    /// - Returns: The environment and `wine` arguments the launch runs with.
     /// - Throws: An error if a backend's files cannot be deployed or the DLL override import
     ///   cannot be started.
     @MainActor

@@ -84,7 +84,7 @@ runProgram(url, bottle)
          │
          ▼
 ┌──────────────────┐
-│ Execute wine64   │
+│ Execute wine     │
 │ start /unix      │
 └────────┬─────────┘
          │

@@ -77,7 +77,7 @@ extension Program {
     ///     a recorder here too.
     ///   - bootstrapper: What creates the Wine prefix when the bottle has none yet, as
     ///     after `WhiskyCmd create`. Tests pass a recorder here as well.
-    /// - Returns: The environment and `wine64` arguments of the launch.
+    /// - Returns: The environment and `wine` arguments of the launch.
     /// - Throws: An error if the bottle cannot be prepared.
     func prepareLaunch(
         args: [String],

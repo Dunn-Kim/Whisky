@@ -39,7 +39,7 @@ enum TestShell: String, CaseIterable, CustomTestStringConvertible {
     /// and fish. Open in Terminal sources its script in the login shell.
     static let loginShells = installed.filter { [.zsh, .bash, .fish].contains($0) }
 
-    /// The PATH each shell starts with. Nothing on it provides `wine64`.
+    /// The PATH each shell starts with. Nothing on it provides `wine`.
     static let basePath = "/usr/bin:/bin:/usr/sbin:/sbin"
 
     var executable: URL? {

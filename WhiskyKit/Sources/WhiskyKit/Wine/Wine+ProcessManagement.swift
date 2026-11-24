@@ -259,7 +259,7 @@ extension Wine {
         watchSession(for: bottle)
     }
 
-    /// Starts a program's `wine64` process, tracked in the ``ProcessRegistry``.
+    /// Starts a program's `wine` process, tracked in the ``ProcessRegistry``.
     ///
     /// The process is registered before it starts and given its PID once it
     /// has one, and the bottle's session is watched until its wineserver goes idle.

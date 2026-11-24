@@ -115,14 +115,14 @@ final class ProgramLaunchPreparationTests {
     }
 
     /// Runs `launch`'s printed command through `sh` in a terminal that exports
-    /// `inherited`, with a stub standing in for `wine64` that prints the
+    /// `inherited`, with a stub standing in for `wine` that prints the
     /// environment it was started with. The shell is waited on off the main
     /// actor: blocking it here would stall every other main-actor test for the
     /// duration, and the Steam orchestrator tests run on sub-second budgets.
     private func environmentOfPrintedCommand(
         for launch: Wine.PreparedLaunch, inherited: [String: String]
     ) async throws -> [String: String] {
-        let stub = tempRoot.appending(path: "wine64")
+        let stub = tempRoot.appending(path: "wine")
         try "#!/bin/sh\nexec /usr/bin/env\n".write(to: stub, atomically: true, encoding: .utf8)
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: stub.path)
         let command = Wine.generateRunCommand(for: launch, wineBinary: stub)

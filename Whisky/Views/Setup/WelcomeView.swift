@@ -20,7 +20,6 @@ import SwiftUI
 import WhiskyKit
 
 struct WelcomeView: View {
-    @State var rosettaInstalled: Bool?
     @State var whiskyWineInstalled: Bool?
     @State var shouldCheckInstallStatus: Bool = false
     @AppStorage(Telemetry.consentDefaultsKey) private var telemetryConsentRaw: String = Telemetry.ConsentState
@@ -60,11 +59,6 @@ struct WelcomeView: View {
             Spacer()
             Form {
                 InstallStatusView(
-                    isInstalled: $rosettaInstalled,
-                    shouldCheckInstallStatus: $shouldCheckInstallStatus,
-                    name: "Rosetta"
-                )
-                InstallStatusView(
                     isInstalled: $whiskyWineInstalled,
                     shouldCheckInstallStatus: $shouldCheckInstallStatus,
                     showUninstall: true,
@@ -91,21 +85,15 @@ struct WelcomeView: View {
             .help("setup.telemetry.consent.help")
             .padding(.bottom, 4)
             HStack {
-                if let rosettaInstalled,
-                   let whiskyWineInstalled {
-                    if !rosettaInstalled || !whiskyWineInstalled {
+                if let whiskyWineInstalled {
+                    if !whiskyWineInstalled {
                         Button("setup.quit") {
                             exit(0)
                         }
                         .keyboardShortcut(.cancelAction)
                     }
                     Spacer()
-                    Button(rosettaInstalled && whiskyWineInstalled ? "setup.done" : "setup.next") {
-                        if !rosettaInstalled {
-                            path.append(.rosetta)
-                            return
-                        }
-
+                    Button(whiskyWineInstalled ? "setup.done" : "setup.next") {
                         if !whiskyWineInstalled {
                             path.append(.whiskyWineDownload)
                             return
@@ -121,7 +109,6 @@ struct WelcomeView: View {
     }
 
     func checkInstallStatus() {
-        rosettaInstalled = Rosetta2.isRosettaInstalled
         whiskyWineInstalled = WhiskyWineInstaller.isWhiskyWineInstalled()
     }
 }

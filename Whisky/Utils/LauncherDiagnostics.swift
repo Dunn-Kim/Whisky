@@ -109,11 +109,6 @@ enum LauncherDiagnostics {
         // Processor architecture (host hardware, independent of running slice)
         if HostArchitecture.isAppleSilicon {
             info += "Architecture: Apple Silicon (arm64)\n"
-            if Rosetta2.isRosettaInstalled {
-                info += "Rosetta 2: ✅ Installed\n"
-            } else {
-                info += "Rosetta 2: ❌ Not Installed\n"
-            }
         } else {
             info += "Architecture: Intel (x86_64)\n"
         }

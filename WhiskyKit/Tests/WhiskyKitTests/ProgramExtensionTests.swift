@@ -64,8 +64,8 @@ final class ProgramGenerateTerminalCommandTests: XCTestCase {
 
         let command = program.generateTerminalCommand()
 
-        // Command should contain wine64
-        XCTAssertTrue(command.contains("wine64"), "Command should contain wine64 binary")
+        // Command should contain wine
+        XCTAssertTrue(command.contains("wine"), "Command should contain wine binary")
     }
 
     @MainActor
@@ -100,7 +100,7 @@ final class ProgramGenerateTerminalCommandTests: XCTestCase {
         let command = program.generateTerminalCommand(args: "")
 
         // Command should still be valid with empty args
-        XCTAssertTrue(command.contains("wine64"), "Command should still contain wine64")
+        XCTAssertTrue(command.contains("wine"), "Command should still contain wine")
         XCTAssertTrue(command.contains("test_program.exe"), "Command should still contain program")
     }
 
@@ -154,7 +154,7 @@ final class ProgramGenerateTerminalCommandTests: XCTestCase {
         let command = program.generateTerminalCommand(args: [])
 
         // Command should still be valid with empty args array
-        XCTAssertTrue(command.contains("wine64"), "Command should still contain wine64")
+        XCTAssertTrue(command.contains("wine"), "Command should still contain wine")
         XCTAssertTrue(command.contains("test_program.exe"), "Command should still contain program")
     }
 
