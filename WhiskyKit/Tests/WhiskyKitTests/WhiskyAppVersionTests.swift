@@ -75,7 +75,7 @@ struct WhiskyAppVersionTests {
         #expect(WhiskyAppVersion.shortVersion(mainInfo: nil, executableURL: layout.cli) == "3.10.0")
     }
 
-    @Test("The CLI run through a symlink, as /usr/local/bin/whisky is, still finds the app")
+    @Test("The CLI run through a symlink, as /usr/local/bin/whisky-native is, still finds the app")
     func cliThroughSymlink() throws {
         let layout = try Layout(version: "3.10.0")
         defer { layout.remove() }

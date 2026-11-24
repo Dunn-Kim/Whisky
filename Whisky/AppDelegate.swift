@@ -156,7 +156,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         Bundle.main.resourceURL?.deletingLastPathComponent().deletingLastPathComponent()
     }
 
-    private static let expectedUrl = URL(fileURLWithPath: "/Applications/Whisky.app")
+    // Named after this bundle: the move replaces whatever sits there, and
+    // /Applications/Whisky.app can be the Rosetta build installed next to this one.
+    private static let expectedUrl = URL(fileURLWithPath: "/Applications")
+        .appending(path: Bundle.main.bundleURL.lastPathComponent)
 
     private static var insideAppsFolder: Bool {
         if let url = appUrl {

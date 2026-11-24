@@ -21,7 +21,7 @@ import os.log
 import WhiskyKit
 
 /// Launching from surfaces that live outside the main window: the Dock menu,
-/// the menu-bar extra, and `whisky://` URLs.
+/// the menu-bar extra, and `whisky-native://` URLs.
 ///
 /// The URL scheme is the identity layer for all of them. Every surface here
 /// names a target the same way a URL does, an installed Steam app ID or a pin
@@ -83,9 +83,9 @@ enum QuickLaunch {
         alert.runModal()
     }
 
-    // MARK: - whisky:// URLs
+    // MARK: - whisky-native:// URLs
 
-    /// A target a `whisky://` URL named, already resolved against real state.
+    /// A target a `whisky-native://` URL named, already resolved against real state.
     ///
     /// Resolution happens before the confirmation, not after, so the dialog can
     /// name what will actually run rather than echoing back the app ID the page
@@ -121,7 +121,7 @@ enum QuickLaunch {
     /// ``rememberApproval(of:)``.
     static let approvedURLTargetsKey = "urlLaunchApprovedTargets"
 
-    /// Handles a `whisky://` URL. Returns `false` for any other scheme so
+    /// Handles a `whisky-native://` URL. Returns `false` for any other scheme so
     /// file opens keep flowing to `FileOpenView`.
     ///
     /// What a URL may say, and why there are only two forms, is

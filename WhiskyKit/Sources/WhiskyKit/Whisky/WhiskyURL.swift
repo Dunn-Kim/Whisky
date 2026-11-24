@@ -18,15 +18,15 @@
 
 import Foundation
 
-/// What a `whisky://` URL is allowed to say.
+/// What a `whisky-native://` URL is allowed to say.
 ///
 /// This parser is the security boundary of the URL scheme, which is why it
 /// lives apart from the code that acts on it and is tested on its own. There
 /// are exactly two forms and no third:
 ///
 /// ```
-/// whisky://launch?steam=<appid>[&bottle=<name>]
-/// whisky://launch?pin=<name>[&bottle=<name>]
+/// whisky-native://launch?steam=<appid>[&bottle=<name>]
+/// whisky-native://launch?pin=<name>[&bottle=<name>]
 /// ```
 ///
 /// Neither can name an executable. A `path=` form would let any web page pick
@@ -47,7 +47,7 @@ public enum WhiskyURL {
         case pin(name: String, bottle: String?)
     }
 
-    public static let scheme = "whisky"
+    public static let scheme = "whisky-native"
 
     /// Parses a URL, or returns `nil` for anything that is not one of the two
     /// forms, including a different scheme, a different host, a missing or

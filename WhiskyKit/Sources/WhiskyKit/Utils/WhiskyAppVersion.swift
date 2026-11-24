@@ -23,7 +23,7 @@ import Foundation
 /// The app reads it from its own bundle. `WhiskyCmd` is a bare executable in
 /// the app's `Contents/Resources`, so its main bundle has no Info.plist to
 /// read; it reads the app's instead, found from where the executable really
-/// is. That holds through the `/usr/local/bin/whisky` symlink the app installs.
+/// is. That holds through the `/usr/local/bin/whisky-native` symlink the app installs.
 ///
 /// The CLI is deliberately not given an embedded Info.plist of its own: that
 /// would give it a bundle identifier, and `Bundle.whiskyBundleIdentifier`,

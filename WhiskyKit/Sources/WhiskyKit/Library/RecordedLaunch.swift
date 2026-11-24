@@ -25,7 +25,7 @@ import Foundation
 /// can update the one entry that changed, instead of rereading every store or
 /// waiting for its next reload. Every launch path records through the same two
 /// places (``Wine`` for programs, ``SteamLauncher`` for Steam games), so the
-/// Library, the Programs tab, pins, the menu bar and `whisky://` links all
+/// Library, the Programs tab, pins, the menu bar and `whisky-native://` links all
 /// post it.
 public struct RecordedLaunch: Hashable, Sendable {
     /// What was launched, keyed the way its store keys it.

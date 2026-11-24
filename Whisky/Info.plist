@@ -57,10 +57,10 @@
 	<array>
 		<dict>
 			<key>CFBundleURLName</key>
-			<string>com.franke.Whisky</string>
+			<string>com.franke.WhiskyNative</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>whisky</string>
+				<string>whisky-native</string>
 			</array>
 		</dict>
 	</array>
