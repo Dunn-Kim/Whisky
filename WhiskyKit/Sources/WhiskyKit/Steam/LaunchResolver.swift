@@ -35,8 +35,6 @@ public struct LaunchPlan {
     /// The game's executable names as the GameDB lists them, to scope the
     /// overrides to alongside the ones found in the install folder.
     public var gameExecutables: [String] = []
-    /// Launchers the game starts on its own inside the Steam session.
-    public var startsLaunchers: [LauncherType] = []
     /// Arguments for the game's own command line, from the GameDB variant.
     public var launchArguments: [String] = []
 }
@@ -72,9 +70,6 @@ public enum LaunchResolver {
         let metadata = ProgramMetadata(exeName: exeName ?? "", steamAppId: steamAppId)
 
         let match = GameMatcher.bestMatch(metadata: metadata, against: database)
-        let rockstar = LauncherType.rockstarSteamAppIds.contains(steamAppId)
-            || match?.entry.subtitle?.localizedCaseInsensitiveContains("Rockstar Games") == true
-        let startsLaunchers: [LauncherType] = rockstar ? [.rockstar] : []
 
         guard let match, let variant = variant(for: match, applied: appliedConfiguration) else {
             var plan = LaunchPlan(
@@ -83,7 +78,6 @@ public enum LaunchResolver {
                 provenance: []
             )
             plan.gameExecutables = match?.entry.exeNames ?? []
-            plan.startsLaunchers = startsLaunchers
             return plan
         }
 
@@ -99,7 +93,6 @@ public enum LaunchResolver {
             ]
         )
         plan.gameExecutables = match.entry.exeNames ?? []
-        plan.startsLaunchers = startsLaunchers
         plan.launchArguments = variant.launchArguments ?? []
         return plan
     }

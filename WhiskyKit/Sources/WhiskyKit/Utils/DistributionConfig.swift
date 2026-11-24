@@ -38,10 +38,6 @@ public enum DistributionConfig {
     public static let versionPlistURL =
         "https://raw.githubusercontent.com/Dunn-Kim/Whisky/arm64-native/dist/pages/WhiskyWineVersion-arm64.plist"
 
-    /// The feed apps before 3.10.0 read. This arm64 build has no stock engine to
-    /// freeze on, so it shares the arm64 feed.
-    static let legacyVersionPlistURL = versionPlistURL
-
     /// The GitHub Releases page, which lists the Wine Libraries engine builds
     /// this fork's feed names.
     public static let releasesPageURL = "https://github.com/Dunn-Kim/Whisky/releases"

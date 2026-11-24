@@ -262,15 +262,6 @@ final class SteamGameLaunchScopingTests {
         #expect(!recorder.programScopes.contains("SocialClubHelper.exe"), "no chain entries are written ahead of time")
     }
 
-    @Test("Rockstar titles are known by App ID and by GameDB publisher", arguments: [
-        (1_174_180, true), (271_590, true), (3_240_220, true), (204_100, true), (12_210, true),
-        (813_780, false), (1_245_620, false)
-    ])
-    func rockstarTitlesAreRecognised(_ appId: Int, _ rockstar: Bool) {
-        let plan = LaunchResolver.plan(steamAppId: appId)
-        #expect(plan.startsLaunchers == (rockstar ? [.rockstar] : []), "\(appId)")
-    }
-
     @Test("The game executables are the install folder's plus the GameDB's, each once")
     func gameExecutablesMergeFolderAndGameDB() throws {
         let bottle = try makeBottle()

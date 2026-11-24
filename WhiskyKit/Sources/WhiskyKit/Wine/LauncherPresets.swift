@@ -283,20 +283,6 @@ public enum LauncherType: String, Codable, CaseIterable, Sendable, Identifiable 
         }
     }
 
-    /// Steam App IDs of Rockstar titles that start the Rockstar Games Launcher,
-    /// so a Steam launch of one is known to start that launcher: the first run
-    /// installs it and starts it in the same session.
-    ///
-    /// Red Dead Redemption 2, Grand Theft Auto V (Legacy and Enhanced), L.A.
-    /// Noire and its VR Case Files, Max Payne 3, Grand Theft Auto IV, Bully:
-    /// Scholarship Edition, Red Dead Redemption, and the three Definitive
-    /// Editions of the GTA trilogy. GameDB entries published by Rockstar Games
-    /// count as well (see ``LaunchResolver``).
-    static let rockstarSteamAppIds: Set<Int> = [
-        1_174_180, 271_590, 3_240_220, 110_800, 722_230, 204_100,
-        12_210, 12_200, 2_668_510, 1_546_990, 1_546_970, 1_547_000
-    ]
-
     /// The recommended locale for this launcher.
     ///
     /// EA App, Epic Games, and Battle.net keep US English for their embedded

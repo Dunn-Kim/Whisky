@@ -58,8 +58,8 @@ public extension Wine {
 
     /// Whether the bottle's Wine prefix has been created.
     ///
-    /// Keys on `drive_c/windows/system32`, the folder launch preparation deploys
-    /// the graphics backend's files into. A bottle made by `WhiskyCmd create`
+    /// Keys on `drive_c/windows/system32`, which creating the prefix makes.
+    /// A bottle made by `WhiskyCmd create`
     /// has its folder and metadata but no prefix until Wine first runs in it.
     ///
     /// - Parameter bottle: The bottle to check.

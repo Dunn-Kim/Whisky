@@ -106,8 +106,7 @@ struct FileOpenView: View {
                 } catch {
                     // Surface the failure on the presenting view's toast (the sheet
                     // dismisses immediately, so a local toast wouldn't be seen) —
-                    // otherwise a launch error here, including DXMT's actionable
-                    // payloadMissing, vanishes silently.
+                    // otherwise a launch error here vanishes silently.
                     let errDesc = error.localizedDescription
                     logger.error(
                         "Failed to launch \(fileURL.lastPathComponent, privacy: .public): \(errDesc, privacy: .public)"

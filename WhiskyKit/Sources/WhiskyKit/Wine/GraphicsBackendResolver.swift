@@ -65,7 +65,7 @@ public enum GraphicsBackendResolver {
 /// Why an executable needs WineD3D whatever Recommended picks for the bottle's
 /// games: its window is drawn by Chromium.
 public enum BackendSteering: Sendable, Equatable {
-    /// A launcher client, which also gets its helpers and chain entries.
+    /// A launcher client, which also gets its helpers.
     case launcher(LauncherType)
     /// A program from the curated ``ChromiumFrontEnd`` table.
     case chromiumFrontEnd(ChromiumFrontEnd)

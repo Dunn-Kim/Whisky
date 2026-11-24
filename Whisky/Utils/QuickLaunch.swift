@@ -27,7 +27,7 @@ import WhiskyKit
 /// names a target the same way a URL does, an installed Steam app ID or a pin
 /// the user made, and resolves it at launch time rather than baking a path. A
 /// shortcut therefore survives its bottle being moved or renamed, and picks up
-/// current settings, DLL deployment and crash classification, because it goes
+/// current settings and crash classification, because it goes
 /// through the same door as a launch from the window. Anything added later that
 /// starts a program from outside the window belongs here, resolving the same
 /// two identifiers, rather than growing its own path handling. Why a URL may

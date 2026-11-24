@@ -238,7 +238,7 @@ extension Whisky {
             Runs a Windows program directly using Wine, with the same settings \
             and preparation as a launch from Whisky. Use --command to print the \
             command instead: the bottle is prepared first (DLL overrides written \
-            to its registry, graphics backend files deployed), so the printed \
+            to its registry), so the printed \
             command runs the program the same way. Use --follow to stream program \
             output to the terminal in real time. Use --tail-log to follow the \
             Wine log file.

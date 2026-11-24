@@ -79,8 +79,8 @@ public struct ChromiumFrontEnd: Sendable, Equatable, Identifiable {
 
     /// Whether `libcef.dll` sits beside an executable: the program ships CEF,
     /// and its window may stay black off WineD3D. One `fileExists`. Never used
-    /// to steer anything: a game can ship CEF for an overlay. It only feeds a
-    /// suggestion and the diagnostics export.
+    /// to steer anything: a game can ship CEF for an overlay. It only feeds the
+    /// diagnostics export.
     public static func shipsCEF(beside url: URL) -> Bool {
         let library = url.deletingLastPathComponent().appending(path: "libcef.dll")
         return FileManager.default.fileExists(atPath: library.path(percentEncoded: false))

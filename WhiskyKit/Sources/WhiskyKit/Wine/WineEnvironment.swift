@@ -273,12 +273,8 @@ extension Wine {
                 // entries. 0 is DXMT's "no cap" and cancels the bottle's.
                 builder.merge("DXMT_CONFIG", "d3d11.preferredMaxFrameRate=\(fps ?? 0)", layer: .programUser)
             } else {
+                // WineD3D has no frame limiter.
                 builder.remove("DXMT_CONFIG", layer: .programUser)
-                if let fps {
-                    for (key, value) in effectiveBackend.frameRateLimitEnvironment(fps: fps) {
-                        builder.set(key, value, layer: .programUser)
-                    }
-                }
             }
         }
 
