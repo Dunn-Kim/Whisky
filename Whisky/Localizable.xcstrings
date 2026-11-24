@@ -2459,6 +2459,9 @@
         }
       }
     },
+    "Copy Bottles from Another Whisky" : {
+
+    },
     "Copy Report to Clipboard" : {
       "localizations" : {
         "ar" : {
@@ -2594,6 +2597,9 @@
           }
         }
       }
+    },
+    "Copy Selected" : {
+
     },
     "Copy to Clipboard" : {
       "localizations" : {
@@ -7342,6 +7348,9 @@
     "Migrate from the Original Whisky…" : {
 
     },
+    "No bottles from another Whisky were found." : {
+
+    },
     "NVIDIA (recommended) provides best compatibility across launchers" : {
       "localizations" : {
         "ar" : {
@@ -7955,6 +7964,9 @@
           }
         }
       }
+    },
+    "Quit %@ first: its files change while it runs." : {
+
     },
     "Raw Log Output" : {
 
@@ -9963,6 +9975,9 @@
 
     },
     "Test Input: System Settings > Game Controllers" : {
+
+    },
+    "The selected bottles are copied into new bottles for this build. The originals stay untouched and keep working in the other app. Dependencies installed in the old bottle with winetricks aren't copied. Most programs need none on this engine, and the Microsoft Visual C++ runtime, if installed, is used only by Unity games." : {
 
     },
     "These bottles were created by the archived original Whisky app. Importing references them in place: your files aren't moved or copied, and the original app keeps working." : {
@@ -20748,6 +20763,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Bottle not found"
+          }
+        }
+      }
+    },
+    "bottle.migration.error.sourceRunning" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ is running. Quit it, then try again."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ is running. Quit it, then try again."
           }
         }
       }
