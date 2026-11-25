@@ -327,18 +327,7 @@ struct ProgramOverrideSettingsView: View {
                 // Frame cap applies to every backend that ships a limiter, not
                 // just DXVK, so it sits outside the DXVK-only controls below.
                 if resolvedOverriddenBackend.supportsFrameRateLimit {
-                    Picker("config.frameRateLimit", selection: frameRateLimitBinding) {
-                        ForEach(FrameRateLimit.allCases, id: \.self) { limit in
-                            Text(limit.label).tag(limit)
-                        }
-                    }
-                    if resolvedOverriddenBackend == .dxmt, !frameRateLimitBinding.wrappedValue.pacesEvenly(
-                        displayRefreshRate: FrameRateLimit.mainDisplayRefreshRate()
-                    ) {
-                        Text("config.frameRateLimit.uneven")
-                            .font(.caption)
-                            .foregroundStyle(.orange)
-                    }
+                    FrameRateLimitPicker(limit: frameRateLimitBinding, backend: resolvedOverriddenBackend)
                 }
 
                 // Resolved, so a program on Recommended that runs DXVK does
