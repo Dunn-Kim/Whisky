@@ -153,8 +153,9 @@ public struct BottleGraphicsConfig: Codable, Equatable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.backend = (try? container.decodeIfPresent(GraphicsBackend.self, forKey: .backend)) ?? .recommended
         // Int-raw enum, so the String-only lenient helper does not apply. An
-        // unknown value decodes to `.unlimited` rather than failing the bottle.
-        let rawLimit = try container.decodeIfPresent(Int.self, forKey: .frameRateLimit)
+        // unknown value or one of another type decodes to `.unlimited` rather
+        // than failing the bottle.
+        let rawLimit = (try? container.decodeIfPresent(Int.self, forKey: .frameRateLimit)) ?? nil
         self.frameRateLimit = rawLimit.flatMap(FrameRateLimit.init(rawValue:)) ?? .unlimited
         self.dxmtMetalFXUpscale = (try? container.decodeIfPresent(Bool.self, forKey: .dxmtMetalFXUpscale)) ?? false
     }

@@ -206,6 +206,20 @@ final class FrameRateLimitTests: XCTestCase {
         XCTAssertEqual(config.frameRateLimit, .unlimited)
     }
 
+    /// A value of the wrong type used to fail the whole bottle's settings,
+    /// which then loaded as defaults.
+    func testWrongTypeDecodesToUnlimitedAndKeepsTheRest() throws {
+        let json = Data(#"{"backend":"wined3d","frameRateLimit":"60"}"#.utf8)
+        let config = try JSONDecoder().decode(BottleGraphicsConfig.self, from: json)
+        XCTAssertEqual(config.frameRateLimit, .unlimited)
+        XCTAssertEqual(config.backend, .wined3d)
+    }
+
+    func testBottleWithoutGraphicsConfigDecodesToUnlimited() throws {
+        let settings = try JSONDecoder().decode(BottleSettings.self, from: Data("{}".utf8))
+        XCTAssertEqual(settings.frameRateLimit, .unlimited)
+    }
+
     func testStoredValueRoundTrips() throws {
         var config = BottleGraphicsConfig()
         config.frameRateLimit = .fps90

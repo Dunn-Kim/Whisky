@@ -209,10 +209,15 @@ public struct BottleSettings: Codable, Equatable {
             BottleCleanupConfig.self,
             forKey: .cleanupConfig
         ) ?? BottleCleanupConfig()
+        let hasGraphicsConfig = container.contains(.graphicsConfig)
         self.graphicsConfig = try container.decodeIfPresent(
             BottleGraphicsConfig.self,
             forKey: .graphicsConfig
         ) ?? BottleGraphicsConfig()
+        // A bottle without graphicsConfig predates the frame cap, so it keeps running uncapped.
+        if !hasGraphicsConfig {
+            self.graphicsConfig.frameRateLimit = .unlimited
+        }
         self.displayConfig = try container.decodeIfPresent(
             BottleDisplayConfig.self,
             forKey: .displayConfig
