@@ -280,11 +280,10 @@ extension Bottle {
 /// requirement is satisfied by the existing method on `BottleVM`.
 extension BottleVM: BottleRegistry {
     /// Read from disk again on every get: WhiskyCmd may have changed the registry
-    /// since this app read it, and the set writes the whole list back.
+    /// since this app read it, and the set writes the whole list back. The read writes nothing.
     var bottlePaths: [URL] {
         get {
-            refreshRegistry()
-            return bottlesList.paths
+            BottleData.readPaths()
         }
         set { bottlesList.paths = newValue }
     }

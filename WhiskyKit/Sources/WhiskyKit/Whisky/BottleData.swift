@@ -103,6 +103,16 @@ public struct BottleData: Codable {
         self.entriesFile = entriesFile
     }
 
+    /// The paths in the registry file, read without writing anything: a missing or unreadable
+    /// file gives no paths and is left as it is, unlike ``init()``, which creates or repairs it.
+    public static func readPaths(from entriesFile: URL = BottleData.bottleEntriesDir) -> [URL] {
+        guard let data = try? Data(contentsOf: entriesFile) else { return [] }
+        let decoder = PropertyListDecoder()
+        let paths = (try? decoder.decode(BottleData.self, from: data).paths)
+            ?? (try? decoder.decode(BottleDataMinimal.self, from: data).paths) ?? []
+        return dedupedPaths(paths)
+    }
+
     @MainActor
     public mutating func loadBottles() -> [Bottle] {
         var bottles: [Bottle] = []

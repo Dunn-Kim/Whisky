@@ -206,6 +206,19 @@ final class BottleDataTests: XCTestCase {
         XCTAssertTrue(data.orphanedBottles(in: scanDir).isEmpty)
     }
 
+    func testReadPathsWritesNothing() {
+        XCTAssertEqual(BottleData.readPaths(from: entriesFile), [])
+        XCTAssertFalse(FileManager.default.fileExists(atPath: entriesFile.path))
+
+        var data = BottleData(entriesFile: entriesFile)
+        let bottle = tempDir.appendingPathComponent("Bottles/one")
+        XCTAssertTrue(data.registerBottlePath(bottle))
+        XCTAssertEqual(
+            BottleData.readPaths(from: entriesFile).map { $0.resolvingSymlinksInPath().path },
+            [bottle.resolvingSymlinksInPath().path]
+        )
+    }
+
     func testOrphanScanSkipsBottleFolderMarkedAsMigrating() throws {
         let scanDir = tempDir.appendingPathComponent("Bottles")
         let bottleDir = try makeBottleDir(named: "Half Copied", in: scanDir)
