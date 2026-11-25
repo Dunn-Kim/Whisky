@@ -43,6 +43,8 @@ extension Wine {
         let descendantExecutables: [String]
         /// Executables among what this launch starts that keep their own settings.
         let ownSettingsExecutables: [URL]
+        /// The game a `steam.exe -applaunch` launch starts, whose plan goes into the bottle's Steam game rules.
+        let steamAppID: Int?
     }
 
     /// Runs a program the way the public `runProgram` does, from a request.
@@ -91,6 +93,7 @@ extension Wine {
             overridesApplyToDescendants: request.overridesApplyToDescendants,
             descendantExecutables: request.descendantExecutables,
             ownSettingsExecutables: request.ownSettingsExecutables,
+            steamAppID: request.steamAppID,
             overrideWriter: overrideWriter, importer: importer
         )
     }

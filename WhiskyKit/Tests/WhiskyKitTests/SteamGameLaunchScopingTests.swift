@@ -71,7 +71,7 @@ final class SteamGameLaunchScopingTests {
         try await Wine.prepareProgramLaunch(
             at: steam(in: bottle), args: ["-applaunch", "1174180"], bottle: bottle,
             programOverrides: plan, overridesApplyToDescendants: true,
-            descendantExecutables: games,
+            descendantExecutables: games, steamAppID: 1_174_180,
             overrideWriter: recorder.writer, importer: recorder.importer
         )
     }
@@ -271,5 +271,61 @@ final class SteamGameLaunchScopingTests {
         #expect(plan.gameExecutables == ["RDR2.exe"])
         #expect(Set(names) == ["PlayRDR2.exe", "rdr2.exe"])
         #expect(SteamLauncher.gameExecutables(installURL: nil, plan: plan) == ["RDR2.exe"])
+    }
+
+    // MARK: - The plan reaches a game a running client starts
+
+    @Test("A game launch leaves its plan in the Steam game rules, which steam.exe names")
+    func planGoesIntoTheSteamGameRules() async throws {
+        let bottle = try makeBottle()
+        let recorder = ScopeRecorder()
+        var plan = ProgramOverrides()
+        plan.graphicsBackend = .wined3d
+        plan.metalHud = true
+
+        let launch = try await prepareGameLaunch(bottle, plan: plan, recorder: recorder)
+
+        let rulesURL = Wine.steamGameRulesURL(bottleURL: bottle.url)
+        let lines = try String(contentsOf: rulesURL, encoding: .utf8).split(separator: "\n").map(String.init)
+        let gameRule = try #require(lines.first)
+        #expect(gameRule.hasPrefix("exe=steam:1174180;"))
+        #expect(gameRule.contains(";env=MTL_HUD_ENABLED=1"))
+        for omitted in Wine.steamGameRuleOmittedVariables {
+            #expect(!gameRule.contains("env=\(omitted)="), "\(omitted)")
+        }
+        // The backend rides on the game's own lines, not on every process of the App ID.
+        #expect(!gameRule.contains("dxgi="))
+        #expect(Array(lines.dropFirst()) == games.map { "exe=\($0);dxgi=wined3d;d3d9=wined3d" })
+        #expect(launch.environment["WINE_COMPATDB_FILE"] == rulesURL.path(percentEncoded: false))
+    }
+
+    @Test("Only steam.exe names the Steam game rules, and starting the client writes none")
+    func onlySteamNamesTheRules() async throws {
+        let bottle = try makeBottle()
+        let recorder = ScopeRecorder()
+        let game = try makeExecutable("Games/RDR2/RDR2.exe", in: bottle)
+
+        let direct = try await Wine.prepareProgramLaunch(
+            at: game, bottle: bottle, overrideWriter: recorder.writer, importer: recorder.importer
+        )
+        let client = try await Wine.prepareProgramLaunch(
+            at: steam(in: bottle), args: ["-silent"], bottle: bottle,
+            overrideWriter: recorder.writer, importer: recorder.importer
+        )
+
+        #expect(direct.environment["WINE_COMPATDB_FILE"] == nil)
+        #expect(client.environment["WINE_COMPATDB_FILE"] != nil)
+        let rulesPath = Wine.steamGameRulesURL(bottleURL: bottle.url).path(percentEncoded: false)
+        #expect(!FileManager.default.fileExists(atPath: rulesPath))
+    }
+
+    @Test("A rule value keeps its equals signs, semicolons and percent signs")
+    func ruleValuesAreEscaped() {
+        let rules = Wine.steamGameRules(
+            appID: 42, environment: ["DXMT_CONFIG": "d3d11.preferredMaxFrameRate=60;x=1", "P": "100%"],
+            executables: []
+        )
+
+        #expect(rules == "exe=steam:42;env=DXMT_CONFIG=d3d11.preferredMaxFrameRate%3D60%3Bx%3D1;env=P=100%25\n")
     }
 }

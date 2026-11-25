@@ -288,7 +288,8 @@ public class Wine {
             gameProfileEnvironment: gameProfileEnvironment,
             overridesApplyToDescendants: overridesApplyToDescendants,
             descendantExecutables: descendantExecutables,
-            ownSettingsExecutables: ownSettingsExecutables
+            ownSettingsExecutables: ownSettingsExecutables,
+            steamAppID: nil
         )
         return try await runProgram(at: url, bottle: bottle, request: request, onOutput: onOutput)
     }
@@ -413,6 +414,8 @@ public class Wine {
     ///   - ownSettingsExecutables: Executables among what this launch starts that keep their
     ///     own settings: each one the user has tuned gets an entry from its own overrides, as a
     ///     launch of it from the Programs tab writes, and the descendants' overrides skip it.
+    ///   - steamAppID: The game a `steam.exe -applaunch` launch starts. Its plan goes into the
+    ///     bottle's ``steamGameRulesURL(bottleURL:)``, which the client reads when it starts the game.
     ///   - overrideWriter: What writes the DLL overrides into the prefix registry. Tests pass a
     ///     recorder, so they can see what a launch writes without running Wine.
     ///   - importer: What imports the CJK font aliases the prefix is missing. Tests pass a
@@ -430,6 +433,7 @@ public class Wine {
         overridesApplyToDescendants: Bool = false,
         descendantExecutables: [String] = [],
         ownSettingsExecutables: [URL] = [],
+        steamAppID: Int? = nil,
         overrideWriter: DLLOverrideWriter = { try await syncDLLOverrides(bottle: $0, scopes: $1) },
         importer: RegistryImporter = { try await importRegistry(document: $0, bottle: $1) },
         virtualDesktopQuery: VirtualDesktopQuery = { try await isVirtualDesktopEnabled(bottle: $0) }
@@ -490,6 +494,14 @@ public class Wine {
             ownSettingsExecutables: ownSettingsExecutables,
             writer: overrideWriter
         )
+
+        if let steamAppID {
+            let executables = descendantExecutables + ownSettingsExecutables.map(\.lastPathComponent)
+            writeSteamGameRules(
+                steamGameRules(appID: steamAppID, environment: wineEnvironment, executables: executables),
+                bottleURL: bottle.url
+            )
+        }
 
         let arguments = await launchArguments(
             for: url, args: args, programOverrides: programOverrides, bottle: bottle, query: virtualDesktopQuery
@@ -583,6 +595,10 @@ public class Wine {
             in: &wineEnvironment, backend: backend, metalTrace: bottle.settings.metalTrace,
             url: url, descendantExecutables: descendantExecutables
         )
+        // However the client starts, it reads the rules of the games it starts from here.
+        if launched.lowercased() == "steam.exe", wineEnvironment["WINE_COMPATDB_FILE"] == nil {
+            wineEnvironment["WINE_COMPATDB_FILE"] = steamGameRulesURL(bottleURL: bottle.url).path(percentEncoded: false)
+        }
         return wineEnvironment
     }
 
@@ -632,9 +648,10 @@ public class Wine {
     /// set aside; otherwise naming the wrong one would capture nothing, and
     /// nothing is named.
     ///
-    /// Even then it reaches the game only when this `-applaunch` brings up
-    /// the Steam client itself: a running client starts the game with its own
-    /// environment. Metal trace under DXMT is dependable on a direct launch.
+    /// A running client starts the game with its own environment, so on
+    /// `-applaunch` the name reaches the game through the bottle's
+    /// ``steamGameRulesURL(bottleURL:)``, as long as the client was started
+    /// by a Whisky that names that file.
     ///
     /// - Parameters:
     ///   - url: The executable being launched.

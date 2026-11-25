@@ -39,8 +39,9 @@ extension SteamLauncher {
 
     /// What `steam.exe -applaunch` is started with for a game.
     ///
-    /// The plan is the game's; `steam.exe` is only the vehicle. It goes into
-    /// the game executables' own entries, so it reaches the game whichever
+    /// The plan is the game's; `steam.exe` is only the vehicle. Its DLL
+    /// overrides go into the game executables' own entries and the rest into
+    /// the bottle's Steam game rules, so it reaches the game whichever
     /// process starts it.
     ///
     /// - Parameters:
@@ -58,7 +59,8 @@ extension SteamLauncher {
             gameProfileEnvironment: plan.gameProfileEnvironment,
             overridesApplyToDescendants: true,
             descendantExecutables: gameExecutables(scanned: scan?.planExecutables ?? [], plan: plan),
-            ownSettingsExecutables: scan?.ownSettingsExecutables ?? []
+            ownSettingsExecutables: scan?.ownSettingsExecutables ?? [],
+            steamAppID: appId
         )
     }
 }

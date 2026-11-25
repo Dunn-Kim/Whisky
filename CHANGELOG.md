@@ -73,6 +73,9 @@ that branch only.
 - Commands printed by `whisky-native run --command` and Open in Terminal
   keep each `WINE_COMPATDB` rule, so they use the bottle's backend.
 - Games a launcher on WineD3D starts keep the bottle's frame cap.
+- A Steam game started by a running Steam client gets its own backend,
+  frame cap, HUD and GameDB variables. Whisky writes them into rules the
+  client reads; a client an earlier build started needs one restart.
 - Applying a GameDB configuration no longer resets the bottle's backend,
   and reverting one keeps changes made since.
 - winetricks runs with the bottle prepared for this runtime, skips its
