@@ -452,8 +452,8 @@ public class Wine {
 
         // The effective backend for this launch: a program-level override wins
         // over the bottle setting, and `.recommended` resolves to its concrete
-        // backend. `.recommended` resolves against what is being launched, not
-        // just the machine: a launcher is steered to WineD3D. Not when the
+        // backend. `.recommended` resolves against what is being launched: a
+        // launcher is steered to WineD3D. Not when the
         // overrides are a descendant's, as with `steam.exe -applaunch`:
         // steam.exe is only the vehicle there and the plan is the game's, so the
         // game resolves the way the bottle's games do. A Chromium front end from
@@ -465,8 +465,8 @@ public class Wine {
         let effectiveBackend = effectiveBackend(for: url, choice: effectiveBackendChoice, steering: steering)
 
         // The bottle composes its environment from its own resolution, which does
-        // not know what is being launched, so pin the decision here or a
-        // steered launcher gets the bottle's backend.
+        // not know what is being launched, so pin the decision here: a steered
+        // program's environment, its frame cap among it, then follows WineD3D.
         var programOverrides = programOverrides
         if effectiveBackendChoice == .recommended, effectiveBackend != GraphicsBackendResolver.resolve() {
             var pinned = programOverrides ?? ProgramOverrides()
@@ -514,11 +514,12 @@ public class Wine {
         for url: URL, choice: GraphicsBackend, steering: BackendSteering?
     ) -> GraphicsBackend {
         guard choice == .recommended else { return choice }
-        guard let steering else { return GraphicsBackendResolver.resolve() }
-        let executable = url.lastPathComponent
-        let evidence = steering.evidence
-        logger.info("Recommended -> WineD3D for \(executable, privacy: .public) (\(evidence, privacy: .public))")
-        return .wined3d
+        if let steering {
+            let executable = url.lastPathComponent
+            let evidence = steering.evidence
+            logger.info("Recommended -> WineD3D for \(executable, privacy: .public) (\(evidence, privacy: .public))")
+        }
+        return GraphicsBackendResolver.resolution(for: steering).backend
     }
 
     /// The environment a launch runs with: `constructWineEnvironment` with the
