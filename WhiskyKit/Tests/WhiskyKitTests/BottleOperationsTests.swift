@@ -107,12 +107,12 @@ class BottleOperationsTestCase: XCTestCase {
 
 final class BottleOperationsMoveTests: BottleOperationsTestCase {
     @MainActor
-    func testMoveRewritesSettingsBeforeMoveAndUpdatesRegistry() throws {
+    func testMoveRewritesSettingsBeforeMoveAndUpdatesRegistry() async throws {
         let registry = RegistryFixture()
         let bottle = makeRegisteredBottle(in: registry)
         let destination = tempDir.appending(path: "Moved")
 
-        try BottleOperations.move(bottleAt: bottleURL, to: destination, registry: registry)
+        try await BottleOperations.move(bottleAt: bottleURL, to: destination, registry: registry)
 
         let fileManager = FileManager.default
         XCTAssertFalse(fileManager.fileExists(atPath: bottleURL.path(percentEncoded: false)))
@@ -135,7 +135,7 @@ final class BottleOperationsMoveTests: BottleOperationsTestCase {
     }
 
     @MainActor
-    func testFailedMoveRestoresPinsAndBlocklistAndClearsInFlight() throws {
+    func testFailedMoveRestoresPinsAndBlocklistAndClearsInFlight() async throws {
         let registry = RegistryFixture()
         let bottle = makeRegisteredBottle(in: registry)
         let originalPins = bottle.settings.pins
@@ -145,7 +145,10 @@ final class BottleOperationsMoveTests: BottleOperationsTestCase {
         let destination = tempDir.appending(path: "missing/Moved")
 
         // The failure reaches the caller so the UI can say so and keep the old selection.
-        XCTAssertThrowsError(try BottleOperations.move(bottleAt: bottleURL, to: destination, registry: registry))
+        do {
+            try await BottleOperations.move(bottleAt: bottleURL, to: destination, registry: registry)
+            XCTFail("moving into a missing folder should throw")
+        } catch {}
 
         XCTAssertTrue(FileManager.default.fileExists(atPath: bottleURL.path(percentEncoded: false)))
         XCTAssertEqual(bottle.settings.pins, originalPins)
@@ -168,12 +171,12 @@ final class BottleOperationsMoveTests: BottleOperationsTestCase {
     }
 
     @MainActor
-    func testMoveWithNoRegisteredBottleStillMovesDirectory() throws {
+    func testMoveWithNoRegisteredBottleStillMovesDirectory() async throws {
         let registry = RegistryFixture()
         registry.bottlePaths = [bottleURL]
         let destination = tempDir.appending(path: "Moved")
 
-        try BottleOperations.move(bottleAt: bottleURL, to: destination, registry: registry)
+        try await BottleOperations.move(bottleAt: bottleURL, to: destination, registry: registry)
 
         XCTAssertFalse(FileManager.default.fileExists(atPath: bottleURL.path(percentEncoded: false)))
         XCTAssertTrue(FileManager.default.fileExists(atPath: destination.path(percentEncoded: false)))

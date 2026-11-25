@@ -182,13 +182,13 @@ final class UnpinnedProgramsBottleTests: BottleOperationsTestCase {
     }
 
     @MainActor
-    func testMoveRewritesUnpinRecords() throws {
+    func testMoveRewritesUnpinRecords() async throws {
         let registry = RegistryFixture()
         let bottle = makeRegisteredBottle(in: registry)
         bottle.settings.unpinnedPrograms = [exeURL]
         let destination = tempDir.appending(path: "Moved")
 
-        try BottleOperations.move(bottleAt: bottleURL, to: destination, registry: registry)
+        try await BottleOperations.move(bottleAt: bottleURL, to: destination, registry: registry)
 
         XCTAssertEqual(
             try persistedSettings(at: destination).unpinnedPrograms.map { $0.path(percentEncoded: false) },
@@ -197,16 +197,17 @@ final class UnpinnedProgramsBottleTests: BottleOperationsTestCase {
     }
 
     @MainActor
-    func testFailedMoveRestoresUnpinRecords() throws {
+    func testFailedMoveRestoresUnpinRecords() async throws {
         let registry = RegistryFixture()
         let bottle = makeRegisteredBottle(in: registry)
         bottle.settings.unpinnedPrograms = [exeURL]
 
-        XCTAssertThrowsError(
-            try BottleOperations.move(
+        do {
+            try await BottleOperations.move(
                 bottleAt: bottleURL, to: tempDir.appending(path: "missing/Moved"), registry: registry
             )
-        )
+            XCTFail("moving into a missing folder should throw")
+        } catch {}
 
         XCTAssertEqual(bottle.settings.unpinnedPrograms, [exeURL])
         XCTAssertEqual(try persistedSettings(at: bottleURL).unpinnedPrograms, [exeURL])

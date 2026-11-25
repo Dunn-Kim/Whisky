@@ -169,8 +169,8 @@ extension Bottle {
     ///
     /// - Throws: The file move's error, so the caller can tell the user.
     @MainActor
-    func move(destination: URL) throws {
-        try BottleOperations.move(bottleAt: url, to: destination, registry: BottleVM.shared)
+    func move(destination: URL) async throws {
+        try await BottleOperations.move(bottleAt: url, to: destination, registry: BottleVM.shared)
     }
 
     /// Exports the bottle as a gzip-compressed tar archive.

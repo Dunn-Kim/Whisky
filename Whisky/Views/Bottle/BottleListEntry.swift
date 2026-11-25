@@ -185,7 +185,7 @@ struct BottleListEntry: View {
                                 )
                                 else { return }
                                 do {
-                                    try bottle.move(destination: newBottePath)
+                                    try await bottle.move(destination: newBottePath)
                                     selected = newBottePath
                                 } catch {
                                     showOperationFailure(String(localized: "bottle.move.failed.title"), error: error)

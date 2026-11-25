@@ -75,7 +75,7 @@ public enum BottleOperations {
     /// - Throws: The file move's error, after the settings are restored, so the
     ///   caller can tell the user and keep the old path selected.
     @MainActor
-    public static func move(bottleAt url: URL, to destination: URL, registry: BottleRegistry) throws {
+    public static func move(bottleAt url: URL, to destination: URL, registry: BottleRegistry) async throws {
         let bottle = registry.bottle(for: url)
         // The URL rewrite must happen before the move so the persisted settings
         // travel with the bottle, so keep a snapshot to restore on failure.
@@ -86,7 +86,8 @@ public enum BottleOperations {
 
         do {
             bottle?.settings.rewriteProgramURLs(from: url, to: destination)
-            try FileManager.default.moveItem(at: url, to: destination)
+            // Off the main actor: across disks the move copies the whole prefix.
+            try await Task.detached { try FileManager.default.moveItem(at: url, to: destination) }.value
             if let path = registry.bottlePaths.firstIndex(of: url) {
                 registry.bottlePaths[path] = destination
             }
