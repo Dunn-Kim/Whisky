@@ -348,9 +348,8 @@ public class Wine {
             programSettings: programSettings, bottle: bottle
         )
 
-        // As late as possible: the bridge holds the prefix open only for a short
-        // grace window before standing down, so it wants the smallest gap it can
-        // get between itself and the program it is bridging for.
+        // Presence only: it publishes the program's name and clears it once the
+        // bottle's wineserver goes idle.
         DiscordIntegration.shared.programLaunching(url, bottle: bottle)
 
         let session = ProgramSession(onOutput: onOutput)
@@ -395,7 +394,7 @@ public class Wine {
     /// terminal, starts the program with the DLLs, fonts and settings a launch
     /// from Whisky gives it. What only happens while `runProgram` runs is not
     /// part of it: the log file and run log entry, the App Nap assertion, and
-    /// the Discord bridge and presence.
+    /// the Discord presence.
     ///
     /// - Parameters:
     ///   - url: The URL to the Windows executable (.exe) file.

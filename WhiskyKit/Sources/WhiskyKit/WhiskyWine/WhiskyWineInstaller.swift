@@ -160,11 +160,12 @@ public class WhiskyWineInstaller {
     /// extraction can be tested against a temporary directory without touching
     /// the real application support folder.
     ///
-    /// Only the `Libraries` subfolder is removed before extraction. The
-    /// destination is the live Application Support folder, which also holds
-    /// unrelated app state (e.g. the analytics SDK's anonymous ID and queued
-    /// events) — wiping the whole folder destroyed that state on every runtime
-    /// install and update.
+    /// The tarball is unpacked beside the runtime, then each of its top-level
+    /// entries replaces the entry of the same name in `destination`. Nothing
+    /// else is touched: the destination is the live Application Support folder,
+    /// which also holds unrelated app state (e.g. the analytics SDK's anonymous
+    /// ID and queued events), and wiping the whole folder destroyed that state
+    /// on every runtime install and update.
     static func install(tarball: URL, into destination: URL) throws {
         // Verify the tarball exists before modifying the destination, so a
         // purged temp file can't leave the destination half-rebuilt.

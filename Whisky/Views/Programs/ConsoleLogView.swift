@@ -39,7 +39,7 @@ struct ConsoleLogView: View {
     @State private var logFollower: WineLogFollower?
     @State private var refreshTimer: Timer?
 
-    /// Regex patterns that indicate WINEDEBUG output.
+    /// Line prefixes that mark WINEDEBUG output.
     private static let wineDebugPrefixes = ["wine:", "fixme:", "err:", "trace:", "warn:"]
 
     var body: some View {
