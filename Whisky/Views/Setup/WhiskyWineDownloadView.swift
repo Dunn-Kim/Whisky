@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 //
 //  WhiskyWineDownloadView.swift
 //  Whisky
@@ -209,6 +210,21 @@ extension WhiskyWineDownloadView {
         path.append(.whiskyWineInstall)
     }
 
+    /// What a failed fetch of the version feed tells the user.
+    ///
+    /// shortcut: no arm64 runtime is published yet, so the feed 404s; the 404 points
+    /// at the install script until one is.
+    private static func versionFeedFailure(statusCode: Int) -> String {
+        guard statusCode == 404 else { return formatHTTPError(statusCode: statusCode) }
+        return String(
+            localized: "setup.whiskywine.error.noArm64Runtime",
+            defaultValue: """
+            No arm64 Wine runtime is published yet. Install one with \
+            scripts/install-arm64-runtime.sh, as the README describes.
+            """
+        )
+    }
+
     @MainActor
     private func fetchVersionAndDownload() async {
         guard let versionURL = URL(string: DistributionConfig.versionPlistURL) else {
@@ -226,12 +242,22 @@ extension WhiskyWineDownloadView {
                !(200 ... 299).contains(httpResponse.statusCode) {
                 diagnostics.versionHTTPStatus = httpResponse.statusCode
                 diagnostics.record("Version plist HTTP \(httpResponse.statusCode)")
-                setDownloadFailure(formatHTTPError(statusCode: httpResponse.statusCode))
+                setDownloadFailure(Self.versionFeedFailure(statusCode: httpResponse.statusCode))
                 return
             }
 
             let versionInfo = try PropertyListDecoder().decode(WhiskyWineVersion.self, from: data)
-            expectedSHA256 = versionInfo.sha256
+            // The arm64 feed has no older metadata to stay compatible with, so an
+            // archive is never installed unverified.
+            guard let digest = versionInfo.sha256 else {
+                diagnostics.record("Version plist has no sha256; refusing an unverified install")
+                setDownloadFailure(String(
+                    localized: "setup.whiskywine.error.noChecksum",
+                    defaultValue: "The runtime feed gives no SHA-256 checksum, so the download can't be verified."
+                ))
+                return
+            }
+            expectedSHA256 = digest
 
             let version = versionInfo.version
             let versionString = "\(version.major).\(version.minor).\(version.patch)"
