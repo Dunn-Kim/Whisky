@@ -274,7 +274,7 @@ public enum LauncherType: String, Codable, CaseIterable, Sendable, Identifiable 
     /// overrides prefer native DLLs, as DXMT's do (see `LauncherFixes.apply`).
     public var requiresDXVK: Bool {
         switch self {
-        case .rockstar, .zfGame:
+        case .rockstar:
             true
         default:
             false

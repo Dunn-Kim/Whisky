@@ -323,4 +323,19 @@ final class LauncherFixesScopingTests: LauncherFixesTestCase {
             XCTAssertEqual(bottle.settings.graphicsBackend, .dxvk, "\(launcher)")
         }
     }
+
+    @MainActor
+    func testZFGameBrowserLeavesTheGamesBackendAlone() {
+        // The game starts the browser, so a bottle-wide switch would move the
+        // game itself off the backend its configuration picked.
+        let bottle = makeBottle()
+        bottle.settings.graphicsBackend = .dxmt
+        bottle.settings.autoEnableDXVK = true
+
+        LauncherFixes.apply(to: bottle, launcher: .zfGame, recommendedBackend: .dxmt)
+
+        XCTAssertFalse(bottle.settings.dxvk)
+        XCTAssertEqual(bottle.settings.graphicsBackend, .dxmt)
+        XCTAssertFalse(LauncherType.zfGame.requiresDXVK)
+    }
 }

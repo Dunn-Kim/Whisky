@@ -21,7 +21,9 @@ section is upstream's changelog, unchanged.
   DXMT and the display's refresh rate is not a multiple of the limit, where
   the limit cannot pace evenly (60 on a 75 Hz display, 90 on 120 Hz).
 - ZFGame Browser, the Chromium launcher several publishers ship, is detected
-  as a launcher and gets DXVK.
+  as a launcher. Started from Whisky on Recommended it gets DXVK for its own
+  executable; detecting it never switches the bottle to DXVK, which would
+  move the game that starts it off its own backend.
 - A Game Configuration for Mecharashi.
 
 ### Changed

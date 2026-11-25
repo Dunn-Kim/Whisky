@@ -499,7 +499,7 @@ Use `LauncherPatcher.exe` instead of `Launcher.exe`
 The Chromium launcher shell several publishers ship, detected by a `zfgame` executable or folder name.
 
 **Must Have:**
-- ✅ DXVK (the launcher does not paint on D3DMetal). "Use DXVK for Rockstar Games Launcher" also governs it: with the toggle on, Launcher Compatibility Mode switches the bottle to DXVK
+- ✅ DXMT or DXVK: the browser stays blank on D3DMetal. The game or launcher that starts it passes on its own backend, and started from Whisky on Recommended it resolves to DXVK. Detecting it never switches the bottle's backend
 - ✅ This fork's Wine runtime (4.8.9 or later). On upstream's 4.8 runtimes `gs:0x8` is not the thread's stack base, and the browser's renderer crashes in a loop ("ZFGameBrowser.exe has encountered a serious problem"); this fork's runtime puts the stack base there for `ZFGameBrowser.exe` whichever program starts it
 
 **Critical Settings:**

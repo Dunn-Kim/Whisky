@@ -186,12 +186,11 @@ public enum LauncherFixes {
             break
 
         case .zfGame:
-            // ZFGame Browser needs DXVK to render at all. Setting dxvk is a
-            // bottle-wide backend switch, so honor the user's autoEnableDXVK
-            // choice the way Rockstar does.
-            if bottle.settings.autoEnableDXVK {
-                bottle.settings.dxvk = true
-            }
+            // Nothing bottle-wide. The browser stays blank only on D3DMetal and
+            // draws on DXMT, the game it belongs to starts it, and a bottle-wide
+            // DXVK switch would move that game off its own backend. Started from
+            // Whisky, Recommended resolves the browser itself to DXVK.
+            break
 
         case .rsiLauncher:
             // Nothing bottle-wide. The launcher draws only on DXVK, and gets it
