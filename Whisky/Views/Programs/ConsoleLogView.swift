@@ -235,7 +235,7 @@ struct ConsoleLogView: View {
     private var actionBar: some View {
         HStack(spacing: 12) {
             Button {
-                copyToClipboard()
+                Task { @MainActor in await copyToClipboard() }
             } label: {
                 Label("console.log.copy", systemImage: "doc.on.doc")
             }
@@ -243,7 +243,7 @@ struct ConsoleLogView: View {
             .font(.caption)
 
             Button {
-                exportToFile()
+                Task { @MainActor in await exportToFile() }
             } label: {
                 Label("console.log.export", systemImage: "square.and.arrow.up")
             }
@@ -315,7 +315,7 @@ extension ConsoleLogView {
             guard let content = String(data: chunk.data, encoding: .utf8) else {
                 throw CocoaError(.fileReadInapplicableStringEncoding)
             }
-            logLines = classifyLines(content, keepingLast: Self.maxLines)
+            logLines = Self.classifyLines(content, keepingLast: Self.maxLines)
             logFollower = follower
         } catch {
             logLines = [ConsoleLogLine(
@@ -337,7 +337,7 @@ extension ConsoleLogView {
                 // with the newest output after it; read it again from the top.
                 loadLog()
             } else if !chunk.data.isEmpty, let newContent = String(data: chunk.data, encoding: .utf8) {
-                logLines.append(contentsOf: classifyLines(newContent, keepingLast: Self.maxLines))
+                logLines.append(contentsOf: Self.classifyLines(newContent, keepingLast: Self.maxLines))
                 if logLines.count > Self.maxLines {
                     logLines.removeFirst(logLines.count - Self.maxLines)
                 }
@@ -354,7 +354,7 @@ extension ConsoleLogView {
         }
     }
 
-    func classifyLines(_ content: String, keepingLast limit: Int = .max) -> [ConsoleLogLine] {
+    nonisolated static func classifyLines(_ content: String, keepingLast limit: Int = .max) -> [ConsoleLogLine] {
         content
             .components(separatedBy: .newlines)
             .filter { !$0.isEmpty }
@@ -372,7 +372,7 @@ extension ConsoleLogView {
 
     /// A Wine debug line: a thread id (`002c:fixme:…`) or a channel prefix.
     /// Checked without regular expressions, which cost six searches a line.
-    func isWineDebugLine(_ line: String) -> Bool {
+    nonisolated static func isWineDebugLine(_ line: String) -> Bool {
         let bytes = line.utf8
         let isThreadID = bytes.count > 4
             && bytes.prefix(4).allSatisfy { (48 ... 57).contains($0) || (97 ... 102).contains($0) }
@@ -381,26 +381,30 @@ extension ConsoleLogView {
     }
 
     /// The whole log, classified, for copy and export: the view keeps only its tail.
-    func allLogLines() -> [ConsoleLogLine] {
+    /// Reads and classifies off the main actor, since a log can be 20 MiB.
+    func allLogLines() async -> [ConsoleLogLine] {
         let logURL = Wine.logsFolder.appending(path: runEntry.logFileName)
-        guard let data = try? Data(contentsOf: logURL), let text = String(bytes: data, encoding: .utf8) else {
-            return logLines
-        }
-        return classifyLines(text)
+        let lines = await Task.detached { () -> [ConsoleLogLine]? in
+            guard let data = try? Data(contentsOf: logURL), let text = String(bytes: data, encoding: .utf8) else {
+                return nil
+            }
+            return Self.classifyLines(text)
+        }.value
+        return lines ?? logLines
     }
 
-    func isStderrLine(_ line: String) -> Bool {
+    nonisolated static func isStderrLine(_ line: String) -> Bool {
         let stderrIndicators = ["Error:", "error:", "FAILED", "fatal:", "FATAL:", "Exception:"]
         return stderrIndicators.contains(where: { line.contains($0) })
     }
 
-    func copyToClipboard() {
-        let text = shown(allLogLines()).map(\.text).joined(separator: "\n")
+    func copyToClipboard() async {
+        let text = await shown(allLogLines()).map(\.text).joined(separator: "\n")
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(text, forType: .string)
     }
 
-    func exportToFile() {
+    func exportToFile() async {
         let savePanel = NSSavePanel()
         savePanel.allowedContentTypes = [.plainText]
         let dateFormatter = ISO8601DateFormatter()
@@ -409,7 +413,7 @@ extension ConsoleLogView {
 
         if savePanel.runModal() == .OK, let url = savePanel.url {
             do {
-                let lines = allLogLines()
+                let lines = await allLogLines()
                 var exportContent = shown(lines).map(\.text).joined(separator: "\n")
                 if runEntry.hasWineDebugOutput, !showWineDebug {
                     let debugLines = lines
