@@ -124,11 +124,11 @@ class ProcessesViewModel: ObservableObject {
         let membershipChanged = scanned != lastScannedPIDs
         let staleWhileActive = !processes.isEmpty &&
             Date().timeIntervalSince(lastRefreshDate) >= staleRefreshInterval
+        lastScannedPIDs = scanned
         if membershipChanged || staleWhileActive {
             lastRefreshDate = Date()
             await refreshProcessList()
         }
-        lastScannedPIDs = scanned
     }
 
     /// Stops the polling loop and cleans up.
@@ -191,7 +191,9 @@ class ProcessesViewModel: ObservableObject {
             processes = parsed
         } catch {
             logger.error("Failed to refresh process list: \(error.localizedDescription)")
-            // Keep previous process list on error
+            // Keep previous process list on error, and refresh on the next tick:
+            // with no membership change the scan would not ask again.
+            lastScannedPIDs = nil
         }
     }
 
