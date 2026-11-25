@@ -230,6 +230,10 @@ public struct BottleSettings: Codable, Equatable {
         if !hasGraphicsConfig, self.dxvkConfig.dxvk {
             self.graphicsConfig.backend = .dxvk
         }
+        // Such a bottle predates the frame cap too, so it keeps running uncapped.
+        if !hasGraphicsConfig {
+            self.graphicsConfig.frameRateLimit = .unlimited
+        }
         self.displayConfig = try container.decodeIfPresent(
             BottleDisplayConfig.self,
             forKey: .displayConfig
