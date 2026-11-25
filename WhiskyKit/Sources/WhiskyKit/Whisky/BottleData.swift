@@ -45,6 +45,10 @@ public struct BottleData: Codable {
     public static let defaultBottleDir = containerDir
         .appending(path: "Bottles")
 
+    /// Written into a bottle folder while a migration fills it and removed when the bottle is
+    /// registered, so a folder left by a quit mid-copy is not offered as an orphan.
+    public static let migrationMarker = ".migrating"
+
     static let currentVersion = SemanticVersion(1, 0, 0)
 
     private var fileVersion: SemanticVersion
@@ -158,6 +162,7 @@ public struct BottleData: Codable {
         return entries
             .filter { (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true }
             .filter { !registered.contains(Self.comparablePath($0)) }
+            .filter { !fileManager.fileExists(atPath: $0.appending(path: Self.migrationMarker).path) }
             .compactMap { url in
                 let metadataURL = url.appending(path: "Metadata").appendingPathExtension("plist")
                 guard let data = try? Data(contentsOf: metadataURL),

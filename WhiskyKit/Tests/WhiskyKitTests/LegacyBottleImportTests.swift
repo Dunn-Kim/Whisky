@@ -135,6 +135,16 @@ final class LegacyBottleImportTests: XCTestCase {
         }
     }
 
+    func testCopySizeIsZeroOnTheSameVolume() throws {
+        let root = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let driveC = root.appending(path: "src/drive_c")
+        try FileManager.default.createDirectory(at: driveC, withIntermediateDirectories: true)
+        try Data(count: 8192).write(to: driveC.appending(path: "file"))
+
+        XCTAssertEqual(LegacyBottleImport.copySize(of: root.appending(path: "src"), to: root.appending(path: "new")), 0)
+    }
+
     func testAlreadyMigratedSourceIsFilteredOut() throws {
         let migrated = try makeBottle("a", in: rosetta)
         let fresh = try makeBottle("b", in: rosetta)

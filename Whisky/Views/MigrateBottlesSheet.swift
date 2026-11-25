@@ -150,6 +150,7 @@ struct MigrateBottlesSheet: View {
         rows = LegacyBottleImport
             // `bottles`, not the registry: a bottle still being copied is registered only when it finishes.
             .importableBottles(existingPaths: bottleVM.bottles.map(\.url))
+            .filter { !bottleVM.queuedMigrations.contains($0.url) }
             .map {
                 let running = LegacyBottleImport.isRunning($0.app)
                 return Row(bottle: $0, isSelected: !running, sourceRunning: running)

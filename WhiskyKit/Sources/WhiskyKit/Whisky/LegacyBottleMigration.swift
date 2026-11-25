@@ -97,6 +97,31 @@ public extension LegacyBottleImport {
 
     // MARK: - drive_c
 
+    /// The disk space the copy of `source`'s `drive_c` needs on the volume of `destinationDir`: zero on
+    /// the same volume (APFS clones), else the source's size on disk. Unreadable sizes count as zero.
+    static func copySize(of source: URL, to destinationDir: URL) -> Int64 {
+        let driveC = source.appending(path: "drive_c")
+        var target = destinationDir
+        while !FileManager.default.fileExists(atPath: target.path(percentEncoded: false)), target.path != "/" {
+            target.deleteLastPathComponent()
+        }
+        func volume(_ url: URL) -> NSObject? {
+            (try? url.resourceValues(forKeys: [.volumeIdentifierKey]))?.volumeIdentifier as? NSObject
+        }
+        guard let sourceVolume = volume(driveC), let targetVolume = volume(target),
+              !sourceVolume.isEqual(targetVolume)
+        else { return 0 }
+        let files = FileManager.default.enumerator(
+            at: driveC, includingPropertiesForKeys: [.totalFileAllocatedSizeKey]
+        )
+        var total: Int64 = 0
+        while let file = files?.nextObject() as? URL {
+            let values = try? file.resourceValues(forKeys: [.totalFileAllocatedSizeKey])
+            total += Int64(values?.totalFileAllocatedSize ?? 0)
+        }
+        return total
+    }
+
     /// Adds what the new `drive_c` lacks from the source's.
     ///
     /// An entry missing in `destination` is copied whole (APFS clones it); a directory in both is

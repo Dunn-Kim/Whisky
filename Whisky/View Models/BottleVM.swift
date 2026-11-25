@@ -105,6 +105,8 @@ final class BottleVM: ObservableObject {
     var bottlesList = BottleData()
     @Published var bottles: [Bottle] = []
     @Published var bottleCreationAlert: BottleCreationAlert?
+    /// Sources a migration has queued or is copying; the sheet does not offer them again.
+    @Published private(set) var queuedMigrations: Set<URL> = []
 
     struct BottleCreationAlert: Identifiable {
         let id = UUID()
@@ -140,7 +142,21 @@ final class BottleVM: ObservableObject {
     /// doesn't know about — pre-#136 creations, a reset registry, or a
     /// restored Bottles/ backup.
     func scanForOrphanedBottles() {
+        // A folder left by a quit mid-migration holds a partial copy; no migration is running yet or now.
+        if queuedMigrations.isEmpty {
+            removePartialMigrations()
+        }
         orphanedBottles = bottlesList.orphanedBottles()
+    }
+
+    private func removePartialMigrations() {
+        let folders = (try? FileManager.default.contentsOfDirectory(
+            at: BottleData.defaultBottleDir, includingPropertiesForKeys: nil
+        )) ?? []
+        for folder in folders
+            where FileManager.default.fileExists(atPath: folder.appending(path: BottleData.migrationMarker).path) {
+            try? FileManager.default.removeItem(at: folder)
+        }
     }
 
     func reimportOrphanedBottles() {
@@ -201,11 +217,24 @@ final class BottleVM: ObservableObject {
             // Pre-flight the chosen location before creating anything, so an
             // unwritable or near-full destination surfaces a clear error up
             // front instead of a cryptic late wineboot failure (issue #61).
-            if let refusal = bottleLocationRefusal(BottleLocationValidation.validate(at: request.bottleURL)) {
+            // Across volumes there is no clone, so the copy needs the source's size on top of the floor.
+            var floor = BottleLocationValidation.minimumFreeBytes
+            if let source {
+                let sourceURL = source.url
+                floor += await Task.detached {
+                    LegacyBottleImport.copySize(of: sourceURL, to: request.bottleURL)
+                }.value
+            }
+            if let refusal = bottleLocationRefusal(
+                BottleLocationValidation.validate(at: request.bottleURL, minimumFreeBytes: floor)
+            ) {
                 throw BottleCreationError.locationUnsuitable(message: refusal)
             }
 
             try createBottleDirectory(at: request.newBottleDir)
+            if source != nil {
+                try Data().write(to: request.newBottleDir.appending(path: BottleData.migrationMarker))
+            }
             var imported: BottleSettings?
             if let source {
                 imported = try await copySettings(of: source, to: request.newBottleDir)
@@ -226,6 +255,7 @@ final class BottleVM: ObservableObject {
             }
 
             try persistBottleCreation(request: request)
+            try? FileManager.default.removeItem(at: request.newBottleDir.appending(path: BottleData.migrationMarker))
             // Reload while the bottle is still in flight so the reload keeps
             // this instance. Reloading after clearing the flag replaced it,
             // and the selected bottle page kept writing to the old one: its
@@ -286,6 +316,10 @@ final class BottleVM: ObservableObject {
             throw BottleCreationError.newPrefixStillRunning
         }
 
+        // The source app may have started while the new prefix was being prepared.
+        if LegacyBottleImport.isRunning(source.app) {
+            throw BottleCreationError.sourceAppRunning(app: source.app.displayName)
+        }
         try await Task.detached {
             try LegacyBottleImport.mergeDriveC(
                 from: sourceURL.appending(path: "drive_c"), to: newBottleDir.appending(path: "drive_c")
@@ -301,6 +335,8 @@ final class BottleVM: ObservableObject {
 
     /// Copies bottles of other Whisky apps into new bottles, one after another.
     func migrateLegacyBottles(_ sources: [LegacyBottleImport.DiscoveredBottle]) async {
+        queuedMigrations.formUnion(sources.map(\.url))
+        defer { queuedMigrations.subtract(sources.map(\.url)) }
         for source in sources {
             // The source is only read.
             let request = BottleCreationRequest(
