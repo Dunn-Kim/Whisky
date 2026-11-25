@@ -62,7 +62,6 @@ The implementation follows a layered architecture with clear separation of conce
 **Key Features:**
 - Enum-based launcher types (8 supported launchers)
 - Environment override methods per launcher
-- DXVK requirement flags
 - Recommended locale settings
 - User-friendly fix descriptions
 
@@ -85,7 +84,7 @@ Steam:
 
 Rockstar:
 - WINE_LARGE_ADDRESS_AWARE=1 (launcher initialization)
-- DXVK DLL overrides via requiresDXVK (logo rendering)
+- No graphics variables and no DLL overrides: the backend comes from the compatdb rules
 
 EA App:
 - LC_ALL=en_US.UTF-8 (launcher UI locale)
@@ -99,12 +98,12 @@ EA App:
 - One row per front end: executable names, helper executables, install locations, Steam App ID, and the issue its layout was verified in (v1: `3DMark.exe`, App 223850)
 - Matched by file name only, without case, after `LauncherType.detect(from:)`, so every launcher keeps its own path
 - Tests reject generic names (`AppDefaults` is keyed on the file name alone) and names shared with a launcher or a GameDB game
-- `DXVKSteering` (launcher or front end), `RecommendedReason` and `BackendResolution` in `GraphicsBackendResolver` say why Recommended picked a backend; `resolve(for:)` stays as a wrapper
+- `BackendSteering` (launcher, front end or Chromium runtime), `RecommendedReason` and `BackendResolution` in `GraphicsBackendResolver` say why Recommended picked a backend; `resolve(for:)` stays as a wrapper
 
 **Routing:**
-- Direct launch: `prepareProgramLaunch` steers Recommended to DXVK and pins it into the program's own `AppDefaults` entry; the bottle scope and the MetalFX placeholder follow the games' backend
+- Direct launch: `prepareProgramLaunch` steers Recommended to WineD3D for the program through a `WINE_COMPATDB` rule (`exe=<name>;…`) that names the backend for that executable only; the bottle scope follows the games' backend
 - Steam `-applaunch`: front ends among the scanned executables leave the game's plan (as #376's Chromium hosts do) and get the launcher set, unless their own override picks another backend
-- Ahead of time: every launch in a bottle whose games run on something other than DXVK writes the entry for each installed front end whose own choice (its override, else the bottle's backend) is Recommended or DXVK (registry only, DXVK is not deployed), so a program-level Recommended routes the same on every path
+- Steam launches: the rules for the steered executables go into the bottle's `Steam Game Rules.compatdb` (`WINE_COMPATDB_FILE`), so a program-level Recommended routes the same on every path
 - A program with `libcef.dll` beside it that is not in the table only gets a one-click suggestion on its settings page
 
 #### ChromiumRuntimeDetector.swift
@@ -119,8 +118,8 @@ EA App:
 - Results are cached per process, keyed on the path, size and modification date of the executable and its folder's modification date. A miss is not cached when the files that decide it sit a folder down (`resources` beside `icudtl.dat`, or `Update.exe` beside a Squirrel stub), so an install that is still extracting is looked at again on the next scan
 
 **Routing:**
-- `DXVKSteering.inspect(executable:)` puts launchers and the table first; `prepareProgramLaunch` and the preflight use it. `DXVKSteering.detect(executable:)` stays name-only
-- `Program.dxvkSteering` is classified off the main actor in `updateInstalledPrograms`, so views never read a program's files
+- `BackendSteering.inspect(executable:)` puts launchers and the table first; `prepareProgramLaunch` and the preflight use it. `BackendSteering.detect(executable:)` stays name-only
+- `Program.backendSteering` is classified off the main actor in `updateInstalledPrograms`, so views never read a program's files
 - No entry is written ahead of time for a match: it is written when Whisky launches the app
 - On a Whisky Library Play (`steam.exe -applaunch`), a match in the game's folder gets the launcher set in its own entry, ahead of the game's plan, like a table row. It stays among the plan's executables, since it is often the game itself and its settings still shape the plan
 - The CEF suggestion uses the same parser: `libcef.dll` beside the executable, imported by it, and no graphics import
@@ -153,7 +152,6 @@ are read by no shipped runtime.
 - `detectedLauncher: LauncherType?` - Current launcher
 - `launcherLocale: Locales` - Locale override
 - `gpuSpoofing: Bool` - GPU spoofing enable
-- `autoEnableDXVK: Bool` - Force DXVK in a bottle whose launcher requires it (Rockstar only)
 
 **Serialization:** Fully Codable with PropertyListEncoder
 
@@ -202,16 +200,15 @@ Earlier versions also set `D3DM_VALIDATION`, `WINE_DISABLE_NTDLL_THREAD_REGS`,
 `WINE_DISABLE_FAST_PATH`, `WINE_MACH_PORT_TIMEOUT` and `WINE_MACH_PORT_RETRY_COUNT`.
 No shipped runtime reads any of them, so they were removed.
 
-#### Wine.swift (Modified)
-**Changes:** Auto-enable DXVK for launcher requirements
+#### GraphicsBackendResolver.swift
+**Changes:** Launchers and Chromium programs run on WineD3D
 
-**Logic Added:**
+**Logic:**
 ```swift
-let shouldEnableDXVK = 
-    bottle.settings.dxvk ||
-    (bottle.settings.autoEnableDXVK && 
-     bottle.settings.detectedLauncher?.requiresDXVK == true)
+// A steered executable resolves to WineD3D, everything else to DXMT.
+GraphicsBackendResolver.resolution(for: BackendSteering?)
 ```
+`Wine.compatdbRules` turns the result into `WINE_COMPATDB` rules for the runtime.
 
 ### 2. Application Layer (Whisky)
 
@@ -264,7 +261,7 @@ Epic Games:
    - Launcher compatibility settings
    - Graphics configuration
    - Performance settings
-   - DXVK state
+   - Graphics backend
 
 3. **Environment Variables**
    - Complete snapshot
@@ -317,14 +314,11 @@ Epic Games:
    - Model name display
    - Compatibility explanation
 
-7. **Use DXVK for Rockstar Games Launcher**
-   - Rockstar is the only launcher with `requiresDXVK`; other launchers get DXVK from the Recommended backend
-
-8. **Diagnostics Button**
+7. **Diagnostics Button**
    - One-click report generation
    - Sheet presentation
 
-9. **Configuration Warnings**
+8. **Configuration Warnings**
    - Real-time validation
    - Color-coded warnings
    - Specific recommendations
@@ -348,7 +342,7 @@ private var launcherSectionExpanded: Bool = false
 LauncherConfigSection(bottle: bottle, isExpanded: $launcherSectionExpanded)
 ```
 
-**Position:** Between WineConfigSection and DXVKConfigSection
+**Position:** Between WineConfigSection and GraphicsConfigSection
 
 #### BottleView.swift (Modified)
 **Changes:** Auto-detect launchers on program run
@@ -384,7 +378,7 @@ if bottle.settings.launcherCompatibilityMode &&
 ✅ `testSteamPresetLeavesTheLocaleToTheMac`
 ✅ `testSteamPresetDisablesSandbox`
 ✅ `testSteamPresetIncludesNetworkFixes`
-✅ `testRockstarRequiresDXVK`
+✅ `testRockstarPresetSetsNoGraphicsVariables`
 ✅ `testEAAppRequiresGPUDetection`
 ✅ `testEpicGamesPreset`
 ✅ `testUbisoftPreset`
@@ -419,7 +413,6 @@ if bottle.settings.launcherCompatibilityMode &&
 ✅ `testBottleSettingsLauncherConfigModification`
 ✅ `testEnvironmentVariablesWithLauncherCompatibility`
 ✅ `testEnvironmentVariablesWithoutLauncherCompatibility`
-✅ `testAutoEnableDXVKForRockstar`
 ✅ `testSSLTLSConfiguration`
 
 **Coverage:** Settings integration, serialization, environment merging
@@ -441,7 +434,6 @@ Total time: 0.523 seconds
 - [x] Export to file functionality
 - [x] Copy to clipboard functionality
 - [x] Configuration warnings display
-- [x] Auto-enable DXVK for Rockstar
 - [x] GPU spoofing environment validation
 - [x] Locale override application
 - [x] Detection mode switching (Auto/Manual)
