@@ -209,6 +209,39 @@ final class GameApplicatorTests: XCTestCase {
 
     // MARK: - Test 5: Revert Returns Installed Verbs
 
+    /// Revert puts back what the apply changed, not the whole bottle as it was.
+    @MainActor
+    func testRevertKeepsChangesMadeSinceTheApply() throws {
+        let bottle = try makeTestBottle()
+        defer { cleanupBottle(bottle) }
+        let variant = makeTestVariant(graphicsBackend: .wined3d)
+        let entry = makeTestEntry(variant: variant)
+        let snapshot = try GameConfigApplicator.apply(entry: entry, variant: variant, to: bottle)
+
+        bottle.settings.name = "Renamed after the apply"
+        _ = try GameConfigApplicator.revert(bottle: bottle, snapshot: snapshot)
+
+        XCTAssertEqual(bottle.settings.graphicsBackend, .recommended)
+        XCTAssertEqual(bottle.settings.name, "Renamed after the apply")
+    }
+
+    /// A second apply keeps the first one's snapshot, so revert undoes both.
+    @MainActor
+    func testSecondApplyRevertsToTheStateBeforeTheFirst() throws {
+        let bottle = try makeTestBottle()
+        defer { cleanupBottle(bottle) }
+        let first = makeTestVariant(graphicsBackend: .wined3d)
+        _ = try GameConfigApplicator.apply(entry: makeTestEntry(variant: first), variant: first, to: bottle)
+        let second = makeTestVariant(graphicsBackend: .dxmt, shaderCacheEnabled: false)
+        let secondEntry = makeTestEntry(variant: second)
+        let snapshot = try GameConfigApplicator.apply(entry: secondEntry, variant: second, to: bottle)
+
+        _ = try GameConfigApplicator.revert(bottle: bottle, snapshot: snapshot)
+
+        XCTAssertEqual(bottle.settings.graphicsBackend, .recommended)
+        XCTAssertTrue(bottle.settings.shaderCacheEnabled)
+    }
+
     @MainActor
     func testRevertReturnsInstalledVerbs() throws {
         let bottle = try makeTestBottle()

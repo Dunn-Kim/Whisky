@@ -70,7 +70,9 @@ extension GameConfigApplicator {
     ) {
         guard !variables.isEmpty, !programs.isEmpty else { return }
         var records = snapshot.programEnvironments ?? [:]
-        for program in programs {
+        // A record an earlier, unreverted apply made holds the program's own
+        // values; this apply's would hold that apply's instead.
+        for program in programs where records[program.url.absoluteString] == nil {
             records[program.url.absoluteString] = GameConfigProgramEnvironment(
                 applying: variables, to: program.settings.environment
             )
