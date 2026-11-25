@@ -67,8 +67,10 @@ public extension String {
             "~",
             "="
         ]
+        // `.literal` compares code units: a metacharacter followed by a combining
+        // mark is one Character, which the default comparison does not match.
         for char in metacharacters {
-            str = str.replacingOccurrences(of: char, with: "\\" + char)
+            str = str.replacingOccurrences(of: char, with: "\\" + char, options: .literal)
         }
         return str
     }

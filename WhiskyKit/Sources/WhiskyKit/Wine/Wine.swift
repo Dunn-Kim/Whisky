@@ -785,9 +785,10 @@ public class Wine {
         var wineCmd = command
         for envVar in environment {
             if isValidEnvKey(envVar.key) {
-                // Keys are validated to be safe shell identifiers; values are escaped
-                // Note: No quotes needed - .esc handles all shell metacharacter escaping
-                wineCmd = "\(envVar.key)=\(envVar.value.esc) " + wineCmd
+                // Keys are validated to be safe shell identifiers. Values are quoted,
+                // not `.esc`-escaped: `.esc` drops control characters, and the
+                // newlines between `WINE_COMPATDB` rules are part of the value.
+                wineCmd = "\(ShellQuoting.assignment(envVar.key, envVar.value)) " + wineCmd
             } else {
                 logger.debug("Skipping invalid environment key '\(envVar.key)' in generateRunCommand")
             }

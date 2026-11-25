@@ -36,6 +36,14 @@ final class StringEscapeTests: XCTestCase {
         XCTAssertEqual("hello'world".esc, "hello\\'world")
     }
 
+    /// A metacharacter followed by a combining mark is one Character; it is still escaped.
+    func testEscapesAMetacharacterUnderACombiningMark() {
+        XCTAssertEqual(
+            "a`\u{301}id".esc.unicodeScalars.map(\.value),
+            Array("a\\`\u{301}id".unicodeScalars.map(\.value))
+        )
+    }
+
     func testEscapesBackslashes() {
         XCTAssertEqual("hello\\world".esc, "hello\\\\world")
     }

@@ -253,8 +253,8 @@ final class ProgramLaunchPreparationTests {
         )
 
         #expect(!command.contains("WINEDLLOVERRIDES="))
-        #expect(command.contains("PROGRAM_SETTING=kept"))
-        #expect(command.contains("WINEDEBUG=\(WineDebugPreset.dllLoad.winedebugValue.esc)"))
+        #expect(command.contains("PROGRAM_SETTING='kept'"))
+        #expect(command.contains(ShellQuoting.assignment("WINEDEBUG", WineDebugPreset.dllLoad.winedebugValue)))
         #expect(command.hasSuffix(
             "env -u WINEDLLOVERRIDES \(Wine.wineBinary.esc) start /unix \(program.url.esc) -windowed"
         ))
@@ -293,8 +293,8 @@ final class ProgramLaunchPreparationTests {
 
         let command = Wine.generateRunCommand(for: launch)
 
-        #expect(command.contains(#"WINEPREFIX=/tmp/My\ Bottle "#))
-        #expect(command.contains("MTL_HUD_ENABLED=1 "))
+        #expect(command.contains("WINEPREFIX='/tmp/My Bottle' "))
+        #expect(command.contains("MTL_HUD_ENABLED='1' "))
         #expect(!command.contains("WINEDLLOVERRIDES="))
         #expect(command.hasSuffix(
             "env -u WINEDLLOVERRIDES \(Wine.wineBinary.esc) "
@@ -318,6 +318,21 @@ final class ProgramLaunchPreparationTests {
         #expect(environment["WINEDLLOVERRIDES"] == nil)
         #expect(environment["WINEPREFIX"] == "/tmp/My Bottle")
         #expect(environment["KEPT"] == "yes")
+    }
+
+    @Test("A printed command keeps the newlines between WINE_COMPATDB rules")
+    func printedCommandKeepsCompatdbLines() async throws {
+        let rules = "exe=*;dxgi=wined3d;d3d9=wined3d\nexe=Game.exe;dxgi=dxmt"
+        let launch = Wine.PreparedLaunch(
+            environment: ["WINEPREFIX": "/tmp/My Bottle", "WINE_COMPATDB": rules],
+            arguments: ["start", "/unix", "/tmp/My Bottle/drive_c/Game.exe"]
+        )
+
+        let environment = try await environmentOfPrintedCommand(for: launch, inherited: [:])
+
+        // `env` prints one variable per line, so the second rule comes back as its own line.
+        #expect(environment["WINE_COMPATDB"] == "exe=*;dxgi=wined3d;d3d9=wined3d")
+        #expect(environment["exe"] == "Game.exe;dxgi=dxmt")
     }
 
     @Test("A printed command sets the overrides a launch keeps for a descendant over the terminal's")

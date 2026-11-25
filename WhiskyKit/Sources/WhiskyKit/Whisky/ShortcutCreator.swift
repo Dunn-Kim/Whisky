@@ -226,7 +226,7 @@ public extension ShortcutCreator {
         case let .steamGame(appId):
             "launch \(appId)"
         case let .program(bottleName, windowsPath):
-            "run \(shellQuoted(bottleName)) \(shellQuoted(windowsPath))"
+            "run \(ShellQuoting.quoted(bottleName)) \(ShellQuoting.quoted(windowsPath))"
         }
         // Translated text can hold quotes and backslashes: quote it for
         // AppleScript first, then quote the whole -e argument for the shell.
@@ -241,7 +241,7 @@ public extension ShortcutCreator {
             WHISKY_CMD="$WHISKY_APP/Contents/Resources/WhiskyCmd"
         fi
         if [ ! -x "$WHISKY_CMD" ]; then
-            osascript -e \(shellQuoted(alert))
+            osascript -e \(ShellQuoting.quoted(alert))
             exit 1
         fi
         exec "$WHISKY_CMD" \(invocation)
@@ -256,11 +256,6 @@ public extension ShortcutCreator {
         guard path.hasPrefix(driveC + "/") else { return nil }
         let rest = String(path.dropFirst(driveC.count + 1))
         return "C:\\" + rest.replacingOccurrences(of: "/", with: "\\")
-    }
-
-    /// Wraps a value in single quotes for safe shell interpolation.
-    static func shellQuoted(_ value: String) -> String {
-        "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'"
     }
 
     /// Wraps a value in double quotes as an AppleScript string literal.

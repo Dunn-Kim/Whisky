@@ -36,14 +36,16 @@ struct ShortcutLiveScriptTests {
             for: .program(bottleName: "Steam dx11", windowsPath: #"C:\Games\Some Game\game.exe"#)
         )
 
-        #expect(script.contains(#"exec "$WHISKY_CMD" run 'Steam dx11' 'C:\Games\Some Game\game.exe'"#))
+        #expect(script.contains(#"exec "$WHISKY_CMD" run 'Steam dx11' 'C:'\\'Games'\\'Some Game'\\'game.exe'"#))
     }
 
-    @Test("Hostile names survive shell quoting")
-    func hostileQuoting() {
-        let quoted = ShortcutCreator.shellQuoted("Bo'ttle; rm -rf $HOME")
+    @Test("A quote under a combining mark cannot end the quoted path")
+    func combiningMarkQuote() {
+        let script = ShortcutCreator.liveLaunchScript(
+            for: .program(bottleName: "B", windowsPath: "C:\\x'\u{301}$(open -a Calculator)'\u{301}.exe")
+        )
 
-        #expect(quoted == #"'Bo'\''ttle; rm -rf $HOME'"#)
+        #expect(script.contains("x'\\''\u{301}$(open -a Calculator)'\\''\u{301}.exe"))
     }
 
     @Test("AppleScript quoting escapes backslashes, quotes and newlines")
