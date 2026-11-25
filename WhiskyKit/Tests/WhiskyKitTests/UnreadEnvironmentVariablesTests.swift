@@ -45,7 +45,12 @@ private let unreadVariables = [
     "D3DM_SHADER_MODEL",
     "ROSETTA_ADVERTISE_AVX",
     "WINEESYNC",
-    "WINEFSYNC"
+    "WINEFSYNC",
+    // Read by no runtime either; GameDB and the Rockstar preset used to set them.
+    "WINE_LARGE_ADDRESS_AWARE",
+    "D3DM_SUPPORT_DXR",
+    "DXVK_ASYNC",
+    "PULSE_LATENCY_MSEC"
 ]
 
 final class UnreadEnvironmentVariablesTests: XCTestCase {

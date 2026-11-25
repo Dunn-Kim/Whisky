@@ -33,21 +33,21 @@ struct GameDBSteamEntryPlanTests {
         #expect(plan.launchArguments.isEmpty)
     }
 
-    @Test("Screw Drivers keeps its msync; its DXVK entry now reads as Recommended")
+    @Test("Screw Drivers keeps its msync; its old DXVK entry leaves the backend alone")
     func screwDrivers() {
         let plan = LaunchResolver.plan(steamAppId: 1_279_510)
 
-        #expect(plan.overrides.graphicsBackend == .recommended)
+        #expect(plan.overrides.graphicsBackend == nil)
         #expect(plan.overrides.enhancedSync == .msync)
         #expect(plan.gameProfileEnvironment.isEmpty)
         #expect(plan.gameExecutables == ["Screw Drivers.exe"])
     }
 
-    @Test("BeamNG.drive keeps its -nogfx switches after the App ID; its D3DMetal entry reads as Recommended")
+    @Test("BeamNG.drive keeps its -nogfx switches after the App ID; its old D3DMetal entry leaves the backend alone")
     func beamNG() {
         let plan = LaunchResolver.plan(steamAppId: 284_160)
 
-        #expect(plan.overrides.graphicsBackend == .recommended)
+        #expect(plan.overrides.graphicsBackend == nil)
         #expect(plan.launchArguments == [
             "-nogfxgpudriven", "-nogfxgpuupload", "-nogfxbindless", "-nogfxbindlesscbv", "-nogfxindirectconstants"
         ])

@@ -148,7 +148,7 @@ final class GameDatabaseTests: XCTestCase {
         XCTAssertEqual(variant.id, "recommended-apple-silicon")
         XCTAssertEqual(variant.label, "Recommended (Apple Silicon)")
         XCTAssertEqual(variant.isDefault, true)
-        XCTAssertEqual(variant.settings.graphicsBackend, .recommended)
+        XCTAssertNil(variant.settings.graphicsBackend, "a backend this build lacks leaves the bottle's alone")
         XCTAssertEqual(variant.settings.enhancedSync, .msync, "esync loads as msync")
         XCTAssertEqual(variant.settings.shaderCacheEnabled, true)
         XCTAssertEqual(variant.environmentVariables?["D3DM_SUPPORT_DXR"], "0")
@@ -263,7 +263,7 @@ final class GameDatabaseTests: XCTestCase {
         let data = try XCTUnwrap(json.data(using: .utf8))
         let settings = try JSONDecoder().decode(GameConfigVariantSettings.self, from: data)
 
-        XCTAssertEqual(settings.graphicsBackend, .recommended)
+        XCTAssertNil(settings.graphicsBackend, "a backend this build lacks leaves the bottle's alone")
         XCTAssertEqual(settings.shaderCacheEnabled, false)
         XCTAssertEqual(settings.sequoiaCompatMode, true)
     }
@@ -538,7 +538,7 @@ final class GameDatabaseTests: XCTestCase {
         XCTAssertNil(GameConfigSnapshot.load(from: tempDir))
     }
 
-    func testVariantSettingsUnknownGraphicsBackendDecodesToRecommended() throws {
+    func testVariantSettingsUnknownGraphicsBackendDecodesToNil() throws {
         // The bundled database still carries `dxvk` and `dxvkAsync` keys and
         // `"dxvk"` / `"d3dMetal"` backends: the keys are ignored, the values read as Recommended.
         let json = """
@@ -549,7 +549,7 @@ final class GameDatabaseTests: XCTestCase {
         }
         """
         let settings = try JSONDecoder().decode(GameConfigVariantSettings.self, from: Data(json.utf8))
-        XCTAssertEqual(settings.graphicsBackend, .recommended)
+        XCTAssertNil(settings.graphicsBackend, "a backend this build lacks leaves the bottle's alone")
     }
 }
 

@@ -17,6 +17,7 @@
 //
 
 import Foundation
+import os.log
 
 /// Loads game database entries from a bundled JSON resource.
 ///
@@ -60,6 +61,8 @@ public enum GameDBLoader {
             #if DEBUG
             fatalError("Failed to load GameDB: \(error)")
             #else
+            // One bad value empties the whole database; say why, at least.
+            Logger.wineKit.error("Failed to load GameDB: \(String(describing: error), privacy: .public)")
             return []
             #endif
         }

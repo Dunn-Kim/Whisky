@@ -203,10 +203,9 @@ public enum LauncherType: String, Codable, CaseIterable, Sendable, Identifiable 
         case .rockstar:
             // Rockstar Launcher fixes (whisky-app/whisky#1335, #835, #1120)
 
-            // Note: CEF_DISABLE_SANDBOX is set globally in MacOSCompatibility.swift
-
-            // Launcher initialization improvements
-            env["WINE_LARGE_ADDRESS_AWARE"] = "1"
+            // Note: CEF_DISABLE_SANDBOX is set globally in MacOSCompatibility.swift.
+            // No large-address-aware variable: no runtime reads one, and the
+            // launcher is 64-bit anyway.
 
             // Locale for launcher UI
             env["LC_ALL"] = "en_US.UTF-8"

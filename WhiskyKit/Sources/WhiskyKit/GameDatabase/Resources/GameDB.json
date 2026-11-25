@@ -40,12 +40,8 @@
             "dotnet48 + vcrun2022 cover the launcher dependency stack"
           ],
           "settings": {
-            "graphicsBackend": "dxvk",
-            "dxvk": true,
-            "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -106,12 +102,8 @@
             "D3DMetal renders shadows cleanly for this Unity title"
           ],
           "settings": {
-            "graphicsBackend": "d3dMetal",
-            "dxvk": false,
-            "dxvkAsync": false,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -171,12 +163,8 @@
             "An earlier note reported haziness on D3DMetal (\"FNA-based renderer hits a documented haziness bug on D3DMetal\"); PCGamingWiki lists no FNA engine and that report is unverified, and DXVK cannot run the game either way"
           ],
           "settings": {
-            "graphicsBackend": "recommended",
-            "dxvk": false,
-            "dxvkAsync": false,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -233,12 +221,8 @@
             "Ubisoft Connect overlay DLL override needed for window creation"
           ],
           "settings": {
-            "graphicsBackend": "dxvk",
-            "dxvk": true,
-            "dxvkAsync": true,
             "enhancedSync": "esync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -304,12 +288,8 @@
             "Launch AssettoCorsa.exe (the launcher), not acs.exe directly"
           ],
           "settings": {
-            "graphicsBackend": "dxvk",
-            "dxvk": true,
-            "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -376,12 +356,8 @@
             "Visual C++ runtime is required for the game engine"
           ],
           "settings": {
-            "graphicsBackend": "d3dMetal",
-            "dxvk": false,
-            "dxvkAsync": false,
             "enhancedSync": "esync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -460,12 +436,8 @@
             "Multiplayer-only game requires anti-cheat for all modes"
           ],
           "settings": {
-            "graphicsBackend": "d3dMetal",
-            "dxvk": false,
-            "dxvkAsync": false,
             "enhancedSync": "none",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -539,12 +511,8 @@
             "The -nogfx launch arguments turn those DirectX 12 features off"
           ],
           "settings": {
-            "graphicsBackend": "d3dMetal",
-            "dxvk": false,
-            "dxvkAsync": false,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -611,12 +579,8 @@
             "DXVK D3D9 path more stable than wineD3D for Source on Apple Silicon"
           ],
           "settings": {
-            "graphicsBackend": "dxvk",
-            "dxvk": true,
-            "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": true
           },
           "environmentVariables": {},
@@ -678,12 +642,8 @@
             "No additional components required"
           ],
           "settings": {
-            "graphicsBackend": "d3dMetal",
-            "dxvk": false,
-            "dxvkAsync": false,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -749,12 +709,8 @@
             "DXVK + esync gives the best chance, but title is currently unplayable"
           ],
           "settings": {
-            "graphicsBackend": "dxvk",
-            "dxvk": true,
-            "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -819,12 +775,8 @@
             "DXVK improves Unity-style framebuffer handling over wineD3D"
           ],
           "settings": {
-            "graphicsBackend": "dxvk",
-            "dxvk": true,
-            "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -887,12 +839,8 @@
             "Control ships DirectX 11 and 12 as separate executables (PCGamingWiki); DXVK is for Control_DX11.exe, and Control_DX12.exe cannot start on DXVK because its preset turns d3d12 off"
           ],
           "settings": {
-            "graphicsBackend": "dxvk",
-            "dxvk": true,
-            "dxvkAsync": true,
             "enhancedSync": "esync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -970,12 +918,8 @@
             "D3DMetal provides smooth 60 FPS gameplay"
           ],
           "settings": {
-            "graphicsBackend": "d3dMetal",
-            "dxvk": false,
-            "dxvkAsync": false,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -1040,16 +984,11 @@
             "Shader cache is critical for reducing stuttering in Night City"
           ],
           "settings": {
-            "graphicsBackend": "d3dMetal",
-            "dxvk": false,
-            "dxvkAsync": false,
             "enhancedSync": "esync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {
-            "D3DM_SUPPORT_DXR": "0"
           },
           "dllOverrides": [],
           "winetricksVerbs": [
@@ -1073,12 +1012,8 @@
             "Leaves the backend to Whisky's recommendation for the installed runtime and drops the default variant's DXR override"
           ],
           "settings": {
-            "graphicsBackend": "recommended",
-            "dxvk": false,
-            "dxvkAsync": false,
             "enhancedSync": "esync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -1156,12 +1091,8 @@
             "fakekorean handles missing locale-specific assets"
           ],
           "settings": {
-            "graphicsBackend": "dxvk",
-            "dxvk": true,
-            "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -1229,12 +1160,8 @@
             "Game runs at solid framerates with minor config"
           ],
           "settings": {
-            "graphicsBackend": "d3dMetal",
-            "dxvk": false,
-            "dxvkAsync": false,
             "enhancedSync": "esync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -1305,12 +1232,8 @@
             "Shader cache helps with terrain rendering"
           ],
           "settings": {
-            "graphicsBackend": "d3dMetal",
-            "dxvk": false,
-            "dxvkAsync": false,
             "enhancedSync": "esync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -1382,12 +1305,8 @@
             "Previously worked briefly but was patched out"
           ],
           "settings": {
-            "graphicsBackend": "d3dMetal",
-            "dxvk": false,
-            "dxvkAsync": false,
             "enhancedSync": "none",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -1458,12 +1377,8 @@
             "Launcher and game are sensitive to Windows version mismatch \u2014 Win10 is required"
           ],
           "settings": {
-            "graphicsBackend": "d3dMetal",
-            "dxvk": false,
-            "dxvkAsync": false,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -1542,12 +1457,8 @@
             "No special configuration needed"
           ],
           "settings": {
-            "graphicsBackend": "d3dMetal",
-            "dxvk": false,
-            "dxvkAsync": false,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -1614,12 +1525,8 @@
             "Moderate GPU requirements work on most Apple Silicon Macs"
           ],
           "settings": {
-            "graphicsBackend": "d3dMetal",
-            "dxvk": false,
-            "dxvkAsync": false,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -1690,16 +1597,11 @@
             "Shader cache reduces first-run stuttering"
           ],
           "settings": {
-            "graphicsBackend": "d3dMetal",
-            "dxvk": false,
-            "dxvkAsync": false,
             "enhancedSync": "esync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {
-            "D3DM_SUPPORT_DXR": "0"
           },
           "dllOverrides": [],
           "winetricksVerbs": [
@@ -1773,12 +1675,8 @@
             "xact installs MS audio runtime expected by Creation Engine"
           ],
           "settings": {
-            "graphicsBackend": "dxvk",
-            "dxvk": true,
-            "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": true
           },
           "environmentVariables": {},
@@ -1841,12 +1739,8 @@
             "Performance is GPU-bound on Apple Silicon; lower internal res recommended"
           ],
           "settings": {
-            "graphicsBackend": "dxvk",
-            "dxvk": true,
-            "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -1910,12 +1804,8 @@
             "DXVK correctly handles the MSAA query path"
           ],
           "settings": {
-            "graphicsBackend": "dxvk",
-            "dxvk": true,
-            "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -1968,12 +1858,8 @@
             "All game modes require anti-cheat to be active"
           ],
           "settings": {
-            "graphicsBackend": "d3dMetal",
-            "dxvk": false,
-            "dxvkAsync": false,
             "enhancedSync": "none",
             "shaderCacheEnabled": false,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -2040,12 +1926,8 @@
             "Winetricks 'mf' verb installs the Media Foundation runtime so videos play"
           ],
           "settings": {
-            "graphicsBackend": "dxvk",
-            "dxvk": true,
-            "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -2109,12 +1991,8 @@
             "Esync improves thread synchronization"
           ],
           "settings": {
-            "graphicsBackend": "d3dMetal",
-            "dxvk": false,
-            "dxvkAsync": false,
             "enhancedSync": "esync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -2188,12 +2066,8 @@
             "vcrun2022 supplies the runtime needed by the RE Engine launcher"
           ],
           "settings": {
-            "graphicsBackend": "dxvk",
-            "dxvk": true,
-            "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -2257,16 +2131,11 @@
             "Audio workaround prevents crackling"
           ],
           "settings": {
-            "graphicsBackend": "d3dMetal",
-            "dxvk": false,
-            "dxvkAsync": false,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {
-            "PULSE_LATENCY_MSEC": "60"
           },
           "dllOverrides": [],
           "winetricksVerbs": [],
@@ -2334,12 +2203,8 @@
             "Periodic freeze on esync \u2014 msync + DXVK persistent cache stabilizes"
           ],
           "settings": {
-            "graphicsBackend": "dxvk",
-            "dxvk": true,
-            "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -2401,12 +2266,8 @@
             "Performance is acceptable at medium settings"
           ],
           "settings": {
-            "graphicsBackend": "d3dMetal",
-            "dxvk": false,
-            "dxvkAsync": false,
             "enhancedSync": "esync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -2476,16 +2337,11 @@
             "Performance is likely GPU-bound on most Apple Silicon Macs"
           ],
           "settings": {
-            "graphicsBackend": "d3dMetal",
-            "dxvk": false,
-            "dxvkAsync": false,
             "enhancedSync": "esync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {
-            "D3DM_SUPPORT_DXR": "0"
           },
           "dllOverrides": [],
           "winetricksVerbs": [
@@ -2555,12 +2411,8 @@
             "No workarounds needed"
           ],
           "settings": {
-            "graphicsBackend": "d3dMetal",
-            "dxvk": false,
-            "dxvkAsync": false,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -2624,12 +2476,8 @@
             "vcrun2022 + esync match the Horizon Zero Dawn recipe"
           ],
           "settings": {
-            "graphicsBackend": "recommended",
-            "dxvk": false,
-            "dxvkAsync": false,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -2691,12 +2539,8 @@
             "Shader cache prevents repeated compilation"
           ],
           "settings": {
-            "graphicsBackend": "recommended",
-            "dxvk": false,
-            "dxvkAsync": false,
             "enhancedSync": "esync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -2772,12 +2616,8 @@
             "DXVK + dotnet48 covers the rest of the launcher stack"
           ],
           "settings": {
-            "graphicsBackend": "dxvk",
-            "dxvk": true,
-            "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -2838,12 +2678,8 @@
             "Friend's Pass complicates testing but core game launches with DXVK"
           ],
           "settings": {
-            "graphicsBackend": "dxvk",
-            "dxvk": true,
-            "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -2904,12 +2740,8 @@
             "DirectX 12 only (PCGamingWiki); DXVK has no Direct3D 12 path and its preset turns d3d12 off, so the game uses the recommended backend (D3DMetal with the GPTK payload)"
           ],
           "settings": {
-            "graphicsBackend": "recommended",
-            "dxvk": false,
-            "dxvkAsync": false,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -2972,12 +2804,8 @@
             "No current workaround \u2014 flagged as unplayable"
           ],
           "settings": {
-            "graphicsBackend": "dxvk",
-            "dxvk": true,
-            "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -3045,12 +2873,8 @@
             "DirectX 12 only (PCGamingWiki); DXVK has no Direct3D 12 path and its preset turns d3d12 off, so the game uses the recommended backend (D3DMetal with the GPTK payload)"
           ],
           "settings": {
-            "graphicsBackend": "recommended",
-            "dxvk": false,
-            "dxvkAsync": false,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -3111,12 +2935,8 @@
             "DirectX 11 and 12 (PCGamingWiki); the earlier DXVK recommendation was about the cutscene fix, not a DirectX 11 path, so the game uses the recommended backend and d3d12 stays loadable"
           ],
           "settings": {
-            "graphicsBackend": "recommended",
-            "dxvk": false,
-            "dxvkAsync": false,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -3178,12 +2998,8 @@
             "Splash-then-exit is the classic device init failure pattern"
           ],
           "settings": {
-            "graphicsBackend": "dxvk",
-            "dxvk": true,
-            "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -3248,12 +3064,8 @@
             "dotnet48 + vcrun2022 cover the runtime requirements; shader cache helps first-launch hitches"
           ],
           "settings": {
-            "graphicsBackend": "dxvk",
-            "dxvk": true,
-            "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -3319,12 +3131,8 @@
             "Free-to-play game with mandatory anti-cheat"
           ],
           "settings": {
-            "graphicsBackend": "d3dMetal",
-            "dxvk": false,
-            "dxvkAsync": false,
             "enhancedSync": "none",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -3393,12 +3201,8 @@
             "DirectX 12 only (PCGamingWiki); DXVK has no Direct3D 12 path and its preset turns d3d12 off, so the game uses the recommended backend (D3DMetal with the GPTK payload)"
           ],
           "settings": {
-            "graphicsBackend": "recommended",
-            "dxvk": false,
-            "dxvkAsync": false,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -3461,12 +3265,8 @@
             "Sony's launcher uses .NET 6 + WebView2; install both via winetricks for the launcher to progress"
           ],
           "settings": {
-            "graphicsBackend": "dxvk",
-            "dxvk": true,
-            "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -3528,12 +3328,8 @@
             "DXVK eliminates the hang"
           ],
           "settings": {
-            "graphicsBackend": "dxvk",
-            "dxvk": true,
-            "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -3595,12 +3391,8 @@
             "DirectX 11 and 12 (PCGamingWiki); the earlier DXVK recommendation was about the Wine version regression, not a DirectX 11 path, so the game uses the recommended backend and d3d12 stays loadable"
           ],
           "settings": {
-            "graphicsBackend": "recommended",
-            "dxvk": false,
-            "dxvkAsync": false,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -3662,12 +3454,8 @@
             "DirectX 11 and 12 (PCGamingWiki); the earlier DXVK recommendation was about shader cache corruption, not a DirectX 11 path, so the game uses the recommended backend and d3d12 stays loadable"
           ],
           "settings": {
-            "graphicsBackend": "recommended",
-            "dxvk": false,
-            "dxvkAsync": false,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -3730,16 +3518,11 @@
             "The launcher gets DXVK through its own per-executable overrides; the game is DirectX 12 or Vulkan only and stays on the recommended backend (D3DMetal with the GPTK payload), since DXVK's preset turns d3d12 off beside it"
           ],
           "settings": {
-            "graphicsBackend": "recommended",
-            "dxvk": false,
-            "dxvkAsync": false,
             "enhancedSync": "esync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {
-            "WINE_LARGE_ADDRESS_AWARE": "1"
           },
           "dllOverrides": [],
           "winetricksVerbs": [
@@ -3810,12 +3593,8 @@
             "In a 60-second sample at the main menu on an M1 Max, DXVK used about a third of the CPU DXMT did"
           ],
           "settings": {
-            "graphicsBackend": "dxvk",
-            "dxvk": true,
-            "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -3888,12 +3667,8 @@
             "Shader cache prevents stuttering during sword clashes"
           ],
           "settings": {
-            "graphicsBackend": "d3dMetal",
-            "dxvk": false,
-            "dxvkAsync": false,
             "enhancedSync": "esync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -3963,12 +3738,8 @@
             "DirectX 11 and 12 (PCGamingWiki); the earlier DXVK recommendation was about the Sequoia regression, not a DirectX 11 path, so the game uses the recommended backend and d3d12 stays loadable"
           ],
           "settings": {
-            "graphicsBackend": "recommended",
-            "dxvk": false,
-            "dxvkAsync": false,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": true
           },
           "environmentVariables": {},
@@ -4029,12 +3800,8 @@
             "Sequoia compat mode reduces flicker on macOS 15"
           ],
           "settings": {
-            "graphicsBackend": "dxvk",
-            "dxvk": true,
-            "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": true
           },
           "environmentVariables": {},
@@ -4098,11 +3865,8 @@
           ],
           "settings": {
             "graphicsBackend": "dxmt",
-            "dxvk": false,
-            "dxvkAsync": false,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -4201,12 +3965,8 @@
             "DXVK gives reliable D3D11 translation"
           ],
           "settings": {
-            "graphicsBackend": "dxvk",
-            "dxvk": true,
-            "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -4270,12 +4030,8 @@
             "No special configuration needed"
           ],
           "settings": {
-            "graphicsBackend": "d3dMetal",
-            "dxvk": false,
-            "dxvkAsync": false,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -4344,12 +4100,8 @@
             "Very demanding title; expect poor performance"
           ],
           "settings": {
-            "graphicsBackend": "recommended",
-            "dxvk": false,
-            "dxvkAsync": false,
             "enhancedSync": "esync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -4421,12 +4173,8 @@
             "vcrun2022 supplies the runtime"
           ],
           "settings": {
-            "graphicsBackend": "recommended",
-            "dxvk": false,
-            "dxvkAsync": false,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -4487,12 +4235,8 @@
             "vcrun2022 supplies the C++ runtime"
           ],
           "settings": {
-            "graphicsBackend": "dxvk",
-            "dxvk": true,
-            "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -4552,12 +4296,8 @@
             "vcrun2019 + d3dcompiler_47 unblock its device creation"
           ],
           "settings": {
-            "graphicsBackend": "dxvk",
-            "dxvk": true,
-            "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -4620,12 +4360,8 @@
             "DXVK D3D9 translation is the known good path"
           ],
           "settings": {
-            "graphicsBackend": "dxvk",
-            "dxvk": true,
-            "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -4690,12 +4426,8 @@
             "vcrun2019 covers the runtime; esync improves frame pacing"
           ],
           "settings": {
-            "graphicsBackend": "dxvk",
-            "dxvk": true,
-            "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -4757,12 +4489,8 @@
             "No special workarounds needed"
           ],
           "settings": {
-            "graphicsBackend": "d3dMetal",
-            "dxvk": false,
-            "dxvkAsync": false,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -4828,10 +4556,8 @@
             "Renders through OpenGL: opengl32 goes through Wine's macOS driver to Apple's OpenGL, so the graphics backend setting does not affect it, and this configuration leaves it unchanged"
           ],
           "settings": {
-            "dxvkAsync": false,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -4900,12 +4626,8 @@
             "No special DLL overrides needed for vanilla play"
           ],
           "settings": {
-            "graphicsBackend": "d3dMetal",
-            "dxvk": false,
-            "dxvkAsync": false,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -4929,16 +4651,11 @@
             "Mods often pull in DirectX-style D3D11 paths"
           ],
           "settings": {
-            "graphicsBackend": "dxvk",
-            "dxvk": true,
-            "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {
-            "DXVK_ASYNC": "1"
           },
           "dllOverrides": [],
           "winetricksVerbs": [
@@ -5005,12 +4722,8 @@
             "DirectX 12 only (PCGamingWiki); DXVK has no Direct3D 12 path and its preset turns d3d12 off, so the game uses the recommended backend (D3DMetal with the GPTK payload)"
           ],
           "settings": {
-            "graphicsBackend": "recommended",
-            "dxvk": false,
-            "dxvkAsync": false,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -5073,11 +4786,8 @@
           ],
           "settings": {
             "graphicsBackend": "wined3d",
-            "dxvk": false,
-            "dxvkAsync": false,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -5102,12 +4812,8 @@
             "Worth trying if the game crashes with WineD3D"
           ],
           "settings": {
-            "graphicsBackend": "d3dMetal",
-            "dxvk": false,
-            "dxvkAsync": false,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -5180,12 +4886,8 @@
             "Enhanced sync provides smoother frame delivery"
           ],
           "settings": {
-            "graphicsBackend": "d3dMetal",
-            "dxvk": false,
-            "dxvkAsync": false,
             "enhancedSync": "esync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -5257,12 +4959,8 @@
             "vcrun2022 + d3dcompiler_47 cover the shader-init dependencies"
           ],
           "settings": {
-            "graphicsBackend": "dxvk",
-            "dxvk": true,
-            "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -5325,12 +5023,8 @@
             "DXVK reliably renders the Chromium UI"
           ],
           "settings": {
-            "graphicsBackend": "dxvk",
-            "dxvk": true,
-            "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -5395,12 +5089,8 @@
             "High VRAM usage benefits from DXVK memory management"
           ],
           "settings": {
-            "graphicsBackend": "dxvk",
-            "dxvk": true,
-            "dxvkAsync": true,
             "enhancedSync": "esync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -5478,12 +5168,8 @@
             "DXVK + Ubisoft Connect winetricks helps; some users still hit the launcher loop"
           ],
           "settings": {
-            "graphicsBackend": "dxvk",
-            "dxvk": true,
-            "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -5552,12 +5238,8 @@
             "DXVK D3D9 translation gives consistent perf for this older title"
           ],
           "settings": {
-            "graphicsBackend": "dxvk",
-            "dxvk": true,
-            "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -5616,12 +5298,8 @@
             "DXVK improves stability over wineD3D for the DX11 build"
           ],
           "settings": {
-            "graphicsBackend": "dxvk",
-            "dxvk": true,
-            "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -5687,12 +5365,8 @@
             "DirectX 11 title (PCGamingWiki); DXVK runs it"
           ],
           "settings": {
-            "graphicsBackend": "dxvk",
-            "dxvk": true,
-            "dxvkAsync": true,
             "enhancedSync": "esync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -5818,12 +5492,8 @@
             "Disable AVX in bottle performance settings"
           ],
           "settings": {
-            "graphicsBackend": "dxvk",
-            "dxvk": true,
-            "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -5885,12 +5555,8 @@
             "No special settings needed"
           ],
           "settings": {
-            "graphicsBackend": "d3dMetal",
-            "dxvk": false,
-            "dxvkAsync": false,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -5948,12 +5614,8 @@
             "There is no offline or anti-cheat-free mode"
           ],
           "settings": {
-            "graphicsBackend": "d3dMetal",
-            "dxvk": false,
-            "dxvkAsync": false,
             "enhancedSync": "none",
             "shaderCacheEnabled": false,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -6024,12 +5686,8 @@
             "corefonts supplies the Verdana and Arial that the launcher's stylesheet falls back to"
           ],
           "settings": {
-            "graphicsBackend": "dxvk",
-            "dxvk": true,
-            "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -6103,12 +5761,8 @@
             "Game uses dxgi/d3d11 fallback on certain branches; native overrides help"
           ],
           "settings": {
-            "graphicsBackend": "dxvk",
-            "dxvk": true,
-            "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -6181,12 +5835,8 @@
             "The Western release is DirectX 11 only; DirectX 12 exists only in the Asian 2.0 release (PCGamingWiki), where DXVK's preset would turn d3d12 off"
           ],
           "settings": {
-            "graphicsBackend": "dxvk",
-            "dxvk": true,
-            "dxvkAsync": true,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -6247,11 +5897,8 @@
           ],
           "settings": {
             "graphicsBackend": "wined3d",
-            "dxvk": false,
-            "dxvkAsync": false,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -6309,11 +5956,8 @@
           ],
           "settings": {
             "graphicsBackend": "wined3d",
-            "dxvk": false,
-            "dxvkAsync": false,
             "enhancedSync": "msync",
             "shaderCacheEnabled": true,
-            "avxEnabled": false,
             "sequoiaCompatMode": false
           },
           "environmentVariables": {},
@@ -6368,16 +6012,14 @@
           "rationale": [
             "Unity IL2CPP client ported from a mobile build. Its own FPS option does cap the frame rate, lobby included; with neither it nor a backend cap set, it renders as fast as the GPU allows",
             "The cap is left to the client, not DXMT. DXMT's preferredMaxFrameRate holds each frame on screen for a minimum time, which rounds to the refresh of whichever display the window is on and only paces evenly at a divisor of it (60 is not one of 75 Hz). The client's limiter waits on the CPU, so it gives 60 on any display the window lands on",
-            "DXMT translates this client's D3D11 straight to Metal. D3DMetal (GPTK 4.0b2) faults while creating the D3D11 device on the 3.1.1 runtime, and DXVK reaches Metal through MoltenVK at a bundled 1.10.3",
+            "DXMT translates this client's D3D11 straight to Metal; the runtime picks it for Mecharashi.exe through the WINE_COMPATDB rules",
             "The locale is deliberately not overridden: the client and its launcher render CJK text",
-            "No environment variable for the embedded browser. On the CrossOver-based 4.8 runtimes PE code runs with %gs on the pthread TSD, where gs:0x8 holds macOS's errno pointer, not the stack base. The browser (ZFGameBrowser.exe, CEF on Chromium 74) reads the stack base straight off gs:0x8, takes every thread for the main thread and crashes its renderer in a loop. This fork's runtime puts the stack base there for ZFGameBrowser.exe by itself; a variable set here would reach the browser only when the game starts it, not when the launcher or the installer does"
+            "No environment variable for the embedded browser (ZFGameBrowser.exe, CEF on Chromium 74). The stack-base workaround the CrossOver-based x86 runtimes needed for it does not apply to the arm64 runtime"
           ],
           "settings": {
             "graphicsBackend": "dxmt",
             "enhancedSync": "msync",
-            "shaderCacheEnabled": true,
-            "avxEnabled": false,
-            "frameRateLimit": "unlimited"
+            "shaderCacheEnabled": true
           },
           "environmentVariables": {},
           "dllOverrides": [],
@@ -6387,9 +6029,9 @@
       "notes": [
         "Measured on an M5 Pro, macOS 27.0.1, DXMT 0.80, a 75 Hz external display, in-game FPS 60 and no backend cap: about 59 fps in the lobby, dipping to about 48 in battle. One machine and one session, so there is no testedWith block yet and the rating stays unverified.",
         "Metal HUD over one session on the same machine: GPU time is about 2.5 ms a frame at 1366x768, so rendering is not what heats the machine; the CPU side (x86-64 translation and the client itself) is the likelier cause. At 60 fps on the 75 Hz display, three frames in four stay up one refresh (13.3 ms) and the fourth two (26.7 ms): 60 on average, but uneven. Setting the display to 60 Hz while playing gives even pacing with the same in-game cap.",
-        "The launcher, ZFGameBrowser.exe, is Chromium-based and never paints on D3DMetal. It is detected as a launcher now, so on the Recommended backend it resolves to DXVK on its own. Launcher auto-detection with Auto-enable DXVK on switches the whole bottle to DXVK; to keep the game on DXMT alongside the launcher, pin DXVK on ZFGameBrowser.exe with a per-program override instead.",
+        "The launcher, ZFGameBrowser.exe, is Chromium-based. It is detected as a launcher, so under the Recommended backend it runs on WineD3D through the compatdb rules while the game stays on DXMT. An explicit bottle backend applies to it too.",
         "This is a mobile-origin client. Its own graphics menu tops out well below what the Mac can draw, so lowering in-game settings does little for heat. The FPS option is what moves it. Leave ray tracing and DLSS off: ray tracing needs D3D12 and DLSS needs an NVIDIA GPU, so neither can work through DXMT.",
-        "A fixed 1366x768 window is set per program, not here: the database cannot carry launch arguments. Give Mecharashi.exe the arguments -screen-fullscreen 0 -screen-width 1366 -screen-height 768; the client area is then 1366x768 with the title bar outside it."
+        "A fixed 1366x768 window is set per program, not here: the database's launch arguments reach only Steam launches. Give Mecharashi.exe the arguments -screen-fullscreen 0 -screen-width 1366 -screen-height 768; the client area is then 1366x768 with the title bar outside it."
       ],
       "knownIssues": [
         {
@@ -6398,9 +6040,9 @@
           "workaround": "Set the in-game FPS option to 60 and leave the backend frame cap off. A DXMT cap that does not divide the display's refresh rate paces unevenly or rounds down."
         },
         {
-          "description": "The launcher window opens and stays blank on D3DMetal.",
+          "description": "The launcher window opens and stays blank.",
           "severity": "major",
-          "workaround": "Let launcher detection resolve it to DXVK, or set the backend to DXVK for ZFGameBrowser.exe."
+          "workaround": "Use the Recommended backend, which runs ZFGameBrowser.exe on WineD3D, or set WineD3D for ZFGameBrowser.exe in its program settings."
         }
       ],
       "provenance": {

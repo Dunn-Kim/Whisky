@@ -48,11 +48,6 @@ extension LauncherType {
         case .rockstar:
             [
                 LauncherFixDetail(
-                    key: "WINE_LARGE_ADDRESS_AWARE", value: "1",
-                    reason: LauncherFixReason.largeAddressAware,
-                    category: .compatibility
-                ),
-                LauncherFixDetail(
                     key: "LC_ALL", value: "en_US.UTF-8",
                     reason: LauncherFixReason.rockstarLocale,
                     category: .locale
@@ -107,7 +102,6 @@ extension LauncherType {
 private enum LauncherFixReason {
     static let steamCefSandbox = "Disables Steam-specific CEF sandbox (crashes under Wine)"
     static let steamRuntime = "Disables Steam Runtime (incompatible with Wine)"
-    static let largeAddressAware = "Improves launcher initialization memory handling"
     static let rockstarLocale = "Sets locale for launcher UI rendering"
     static let chromiumLocale = "Fixes Chromium-based launcher locale issues"
 }
@@ -123,8 +117,6 @@ extension LauncherFixDetail {
             String(localized: "launcher.fix.reason.steamCefSandbox")
         case LauncherFixReason.steamRuntime:
             String(localized: "launcher.fix.reason.steamRuntime")
-        case LauncherFixReason.largeAddressAware:
-            String(localized: "launcher.fix.reason.largeAddressAware")
         case LauncherFixReason.rockstarLocale:
             String(localized: "launcher.fix.reason.rockstarLocale")
         case LauncherFixReason.chromiumLocale:

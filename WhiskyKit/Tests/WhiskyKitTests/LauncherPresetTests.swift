@@ -59,7 +59,7 @@ final class LauncherPresetTests: XCTestCase {
     func testRockstarPresetSetsNoGraphicsVariables() {
         let env = LauncherType.rockstar.environmentOverrides()
 
-        XCTAssertEqual(env["WINE_LARGE_ADDRESS_AWARE"], "1")
+        XCTAssertNil(env["WINE_LARGE_ADDRESS_AWARE"])
         XCTAssertNil(env["DXVK_REQUIRED"], "No shipped runtime reads DXVK_REQUIRED")
         XCTAssertNil(env["D3DM_FORCE_D3D11"], "No shipped runtime reads D3DM_FORCE_D3D11")
     }

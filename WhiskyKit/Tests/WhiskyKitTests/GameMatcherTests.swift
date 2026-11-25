@@ -70,7 +70,6 @@ final class GameMatcherTests: XCTestCase {
         let variant = entry.variants[0]
         XCTAssertEqual(variant.id, "recommended-apple-silicon")
         XCTAssertEqual(variant.isDefault, true)
-        XCTAssertNotNil(variant.settings.graphicsBackend)
         XCTAssertNotNil(variant.testedWith)
     }
 
