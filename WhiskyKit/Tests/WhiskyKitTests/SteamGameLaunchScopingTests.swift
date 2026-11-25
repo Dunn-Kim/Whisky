@@ -72,14 +72,13 @@ final class SteamGameLaunchScopingTests {
             at: steam(in: bottle), args: ["-applaunch", "1174180"], bottle: bottle,
             programOverrides: plan, overridesApplyToDescendants: true,
             descendantExecutables: games,
-            recommendedBackend: .dxmt,
             overrideWriter: recorder.writer, importer: recorder.importer
         )
     }
 
     private func prepareDirectLaunch(_ url: URL, _ bottle: Bottle, recorder: ScopeRecorder) async throws {
         _ = try await Wine.prepareProgramLaunch(
-            at: url, bottle: bottle, recommendedBackend: .dxmt,
+            at: url, bottle: bottle,
             overrideWriter: recorder.writer, importer: recorder.importer
         )
     }
@@ -169,7 +168,6 @@ final class SteamGameLaunchScopingTests {
         _ = try await Wine.prepareProgramLaunch(
             at: steam(in: bottle), args: ["-applaunch", "1"], bottle: bottle,
             overridesApplyToDescendants: true, descendantExecutables: ["Game.exe", "STEAMWEBHELPER.exe"],
-            recommendedBackend: .dxmt,
             overrideWriter: recorder.writer, importer: recorder.importer
         )
 
@@ -194,7 +192,6 @@ final class SteamGameLaunchScopingTests {
         _ = try await Wine.prepareProgramLaunch(
             at: steamExe, args: ["-silent"], bottle: bottle,
             programOverrides: Program.persistedOverrides(for: steamExe, bottleURL: bottle.url),
-            recommendedBackend: .dxmt,
             overrideWriter: clientStart.writer, importer: clientStart.importer
         )
 
@@ -253,7 +250,6 @@ final class SteamGameLaunchScopingTests {
         _ = try await Wine.prepareProgramLaunch(
             at: steam(in: bottle), args: ["-applaunch", "1"], bottle: bottle,
             overridesApplyToDescendants: true, descendantExecutables: ["Launcher.exe", "Game.exe"],
-            recommendedBackend: .dxmt,
             overrideWriter: recorder.writer, importer: recorder.importer
         )
 

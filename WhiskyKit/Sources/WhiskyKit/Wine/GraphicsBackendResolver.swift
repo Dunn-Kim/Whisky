@@ -55,9 +55,8 @@ public enum GraphicsBackendResolver {
     ///
     /// Suitable for display in a detail label or tooltip next to the "Recommended" option.
     ///
-    /// - Parameter macOSVersion: The macOS version to consider. Defaults to the running system.
     /// - Returns: A human-readable rationale string.
-    public static func rationale(macOSVersion: MacOSVersion = .current) -> String {
+    public static func rationale() -> String {
         String(localized: "config.graphics.backend.recommended.rationale")
     }
 }

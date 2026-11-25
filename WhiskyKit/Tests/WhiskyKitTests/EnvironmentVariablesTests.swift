@@ -223,7 +223,7 @@ final class EnvironmentVariablesTests: XCTestCase {
             var overrides = ProgramOverrides()
             overrides.graphicsBackend = backend
             Wine.applyProgramOverrides(
-                overrides, recommendedBackend: .dxmt, builder: &builder, dllResolver: &dllResolver
+                overrides, builder: &builder, dllResolver: &dllResolver
             )
         }
 

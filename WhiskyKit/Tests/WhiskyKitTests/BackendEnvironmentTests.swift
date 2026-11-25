@@ -33,7 +33,7 @@ struct BackendEnvironmentTests {
         var builder = EnvironmentBuilder()
         var dllResolver = DLLOverrideResolver(managed: [], bottleCustom: [], programCustom: [])
         settings.populateBottleManagedLayer(
-            builder: &builder, resolvedBackend: .dxmt
+            builder: &builder
         )
         // As constructWineEnvironment does: the program's own environment
         // goes into its layer first, then its overrides.
@@ -41,7 +41,7 @@ struct BackendEnvironmentTests {
             builder.set(key, value, layer: .programUser)
         }
         Wine.applyProgramOverrides(
-            overrides, recommendedBackend: .dxmt,
+            overrides,
             builder: &builder, dllResolver: &dllResolver
         )
         return builder.resolve().environment

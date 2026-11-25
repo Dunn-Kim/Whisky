@@ -74,7 +74,6 @@ final class RSILauncherTests {
     ) async throws -> Wine.PreparedLaunch {
         try await Wine.prepareProgramLaunch(
             at: url, bottle: bottle, programOverrides: programOverrides,
-            recommendedBackend: .dxmt,
             overrideWriter: recorder.writer, importer: recorder.importer
         )
     }
@@ -182,7 +181,7 @@ final class RSILauncherTests {
         #expect(bottle.settings.gpuSpoofing == gpuSpoofing)
         #expect(bottle.settings.launcherLocale == locale)
         let env = Wine.constructWineEnvironment(
-            for: bottle, recommendedBackend: .dxmt
+            for: bottle
         )
         for key in ["LC_ALL", "LANG"] {
             #expect(env[key] == nil, "\(key)")

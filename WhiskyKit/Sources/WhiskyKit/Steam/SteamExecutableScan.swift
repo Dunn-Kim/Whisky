@@ -53,10 +53,9 @@ struct SteamExecutableScan: Equatable {
 
     /// The executables a launch leaves on their own settings: the Chromium
     /// hosts, then the table's front ends the scan did not count as hosts,
-    /// then the Electron and NW.js apps. Under Recommended a front end or an
-    /// app among them gets WineD3D's set instead
-    /// (``Wine/addFrontEndScopes(_:to:bottle:recommendedBackend:launcherSet:)``),
-    /// as it does when the Programs tab starts it.
+    /// then the Electron and NW.js apps. Under Recommended a front end of the
+    /// table runs on WineD3D through the runtime's compatdb rules
+    /// (``Wine/compatdbRules(bottleBackend:steeredExecutables:programBackends:userRules:)``).
     var ownSettingsExecutables: [URL] {
         var seen = Set<URL>()
         return (chromiumHosts + frontEnds + chromiumRuntimes).filter { seen.insert($0).inserted }

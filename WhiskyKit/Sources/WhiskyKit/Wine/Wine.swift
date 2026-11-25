@@ -415,8 +415,6 @@ public class Wine {
     ///   - ownSettingsExecutables: Executables among what this launch starts that keep their
     ///     own settings: each one the user has tuned gets an entry from its own overrides, as a
     ///     launch of it from the Programs tab writes, and the descendants' overrides skip it.
-    ///   - recommendedBackend: What `.recommended` resolves to for the bottle's games.
-    ///     Defaults to the resolver's answer for the installed runtime; tests pin it.
     ///   - overrideWriter: What writes the DLL overrides into the prefix registry. Tests pass a
     ///     recorder, so they can see what a launch writes without running Wine.
     ///   - importer: What imports the CJK font aliases the prefix is missing. Tests pass a
@@ -434,7 +432,6 @@ public class Wine {
         overridesApplyToDescendants: Bool = false,
         descendantExecutables: [String] = [],
         ownSettingsExecutables: [URL] = [],
-        recommendedBackend: GraphicsBackend = GraphicsBackendResolver.resolve(),
         overrideWriter: DLLOverrideWriter = { try await syncDLLOverrides(bottle: $0, scopes: $1) },
         importer: RegistryImporter = { try await importRegistry(document: $0, bottle: $1) },
         virtualDesktopQuery: VirtualDesktopQuery = { try await isVirtualDesktopEnabled(bottle: $0) }
@@ -463,18 +460,15 @@ public class Wine {
         // the curated table (3DMark) is steered the same way, while the
         // benchmarks and games it starts keep the bottle's backend, and so is an
         // Electron or NW.js app found by its files (#372).
-        let launcher = LauncherType.detect(from: url)
         let steering = overridesApplyToDescendants ? nil : BackendSteering.inspect(executable: url)
         let effectiveBackendChoice = programOverrides?.graphicsBackend ?? bottle.settings.graphicsBackend
-        let effectiveBackend = effectiveBackend(
-            for: url, choice: effectiveBackendChoice, steering: steering, recommendedBackend: recommendedBackend
-        )
+        let effectiveBackend = effectiveBackend(for: url, choice: effectiveBackendChoice, steering: steering)
 
         // The bottle composes its environment from its own resolution, which does
         // not know what is being launched, so pin the decision here or a
         // steered launcher gets the bottle's backend.
         var programOverrides = programOverrides
-        if effectiveBackendChoice == .recommended, effectiveBackend != recommendedBackend {
+        if effectiveBackendChoice == .recommended, effectiveBackend != GraphicsBackendResolver.resolve() {
             var pinned = programOverrides ?? ProgramOverrides()
             pinned.graphicsBackend = effectiveBackend
             programOverrides = pinned
@@ -490,8 +484,7 @@ public class Wine {
             unityDLLs: unityDLLs,
             programOverrides: programOverrides, programSettings: programSettings, callerProfile: gameProfileEnvironment,
             descendantExecutables: overridesApplyToDescendants ? descendantExecutables : nil,
-            ownSettingsExecutables: ownSettingsExecutables, steering: steering,
-            recommendedBackend: recommendedBackend
+            ownSettingsExecutables: ownSettingsExecutables, steering: steering
         )
 
         try await applyDLLOverrides(
@@ -500,7 +493,6 @@ public class Wine {
             applyToDescendants: overridesApplyToDescendants,
             descendantExecutables: descendantExecutables,
             ownSettingsExecutables: ownSettingsExecutables,
-            recommendedBackend: recommendedBackend,
             writer: overrideWriter
         )
 
@@ -523,12 +515,11 @@ public class Wine {
     ///   - url: The executable being launched.
     ///   - choice: The program's backend override, else the bottle's backend.
     ///   - steering: Why `url` needs WineD3D, when it does and its overrides are its own.
-    ///   - recommendedBackend: What `.recommended` resolves to for the bottle's games.
     static func effectiveBackend(
-        for url: URL, choice: GraphicsBackend, steering: BackendSteering?, recommendedBackend: GraphicsBackend
+        for url: URL, choice: GraphicsBackend, steering: BackendSteering?
     ) -> GraphicsBackend {
         guard choice == .recommended else { return choice }
-        guard let steering else { return recommendedBackend }
+        guard let steering else { return GraphicsBackendResolver.resolve() }
         let executable = url.lastPathComponent
         let evidence = steering.evidence
         logger.info("Recommended -> WineD3D for \(executable, privacy: .public) (\(evidence, privacy: .public))")
@@ -552,7 +543,6 @@ public class Wine {
     ///     carries their plan, or `nil` when `url` is what renders.
     ///   - ownSettingsExecutables: Executables this launch starts that keep their own settings.
     ///   - steering: Why `url` runs on WineD3D, when it does and its overrides are its own.
-    ///   - recommendedBackend: What `.recommended` resolves to for the bottle.
     @MainActor
     static func launchEnvironment(
         for url: URL, bottle: Bottle, backend: GraphicsBackend,
@@ -562,8 +552,7 @@ public class Wine {
         callerProfile: [String: String] = [:],
         descendantExecutables: [String]? = nil,
         ownSettingsExecutables: [URL] = [],
-        steering: BackendSteering? = nil,
-        recommendedBackend: GraphicsBackend? = nil
+        steering: BackendSteering? = nil
     ) -> [String: String] {
         // The executables the runtime is told a backend for: Chromium-drawn ones on
         // WineD3D, then those with a backend of their own. The program's overrides
@@ -592,7 +581,6 @@ public class Wine {
         var wineEnvironment = constructWineEnvironment(
             for: bottle, environment: environment, programOverrides: programOverrides,
             programSettings: programSettings, gameProfileEnvironment: gameProfileEnvironment,
-            recommendedBackend: recommendedBackend,
             steeredExecutables: steered, programBackends: programBackends, unityDLLs: unityDLLs
         )
         nameDXMTCaptureExecutable(
@@ -610,19 +598,14 @@ public class Wine {
     /// - Parameters:
     ///   - executables: The executables that keep their own settings.
     ///   - bottle: The bottle they run in.
-    ///   - recommendedBackend: What `.recommended` resolves to for the bottle.
     /// - Returns: Each tuned executable's name and DLL overrides, in the order given.
     @MainActor
     static func ownSettingsDLLOverrides(
-        for executables: [URL], bottle: Bottle,
-        recommendedBackend: GraphicsBackend?
+        for executables: [URL], bottle: Bottle
     ) -> [(executable: String, overrides: String)] {
         executables.compactMap { url in
             guard let own = Program.persistedOverrides(for: url, bottleURL: bottle.url) else { return nil }
-            let environment = constructWineEnvironment(
-                for: bottle, programOverrides: own,
-                recommendedBackend: recommendedBackend
-            )
+            let environment = constructWineEnvironment(for: bottle, programOverrides: own)
             return (url.lastPathComponent, environment["WINEDLLOVERRIDES"] ?? "")
         }
     }

@@ -768,22 +768,11 @@ public struct BottleSettings: Codable, Equatable {
     ///
     /// - Parameters:
     ///   - builder: The environment builder to populate.
-    ///   - resolvedBackend: The concrete backend to use when the bottle is set to
-    ///     `.recommended`. Defaults to `nil`, which resolves via
-    ///     ``GraphicsBackendResolver`` and therefore depends on the machine's
-    ///     installed runtime — tests pin an explicit value so the suite answers
-    ///     the same everywhere.
     public func populateBottleManagedLayer(
         builder: inout EnvironmentBuilder,
-        resolvedBackend: GraphicsBackend? = nil,
         displayRefreshRate: Int? = nil
     ) {
-        // Resolve the graphics backend (`.recommended` -> concrete backend)
-        let resolvedBackend = if graphicsBackend == .recommended {
-            resolvedBackend ?? GraphicsBackendResolver.resolve()
-        } else {
-            graphicsBackend
-        }
+        let resolvedBackend = graphicsBackend == .recommended ? GraphicsBackendResolver.resolve() : graphicsBackend
 
         // The runtime picks the graphics layer itself; only what DXMT reads is set here.
         if resolvedBackend == .dxmt, dxmtMetalFXUpscale {

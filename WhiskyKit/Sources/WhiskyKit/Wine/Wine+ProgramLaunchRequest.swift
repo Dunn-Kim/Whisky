@@ -74,7 +74,6 @@ extension Wine {
     ///   - url: The URL to the Windows executable (.exe) file.
     ///   - bottle: The ``Bottle`` in which to run the program.
     ///   - request: What the launch asks for.
-    ///   - recommendedBackend: What `.recommended` resolves to for the bottle's games.
     ///   - overrideWriter: What writes the DLL overrides into the prefix registry.
     ///   - importer: What imports the CJK font aliases the prefix is missing.
     /// - Returns: The environment and `wine` arguments the launch runs with.
@@ -82,7 +81,6 @@ extension Wine {
     @MainActor
     static func prepareProgramLaunch(
         at url: URL, bottle: Bottle, request: ProgramLaunchRequest,
-        recommendedBackend: GraphicsBackend = GraphicsBackendResolver.resolve(),
         overrideWriter: DLLOverrideWriter = { try await syncDLLOverrides(bottle: $0, scopes: $1) },
         importer: RegistryImporter = { try await importRegistry(document: $0, bottle: $1) }
     ) async throws -> PreparedLaunch {
@@ -93,7 +91,6 @@ extension Wine {
             overridesApplyToDescendants: request.overridesApplyToDescendants,
             descendantExecutables: request.descendantExecutables,
             ownSettingsExecutables: request.ownSettingsExecutables,
-            recommendedBackend: recommendedBackend,
             overrideWriter: overrideWriter, importer: importer
         )
     }

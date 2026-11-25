@@ -39,9 +39,6 @@ extension Wine {
     ///   - bottle: The bottle whose settings configure the environment.
     ///   - environment: Caller-provided environment variables (typically from `Program.generateEnvironment()`).
     ///   - programOverrides: Optional per-program setting overrides. `nil` fields inherit from bottle.
-    ///   - recommendedBackend: What `.recommended` resolves to, for the bottle and
-    ///     for a program set to it. Defaults to `nil`, which asks
-    ///     ``GraphicsBackendResolver`` about the installed runtime.
     ///   - steeredExecutables: Executables of this launch that run on WineD3D
     ///     whatever the bottle picks, beside the bottle's own launcher and the front-end table.
     ///   - programBackends: The executables with a backend of their own, which beats the rest.
@@ -53,7 +50,6 @@ extension Wine {
         programOverrides: ProgramOverrides? = nil,
         programSettings: ProgramSettings? = nil,
         gameProfileEnvironment: [String: String] = [:],
-        recommendedBackend: GraphicsBackend? = nil,
         steeredExecutables: [String] = [],
         programBackends: [(executable: String, backend: GraphicsBackend)] = [],
         unityDLLs: [String] = []
@@ -90,10 +86,7 @@ extension Wine {
         // Resolved on the main actor here so the nonisolated settings layer does
         // not have to reach for NSScreen itself.
         let displayRefreshRate = FrameRateLimit.mainDisplayRefreshRate()
-        bottle.settings.populateBottleManagedLayer(
-            builder: &builder, resolvedBackend: recommendedBackend,
-            displayRefreshRate: displayRefreshRate
-        )
+        bottle.settings.populateBottleManagedLayer(builder: &builder, displayRefreshRate: displayRefreshRate)
 
         // Layer 4: Launcher managed -- launcher compatibility overrides
         bottle.settings.populateLauncherManagedLayer(builder: &builder)
@@ -128,7 +121,6 @@ extension Wine {
         if let overrides = programOverrides {
             applyProgramOverrides(
                 overrides,
-                recommendedBackend: recommendedBackend,
                 builder: &builder,
                 dllResolver: &dllResolver,
                 bottleBackend: bottle.settings.graphicsBackend,
@@ -166,7 +158,6 @@ extension Wine {
             bottleBackend: bottle.settings.graphicsBackend,
             steeredExecutables: steeredExecutables + (bottle.settings.detectedLauncher?.helperExecutables ?? []),
             programBackends: programBackends,
-            recommendedBackend: recommendedBackend ?? GraphicsBackendResolver.resolve(),
             userRules: result["WINE_COMPATDB"]
         )
         if let rules {
@@ -190,12 +181,8 @@ extension Wine {
     /// Each non-nil field in the overrides sets the corresponding environment variable(s)
     /// in the ``EnvironmentLayer/programUser`` layer, which has higher priority than
     /// bottleManaged and launcherManaged layers.
-    ///
-    /// `recommendedBackend` is what a program set to
-    /// `.recommended` gets; `nil` asks ``GraphicsBackendResolver``.
     static func applyProgramOverrides(
         _ overrides: ProgramOverrides,
-        recommendedBackend: GraphicsBackend? = nil,
         builder: inout EnvironmentBuilder,
         dllResolver: inout DLLOverrideResolver,
         bottleBackend: GraphicsBackend = .recommended,
@@ -263,8 +250,7 @@ extension Wine {
         // otherwise leave the bottle's cap set on the wrong one.
         if overrides.graphicsBackend != nil || overrides.frameRateLimit != nil {
             let chosen = overrides.graphicsBackend ?? bottleBackend
-            let effectiveBackend = chosen == .recommended
-                ? recommendedBackend ?? GraphicsBackendResolver.resolve() : chosen
+            let effectiveBackend = chosen == .recommended ? GraphicsBackendResolver.resolve() : chosen
             let fps = (overrides.frameRateLimit ?? bottleFrameRateLimit)
                 .resolved(displayRefreshRate: displayRefreshRate)
             if effectiveBackend == .dxmt {

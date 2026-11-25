@@ -35,7 +35,6 @@ extension Wine {
         bottleBackend: GraphicsBackend,
         steeredExecutables: [String],
         programBackends: [(executable: String, backend: GraphicsBackend)],
-        recommendedBackend: GraphicsBackend = .dxmt,
         userRules: String? = nil
     ) -> String? {
         func fields(_ backend: GraphicsBackend) -> String? {
@@ -80,7 +79,7 @@ extension Wine {
                 guard bottleBackend != .recommended,
                       !steered.contains(where: { $0.lowercased() == executable.lowercased() })
                 else { continue }
-                add(executable, fields(recommendedBackend))
+                add(executable, fields(GraphicsBackendResolver.resolve()))
             } else {
                 add(executable, fields(backend))
             }

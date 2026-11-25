@@ -94,12 +94,12 @@ struct CompatdbRulesTests {
         let bottle = Bottle(bottleUrl: root)
         bottle.settings.graphicsBackend = .wined3d
 
-        let plain = Wine.constructWineEnvironment(for: bottle, recommendedBackend: .dxmt)
+        let plain = Wine.constructWineEnvironment(for: bottle)
         #expect(plain["WINE_COMPATDB"] == "exe=*;\(wined3d)\n\(frontEnd)")
 
         let withUser = Wine.constructWineEnvironment(
             for: bottle, environment: ["WINE_COMPATDB": "exe=x.exe;dxgi=default"],
-            recommendedBackend: .dxmt, programBackends: [("Game.exe", .dxmt)]
+            programBackends: [("Game.exe", .dxmt)]
         )
         #expect(
             withUser["WINE_COMPATDB"]

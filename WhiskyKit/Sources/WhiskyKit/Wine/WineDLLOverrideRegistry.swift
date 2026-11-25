@@ -175,8 +175,6 @@ public extension Wine {
     ///   belong to when they apply to descendants.
     /// - Parameter ownSettingsExecutables: Descendants that keep their own
     ///   settings, written ahead of the descendants' overrides.
-    /// - Parameter recommendedBackend: What `.recommended` resolves to for the
-    ///   bottle; `nil` asks ``GraphicsBackendResolver``.
     /// - Parameter writer: What performs the registry write.
     @MainActor
     static func applyDLLOverrides(
@@ -186,19 +184,13 @@ public extension Wine {
         applyToDescendants: Bool,
         descendantExecutables: [String] = [],
         ownSettingsExecutables: [URL] = [],
-        recommendedBackend: GraphicsBackend? = nil,
         writer: DLLOverrideWriter = { try await syncDLLOverrides(bottle: $0, scopes: $1) }
     ) async throws {
-        let bottleOverrides = constructWineEnvironment(
-            for: bottle, recommendedBackend: recommendedBackend
-        )["WINEDLLOVERRIDES"] ?? ""
+        let bottleOverrides = constructWineEnvironment(for: bottle)["WINEDLLOVERRIDES"] ?? ""
         var scopes = DLLOverrideScopes(bottle: bottleOverrides)
         let launcher = LauncherType.detect(from: url)
         let launcherSet = { (userOverrides: ProgramOverrides?) in
-            launcherDLLOverrides(
-                bottle: bottle, userOverrides: userOverrides,
-                recommendedBackend: recommendedBackend
-            )
+            launcherDLLOverrides(bottle: bottle, userOverrides: userOverrides)
         }
 
         // The launched executable and its helpers. AppDefaults is per executable
@@ -241,10 +233,7 @@ public extension Wine {
         // The game's plan, in the entries of the executables it runs as. After
         // Steam's own, which a game executable never displaces.
         if let gamePlan {
-            for (executable, own) in ownSettingsDLLOverrides(
-                for: ownSettingsExecutables, bottle: bottle,
-                recommendedBackend: recommendedBackend
-            ) {
+            for (executable, own) in ownSettingsDLLOverrides(for: ownSettingsExecutables, bottle: bottle) {
                 scopes.add([executable], own)
             }
             scopes.add(descendantExecutables, gamePlan)
@@ -293,17 +282,9 @@ public extension Wine {
     ///   - bottle: The bottle whose set to start from.
     ///   - userOverrides: The user's persisted overrides for the launcher's
     ///     executable (its custom DLL overrides, say), if any.
-    ///   - recommendedBackend: What `.recommended` resolves to for the bottle.
     @MainActor
-    static func launcherDLLOverrides(
-        bottle: Bottle,
-        userOverrides: ProgramOverrides? = nil,
-        recommendedBackend: GraphicsBackend? = nil
-    ) -> String {
-        constructWineEnvironment(
-            for: bottle, programOverrides: userOverrides,
-            recommendedBackend: recommendedBackend
-        )["WINEDLLOVERRIDES"] ?? ""
+    static func launcherDLLOverrides(bottle: Bottle, userOverrides: ProgramOverrides? = nil) -> String {
+        constructWineEnvironment(for: bottle, programOverrides: userOverrides)["WINEDLLOVERRIDES"] ?? ""
     }
 
     /// Parses a `WINEDLLOVERRIDES` string into DLL name to load-order pairs.

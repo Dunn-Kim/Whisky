@@ -86,7 +86,6 @@ final class StaleD3D12OverrideTests {
             at: steam(in: bottle), args: ["-applaunch", "1174180"], bottle: bottle,
             programOverrides: plan, overridesApplyToDescendants: true,
             descendantExecutables: ["PlayRDR2.exe", "RDR2.exe"],
-            recommendedBackend: .dxmt,
             overrideWriter: recorder.writer, importer: recorder.importer
         )
     }
@@ -132,7 +131,7 @@ final class StaleD3D12OverrideTests {
         let recorder = ScopeRecorder()
 
         _ = try await Wine.prepareProgramLaunch(
-            at: game, bottle: bottle, recommendedBackend: .dxmt,
+            at: game, bottle: bottle,
             overrideWriter: recorder.writer, importer: recorder.importer
         )
 

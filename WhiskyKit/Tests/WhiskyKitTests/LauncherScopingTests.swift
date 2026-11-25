@@ -101,7 +101,6 @@ final class LauncherScopingTests {
         try await Wine.prepareProgramLaunch(
             at: steam(in: bottle), args: applaunch ? ["-applaunch", "1174180"] : ["-silent"], bottle: bottle,
             programOverrides: plan, overridesApplyToDescendants: applaunch,
-            recommendedBackend: .dxmt,
             overrideWriter: recorder.writer, importer: recorder.importer
         )
     }
@@ -196,7 +195,7 @@ final class LauncherScopingTests {
         let recorder = ScopeRecorder()
 
         _ = try await Wine.prepareProgramLaunch(
-            at: launcher, bottle: bottle, recommendedBackend: .dxmt,
+            at: launcher, bottle: bottle,
             overrideWriter: recorder.writer, importer: recorder.importer
         )
 
