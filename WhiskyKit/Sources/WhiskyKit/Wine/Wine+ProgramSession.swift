@@ -108,7 +108,9 @@ extension Wine {
         let prunedEntries = history.append(entry)
         RunLogStore.save(history, for: programName, in: bottle.url)
 
-        for pruned in prunedEntries {
+        // A pruned entry that is still running keeps its log: its program, a Steam
+        // client say, is still writing to it. Log retention removes it later.
+        for pruned in prunedEntries where !pruned.isRunning {
             try? FileManager.default.removeItem(at: logsFolder.appending(path: pruned.logFileName))
         }
         RecordedLaunch(bottleURL: bottle.url, target: .program(name: programName), date: entry.startTime).post()

@@ -170,45 +170,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     @MainActor
     private func sweepOrphanProcesses() async {
-        var cleanedCount = 0
-
         for bottle in BottleVM.shared.bottles {
             // The sweep runs 2 s after launch. Only a wineserver that no launch
             // or helper of this app session accounts for is a leftover; one the
             // user just started a program, batch file or winecfg in is not.
             guard await Wine.runState(for: bottle) == .orphaned else { continue }
 
+            // Flagged, never killed: a game started from a shortcut or `whisky run`
+            // runs under a wineserver this session did not start, and the sidebar's
+            // stop button already offers to end a real leftover.
             let bottleName = bottle.settings.name
-            let policy = bottle.settings.killOnQuit
-            let globalKill = Self.killOnTerminate
-            let shouldAutoClean: Bool = switch policy {
-            case .inherit: globalKill
-            case .alwaysKill: true
-            case .neverKill: false
-            }
-
-            if shouldAutoClean {
-                // Auto-clean orphans per kill-on-quit policy
-                Wine.killBottle(bottle: bottle)
-                cleanedCount += 1
-                logger.info(
-                    "Auto-cleaned orphan processes in bottle '\(bottleName)' (kill-on-quit policy active)"
-                )
-            } else {
-                // Flag only -- do NOT auto-clean
-                logger.info(
-                    "Detected orphan Wine processes in bottle '\(bottleName)' (flagged, not auto-cleaned)"
-                )
-            }
-        }
-
-        // Post notification for cleaned orphans (toast display in ContentView)
-        if cleanedCount > 0 {
-            NotificationCenter.default.post(
-                name: .zombieProcessesCleaned,
-                object: nil,
-                userInfo: ["count": cleanedCount]
-            )
+            logger.info("Detected orphan Wine processes in bottle '\(bottleName)' (flagged, not auto-cleaned)")
         }
     }
 
@@ -233,10 +205,4 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
     }
-}
-
-extension Notification.Name {
-    /// Posted when orphaned Wine processes are cleaned up at launch.
-    /// Contains userInfo key "count" (Int) with the number of processes killed.
-    static let zombieProcessesCleaned = Notification.Name("zombieProcessesCleaned")
 }
