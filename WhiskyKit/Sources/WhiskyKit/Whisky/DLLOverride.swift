@@ -117,7 +117,7 @@ public struct DLLOverrideWarning: Sendable {
 /// // result.warnings has one entry (launcher override)
 /// ```
 public struct DLLOverrideResolver: Sendable {
-    /// Managed overrides from launcher presets. Read-only in the UI.
+    /// Managed overrides a launch adds: a Unity game's VC++ DLLs.
     public var managed: [(entry: DLLOverrideEntry, source: DLLOverrideSource)]
     /// Bottle-level custom overrides defined by the user.
     public var bottleCustom: [DLLOverrideEntry]

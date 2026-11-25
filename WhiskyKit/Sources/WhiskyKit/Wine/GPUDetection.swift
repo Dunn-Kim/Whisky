@@ -109,10 +109,8 @@ public enum GPUDetection {
     /// GPU features. Helps launchers pass compatibility checks that would otherwise
     /// fail due to incomplete Metal driver information.
     ///
-    /// The vendor and model no longer change the result. The `GPU_VENDOR_ID`,
-    /// `GPU_DEVICE_ID`, `GPU_DESCRIPTION`, `GPU_MEMORY_SIZE` and
-    /// shader-model keys they used to fill are read by no shipped runtime, so
-    /// they were dropped.
+    /// The vendor and model do not change the result: only the two Mesa
+    /// version overrides are set.
     ///
     /// - Parameters:
     ///   - vendor: The GPU vendor to spoof (NVIDIA, AMD, or Intel)

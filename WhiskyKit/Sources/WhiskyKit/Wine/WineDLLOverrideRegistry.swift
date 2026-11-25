@@ -201,9 +201,9 @@ public extension Wine {
         // *replace* each key it wrote, so leaving them out did not merely skip
         // them, it cleared any entry they already had. The overrides on such a
         // launch are the game's, so the launcher and its helpers get the
-        // launcher's own set instead: the bottle's set is not that, and a
-        // helper restarting after a game launch would otherwise run on the
-        // game's plan (#276).
+        // launcher's own set instead (the bottle's set with the user's own
+        // overrides for the launcher): a helper restarting after a game launch
+        // would otherwise run on the game's plan (#276).
         var gamePlan: String?
         if applyToDescendants, let launcher {
             gamePlan = wineEnvironment.removeValue(forKey: "WINEDLLOVERRIDES") ?? ""

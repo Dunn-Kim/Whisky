@@ -45,7 +45,8 @@ public enum WinVersion: String, CaseIterable, Codable, Sendable {
     }
 }
 
-/// The runtime implements msync and runs it by default; `none` turns it off.
+/// A runtime that implements msync (``WhiskyWineVersion/msyncCapable``) runs it
+/// by default; `none` turns it off.
 ///
 /// Stored as the synthesized form (`{"msync": {}}`). Older versions also had `esync`,
 /// which no runtime implements: it, and anything unknown, loads as the default, `msync`.

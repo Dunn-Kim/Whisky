@@ -295,7 +295,8 @@ public struct BottleSettings: Codable, Equatable {
     /// The synchronization mode for Wine.
     ///
     /// MSync can improve performance for some applications by using more efficient
-    /// synchronization primitives. The runtime runs it by default; `none` turns it off.
+    /// synchronization primitives. A runtime that implements it runs it by default;
+    /// `none` turns it off.
     public var enhancedSync: EnhancedSync {
         get { wineConfig.enhancedSync }
         set { wineConfig.enhancedSync = newValue }
@@ -620,8 +621,8 @@ public struct BottleSettings: Codable, Equatable {
 
     /// User-defined DLL overrides for this bottle.
     ///
-    /// These overrides are composed with managed overrides (from launcher
-    /// presets) by ``DLLOverrideResolver``. Bottle custom overrides
+    /// These overrides are composed with managed overrides (a Unity game's
+    /// VC++ DLLs) by ``DLLOverrideResolver``. Bottle custom overrides
     /// take precedence over managed overrides per-DLL.
     public var dllOverrides: [DLLOverrideEntry] {
         get { customDLLOverrides }

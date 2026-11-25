@@ -72,8 +72,7 @@ extension KeyedDecodingContainer {
     /// one that added an enum case this build doesn't know — loadable, instead of
     /// a single unrecognized value bricking the whole bottle's settings.
     ///
-    /// Only applies to `String`-raw-value enums; keyed-`Codable` enums
-    /// (e.g. `EnhancedSync`) are not covered and still decode strictly.
+    /// Only applies to `String`-raw-value enums.
     func decodeLenientIfPresent<T: RawRepresentable>(
         _: T.Type,
         forKey key: Key

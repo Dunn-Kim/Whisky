@@ -245,9 +245,8 @@ extension Wine {
         }
 
         // Frame rate cap. Re-resolved here whenever the program overrides either
-        // the cap or the backend, because the two are coupled: each backend uses
-        // a different variable, so switching backend at program level would
-        // otherwise leave the bottle's cap set on the wrong one.
+        // the cap or the backend, because the two are coupled: only DXMT has a
+        // limiter, so a program moved to WineD3D drops the bottle's DXMT_CONFIG.
         if overrides.graphicsBackend != nil || overrides.frameRateLimit != nil {
             let chosen = overrides.graphicsBackend ?? bottleBackend
             let effectiveBackend = chosen == .recommended ? GraphicsBackendResolver.resolve() : chosen

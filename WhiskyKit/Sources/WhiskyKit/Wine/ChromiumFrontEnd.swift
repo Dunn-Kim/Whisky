@@ -19,8 +19,8 @@
 import Foundation
 
 /// A program whose own window is drawn by Chromium, which stays black on
-/// DXMT, while the programs it starts are games that should keep
-/// them (#372).
+/// DXMT, while the programs it starts are games that should stay on
+/// it (#372).
 ///
 /// Recommended runs the listed executables on WineD3D, one at a time, through
 /// a compatdb rule each (``Wine/compatdbRules``).

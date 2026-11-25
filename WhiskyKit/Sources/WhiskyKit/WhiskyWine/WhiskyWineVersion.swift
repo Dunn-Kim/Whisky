@@ -45,9 +45,8 @@ public struct WhiskyWineVersion: Codable {
     /// Whether this runtime's Wine implements msync.
     ///
     /// Wine only takes the path when its own `ntdll.so` and `wineserver`
-    /// read `WINEMSYNC`. In Wine Libraries 3.1.1 (upstream Wine 11.0) the
-    /// name appears in neither binary, so Wine ignores the Enhanced Sync
-    /// setting. Whisky still sets the variable (the enhanced sync block of
+    /// read `WINEMSYNC`; a build without the msync patches ignores the Enhanced
+    /// Sync setting. Whisky still sets the variable (the enhanced sync block of
     /// `BottleSettings.populateBottleManagedLayer`).
     ///
     /// A runtime whose Wine carries the msync patches advertises `true` here.
@@ -59,8 +58,7 @@ public struct WhiskyWineVersion: Codable {
     /// synchronizes threads.
     ///
     /// True only when the runtime's plist sets ``msyncCapable`` to `true`.
-    /// Runtimes that do not say, such as the stock 3.x ones, count as not
-    /// implementing it.
+    /// Runtimes that do not say count as not implementing it.
     public var implementsEnhancedSync: Bool {
         msyncCapable == true
     }

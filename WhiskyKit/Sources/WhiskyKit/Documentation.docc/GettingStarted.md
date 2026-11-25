@@ -136,7 +136,7 @@ import WhiskyKit
 
 @MainActor
 func configurePerformance(bottle: Bottle) {
-    // Run on DXMT instead of the runtime's default choice
+    // Pick DXMT explicitly (Recommended already resolves to it for games)
     bottle.settings.graphicsBackend = .dxmt
 
     // Enable Metal HUD for debugging

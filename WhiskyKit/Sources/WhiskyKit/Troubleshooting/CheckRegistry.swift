@@ -28,7 +28,7 @@ import os.log
 /// ## Usage
 ///
 /// ```swift
-/// let registry = CheckRegistry()  // All 15 checks pre-registered
+/// let registry = CheckRegistry()  // All built-in checks pre-registered
 /// let result = await registry.run(
 ///     checkId: "graphics.backend_is",
 ///     params: ["expected": "wined3d"],
@@ -48,7 +48,7 @@ public final class CheckRegistry: @unchecked Sendable {
 
     /// Creates a check registry with all built-in checks pre-registered.
     ///
-    /// All 15 default check implementations are registered automatically.
+    /// All default check implementations are registered automatically.
     /// Additional checks can be registered via ``register(_:)`` after
     /// construction.
     public init() {
@@ -115,7 +115,7 @@ public final class CheckRegistry: @unchecked Sendable {
 
     // MARK: - Default Registration
 
-    /// Registers all 15 built-in check implementations.
+    /// Registers all built-in check implementations.
     ///
     /// Each check wraps an existing diagnostic primitive and returns a
     /// normalized ``CheckResult``. Check IDs are stable and match the

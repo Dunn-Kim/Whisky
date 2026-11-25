@@ -215,10 +215,10 @@ public struct GameConfigVariantSettings: Codable, Sendable, Equatable {
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        // The database still carries `dxvk`, `dxvkAsync`, `avxEnabled` and `"graphicsBackend": "dxvk"`
-        // entries: the keys are ignored and the backend value decodes as `.recommended`.
+        // The database still carries `dxvk`, `dxvkAsync`, `avxEnabled` and `"graphicsBackend"` values of
+        // `"dxvk"` and `"d3dMetal"`: the keys are ignored and those backends decode as `.recommended`.
         self.graphicsBackend = (try? container.decodeIfPresent(GraphicsBackend.self, forKey: .graphicsBackend))
-        // EnhancedSync uses Swift's auto-synthesized Codable (keyed enum, not String raw value).
+        // EnhancedSync is a keyed Codable enum, not a String raw value.
         // The JSON database uses plain strings ("none", "esync", "msync") for readability,
         // so we try String first and fall back to the native Codable format. "esync" is
         // msync: no runtime implements esync.

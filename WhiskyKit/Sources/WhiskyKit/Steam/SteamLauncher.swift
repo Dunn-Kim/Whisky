@@ -46,7 +46,8 @@ public enum SteamLauncher {
     /// environment, which every process it starts would inherit and which
     /// outranks their own entries. So the game gets its plan whether the
     /// running client or this invocation starts it, and the client and its
-    /// helpers keep WineD3D even when `-applaunch` brings them up (#276).
+    /// helpers keep their own overrides even when `-applaunch` brings them up
+    /// (#276). Their backend comes from the compatdb rules.
     ///
     /// The plan's launch arguments follow the App ID, and the client passes them
     /// on to the game.

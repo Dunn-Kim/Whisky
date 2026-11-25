@@ -127,8 +127,8 @@ open class WineSteamClientDriver: SteamClientDriver {
         SteamLauncher.startClient(steamExe: steamExe, bottle: bottle)
     }
 
-    /// Through the shared path, which carries the WineD3D and GPU-spoofing
-    /// settings steamwebhelper needs and not just the compat flag.
+    /// Through the shared path, which carries the GPU-spoofing settings
+    /// steamwebhelper needs and not just the compat flag.
     open func applyLauncherFixes() {
         LauncherFixes.apply(to: bottle, launcher: .steam)
     }
