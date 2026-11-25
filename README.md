@@ -66,7 +66,7 @@ This branch builds **WhiskyNative**. It runs Windows programs on an arm64 Wine r
    git clone --filter=blob:none -b arm64-native https://github.com/Dunn-Kim/Whisky.git
    ```
 
-2. Open `Whisky.xcodeproj` in Xcode 16 or later on an Apple Silicon Mac, then build and run. The project signs ad hoc by default (`Signing.xcconfig`), so it needs no Apple developer account. To sign with your own team, create `Signing.local.xcconfig` next to it (git ignores it) with `DEVELOPMENT_TEAM = <your team ID>` and `CODE_SIGN_IDENTITY = Apple Development`.
+2. Open `Whisky.xcodeproj` in Xcode 16 or later on an Apple Silicon Mac, then build and run. The project signs ad hoc by default (`Signing.xcconfig`), so it needs no Apple developer account. To sign with your own team, create `Signing.local.xcconfig` next to it (git ignores it) with `DEVELOPMENT_TEAM = <your team ID>`, `CODE_SIGN_IDENTITY = Apple Development` and `ENABLE_HARDENED_RUNTIME = YES`. Ad hoc builds leave the hardened runtime off: its library validation refuses the ad hoc Sparkle framework.
 3. Quit WhiskyNative, then install a runtime: `scripts/install-arm64-runtime.sh <runtime folder> <version>`. For example, use the `wine` folder of a Mach9 v0.4.0 release (Zlib licence): `scripts/install-arm64-runtime.sh ~/Downloads/mach9/wine 0.4.0`. Its loader is already signed with the cross-architecture entitlement.
 4. Open the app again. Copy your bottles with the migration sheet, or create new ones.
 

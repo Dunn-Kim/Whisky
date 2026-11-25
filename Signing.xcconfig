@@ -6,10 +6,14 @@
 //
 //     DEVELOPMENT_TEAM = <your team ID>
 //     CODE_SIGN_IDENTITY = Apple Development
+//     ENABLE_HARDENED_RUNTIME = YES
 //
 // Team IDs, certificates and provisioning profiles stay out of the repository.
 
 CODE_SIGN_IDENTITY = -
 DEVELOPMENT_TEAM =
+// The hardened runtime's library validation refuses an ad hoc framework (Sparkle) in an
+// ad hoc app: neither has a team ID. Only notarized builds need the hardened runtime.
+ENABLE_HARDENED_RUNTIME = NO
 
 #include? "Signing.local.xcconfig"

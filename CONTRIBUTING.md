@@ -6,7 +6,7 @@ Thanks for your interest! First, make a fork of Whisky, create a new branch for 
 
 Whisky is built using **Xcode 16** on **macOS Sequoia 15.0** or later. All external dependencies are handled through the Swift Package Manager.
 
-Signing comes from `Signing.xcconfig` at the repository root, which signs ad hoc by default. To use your own team, put `DEVELOPMENT_TEAM` and `CODE_SIGN_IDENTITY` in `Signing.local.xcconfig` next to it; git ignores that file.
+Signing comes from `Signing.xcconfig` at the repository root, which signs ad hoc by default. To use your own team, put `DEVELOPMENT_TEAM`, `CODE_SIGN_IDENTITY` and `ENABLE_HARDENED_RUNTIME = YES` in `Signing.local.xcconfig` next to it; git ignores that file. Ad hoc builds run without the hardened runtime.
 
 ### Cloning
 
