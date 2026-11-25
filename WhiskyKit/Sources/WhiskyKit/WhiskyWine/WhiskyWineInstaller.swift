@@ -192,12 +192,32 @@ public class WhiskyWineInstaller {
         defer { try? fileManager.removeItem(at: staging) }
         try Tar.untar(tarBall: tarball, toURL: staging)
 
-        for item in try fileManager.contentsOfDirectory(at: staging, includingPropertiesForKeys: nil) {
-            let target = destination.appending(path: item.lastPathComponent)
-            if fileManager.fileExists(atPath: target.path) {
-                try fileManager.removeItem(at: target)
+        // The old entries move aside first and come back if a later swap fails, so the runtime is
+        // never left half old and half new.
+        let backup = destination.appending(path: ".backup-\(UUID().uuidString)")
+        try fileManager.createDirectory(at: backup, withIntermediateDirectories: true)
+        defer { try? fileManager.removeItem(at: backup) }
+        var swapped: [(target: URL, old: URL?)] = []
+        do {
+            for item in try fileManager.contentsOfDirectory(at: staging, includingPropertiesForKeys: nil) {
+                let target = destination.appending(path: item.lastPathComponent)
+                var old: URL?
+                if fileManager.fileExists(atPath: target.path) {
+                    let aside = backup.appending(path: item.lastPathComponent)
+                    try fileManager.moveItem(at: target, to: aside)
+                    old = aside
+                }
+                swapped.append((target, old))
+                try fileManager.moveItem(at: item, to: target)
             }
-            try fileManager.moveItem(at: item, to: target)
+        } catch {
+            for (target, old) in swapped.reversed() {
+                try? fileManager.removeItem(at: target)
+                if let old {
+                    try? fileManager.moveItem(at: old, to: target)
+                }
+            }
+            throw error
         }
     }
 

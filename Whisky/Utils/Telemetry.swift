@@ -48,6 +48,8 @@ enum Telemetry {
     enum InstallFailureReason: String {
         case tarballMissing = "tarball_missing"
         case extractFailed = "extract_failed"
+        /// A Wine process still runs from the runtime, so the install refused to replace it.
+        case runtimeInUse = "runtime_in_use"
         case verifyFailed = "verify_failed"
         case downloadFailed = "download_failed"
         /// Extraction reported success but the runtime is not actually usable

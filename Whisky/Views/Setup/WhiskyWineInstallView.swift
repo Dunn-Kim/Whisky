@@ -221,8 +221,11 @@ struct WhiskyWineInstallView: View {
                 }
                 return .success
             } catch {
-                let reason: Telemetry.InstallFailureReason =
-                    (error as? WhiskyWineInstallError) == .tarballNotFound ? .tarballMissing : .extractFailed
+                let reason: Telemetry.InstallFailureReason = switch error as? WhiskyWineInstallError {
+                case .tarballNotFound: .tarballMissing
+                case .runtimeInUse: .runtimeInUse
+                default: .extractFailed
+                }
                 // Tar errors have an English form for the diagnostics report.
                 let diagnosticMessage = (error as? TarError)?.diagnosticMessage ?? error.localizedDescription
                 return .failure(
