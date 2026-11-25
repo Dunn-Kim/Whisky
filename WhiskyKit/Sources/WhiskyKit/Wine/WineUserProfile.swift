@@ -61,7 +61,7 @@ public enum WineUserProfile {
         case failed(String)
     }
 
-    private enum Entry {
+    enum Entry {
         case absent
         case symlink
         case directory
@@ -160,7 +160,7 @@ public enum WineUserProfile {
 
     // MARK: - Inspection
 
-    private static func classify(_ url: URL) -> Entry {
+    static func classify(_ url: URL) -> Entry {
         guard let attributes = try? FileManager.default.attributesOfItem(atPath: url.path),
               let type = attributes[.type] as? FileAttributeType
         else { return .absent }

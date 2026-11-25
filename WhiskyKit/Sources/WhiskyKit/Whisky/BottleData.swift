@@ -33,17 +33,29 @@ public struct BottleData: Codable {
         case paths
     }
 
-    public static let containerDir = FileManager.default.homeDirectoryForCurrentUser
-        .appending(path: "Library")
-        .appending(path: "Containers")
-        .appending(path: Bundle.whiskyBundleIdentifier)
+    /// The container of the app with `bundleIdentifier`.
+    static func container(for bundleIdentifier: String) -> URL {
+        FileManager.default.homeDirectoryForCurrentUser
+            .appending(path: "Library")
+            .appending(path: "Containers")
+            .appending(path: bundleIdentifier)
+    }
 
-    public static let bottleEntriesDir = containerDir
-        .appending(path: "BottleVM")
-        .appendingPathExtension("plist")
+    /// The bottle registry file inside an app's `container`.
+    static func entriesFile(in container: URL) -> URL {
+        container.appending(path: "BottleVM").appendingPathExtension("plist")
+    }
 
-    public static let defaultBottleDir = containerDir
-        .appending(path: "Bottles")
+    /// The default bottles directory inside an app's `container`.
+    static func bottlesDir(in container: URL) -> URL {
+        container.appending(path: "Bottles")
+    }
+
+    public static let containerDir = container(for: Bundle.whiskyBundleIdentifier)
+
+    public static let bottleEntriesDir = entriesFile(in: containerDir)
+
+    public static let defaultBottleDir = bottlesDir(in: containerDir)
 
     /// Written into a bottle folder while a migration fills it and removed when the bottle is
     /// registered, so a folder left by a quit mid-copy is not offered as an orphan.

@@ -45,10 +45,7 @@ public enum LegacyBottleImport {
         public init(bundleIdentifier: String, displayName: String, container: URL? = nil) {
             self.bundleIdentifier = bundleIdentifier
             self.displayName = displayName
-            self.container = container ?? FileManager.default.homeDirectoryForCurrentUser
-                .appending(path: "Library")
-                .appending(path: "Containers")
-                .appending(path: bundleIdentifier)
+            self.container = container ?? BottleData.container(for: bundleIdentifier)
         }
 
         /// The app's Wine folder, ending in a separator: every Wine process it starts runs from there.
@@ -153,15 +150,14 @@ public enum LegacyBottleImport {
 
         // 1. The registry plist lists every bottle the app knew about, including
         //    bottles stored at custom paths outside the Bottles directory.
-        let registryURL = container.appending(path: "BottleVM").appendingPathExtension("plist")
-        if let data = try? Data(contentsOf: registryURL),
+        if let data = try? Data(contentsOf: BottleData.entriesFile(in: container)),
            let registry = try? PropertyListDecoder().decode(LegacyRegistry.self, from: data) {
             candidates.append(contentsOf: registry.paths)
         }
 
         // 2. Scan the default Bottles directory in case the registry is missing or stale.
         if let entries = try? FileManager.default.contentsOfDirectory(
-            at: container.appending(path: "Bottles"),
+            at: BottleData.bottlesDir(in: container),
             includingPropertiesForKeys: [.isDirectoryKey]
         ) {
             candidates.append(contentsOf: entries)

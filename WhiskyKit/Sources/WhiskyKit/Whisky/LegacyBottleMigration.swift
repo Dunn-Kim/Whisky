@@ -133,7 +133,7 @@ public extension LegacyBottleImport {
             let name = entry.lastPathComponent
             if name.lowercased() == "windows" {
                 let fonts = entry.appending(path: "Fonts")
-                if itemType(at: fonts) != nil {
+                if WineUserProfile.classify(fonts) != .absent {
                     try mergeEntry(fonts, into: destination.appending(path: name).appending(path: "Fonts"))
                 }
             } else {
@@ -144,30 +144,25 @@ public extension LegacyBottleImport {
 
     private static func mergeEntry(_ source: URL, into destination: URL) throws {
         let fileManager = FileManager.default
-        var existing = itemType(at: destination)
+        var existing = WineUserProfile.classify(destination)
         // A fresh prefix links the profile's Desktop, Documents and the like to the Mac's
         // own folders, where the source bottle has real ones. Replace the link (removeItem
         // never follows it), so the source's files land in the bottle, not in the Mac's folders.
-        if existing == .typeSymbolicLink, itemType(at: source) == .typeDirectory {
+        if existing == .symlink, WineUserProfile.classify(source) == .directory {
             try fileManager.removeItem(at: destination)
-            existing = nil
+            existing = .absent
         }
-        guard let existing else {
+        guard existing != .absent else {
             try fileManager.createDirectory(
                 at: destination.deletingLastPathComponent(), withIntermediateDirectories: true
             )
             try fileManager.copyItem(at: source, to: destination)
             return
         }
-        guard existing == .typeDirectory, itemType(at: source) == .typeDirectory else { return }
+        guard existing == .directory, WineUserProfile.classify(source) == .directory else { return }
         for child in try fileManager.contentsOfDirectory(at: source, includingPropertiesForKeys: nil) {
             try mergeEntry(child, into: destination.appending(path: child.lastPathComponent))
         }
-    }
-
-    /// The type of the item at `url` without following a symlink, or `nil` when nothing is there.
-    private static func itemType(at url: URL) -> FileAttributeType? {
-        try? FileManager.default.attributesOfItem(atPath: url.path(percentEncoded: false))[.type] as? FileAttributeType
     }
 
     // MARK: - Registry
