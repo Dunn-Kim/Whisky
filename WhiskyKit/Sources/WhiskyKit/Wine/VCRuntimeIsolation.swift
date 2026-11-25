@@ -156,15 +156,7 @@ public enum VCRuntimeIsolation {
 
     /// The PE machine field of an image: `0x8664` x64, `0x14c` x86, `0xAA64` arm64.
     static func machine(of url: URL) -> UInt16? {
-        guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }
-        defer { try? handle.close() }
-        guard let dos = try? handle.read(upToCount: 0x40), dos.count == 0x40 else { return nil }
-        let offset = dos.suffix(4).enumerated().reduce(UInt64(0)) { $0 | UInt64($1.element) << (8 * UInt64($1.offset)) }
-        guard (try? handle.seek(toOffset: offset)) != nil,
-              let header = try? handle.read(upToCount: 6), header.count == 6,
-              Array(header.prefix(4)) == [0x50, 0x45, 0, 0]
-        else { return nil }
-        return UInt16(header[4]) | UInt16(header[5]) << 8
+        (try? PEFile(url: url))?.coffFileHeader.machine
     }
 
     private static func machineName(_ machine: UInt16) -> String {
