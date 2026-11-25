@@ -177,7 +177,7 @@ extension Wine {
     /// Readies a bottle for a Wine process: the VC++ runtime out of the system
     /// folders, the user profile under the name this runtime uses, and FEX's
     /// cache folder in place. Call it before any Wine process starts in the bottle.
-    static func prepareBottleForWine(bottleURL: URL) {
+    public static func prepareBottleForWine(bottleURL: URL) {
         isolateVCRuntime(bottleURL: bottleURL)
         WineUserProfile.reconcile(bottleURL: bottleURL)
         ensureFEXCacheFolder()

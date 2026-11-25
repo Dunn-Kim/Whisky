@@ -45,6 +45,27 @@ struct WinetricksCategory {
 }
 
 class Winetricks {
+    /// What every winetricks run gets besides the prefix: no check for a newer
+    /// winetricks (a network round trip a run, whose notice read as a verb), no
+    /// web.archive.org second download, and a stop on a checksum mismatch, which
+    /// `-q` would otherwise take as yes (the bundled script's `WHISKY_STRICT_SHA256`).
+    static let safetyEnvironment = [
+        "WINETRICKS_LATEST_VERSION_CHECK": "disabled",
+        "WINETRICKS_NO_ARCHIVE_ORG": "1",
+        "WHISKY_STRICT_SHA256": "1"
+    ]
+
+    /// Readies the bottle for Wine, as every launch does (the VC++ runtime moved
+    /// out of the system folders first), and returns the bottle's own variables
+    /// a winetricks `wine` needs to run the way its programs do: the sync mode
+    /// and FEX's code cache.
+    @MainActor
+    static func bottleEnvironment(for bottle: Bottle) -> [String: String] {
+        Wine.prepareBottleForWine(bottleURL: bottle.url)
+        let keys: Set = ["WINEMSYNC", "FEX_DISKCACHE", "FEX_DISKCACHEPATH"]
+        return Wine.constructWineEnvironment(for: bottle).filter { keys.contains($0.key) }
+    }
+
     /// Opens the winetricks command in the user's terminal.
     ///
     /// - Returns: `true` when the command was handed to the terminal, `false`
@@ -138,18 +159,23 @@ class Winetricks {
     private static func writeTerminalScript(command: String, bottle: Bottle, resourcesURL: URL) throws -> URL {
         let winetricksPath = resourcesURL.appending(path: "winetricks").path(percentEncoded: false)
         let pathValue = "\(WhiskyWineInstaller.binFolder.path):\(resourcesURL.path(percentEncoded: false))"
+        let exports = bottleEnvironment(for: bottle).merging(safetyEnvironment) { _, safe in safe }
+            .sorted { $0.key < $1.key }
+            .map { "export " + ShellQuoting.assignment($0.key, $0.value) }
         let scriptContent = [
             "#!/bin/bash",
             "export PATH=\(ShellQuoting.quoted(pathValue)):\"$PATH\"",
             "export WINE=wine",
-            "export " + ShellQuoting.assignment("WINEPREFIX", bottle.url.path(percentEncoded: false)),
+            "export " + ShellQuoting.assignment("WINEPREFIX", bottle.url.path(percentEncoded: false))
+        ] + exports + [
             ShellQuoting.commandLine(["bash", winetricksPath, command]),
             ""
-        ].joined(separator: "\n")
+        ]
+        let script = scriptContent.joined(separator: "\n")
 
         let scriptURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("whisky-winetricks-\(UUID().uuidString).sh")
-        try scriptContent.write(to: scriptURL, atomically: true, encoding: .utf8)
+        try script.write(to: scriptURL, atomically: true, encoding: .utf8)
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: scriptURL.path)
         TempFileTracker.shared.register(file: scriptURL)
         return scriptURL

@@ -32,8 +32,14 @@ extension Winetricks {
     /// - Parameter bottle: The bottle whose prefix to query.
     /// - Returns: A set of installed verb names, or `nil` if the process fails or times out.
     static func listInstalledVerbs(for bottle: Bottle) async -> Set<String>? {
-        let bottleURL = await MainActor.run { bottle.url }
+        let (bottleURL, bottleEnvironment) = await MainActor.run { (
+            bottle.url,
+            Winetricks.bottleEnvironment(for: bottle)
+        ) }
         logger.debug("Running winetricks list-installed for bottle at \(bottleURL.path)")
+        // Recorded as a helper, so the wineserver it brings up does not read as orphaned.
+        WineHelperActivity.shared.begin(bottleURL: bottleURL)
+        defer { WineHelperActivity.shared.end(bottleURL: bottleURL) }
 
         guard let resourcesURL = Bundle.main.url(forResource: "cabextract", withExtension: nil)?
             .deletingLastPathComponent()
@@ -55,8 +61,10 @@ extension Winetricks {
                 "/usr/bin",
                 "/bin"
             ].joined(separator: ":"),
-            "HOME": NSHomeDirectory()
-        ]
+            "HOME": NSHomeDirectory(),
+            // Without it, notices such as "Using winetricks …" reach stdout and read as verbs.
+            "WINETRICKS_SUPER_QUIET": "1"
+        ].merging(bottleEnvironment) { _, bottle in bottle }.merging(Winetricks.safetyEnvironment) { _, safe in safe }
 
         let stdout = Pipe()
         process.standardOutput = stdout

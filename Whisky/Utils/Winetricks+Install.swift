@@ -103,7 +103,8 @@ extension Winetricks {
     private static func configureInstallProcess(
         verb: String,
         bottleURL: URL,
-        resourcesURL: URL
+        resourcesURL: URL,
+        bottleEnvironment: [String: String]
     ) -> Process {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
@@ -119,7 +120,7 @@ extension Winetricks {
                 "/bin"
             ].joined(separator: ":"),
             "HOME": NSHomeDirectory()
-        ]
+        ].merging(bottleEnvironment) { _, bottle in bottle }.merging(Winetricks.safetyEnvironment) { _, safe in safe }
         return process
     }
 
@@ -151,7 +152,10 @@ extension Winetricks {
     ) async {
         continuation.yield(.preparing)
 
-        let bottleURL = await MainActor.run { bottle.url }
+        let (bottleURL, bottleEnvironment) = await MainActor.run { (
+            bottle.url,
+            Winetricks.bottleEnvironment(for: bottle)
+        ) }
 
         guard let resourcesURL = Bundle.main.url(
             forResource: "cabextract",
@@ -164,7 +168,9 @@ extension Winetricks {
             return
         }
 
-        let process = configureInstallProcess(verb: verb, bottleURL: bottleURL, resourcesURL: resourcesURL)
+        let process = configureInstallProcess(
+            verb: verb, bottleURL: bottleURL, resourcesURL: resourcesURL, bottleEnvironment: bottleEnvironment
+        )
         let stdoutPipe = Pipe()
         let stderrPipe = Pipe()
         process.standardOutput = stdoutPipe
