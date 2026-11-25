@@ -223,24 +223,13 @@ private extension GraphicsConfigSection {
         // Frame rate cap -- always visible. Uncapped rendering is the single
         // biggest avoidable source of GPU power draw and heat.
         VStack(alignment: .leading, spacing: 4) {
-            Picker("config.frameRateLimit", selection: $bottle.settings.frameRateLimit) {
-                ForEach(FrameRateLimit.allCases, id: \.self) { limit in
-                    Text(limit.label).tag(limit)
-                }
-            }
+            FrameRateLimitPicker(limit: $bottle.settings.frameRateLimit, backend: resolvedBackend)
             Text(
                 resolvedBackend.supportsFrameRateLimit
                     ? "config.frameRateLimit.info" as LocalizedStringKey : "config.frameRateLimit.unsupported"
             )
             .font(.caption)
             .foregroundStyle(.secondary)
-            if resolvedBackend == .dxmt, !bottle.settings.frameRateLimit.pacesEvenly(
-                displayRefreshRate: FrameRateLimit.mainDisplayRefreshRate()
-            ) {
-                Text("config.frameRateLimit.uneven")
-                    .font(.caption)
-                    .foregroundStyle(.orange)
-            }
         }
     }
 
@@ -280,6 +269,27 @@ extension GraphicsConfigSection {
             Text("config.graphics.chromiumOnExplicitBackend \(ListFormatter.localizedString(byJoining: names))")
                 .font(.caption)
                 .foregroundStyle(.secondary)
+        }
+    }
+}
+
+/// The frame cap picker, with the warning DXMT needs when the cap does not
+/// divide the main display's refresh rate. Shared by the bottle and the
+/// program overrides, which must say the same thing.
+struct FrameRateLimitPicker: View {
+    @Binding var limit: FrameRateLimit
+    let backend: GraphicsBackend
+
+    var body: some View {
+        Picker("config.frameRateLimit", selection: $limit) {
+            ForEach(FrameRateLimit.allCases, id: \.self) { limit in
+                Text(limit.label).tag(limit)
+            }
+        }
+        if backend == .dxmt, !limit.pacesEvenly(displayRefreshRate: FrameRateLimit.mainDisplayRefreshRate()) {
+            Text("config.frameRateLimit.uneven")
+                .font(.caption)
+                .foregroundStyle(.orange)
         }
     }
 }

@@ -311,18 +311,7 @@ struct ProgramOverrideSettingsView: View {
 
                 // Frame cap applies to every backend that ships a limiter.
                 if resolvedOverriddenBackend.supportsFrameRateLimit {
-                    Picker("config.frameRateLimit", selection: frameRateLimitBinding) {
-                        ForEach(FrameRateLimit.allCases, id: \.self) { limit in
-                            Text(limit.label).tag(limit)
-                        }
-                    }
-                    if resolvedOverriddenBackend == .dxmt, !frameRateLimitBinding.wrappedValue.pacesEvenly(
-                        displayRefreshRate: FrameRateLimit.mainDisplayRefreshRate()
-                    ) {
-                        Text("config.frameRateLimit.uneven")
-                            .font(.caption)
-                            .foregroundStyle(.orange)
-                    }
+                    FrameRateLimitPicker(limit: frameRateLimitBinding, backend: resolvedOverriddenBackend)
                 }
 
                 // Not gated on the backend: the Metal HUD is Apple's, and it
