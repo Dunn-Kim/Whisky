@@ -23,8 +23,8 @@ import XCTest
 ///
 /// None of these names occurs, in ASCII or UTF-16LE, in any file of the Wine
 /// Libraries v2.5.0, v3.0.0, v3.1.1 or v4.6.4-beta.1 trees (Wine, DXVK, DXMT and
-/// the bundled D3DMetal) or of the imported GPTK 4.0b2 D3DMetal payload, and
-/// none is a Steam or CEF switch.
+/// the bundled D3DMetal), of the imported GPTK 4.0b2 D3DMetal payload, or of the
+/// arm64 Mach9 0.4.0 runtime (Wine, DXMT, FEX), and none is a Steam or CEF switch.
 private let unreadVariables = [
     "D3DM_VALIDATION",
     "WINE_DISABLE_NTDLL_THREAD_REGS",

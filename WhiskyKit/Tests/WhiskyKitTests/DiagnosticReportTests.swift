@@ -142,11 +142,7 @@ final class DiagnosticReportTests: XCTestCase {
         markdown += "### System Info\n\n"
         let version = MacOSVersion.current
         markdown += "- **macOS:** \(version.description)\n"
-        #if arch(arm64)
         markdown += "- **Architecture:** Apple Silicon (arm64)\n"
-        #else
-        markdown += "- **Architecture:** Intel (x86_64)\n"
-        #endif
         markdown += "\n"
 
         markdown += "### Diagnosis Summary\n\n"

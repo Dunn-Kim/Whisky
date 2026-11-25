@@ -26,11 +26,8 @@ public enum DistributionConfig {
     /// URL for the WhiskyWine version plist file, which names the engine to
     /// install and offers as an update.
     ///
-    /// Apps before 3.10.0 read `WhiskyWineVersion.plist`, which stays on the
-    /// stock 3.1.1 engine: the GPTK-capable engine was tested with 3.10.0 and
-    /// its graphics, DLL override and environment fixes, so older apps are not
-    /// offered an engine switch nobody tested them with. This feed is the one
-    /// that moves.
+    /// The arm64 build has a feed of its own: the x86_64 build's
+    /// (`WhiskyWineVersion-v4.plist` on `main`) names an engine this one cannot run.
     ///
     /// This fork serves the feed from its own repository: its engine carries
     /// patches upstream's does not, so an upstream engine would install

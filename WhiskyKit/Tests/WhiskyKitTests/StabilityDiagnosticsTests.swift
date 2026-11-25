@@ -108,11 +108,7 @@ final class StabilityDiagnosticsTests: XCTestCase {
 
         let report = await StabilityDiagnostics.generateDiagnosticReport(for: bottle, config: config)
 
-        #if arch(arm64)
         XCTAssertTrue(report.contains("Architecture: Apple Silicon (arm64)"))
-        #else
-        XCTAssertTrue(report.contains("Architecture: Intel (x86_64)"))
-        #endif
     }
 
     func testReportShowsTheBackendAsChosen() async throws {

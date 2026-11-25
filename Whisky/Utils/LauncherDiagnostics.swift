@@ -106,12 +106,7 @@ enum LauncherDiagnostics {
             info += "Wine Version: Unable to detect\n"
         }
 
-        // Processor architecture (host hardware, independent of running slice)
-        if HostArchitecture.isAppleSilicon {
-            info += "Architecture: Apple Silicon (arm64)\n"
-        } else {
-            info += "Architecture: Intel (x86_64)\n"
-        }
+        info += "Architecture: Apple Silicon (arm64)\n"
 
         info += "\n"
         return info
