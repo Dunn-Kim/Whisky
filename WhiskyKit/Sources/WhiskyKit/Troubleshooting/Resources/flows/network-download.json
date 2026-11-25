@@ -28,30 +28,8 @@
       "title": "Launcher identified",
       "description": "Routing to launcher-specific network troubleshooting steps.",
       "on": {
-        "Steam": "check_steam_download",
+        "Steam": "fix_restart_steam",
         "default": "check_wine_dns"
-      }
-    },
-    "check_steam_download": {
-      "id": "check_steam_download",
-      "type": "check",
-      "phase": "checks",
-      "title": "Check Steam download processes",
-      "description": "Checking Steam web helper process count. Too many processes can cause download stalls.",
-      "checkId": "process.running_check",
-      "params": {
-        "process": "steamwebhelper"
-      },
-      "on": {
-        "pass": "fix_download_region",
-        "fail": "fix_restart_steam",
-        "unknown": "fix_download_region",
-        "error": "fix_download_region"
-      },
-      "evidenceMap": {
-        "processName": "Process",
-        "running": "Running",
-        "processCount": "Instance count"
       }
     },
     "fix_restart_steam": {

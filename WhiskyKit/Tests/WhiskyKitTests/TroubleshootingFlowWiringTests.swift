@@ -265,7 +265,7 @@ final class TroubleshootingFlowWiringTests: XCTestCase {
 
     // MARK: - All verbs installed
 
-    func testAllVerbsInstalledMovesOnToTheDLLCheck() async {
+    func testAllVerbsInstalledMovesOnToTheGameConfigCheck() async {
         let engine = makeEngine(scripted: [
             "winetricks.verb_check": .alreadyConfigured,
             "dependency.check_missing": .pass,
@@ -275,7 +275,7 @@ final class TroubleshootingFlowWiringTests: XCTestCase {
         await waitUntil("flow finished") { engine.session.phase == .escalation }
 
         XCTAssertTrue(engine.session.branchDecisions.contains {
-            $0.fromNodeId == "check_installed_verbs" && $0.toNodeId == "check_dlls"
+            $0.fromNodeId == "check_installed_verbs" && $0.toNodeId == "check_game_config"
         })
     }
 
@@ -296,7 +296,7 @@ final class TroubleshootingFlowWiringTests: XCTestCase {
 
     func testLauncherIssuesBranchOnTheDetectedLauncher() async {
         let expectations: [(LauncherType?, String)] = [
-            (.steam, "show_steam_download_info"),
+            (.steam, "fix_restart_launcher"),
             (.eaApp, "fix_launcher_env"),
             (.epicGames, "fix_launcher_env"),
             (.rockstar, "fix_launcher_env"),

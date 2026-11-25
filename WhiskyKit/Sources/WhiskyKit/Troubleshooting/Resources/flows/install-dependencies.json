@@ -11,11 +11,11 @@
       "description": "Scanning for commonly required runtime components: Visual C++, .NET, and DirectX.",
       "checkId": "winetricks.verb_check",
       "params": {
-        "verbs": "vcrun2019,dotnet48,d3dx9"
+        "verbs": "vcrun2019,d3dx9"
       },
       "on": {
         "pass": "check_game_config",
-        "already_configured": "check_dlls",
+        "already_configured": "check_game_config",
         "fail": "show_missing_deps",
         "unknown": "check_game_config",
         "error": "check_game_config"
@@ -46,7 +46,7 @@
       "requiresConfirmation": true,
       "on": {
         "applied": "verify_install",
-        "skipped": "check_dlls"
+        "skipped": "check_game_config"
       }
     },
     "verify_install": {
@@ -57,38 +57,7 @@
       "description": "Try launching the program again to check whether the dependency issue is resolved.",
       "on": {
         "yes": "resolved",
-        "no": "check_dlls"
-      }
-    },
-    "check_dlls": {
-      "id": "check_dlls",
-      "type": "check",
-      "phase": "checks",
-      "title": "Check for specific DLL files",
-      "description": "Looking for specific DLL files that should be present in the bottle after dependency installation.",
-      "checkId": "dependency.check_missing",
-      "params": {
-        "dlls": "msvcr140.dll,d3d9.dll,d3d11.dll,d3dcompiler_47.dll"
-      },
-      "on": {
-        "pass": "check_game_config",
-        "fail": "show_dll_findings",
-        "unknown": "check_game_config",
-        "error": "check_game_config"
-      },
-      "evidenceMap": {
-        "missingDeps": "Missing DLLs",
-        "checkedCount": "DLLs checked"
-      }
-    },
-    "show_dll_findings": {
-      "id": "show_dll_findings",
-      "type": "info",
-      "phase": "checks",
-      "title": "Missing DLL files detected",
-      "description": "Some expected DLL files are missing from the bottle. Try installing them manually via Winetricks or check if an alternate verb provides the needed files.",
-      "on": {
-        "continue": "check_game_config"
+        "no": "check_game_config"
       }
     },
     "check_game_config": {
