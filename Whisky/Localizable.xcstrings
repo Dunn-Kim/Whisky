@@ -19836,6 +19836,28 @@
         }
       }
     },
+    "bottle.error.stillRunning" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The bottle's programs did not stop in time, so nothing was changed. Try again."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The bottle's programs did not stop in time, so nothing was changed. Try again."
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bottle의 프로그램이 제때 멈추지 않아 아무것도 변경하지 않았습니다. 다시 시도하세요."
+          }
+        }
+      }
+    },
     "bottle.migration.error.prefixBusy" : {
       "localizations" : {
         "en" : {
