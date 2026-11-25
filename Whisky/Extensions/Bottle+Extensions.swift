@@ -214,30 +214,35 @@ extension Bottle {
     /// - Throws: The deletion's error, so the caller can tell the user.
     @MainActor @discardableResult
     func remove(delete: Bool) async throws -> Bool {
-        // Check for running processes before deletion
-        let isRunning = await Wine.isWineserverRunning(for: self)
-        let trackedCount = ProcessRegistry.shared.getProcessCount(for: self)
-
-        if isRunning || trackedCount > 0 {
-            let alert = NSAlert()
-            alert.messageText = String(localized: "bottle.remove.hasProcesses.title")
-            alert.informativeText = String(localized: "bottle.remove.hasProcesses.message")
-            alert.alertStyle = .warning
-            let stopAndRemove = alert.addButton(
-                withTitle: String(localized: "bottle.remove.hasProcesses.stopAndRemove")
-            )
-            stopAndRemove.hasDestructiveAction = true
-            alert.addButton(withTitle: String(localized: "bottle.remove.hasProcesses.cancel"))
-
-            let response = alert.runModal()
-            guard response == .alertFirstButtonReturn else { return false }
-
-            Wine.killBottle(bottle: self)
-            try? await Task.sleep(for: .seconds(2))
-            ProcessRegistry.shared.clearRegistry(for: url)
-        }
+        guard await stopProcessesBeforeChange(
+            message: String(localized: "bottle.remove.hasProcesses.message"),
+            confirm: String(localized: "bottle.remove.hasProcesses.stopAndRemove")
+        )
+        else { return false }
 
         try BottleOperations.remove(bottleAt: url, deleteFiles: delete, registry: BottleVM.shared)
+        return true
+    }
+
+    /// Offers to stop the bottle's running programs before an operation that
+    /// changes its folder, and stops them on confirm.
+    ///
+    /// - Returns: `false` when programs run and the user cancels.
+    @MainActor
+    func stopProcessesBeforeChange(message: String, confirm: String) async -> Bool {
+        let isRunning = await Wine.isWineserverRunning(for: self)
+        guard isRunning || ProcessRegistry.shared.getProcessCount(for: self) > 0 else { return true }
+
+        let alert = NSAlert()
+        alert.messageText = String(localized: "bottle.remove.hasProcesses.title")
+        alert.informativeText = message
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: confirm).hasDestructiveAction = true
+        alert.addButton(withTitle: String(localized: "bottle.remove.hasProcesses.cancel"))
+        guard alert.runModal() == .alertFirstButtonReturn else { return false }
+
+        Wine.killBottleAndWait(bottle: self)
+        ProcessRegistry.shared.clearRegistry(for: url)
         return true
     }
 

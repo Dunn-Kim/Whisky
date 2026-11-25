@@ -181,7 +181,11 @@ struct AudioSettingsView: View {
                     performReset()
                 }
             } message: {
-                Text("config.audio.resetState.message")
+                // The reset restarts the wineserver, which closes the bottle's programs.
+                Text(
+                    String(localized: "config.audio.resetState.message") + " "
+                        + String(localized: "audio.fix.closesPrograms")
+                )
             }
             if isResettingAudioState {
                 ProgressView()

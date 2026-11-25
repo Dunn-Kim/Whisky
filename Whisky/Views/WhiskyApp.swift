@@ -226,8 +226,7 @@ struct WhiskyApp: App {
                 }
                 .keyboardShortcut("K", modifiers: [.command, .shift])
                 Button("wine.clearShaderCaches") {
-                    WhiskyApp.killBottles() // Better not make things more complicated for ourselves
-                    WhiskyApp.wipeShaderCaches()
+                    WhiskyApp.confirmAndWipeShaderCaches()
                 }
             }
             CommandGroup(replacing: .help) {
@@ -462,6 +461,33 @@ extension WhiskyApp {
         }
     }
 
+    /// Asks first, since it closes every program in every bottle, then waits for
+    /// them to stop: DXMT keeps the cache open as a database while a game runs.
+    @MainActor
+    static func confirmAndWipeShaderCaches() {
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = String(
+            localized: "wine.clearShaderCaches.confirm.title", defaultValue: "Clear shader caches?"
+        )
+        alert.informativeText = String(
+            localized: "wine.clearShaderCaches.confirm.body",
+            defaultValue: """
+            This closes every program running in your bottles, then deletes DXMT's shader cache. \
+            The Rosetta build of Whisky shares that cache, so its games rebuild their shaders too.
+            """
+        )
+        alert.addButton(withTitle: String(
+            localized: "wine.clearShaderCaches.confirm.clear", defaultValue: "Close Programs and Clear"
+        ))
+        alert.addButton(withTitle: String(localized: "button.removeAlert.cancel"))
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        for bottle in BottleVM.shared.bottles {
+            Wine.killBottleAndWait(bottle: bottle)
+        }
+        wipeShaderCaches()
+    }
+
     static func wipeShaderCaches() {
         let getconf = Process()
         getconf.executableURL = URL(fileURLWithPath: "/usr/bin/getconf")
@@ -488,13 +514,14 @@ extension WhiskyApp {
             logger.error("Failed to decode getconf output as UTF-8")
             return
         }
-        let d3dmPath = URL(fileURLWithPath: getconfOutputString.trimmingCharacters(in: .whitespacesAndNewlines))
-            .appending(path: "d3dm").path
+        // DXMT keeps one folder per executable here: dxmt/<exe>/shaders_*.db.
+        let cachePath = URL(fileURLWithPath: getconfOutputString.trimmingCharacters(in: .whitespacesAndNewlines))
+            .appending(path: "dxmt").path
         do {
-            try FileManager.default.removeItem(atPath: d3dmPath)
+            try FileManager.default.removeItem(atPath: cachePath)
             logger.info("Successfully cleared shader caches")
         } catch {
-            logger.warning("Failed to remove shader cache at \(d3dmPath): \(error.localizedDescription)")
+            logger.warning("Failed to remove shader cache at \(cachePath): \(error.localizedDescription)")
         }
     }
 }

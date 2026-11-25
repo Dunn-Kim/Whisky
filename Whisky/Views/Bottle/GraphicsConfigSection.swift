@@ -113,6 +113,18 @@ struct GraphicsConfigSection: View {
                 .font(.caption)
             Spacer()
             Button("config.graphics.stopBottle") {
+                let alert = NSAlert()
+                alert.alertStyle = .warning
+                alert.messageText = String(
+                    localized: "config.graphics.stopBottle.confirm.title", defaultValue: "Stop this bottle?"
+                )
+                alert.informativeText = String(
+                    localized: "config.graphics.stopBottle.confirm.body",
+                    defaultValue: "This closes every program running in this bottle without saving."
+                )
+                alert.addButton(withTitle: String(localized: "config.graphics.stopBottle")).hasDestructiveAction = true
+                alert.addButton(withTitle: String(localized: "bottle.remove.hasProcesses.cancel"))
+                guard alert.runModal() == .alertFirstButtonReturn else { return }
                 Wine.killBottle(bottle: bottle)
                 Task {
                     // Brief delay for wineserver to stop

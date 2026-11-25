@@ -168,11 +168,28 @@ struct BottleListEntry: View {
                             let newBottePath = url
                                 .appending(path: bottle.url.lastPathComponent)
 
-                            do {
-                                try bottle.move(destination: newBottePath)
-                                selected = newBottePath
-                            } catch {
-                                showOperationFailure(String(localized: "bottle.move.failed.title"), error: error)
+                            Task {
+                                // A program still running would keep writing to the old
+                                // path, which a move across disks deletes after copying.
+                                guard await bottle.stopProcessesBeforeChange(
+                                    message: String(
+                                        localized: "bottle.move.hasProcesses.message",
+                                        defaultValue: """
+                                        There are Wine processes running in this bottle. \
+                                        They will be stopped before the bottle is moved.
+                                        """
+                                    ),
+                                    confirm: String(
+                                        localized: "bottle.move.hasProcesses.stopAndMove", defaultValue: "Stop and Move"
+                                    )
+                                )
+                                else { return }
+                                do {
+                                    try bottle.move(destination: newBottePath)
+                                    selected = newBottePath
+                                } catch {
+                                    showOperationFailure(String(localized: "bottle.move.failed.title"), error: error)
+                                }
                             }
                         }
                     }

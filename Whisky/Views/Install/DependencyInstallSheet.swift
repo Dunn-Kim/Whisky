@@ -38,6 +38,8 @@ struct DependencyInstallSheet: View {
     @State private var stage: InstallStage = .info
     @State private var logLines: [String] = []
     @State private var isInstalling: Bool = false
+    /// Whether the bottle's wineserver ran before this install; assumed until checked.
+    @State private var bottleWasRunning = true
     @State private var installResult: InstallResult?
     @State private var showLog: Bool = false
     @State private var preflightResult: PreflightResult?
@@ -418,6 +420,9 @@ extension DependencyInstallSheet {
         logLines = []
 
         installTask = Task {
+            // Before winetricks starts a wineserver of its own: Cancel kills the
+            // bottle only when nothing of the user's was running in it.
+            bottleWasRunning = await Wine.isWineserverRunning(for: bottle)
             let verbStream = Winetricks.installVerbs(definition.winetricksVerbs, for: bottle)
             var lastExitCode: Int32 = 0
             var hadError = false
@@ -431,7 +436,10 @@ extension DependencyInstallSheet {
                         logLines.append("[\(verb)] \(line)")
                     case let .completed(exitCode):
                         logLines.append("[\(verb)] Completed (exit code: \(exitCode))")
-                        lastExitCode = exitCode
+                        // A later verb that succeeds must not hide an earlier failure.
+                        if exitCode != 0 {
+                            lastExitCode = exitCode
+                        }
                     case let .failed(message):
                         logLines.append("[\(verb)] FAILED: \(message)")
                         hadError = true
@@ -464,13 +472,17 @@ extension DependencyInstallSheet {
 
     /// Stops a running install. Cancelling the task terminates winetricks
     /// through the stream, and the bottle's wine processes are killed so the
-    /// redist installer it spawned does not keep running headless.
+    /// redist installer it spawned does not keep running headless, unless the
+    /// bottle was already running before the install: killing it then would
+    /// close the user's game too.
     private func cancelInstall() {
         guard isInstalling else { return }
         installTask?.cancel()
         installTask = nil
         isInstalling = false
-        Wine.killBottle(bottle: bottle)
+        if !bottleWasRunning {
+            Wine.killBottle(bottle: bottle)
+        }
     }
 
     private func runVerification() async {
