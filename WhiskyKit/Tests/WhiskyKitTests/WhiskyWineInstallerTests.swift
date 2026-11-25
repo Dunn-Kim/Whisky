@@ -232,7 +232,11 @@ final class WhiskyWineInstallerTests: XCTestCase {
         try Data("not a tarball".utf8).write(to: badTarball)
         let destination = tempDir.appendingPathComponent("dest")
 
-        XCTAssertThrowsError(try WhiskyWineInstaller.install(tarball: badTarball, into: destination))
+        XCTAssertThrowsError(try WhiskyWineInstaller.install(
+            tarball: badTarball,
+            into: destination,
+            inUse: { _ in false }
+        ))
     }
 
     /// The installed runtime is replaced only once the new one is unpacked.
@@ -248,7 +252,11 @@ final class WhiskyWineInstallerTests: XCTestCase {
         let badTarball = tempDir.appendingPathComponent("bad").appendingPathExtension("tar.gz")
         try Data("not a tarball".utf8).write(to: badTarball)
 
-        XCTAssertThrowsError(try WhiskyWineInstaller.install(tarball: badTarball, into: destination))
+        XCTAssertThrowsError(try WhiskyWineInstaller.install(
+            tarball: badTarball,
+            into: destination,
+            inUse: { _ in false }
+        ))
 
         XCTAssertTrue(FileManager.default.fileExists(atPath: marker.path))
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: destination.path), ["Libraries"])
@@ -274,7 +282,7 @@ final class WhiskyWineInstallerTests: XCTestCase {
         try XCTSkipUnless(tar.terminationStatus == 0, "Could not build the tar fixture")
 
         let destination = tempDir.appendingPathComponent("dest")
-        try WhiskyWineInstaller.install(tarball: tarball, into: destination)
+        try WhiskyWineInstaller.install(tarball: tarball, into: destination, inUse: { _ in false })
 
         let extracted = destination.appendingPathComponent("Libraries/marker.txt")
         XCTAssertTrue(FileManager.default.fileExists(atPath: extracted.path))
@@ -308,7 +316,7 @@ final class WhiskyWineInstallerTests: XCTestCase {
         )
         try Data("stale".utf8).write(to: stale)
 
-        try WhiskyWineInstaller.install(tarball: tarball, into: destination)
+        try WhiskyWineInstaller.install(tarball: tarball, into: destination, inUse: { _ in false })
 
         XCTAssertFalse(FileManager.default.fileExists(atPath: stale.path), "Stale contents should be removed")
         let extracted = destination.appendingPathComponent("Libraries/marker.txt")
@@ -355,7 +363,7 @@ final class WhiskyWineInstallerTests: XCTestCase {
         )
         try Data("{}".utf8).write(to: sibling)
 
-        try WhiskyWineInstaller.install(tarball: tarball, into: destination)
+        try WhiskyWineInstaller.install(tarball: tarball, into: destination, inUse: { _ in false })
 
         XCTAssertTrue(
             FileManager.default.fileExists(atPath: sibling.path),
@@ -364,6 +372,35 @@ final class WhiskyWineInstallerTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: stale.path), "Stale runtime contents are replaced")
         let extracted = destination.appendingPathComponent("Libraries/marker.txt")
         XCTAssertTrue(FileManager.default.fileExists(atPath: extracted.path))
+    }
+
+    /// A runtime a program runs from is not replaced: its files would go out from under it.
+    func testInstallRefusesWhileTheRuntimeIsInUse() throws {
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+        let destination = tempDir.appendingPathComponent("dest")
+        let marker = destination.appendingPathComponent("Libraries/old.txt")
+        try FileManager.default.createDirectory(
+            at: marker.deletingLastPathComponent(), withIntermediateDirectories: true
+        )
+        try Data("old".utf8).write(to: marker)
+        let tarball = tempDir.appendingPathComponent("archive").appendingPathExtension("tar.gz")
+        try Data("not read".utf8).write(to: tarball)
+        var checked: URL?
+
+        XCTAssertThrowsError(
+            try WhiskyWineInstaller.install(tarball: tarball, into: destination, inUse: { libraries in
+                checked = libraries
+                return true
+            })
+        ) { error in
+            XCTAssertEqual(error as? WhiskyWineInstallError, .runtimeInUse)
+        }
+
+        XCTAssertEqual(checked?.path, destination.appendingPathComponent("Libraries").path)
+        XCTAssertEqual(try String(contentsOf: marker, encoding: .utf8), "old", "the installed runtime is untouched")
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: destination.path), ["Libraries"])
     }
 }
 

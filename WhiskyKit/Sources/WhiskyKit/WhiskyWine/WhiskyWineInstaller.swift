@@ -166,13 +166,21 @@ public class WhiskyWineInstaller {
     /// which also holds unrelated app state (e.g. the analytics SDK's anonymous
     /// ID and queued events), and wiping the whole folder destroyed that state
     /// on every runtime install and update.
-    static func install(tarball: URL, into destination: URL) throws {
+    ///
+    /// - Parameter inUse: Whether a Wine process runs from the runtime in the
+    ///   given `Libraries` folder. Tests substitute a stub so they never read
+    ///   the real process table.
+    static func install(
+        tarball: URL,
+        into destination: URL,
+        inUse: (URL) -> Bool = { isRuntimeInUse($0) }
+    ) throws {
         // Verify the tarball exists before modifying the destination, so a
         // purged temp file can't leave the destination half-rebuilt.
         guard FileManager.default.fileExists(atPath: tarball.path) else {
             throw WhiskyWineInstallError.tarballNotFound
         }
-        guard !isRuntimeInUse(destination.appending(path: "Libraries")) else {
+        guard !inUse(destination.appending(path: "Libraries")) else {
             throw WhiskyWineInstallError.runtimeInUse
         }
 
