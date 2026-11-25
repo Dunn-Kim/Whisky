@@ -22,6 +22,7 @@ import SemanticVersion
 @testable import WhiskyKit
 import XCTest
 
+// swiftlint:disable:next type_body_length
 final class WhiskyWineInstallerTests: XCTestCase {
     func testCleanupTarballRemovesExistingFile() throws {
         let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
@@ -232,6 +233,25 @@ final class WhiskyWineInstallerTests: XCTestCase {
         let destination = tempDir.appendingPathComponent("dest")
 
         XCTAssertThrowsError(try WhiskyWineInstaller.install(tarball: badTarball, into: destination))
+    }
+
+    /// The installed runtime is replaced only once the new one is unpacked.
+    func testFailedExtractionKeepsTheInstalledRuntime() throws {
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+        let destination = tempDir.appendingPathComponent("dest")
+        let marker = destination.appendingPathComponent("Libraries/old.txt")
+        let libraries = marker.deletingLastPathComponent()
+        try FileManager.default.createDirectory(at: libraries, withIntermediateDirectories: true)
+        try Data("old".utf8).write(to: marker)
+        let badTarball = tempDir.appendingPathComponent("bad").appendingPathExtension("tar.gz")
+        try Data("not a tarball".utf8).write(to: badTarball)
+
+        XCTAssertThrowsError(try WhiskyWineInstaller.install(tarball: badTarball, into: destination))
+
+        XCTAssertTrue(FileManager.default.fileExists(atPath: marker.path))
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: destination.path), ["Libraries"])
     }
 
     func testInstallExtractsValidArchiveIntoDestination() throws {

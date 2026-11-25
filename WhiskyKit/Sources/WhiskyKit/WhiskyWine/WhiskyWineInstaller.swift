@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 //
 //  WhiskyWineInstaller.swift
 //  WhiskyKit
@@ -28,11 +29,19 @@ public enum WhiskyWineInstallError: LocalizedError, Equatable {
     /// The downloaded tarball was not found at the expected path — typically the
     /// OS purged the temporary download before installation ran.
     case tarballNotFound
+    /// A Wine process still runs from the installed runtime, which replacing or
+    /// removing it would pull out from under it.
+    case runtimeInUse
 
     public var errorDescription: String? {
         switch self {
         case .tarballNotFound:
             String(localized: "setup.whiskywine.error.tarballMissing")
+        case .runtimeInUse:
+            String(
+                localized: "setup.whiskywine.error.runtimeInUse",
+                defaultValue: "A program still runs on the installed Wine engine. Quit it, then try again."
+            )
         }
     }
 }
@@ -162,14 +171,33 @@ public class WhiskyWineInstaller {
         guard FileManager.default.fileExists(atPath: tarball.path) else {
             throw WhiskyWineInstallError.tarballNotFound
         }
-
-        let existingRuntime = destination.appending(path: "Libraries")
-        if FileManager.default.fileExists(atPath: existingRuntime.path) {
-            try FileManager.default.removeItem(at: existingRuntime)
+        guard !isRuntimeInUse(destination.appending(path: "Libraries")) else {
+            throw WhiskyWineInstallError.runtimeInUse
         }
-        try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
 
-        try Tar.untar(tarBall: tarball, toURL: destination)
+        // Unpack beside the runtime and swap at the end, so a failed extraction
+        // leaves the installed runtime in place.
+        let fileManager = FileManager.default
+        let staging = destination.appending(path: ".install-\(UUID().uuidString)")
+        try fileManager.createDirectory(at: staging, withIntermediateDirectories: true)
+        defer { try? fileManager.removeItem(at: staging) }
+        try Tar.untar(tarBall: tarball, toURL: staging)
+
+        for item in try fileManager.contentsOfDirectory(at: staging, includingPropertiesForKeys: nil) {
+            let target = destination.appending(path: item.lastPathComponent)
+            if fileManager.fileExists(atPath: target.path) {
+                try fileManager.removeItem(at: target)
+            }
+            try fileManager.moveItem(at: item, to: target)
+        }
+    }
+
+    /// Whether a Wine process, wineserver included, runs from the runtime in
+    /// `libraries`. Unknown counts as in use: deleting the runtime under a game
+    /// loses whatever it has not saved.
+    public static func isRuntimeInUse(_ libraries: URL = libraryFolder) -> Bool {
+        let root = libraries.appending(path: "Wine").path(percentEncoded: false) + "/"
+        return WineProcessScanner.runningPIDs(under: root, includingServer: true).map { !$0.isEmpty } ?? true
     }
 
     /// Computes the SHA-256 of a file by streaming it in chunks.
@@ -259,12 +287,21 @@ public class WhiskyWineInstaller {
     /// This deletes the Libraries folder containing Wine.
     /// Existing bottles are not affected, but they will not be able
     /// to run programs until WhiskyWine is reinstalled.
-    public static func uninstall() {
+    ///
+    /// - Returns: `false` when it refused because a program still runs on the
+    ///   runtime (``isRuntimeInUse(_:)``); nothing was removed then.
+    @discardableResult
+    public static func uninstall() -> Bool {
+        guard !isRuntimeInUse() else {
+            logger.error("Not uninstalling WhiskyWine: a program still runs on it")
+            return false
+        }
         do {
             try FileManager.default.removeItem(at: libraryFolder)
         } catch {
             logger.error("Failed to uninstall WhiskyWine: \(error.localizedDescription)")
         }
+        return true
     }
 
     /// Removes the WhiskyWine runtime, the FEX code cache, the default bottles
@@ -277,11 +314,16 @@ public class WhiskyWineInstaller {
     /// are not removed; their registry entries go with the registry file but
     /// the on-disk bottle directories are preserved to avoid surprising users
     /// who relocated bottles intentionally.
-    public static func uninstallAll() {
+    ///
+    /// - Returns: `false` when it refused because a program still runs on the
+    ///   runtime; nothing was removed then, bottles included.
+    @discardableResult
+    public static func uninstallAll() -> Bool {
         // Drop the runtime first so partial failures still leave a coherent state.
-        uninstall()
+        guard uninstall() else { return false }
         try? FileManager.default.removeItem(at: Wine.fexCacheFolder)
         removeBottleStorage(defaultBottlesDir: BottleData.defaultBottleDir, registryFile: BottleData.bottleEntriesDir)
+        return true
     }
 
     /// Removes the default bottles directory and the registry file that lists

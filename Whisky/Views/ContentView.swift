@@ -232,8 +232,13 @@ struct ContentView: View {
                 let response = alert.runModal()
 
                 if response == .alertFirstButtonReturn {
-                    WhiskyWineInstaller.uninstall()
-                    showSetup = true
+                    if WhiskyWineInstaller.uninstall() {
+                        showSetup = true
+                    } else {
+                        let refusal = NSAlert()
+                        refusal.messageText = WhiskyWineInstallError.runtimeInUse.localizedDescription
+                        refusal.runModal()
+                    }
                 }
             }
         }

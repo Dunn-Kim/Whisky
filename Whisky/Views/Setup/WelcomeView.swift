@@ -175,17 +175,24 @@ struct InstallStatusView: View {
         alert.addButton(withTitle: String(localized: "setup.uninstall.confirm.everything"))
         alert.addButton(withTitle: String(localized: "setup.uninstall.confirm.cancel"))
 
+        let removed: Bool
         switch alert.runModal() {
         case .alertFirstButtonReturn:
-            WhiskyWineInstaller.uninstall()
+            removed = WhiskyWineInstaller.uninstall()
         case .alertSecondButtonReturn:
-            WhiskyWineInstaller.uninstallAll()
+            removed = WhiskyWineInstaller.uninstallAll()
             // The in-memory registry still lists the deleted bottles and would
             // write them back on its next save; re-read it from disk.
-            BottleVM.shared.bottlesList = BottleData()
+            BottleVM.shared.refreshRegistry()
             BottleVM.shared.loadBottles()
         default:
-            break
+            removed = true
+        }
+        if !removed {
+            // Nothing was deleted: a program still runs on the engine.
+            let refusal = NSAlert()
+            refusal.messageText = WhiskyWineInstallError.runtimeInUse.localizedDescription
+            refusal.runModal()
         }
     }
 }
