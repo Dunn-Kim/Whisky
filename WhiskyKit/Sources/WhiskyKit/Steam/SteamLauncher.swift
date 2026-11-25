@@ -49,6 +49,12 @@ public enum SteamLauncher {
     /// helpers keep their own overrides even when `-applaunch` brings them up
     /// (#276). Their backend comes from the compatdb rules.
     ///
+    /// shortcut: the plan's environment-only settings (its `WINE_COMPATDB` backend
+    /// rule, frame cap, HUD, sync mode and GameDB variables) ride on the `-applaunch`
+    /// process, which a running client only forwards; the game it spawns inherits the
+    /// client's environment instead. Restart the client to apply them, or move them
+    /// into what the client starts with when a game needs it.
+    ///
     /// The plan's launch arguments follow the App ID, and the client passes them
     /// on to the game.
     ///

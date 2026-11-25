@@ -142,13 +142,13 @@ final class FrameRateLimitTests: XCTestCase {
         XCTAssertEqual(env["DXMT_CONFIG"], "d3d11.preferredMaxFrameRate=0")
     }
 
-    /// Moving a program off DXMT has to take the bottle's cap with it, or it
-    /// would sit on a variable nothing reads.
-    func testProgramBackendSwitchDropsTheCap() {
+    /// A program moved to WineD3D keeps the bottle's cap: WineD3D ignores it, and
+    /// the games a launcher on WineD3D starts inherit it.
+    func testProgramBackendSwitchKeepsTheCapForWhatItStarts() {
         var overrides = ProgramOverrides()
         overrides.graphicsBackend = .wined3d
         let env = programEnvironment(bottleBackend: .dxmt, bottleLimit: .fps60, overrides: overrides)
-        XCTAssertNil(env["DXMT_CONFIG"])
+        XCTAssertEqual(env["DXMT_CONFIG"], "d3d11.preferredMaxFrameRate=60")
     }
 
     func testNoGraphicsOverrideLeavesBottleCapIntact() {

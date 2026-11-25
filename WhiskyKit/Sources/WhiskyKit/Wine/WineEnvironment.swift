@@ -246,7 +246,9 @@ extension Wine {
 
         // Frame rate cap. Re-resolved here whenever the program overrides either
         // the cap or the backend, because the two are coupled: only DXMT has a
-        // limiter, so a program moved to WineD3D drops the bottle's DXMT_CONFIG.
+        // limiter. A program moved to WineD3D keeps the bottle's DXMT_CONFIG:
+        // WineD3D ignores it, and the games a launcher on WineD3D starts inherit
+        // its environment and need the bottle's cap.
         if overrides.graphicsBackend != nil || overrides.frameRateLimit != nil {
             let chosen = overrides.graphicsBackend ?? bottleBackend
             let effectiveBackend = chosen == .recommended ? GraphicsBackendResolver.resolve() : chosen
@@ -257,9 +259,6 @@ extension Wine {
                 // DXMT_CONFIG from the program's environment keeps its other
                 // entries. 0 is DXMT's "no cap" and cancels the bottle's.
                 builder.merge("DXMT_CONFIG", "d3d11.preferredMaxFrameRate=\(fps ?? 0)", layer: .programUser)
-            } else {
-                // WineD3D has no frame limiter.
-                builder.remove("DXMT_CONFIG", layer: .programUser)
             }
         }
 
