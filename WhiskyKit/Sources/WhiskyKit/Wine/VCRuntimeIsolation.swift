@@ -182,9 +182,17 @@ extension Wine {
     static let runtimeLibWine = WhiskyWineInstaller.libraryFolder
         .appending(path: "Wine").appending(path: "lib").appending(path: "wine")
 
+    /// Readies a bottle for a Wine process: the VC++ runtime out of the system
+    /// folders, the user profile under the name this runtime uses, and FEX's
+    /// cache folder in place. Call it before any Wine process starts in the bottle.
+    static func prepareBottleForWine(bottleURL: URL) {
+        isolateVCRuntime(bottleURL: bottleURL)
+        WineUserProfile.reconcile(bottleURL: bottleURL)
+        ensureFEXCacheFolder()
+    }
+
     /// Runs ``VCRuntimeIsolation/isolate(prefix:runtimeLibWine:)`` for a bottle.
-    /// Call it before any Wine process starts in the bottle.
-    static func isolateVCRuntime(bottleURL: URL) {
+    private static func isolateVCRuntime(bottleURL: URL) {
         let moved = VCRuntimeIsolation.isolate(prefix: bottleURL, runtimeLibWine: runtimeLibWine)
         if !moved.isEmpty {
             let names = moved.map { "\($0.folder)/\($0.name)" }.joined(separator: ", ")
