@@ -109,23 +109,38 @@ public struct LinkInfo: Hashable {
     func getProgram(handle: FileHandle, offset: UInt64, bottle: Bottle, unicode: Bool) -> Program? {
         do {
             try handle.seek(toOffset: offset)
-            if let pathData = try handle.readToEnd() {
-                if let nullRange = pathData.firstIndex(of: 0) {
-                    let encoding: String.Encoding = unicode ? .utf16 : .windowsCP1254
-                    if var string = String(data: pathData[..<nullRange], encoding: encoding) {
-                        // UNIX-ify the path
-                        string.replace("\\", with: "/")
-                        string.replace("C:", with: "\(bottle.url.path)/drive_c")
-                        let url = URL(filePath: string)
-                        return Program(url: url, bottle: bottle)
-                    }
-                }
+            if let pathData = try handle.readToEnd(),
+               var string = Self.localBasePath(in: pathData, unicode: unicode) {
+                // UNIX-ify the path
+                string.replace("\\", with: "/")
+                string.replace("C:", with: "\(bottle.url.path)/drive_c")
+                let url = URL(filePath: string)
+                return Program(url: url, bottle: bottle)
             }
         } catch {
             return nil
         }
 
         return nil
+    }
+
+    /// The NUL-terminated local base path at the start of `data`: UTF-16LE when
+    /// `unicode`, ended by two zero bytes on an even offset (the first zero byte is
+    /// the high half of `C`), otherwise in the ANSI code page.
+    nonisolated static func localBasePath(in data: Data, unicode: Bool) -> String? {
+        let bytes = [UInt8](data)
+        if unicode {
+            var end = 0
+            while end + 1 < bytes.count {
+                if bytes[end] == 0, bytes[end + 1] == 0 {
+                    return String(bytes: bytes[..<end], encoding: .utf16LittleEndian)
+                }
+                end += 2
+            }
+            return nil
+        }
+        guard let end = bytes.firstIndex(of: 0) else { return nil }
+        return String(bytes: bytes[..<end], encoding: .windowsCP1254)
     }
 }
 

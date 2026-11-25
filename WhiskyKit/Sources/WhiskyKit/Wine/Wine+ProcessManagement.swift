@@ -133,15 +133,11 @@ public extension Wine {
         processes.reserveCapacity(lines.count)
 
         for line in lines {
-            let fields = line.split(separator: ",", omittingEmptySubsequences: false)
-                .map { field in
-                    var trimmed = field.trimmingCharacters(in: .whitespaces)
-                    // Strip surrounding quotes
-                    if trimmed.hasPrefix("\""), trimmed.hasSuffix("\"") {
-                        trimmed = String(trimmed.dropFirst().dropLast())
-                    }
-                    return trimmed
-                }
+            // Every field is quoted, and a field can hold a comma ("824,000 K",
+            // "Hello, World.exe"), so the row splits on the `","` between fields.
+            let row = line.trimmingCharacters(in: .whitespaces)
+            guard row.count >= 2, row.hasPrefix("\""), row.hasSuffix("\"") else { continue }
+            let fields = row.dropFirst().dropLast().components(separatedBy: "\",\"")
 
             // Require at least 5 fields: Image Name, PID, Session Name, Session#, Mem Usage
             guard fields.count >= 5 else { continue }

@@ -20,6 +20,21 @@
 import XCTest
 
 final class WineProcessManagementTests: XCTestCase {
+    /// Wine's tasklist writes memory with a thousands separator, inside the quotes.
+    func testTasklistFieldsMayHoldCommas() {
+        let output = """
+        "Image Name","PID","Session Name","Session#","Mem Usage"\r
+        "game.exe","104","Console","0","824,000 K"\r
+        "Hello, World.exe","58","Console","0","1,024 K"\r
+        """
+
+        let processes = Wine.parseTasklistOutput(output)
+
+        XCTAssertEqual(processes.map(\.imageName), ["game.exe", "Hello, World.exe"])
+        XCTAssertEqual(processes.map(\.winePID), [104, 58])
+        XCTAssertEqual(processes.first?.memoryUsage, "824,000 K")
+    }
+
     /// A fresh prefix can never have a live wineserver, so the probe must
     /// report false — whether wineserver spawns and exits nonzero (runtime
     /// installed) or the spawn itself fails (no runtime, e.g. CI).

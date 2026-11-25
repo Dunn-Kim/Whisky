@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 //
 //  BitmapRenderTests.swift
 //  WhiskyKitTests
@@ -271,6 +272,27 @@ final class BitmapRenderingTests: XCTestCase {
 
         let image = header.renderBitmap(handle: handle, offset: 40)
         XCTAssertNotNil(image)
+    }
+
+    func testIndexed8WithClrUsedZeroReadsTheFullPalette() throws {
+        var data = createBitmapInfoHeaderWithColorTable(width: 1, height: 2, bitCount: 8, clrUsed: 0)
+        data.append(contentsOf: [0x00, 0x00, 0x00, 0x00]) // Index 0: black
+        data.append(contentsOf: [0x00, 0x00, 0xFF, 0x00]) // Index 1: red
+        data.append(contentsOf: [UInt8](repeating: 0, count: 254 * 4))
+
+        let fileURL = tempDir.appending(path: "render8-full.bin")
+        try data.write(to: fileURL)
+        let handle = try FileHandle(forReadingFrom: fileURL)
+        defer { try? handle.close() }
+
+        let header = BitmapInfoHeader(handle: handle, offset: 0)
+        var offset: UInt64 = 40
+        let table = header.buildColorTable(offset: &offset, handle: handle)
+
+        XCTAssertEqual(table.count, 256)
+        XCTAssertEqual(table[1].red, 255)
+        XCTAssertEqual(table[1].alpha, 255)
+        XCTAssertEqual(offset, 40 + 256 * 4, "the pixel cursor starts after the palette")
     }
 
     func testRenderBitmapEmptyReturnsNil() throws {

@@ -185,7 +185,11 @@ public struct BitmapInfoHeader: Hashable {
 
         // renderBitmap rejects clrUsed above the cap before calling this; the
         // clamp is a backstop so a future caller can't loop unbounded either.
-        let entryCount = min(clrUsed, Self.maxColorTableEntries)
+        // A clrUsed of 0 on an indexed bitmap means the full 2^bitCount palette,
+        // which is what icon tools usually write.
+        let entryCount = clrUsed == 0 && (1 ... 8).contains(bitCount)
+            ? UInt32(1) << UInt32(bitCount)
+            : min(clrUsed, Self.maxColorTableEntries)
         for _ in 0 ..< entryCount {
             let blue = handle.extract(UInt8.self, offset: offset) ?? 0
             offset += 1

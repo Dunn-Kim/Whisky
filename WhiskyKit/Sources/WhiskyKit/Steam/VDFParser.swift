@@ -80,8 +80,13 @@ public enum VDFParser {
     /// - Throws: ``VDFParseError`` if the document is malformed.
     public static func parse(_ text: String) throws -> [String: VDFValue] {
         var scanner = Scanner(text: text)
-        return try parseObjectBody(&scanner, isTopLevel: true)
+        return try parseObjectBody(&scanner, depth: 0)
     }
+
+    /// How deep objects may nest. Valve's files nest a handful of levels; a manifest
+    /// a Windows program wrote could nest deep enough to overflow the stack, which no
+    /// `try?` at the callers catches.
+    static let maxDepth = 64
 
     // MARK: - Tokenizer
 
@@ -103,13 +108,14 @@ public enum VDFParser {
         mutating func skipWhitespaceAndComments() {
             while index < characters.count {
                 let character = characters[index]
-                if character == "\n" {
+                // `isNewline`, not `== "\n"`: in a CRLF file "\r\n" is one Character.
+                if character.isNewline {
                     line += 1
                     index += 1
                 } else if character.isWhitespace {
                     index += 1
                 } else if character == "/", index + 1 < characters.count, characters[index + 1] == "/" {
-                    while index < characters.count, characters[index] != "\n" {
+                    while index < characters.count, !characters[index].isNewline {
                         index += 1
                     }
                 } else {
@@ -156,7 +162,7 @@ public enum VDFParser {
                     }
                     value.append(characters[index + 1])
                     index += 2
-                case "\n":
+                case _ where character.isNewline:
                     throw VDFParseError.unterminatedString(line: startLine)
                 default:
                     value.append(character)
@@ -169,10 +175,15 @@ public enum VDFParser {
 
     // MARK: - Parser
 
+    /// Parses the members of an object; `depth` 0 is the document itself, which has no braces.
     private static func parseObjectBody(
         _ scanner: inout Scanner,
-        isTopLevel: Bool
+        depth: Int
     ) throws -> [String: VDFValue] {
+        let isTopLevel = depth == 0
+        guard depth <= maxDepth else {
+            throw VDFParseError.unexpectedToken(line: scanner.line)
+        }
         var result: [String: VDFValue] = [:]
 
         while true {
@@ -189,7 +200,7 @@ public enum VDFParser {
                 return result
 
             case let .string(key):
-                result[key.lowercased()] = try parseValue(&scanner)
+                result[key.lowercased()] = try parseValue(&scanner, depth: depth)
 
             case .openBrace:
                 throw VDFParseError.unexpectedToken(line: scanner.line)
@@ -197,7 +208,7 @@ public enum VDFParser {
         }
     }
 
-    private static func parseValue(_ scanner: inout Scanner) throws -> VDFValue {
+    private static func parseValue(_ scanner: inout Scanner, depth: Int) throws -> VDFValue {
         guard let token = try scanner.nextToken() else {
             throw VDFParseError.unexpectedEnd
         }
@@ -205,7 +216,7 @@ public enum VDFParser {
         case let .string(value):
             return .string(value)
         case .openBrace:
-            return try .object(parseObjectBody(&scanner, isTopLevel: false))
+            return try .object(parseObjectBody(&scanner, depth: depth + 1))
         case .closeBrace:
             throw VDFParseError.unexpectedToken(line: scanner.line)
         }

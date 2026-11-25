@@ -355,3 +355,24 @@ final class LinkInfoTests: XCTestCase {
         XCTAssertNil(linkInfo.program) // No local path, so no program
     }
 }
+
+final class LinkInfoLocalBasePathTests: XCTestCase {
+    func testUnicodePathIsLittleEndianUpToAnAlignedTerminator() throws {
+        let path = "C:\\Games\\a.exe"
+        let data = try XCTUnwrap(path.data(using: .utf16LittleEndian)) + Data([0, 0, 0x41, 0])
+
+        XCTAssertEqual(LinkInfo.localBasePath(in: data, unicode: true), path)
+    }
+
+    func testUnicodePathWithoutTerminatorIsNil() throws {
+        let data = try XCTUnwrap("C:".data(using: .utf16LittleEndian))
+
+        XCTAssertNil(LinkInfo.localBasePath(in: data, unicode: true))
+    }
+
+    func testAnsiPathEndsAtTheFirstZeroByte() {
+        let data = Data("C:\\Games\\a.exe".utf8) + Data([0, 0x41])
+
+        XCTAssertEqual(LinkInfo.localBasePath(in: data, unicode: false), "C:\\Games\\a.exe")
+    }
+}

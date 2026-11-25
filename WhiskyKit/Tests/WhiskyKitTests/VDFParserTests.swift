@@ -122,6 +122,23 @@ struct VDFParserTests {
         #expect(root["a"]?.objectValue?["b"]?.stringValue == "c")
     }
 
+    @Test("A comment in a CRLF file ends at its line")
+    func commentEndsAtCRLF() throws {
+        let root = try VDFParser.parse("// c\r\n\"a\" \"b\"\r\n")
+
+        #expect(root["a"]?.stringValue == "b")
+    }
+
+    @Test("Nesting past the depth limit throws instead of overflowing the stack")
+    func rejectsDeepNesting() throws {
+        func nested(_ depth: Int) -> String {
+            "\"root\"" + String(repeating: "{\"a\"", count: depth) + "\"v\"" + String(repeating: "}", count: depth)
+        }
+
+        #expect(throws: VDFParseError.self) { try VDFParser.parse(nested(10_000)) }
+        #expect(try VDFParser.parse(nested(VDFParser.maxDepth))["root"] != nil)
+    }
+
     @Test("Parses an empty object")
     func parsesEmptyObject() throws {
         let root = try VDFParser.parse("\"apps\" {}")
