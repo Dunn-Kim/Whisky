@@ -77,7 +77,7 @@ private let logger = Logger(subsystem: Bundle.whiskyBundleIdentifier, category: 
 /// - ``wineVersion()``
 /// - ``killBottle(bottle:)``
 /// - ``stopBottle(bottle:timeout:)``
-/// - ``generateRunCommand(at:bottle:args:environment:)``
+/// - ``generateRunCommand(for:wineBinary:)``
 /// - ``generateTerminalEnvironmentCommand(bottle:)``
 public class Wine {
     /// The URL to the `wine` binary executable.
@@ -747,39 +747,11 @@ public class Wine {
         )
     }
 
-    /// Generates a shell command string for running a Windows program.
-    ///
-    /// This method creates a complete shell command that can be copied to a terminal
-    /// or used in scripts. It includes all necessary environment variables and properly
-    /// escapes arguments to prevent shell injection.
-    ///
-    /// - Parameters:
-    ///   - url: The URL to the Windows executable.
-    ///   - bottle: The ``Bottle`` configuration to use.
-    ///   - args: Additional arguments as a single string.
-    ///   - environment: Custom environment variables.
-    ///   - preEscaped: If true, args are already shell-escaped and won't be escaped again.
-    ///     Use this when passing an array of arguments that were individually escaped.
-    /// - Returns: A shell-safe command string ready for execution.
-    @MainActor
-    public static func generateRunCommand(
-        at url: URL, bottle: Bottle, args: String, environment: [String: String], preEscaped: Bool = false
-    ) -> String {
-        // Escape args and environment values to prevent shell injection from user-editable settings
-        let escapedArgs = preEscaped ? args : args.esc
-        prepareBottleForWine(bottleURL: bottle.url)
-        let wineEnv = constructWineEnvironment(for: bottle, environment: environment)
-        return shellCommand(
-            "\(wineBinary.esc) start /unix \(url.esc) \(escapedArgs)", environment: wineEnv
-        )
-    }
-
     /// Generates the shell command for a launch that has already been prepared.
     ///
-    /// Unlike ``generateRunCommand(at:bottle:args:environment:preEscaped:)``, which
-    /// builds the environment from the bottle again, this prints the launch's
-    /// environment and arguments exactly as they are, so the command runs the way
-    /// the launch would have: without the `WINEDLLOVERRIDES` that preparation moved
+    /// This prints the launch's environment and arguments exactly as they are,
+    /// without building the environment from the bottle again, so the command runs
+    /// the way the launch would have: without the `WINEDLLOVERRIDES` that preparation moved
     /// into the prefix registry. Leaving the variable out is not enough for that,
     /// since the command only adds to the environment of the shell it runs in, and
     /// that shell may export the bottle's overrides already (`WhiskyCmd shellenv`
