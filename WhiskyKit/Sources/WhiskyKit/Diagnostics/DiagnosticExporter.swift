@@ -349,8 +349,7 @@ public enum DiagnosticExporter {
         let backends = PreflightCollector.resolvedBackends(
             bottle: program.bottle.settings.graphicsBackend,
             programOverride: program.settings.overrides?.graphicsBackend,
-            programURL: program.url,
-            recommended: { GraphicsBackendResolver.resolution(for: $0) }
+            programURL: program.url
         )
         info["graphicsBackend"] = backends.effective.rawValue
         info["graphicsBackendReason"] = backends.reason?.exportName ?? "explicit choice"

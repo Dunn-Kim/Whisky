@@ -77,8 +77,7 @@ final class ChromiumRuntimeLaunchTests {
     @Test("The preflight reports the Electron steering as the reason")
     func preflightReason() {
         let backends = PreflightCollector.resolvedBackends(
-            bottle: .recommended, programOverride: nil, programURL: appFolder.appending(path: "Chat.exe"),
-            recommended: { GraphicsBackendResolver.resolution(for: $0) }
+            bottle: .recommended, programOverride: nil, programURL: appFolder.appending(path: "Chat.exe")
         )
         #expect(backends.effective == .wined3d)
         #expect(backends.bottle == .dxmt)

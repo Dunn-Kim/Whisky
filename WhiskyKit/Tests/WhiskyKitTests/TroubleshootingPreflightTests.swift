@@ -58,8 +58,6 @@ final class TroubleshootingPreflightTests: XCTestCase {
         name: "Test Speakers", transportType: .usb, sampleRate: 48_000, outputChannelCount: 2, isDefault: true
     )
 
-    private static let dxmt = BackendResolution(backend: .dxmt, reason: .dxmt)
-
     // MARK: - Collection
 
     func testInputsTakeTheLauncherFromTheBottleWhenTheProgramIsNone() throws {
@@ -98,7 +96,7 @@ final class TroubleshootingPreflightTests: XCTestCase {
 
         let inputs = PreflightCollector.inputs(bottle: bottle, program: game, programURL: nil)
         let preflight = PreflightCollector.gather(
-            inputs, logsFolder: logsFolder, audioDevice: { Self.fakeDevice }, recommendedBackend: { _ in Self.dxmt }
+            inputs, logsFolder: logsFolder, audioDevice: { Self.fakeDevice }
         )
 
         XCTAssertEqual(preflight.launcherType, LauncherType.steam.rawValue)
@@ -119,7 +117,7 @@ final class TroubleshootingPreflightTests: XCTestCase {
 
         let inputs = PreflightCollector.inputs(bottle: bottle, program: nil, programURL: game.url)
         let preflight = PreflightCollector.gather(
-            inputs, logsFolder: tempDir, audioDevice: { nil }, recommendedBackend: { _ in Self.dxmt }
+            inputs, logsFolder: tempDir, audioDevice: { nil }
         )
 
         XCTAssertEqual(preflight.graphicsBackend, "wined3d")
@@ -151,34 +149,31 @@ final class TroubleshootingPreflightTests: XCTestCase {
     }
 
     func testResolvedBackendsFollowTheLaunch() {
-        let recommended: (BackendSteering?) -> BackendResolution = { steering in
-            steering.map { BackendResolution(backend: .wined3d, reason: .steered($0)) } ?? Self.dxmt
-        }
         let game = URL(filePath: "/b/drive_c/Games/game.exe")
         let steam = URL(filePath: "/b/drive_c/Program Files (x86)/Steam/steam.exe")
 
         let plain = PreflightCollector.resolvedBackends(
-            bottle: .recommended, programOverride: nil, programURL: game, recommended: recommended
+            bottle: .recommended, programOverride: nil, programURL: game
         )
         XCTAssertEqual(plain.effective, .dxmt)
         XCTAssertEqual(plain.bottle, .dxmt)
 
         let launcher = PreflightCollector.resolvedBackends(
-            bottle: .recommended, programOverride: nil, programURL: steam, recommended: recommended
+            bottle: .recommended, programOverride: nil, programURL: steam
         )
         XCTAssertEqual(launcher.effective, .wined3d, "Recommended steers a launcher to WineD3D")
         XCTAssertEqual(launcher.reason, .steered(.launcher(.steam)))
 
         let frontEnd = PreflightCollector.resolvedBackends(
             bottle: .recommended, programOverride: nil,
-            programURL: URL(filePath: "/b/drive_c/Games/3DMark/bin/x64/3DMark.exe"), recommended: recommended
+            programURL: URL(filePath: "/b/drive_c/Games/3DMark/bin/x64/3DMark.exe")
         )
         XCTAssertEqual(frontEnd.effective, .wined3d, "Recommended steers a Chromium front end to WineD3D")
         XCTAssertEqual(frontEnd.bottle, .dxmt)
         XCTAssertEqual(frontEnd.reason, .steered(.chromiumFrontEnd(.threeDMark)))
 
         let overridden = PreflightCollector.resolvedBackends(
-            bottle: .dxmt, programOverride: .wined3d, programURL: game, recommended: recommended
+            bottle: .dxmt, programOverride: .wined3d, programURL: game
         )
         XCTAssertEqual(overridden.effective, .wined3d)
         XCTAssertEqual(overridden.bottle, .dxmt)

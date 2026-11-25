@@ -109,8 +109,7 @@ public enum PreflightCollector {
     static func gather(
         _ inputs: Inputs,
         logsFolder: URL,
-        audioDevice: () -> AudioDeviceInfo? = { AudioDeviceMonitor().defaultOutputDevice() },
-        recommendedBackend: (BackendSteering?) -> BackendResolution = { GraphicsBackendResolver.resolution(for: $0) }
+        audioDevice: () -> AudioDeviceInfo? = { AudioDeviceMonitor().defaultOutputDevice() }
     ) -> PreflightData {
         var programOverride = inputs.programBackendOverride
         if inputs.readsPersistedOverride, let programURL = inputs.programURL {
@@ -120,8 +119,7 @@ public enum PreflightCollector {
         let backends = resolvedBackends(
             bottle: inputs.bottleBackend,
             programOverride: programOverride,
-            programURL: inputs.programURL,
-            recommended: recommendedBackend
+            programURL: inputs.programURL
         )
         let recentRun = recentRun(
             programName: inputs.programURL?.lastPathComponent,
@@ -162,19 +160,20 @@ public enum PreflightCollector {
     static func resolvedBackends(
         bottle: GraphicsBackend,
         programOverride: GraphicsBackend?,
-        programURL: URL?,
-        recommended: (BackendSteering?) -> BackendResolution
+        programURL: URL?
     ) -> ResolvedBackends {
-        let bottleResolved = bottle == .recommended ? recommended(nil).backend : bottle
+        let bottleResolved = bottle == .recommended ? GraphicsBackendResolver.resolution(for: nil).backend : bottle
         let choice = programOverride ?? bottle
         guard choice == .recommended else {
             return ResolvedBackends(effective: choice, bottle: bottleResolved, reason: nil)
         }
-        let resolution = recommended(programURL.flatMap { BackendSteering.inspect(executable: $0) })
+        let resolution = GraphicsBackendResolver.resolution(
+            for: programURL.flatMap { BackendSteering.inspect(executable: $0) }
+        )
         return ResolvedBackends(effective: resolution.backend, bottle: bottleResolved, reason: resolution.reason)
     }
 
-    /// What ``resolvedBackends(bottle:programOverride:programURL:recommended:)`` finds.
+    /// What ``resolvedBackends(bottle:programOverride:programURL:)`` finds.
     struct ResolvedBackends {
         /// What a launch of the program runs on.
         let effective: GraphicsBackend

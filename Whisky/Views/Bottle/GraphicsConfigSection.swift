@@ -44,7 +44,6 @@ struct GraphicsConfigSection: View {
             // Backend picker -- always visible
             BackendPickerView(
                 selection: $bottle.settings.graphicsBackend,
-                resolvedBackend: resolvedBackend,
                 chromiumPrograms: chromiumProgramNames
             )
 

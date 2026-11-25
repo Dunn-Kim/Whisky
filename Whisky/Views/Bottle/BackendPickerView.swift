@@ -21,7 +21,6 @@ import WhiskyKit
 
 struct BackendPickerView: View {
     @Binding var selection: GraphicsBackend
-    let resolvedBackend: GraphicsBackend
     /// The launchers and Chromium front ends in the bottle, by name, which
     /// Recommended runs on WineD3D whatever it picks for the games (#372).
     var chromiumPrograms: [String] = []
@@ -35,7 +34,7 @@ struct BackendPickerView: View {
                     BackendCard(
                         backend: backend,
                         isSelected: selection == backend,
-                        resolvedBackend: backend == .recommended ? resolvedBackend : nil,
+                        resolvedBackend: backend == .recommended ? GraphicsBackendResolver.resolve() : nil,
                         chromiumPrograms: chromiumPrograms
                     ) {
                         selection = backend
@@ -53,7 +52,7 @@ struct BackendPickerView: View {
     @ViewBuilder
     private var helperText: some View {
         if selection == .recommended {
-            Text("config.graphics.helperCurrently \(resolvedBackend.displayName)")
+            Text("config.graphics.helperCurrently \(GraphicsBackendResolver.resolve().displayName)")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         } else {
