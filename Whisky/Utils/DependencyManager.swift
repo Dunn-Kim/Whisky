@@ -170,8 +170,10 @@ enum DependencyManager {
         let gameDBEntries = GameDBLoader.loadDefaults()
         guard let match = GameMatcher.bestMatch(metadata: metadata, against: gameDBEntries) else { return }
 
-        let variant = match.recommendedVariant ?? match.entry.variants.first(where: { $0.isDefault == true })
-        guard let requiredVerbs = variant?.winetricksVerbs, !requiredVerbs.isEmpty else { return }
+        guard let variant = match.recommendedVariant ?? match.entry.variants.first(where: { $0.isDefault == true })
+        else { return }
+        let requiredVerbs = GameConfigApplicator.requiredWinetricksVerbs(variant: variant, programURL: programURL)
+        guard !requiredVerbs.isEmpty else { return }
 
         for definition in definitions {
             let hasOverlap = definition.winetricksVerbs.contains { requiredVerbs.contains($0) }

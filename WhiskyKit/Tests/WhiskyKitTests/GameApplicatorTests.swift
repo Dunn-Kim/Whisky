@@ -22,6 +22,7 @@ import XCTest
 
 // MARK: - GameConfigApplicator Tests
 
+// swiftlint:disable:next type_body_length
 final class GameApplicatorTests: XCTestCase {
     // MARK: - Test Fixtures
 
@@ -267,10 +268,39 @@ final class GameApplicatorTests: XCTestCase {
         let installedVerbs: Set = ["vcrun2022"]
         let pending = GameConfigApplicator.pendingWinetricksVerbs(
             variant: variant,
-            installedVerbs: installedVerbs
+            installedVerbs: installedVerbs,
+            programURL: nil
         )
 
         XCTAssertEqual(pending, ["dotnet48"], "Only uninstalled verbs should be returned")
+    }
+
+    /// The runtime keeps the VC++ runtime out of the system folders and hands
+    /// it only to Unity games, so a program known not to be one skips its verbs.
+    func testVCRuntimeVerbsOnlyForUnityGames() throws {
+        let folder = FileManager.default.temporaryDirectory.appending(path: "vcrun_\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let game = folder.appending(path: "Game.exe")
+        try Data("MZ".utf8).write(to: game)
+        let variant = makeTestVariant(winetricksVerbs: ["vcrun2022", "d3dx9", "vcrun2019"])
+
+        XCTAssertEqual(GameConfigApplicator.requiredWinetricksVerbs(variant: variant, programURL: game), ["d3dx9"])
+        XCTAssertEqual(
+            GameConfigApplicator.requiredWinetricksVerbs(variant: variant, programURL: nil),
+            ["vcrun2022", "d3dx9", "vcrun2019"], "Without a program every verb stays"
+        )
+        let gone = folder.appending(path: "Gone.exe")
+        XCTAssertEqual(
+            GameConfigApplicator.requiredWinetricksVerbs(variant: variant, programURL: gone),
+            ["vcrun2022", "d3dx9", "vcrun2019"], "A program that is not on disk cannot be told apart"
+        )
+
+        try Data().write(to: folder.appending(path: "UnityPlayer.dll"))
+        XCTAssertEqual(
+            GameConfigApplicator.requiredWinetricksVerbs(variant: variant, programURL: game),
+            ["vcrun2022", "d3dx9", "vcrun2019"]
+        )
     }
 
     // MARK: - Test 7: Preview Changes Shows Diff

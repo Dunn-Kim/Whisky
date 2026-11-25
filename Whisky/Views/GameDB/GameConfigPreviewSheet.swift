@@ -196,7 +196,8 @@ extension GameConfigPreviewSheet {
 extension GameConfigPreviewSheet {
     @ViewBuilder
     private var winetricksSection: some View {
-        if let verbs = variant.winetricksVerbs, !verbs.isEmpty {
+        let verbs = GameConfigApplicator.requiredWinetricksVerbs(variant: variant, programURL: programURL)
+        if !verbs.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
                 Text("gameConfig.preview.winetricksRequired")
                     .font(.subheadline)

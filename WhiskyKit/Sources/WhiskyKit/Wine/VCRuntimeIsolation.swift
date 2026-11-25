@@ -45,6 +45,20 @@ public enum VCRuntimeIsolation {
     /// stays the runtime's builtin.
     static let unityNames = isolatedNames.filter { $0 != "ucrtbase" && !$0.hasPrefix("api-ms-win-crt-") }
 
+    /// The winetricks verbs that install what this keeps out of the system
+    /// folders, so only a Unity game ever loads what they install.
+    public static let winetricksVerbs: Set<String> = [
+        "vcrun2015", "vcrun2017", "vcrun2019", "vcrun2022", "ucrtbase2019"
+    ]
+
+    /// Whether ``placeForUnity(executable:store:)`` treats a program as a
+    /// Unity game: `UnityPlayer.dll` sits next to its executable.
+    public static func isUnityGame(executable: URL) -> Bool {
+        FileManager.default.fileExists(
+            atPath: executable.deletingLastPathComponent().appending(path: "UnityPlayer.dll").path
+        )
+    }
+
     /// A native file ``isolate(prefix:runtimeLibWine:)`` moved out of a system folder.
     public struct Moved: Equatable, Sendable {
         public let name: String
@@ -119,7 +133,7 @@ public enum VCRuntimeIsolation {
     public static func placeForUnity(executable: URL, store: URL) -> [String] {
         let fileManager = FileManager.default
         let folder = executable.deletingLastPathComponent()
-        guard fileManager.fileExists(atPath: folder.appending(path: "UnityPlayer.dll").path),
+        guard isUnityGame(executable: executable),
               let machine = machine(of: executable).map(machineName), machine == "x64" || machine == "x86"
         else { return [] }
         for name in unityNames {

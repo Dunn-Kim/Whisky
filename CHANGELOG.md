@@ -80,6 +80,8 @@ that branch only.
   and reverting one keeps changes made since.
 - winetricks runs with the bottle prepared for this runtime, skips its
   update check, and stops on a checksum mismatch.
+- A GameDB configuration applied from a program that is not a Unity game
+  no longer installs the VC++ runtime, which only Unity games load here.
 - Shortcuts whose path holds a quote and a combining mark can no longer run
   shell code, and Unicode `.lnk` targets are read.
 - A deeply nested Steam manifest no longer crashes the app.

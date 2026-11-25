@@ -225,7 +225,7 @@ extension GameConfigApplicator {
     ) -> [String] {
         guard let config = recommendedConfiguration(for: program, entries: entries) else { return [] }
         let installed = WinetricksVerbCache.load(from: program.bottle.url)?.installedVerbs ?? []
-        return pendingWinetricksVerbs(variant: config.variant, installedVerbs: installed)
+        return pendingWinetricksVerbs(variant: config.variant, installedVerbs: installed, programURL: program.url)
     }
 }
 
@@ -235,9 +235,10 @@ extension GameConfigApplicator {
     /// Preview rows for the verbs the variant needs that aren't installed.
     static func winetricksChanges(
         variant: GameConfigVariant,
-        installedVerbs: Set<String>
+        installedVerbs: Set<String>,
+        programURL: URL?
     ) -> [ConfigChange] {
-        pendingWinetricksVerbs(variant: variant, installedVerbs: installedVerbs).map { verb in
+        pendingWinetricksVerbs(variant: variant, installedVerbs: installedVerbs, programURL: programURL).map { verb in
             ConfigChange(
                 kind: .winetricksVerb,
                 category: String(localized: "gameConfig.detail.winetricks"),

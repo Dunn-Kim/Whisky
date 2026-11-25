@@ -104,7 +104,7 @@ public enum GameConfigApplicator {
     ///
     /// Winetricks verbs are not installed here: installing runs winetricks for
     /// minutes, so the app does it afterwards with progress, using
-    /// ``pendingWinetricksVerbs(variant:installedVerbs:)``, and records what
+    /// ``pendingWinetricksVerbs(variant:installedVerbs:programURL:)``, and records what
     /// landed with ``recordInstalledVerbs(_:bottleURL:)``.
     ///
     /// - Parameters:
@@ -210,20 +210,38 @@ public enum GameConfigApplicator {
 
     // MARK: - Pending Winetricks Verbs
 
+    /// The winetricks verbs the variant needs for a program.
+    ///
+    /// The VC++ runtime verbs are left out for a program on disk that is not a
+    /// Unity game: the runtime keeps what they install out of the system
+    /// folders, and only a Unity game gets it (``VCRuntimeIsolation``).
+    /// Without a program, every verb stays.
+    ///
+    /// - Parameters:
+    ///   - variant: The game configuration variant.
+    ///   - programURL: The program the configuration is applied from, if any.
+    /// - Returns: The verbs, in the variant's order.
+    public static func requiredWinetricksVerbs(variant: GameConfigVariant, programURL: URL?) -> [String] {
+        let verbs = variant.winetricksVerbs ?? []
+        guard let programURL, FileManager.default.fileExists(atPath: programURL.path(percentEncoded: false)),
+              !VCRuntimeIsolation.isUnityGame(executable: programURL)
+        else { return verbs }
+        return verbs.filter { !VCRuntimeIsolation.winetricksVerbs.contains($0) }
+    }
+
     /// Returns winetricks verbs required by the variant that are not yet installed.
     ///
     /// - Parameters:
     ///   - variant: The game configuration variant.
     ///   - installedVerbs: The set of verbs already installed in the bottle.
+    ///   - programURL: The program the configuration is applied from, if any.
     /// - Returns: An array of verb names that still need to be installed.
     public static func pendingWinetricksVerbs(
         variant: GameConfigVariant,
-        installedVerbs: Set<String>
+        installedVerbs: Set<String>,
+        programURL: URL?
     ) -> [String] {
-        guard let requiredVerbs = variant.winetricksVerbs else {
-            return []
-        }
-        return requiredVerbs.filter { !installedVerbs.contains($0) }
+        requiredWinetricksVerbs(variant: variant, programURL: programURL).filter { !installedVerbs.contains($0) }
     }
 
     // MARK: - Preview Changes
@@ -332,7 +350,7 @@ public enum GameConfigApplicator {
         changes += environmentChanges(variant: variant, entry: entry, bottle: bottle, programURL: programURL)
 
         // Winetricks verbs
-        changes += winetricksChanges(variant: variant, installedVerbs: installedVerbs)
+        changes += winetricksChanges(variant: variant, installedVerbs: installedVerbs, programURL: programURL)
 
         return changes
     }

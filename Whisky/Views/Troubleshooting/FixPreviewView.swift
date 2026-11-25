@@ -370,7 +370,7 @@ extension FixPreviewView {
                let config = GameConfigApplicator.recommendedConfiguration(for: program) {
                 let installed = await Winetricks.loadInstalledVerbs(for: bottle).verbs
                 let pending = GameConfigApplicator.pendingWinetricksVerbs(
-                    variant: config.variant, installedVerbs: installed
+                    variant: config.variant, installedVerbs: installed, programURL: program.url
                 )
                 _ = await Winetricks.installGameConfigVerbs(pending, for: bottle) { verbProgress = $0 }
             }

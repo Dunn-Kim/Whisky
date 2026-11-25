@@ -120,7 +120,9 @@ final class GameConfigApplyCoordinator: ObservableObject {
         }
 
         let installed = await Winetricks.loadInstalledVerbs(for: bottle).verbs
-        let pending = GameConfigApplicator.pendingWinetricksVerbs(variant: variant, installedVerbs: installed)
+        let pending = GameConfigApplicator.pendingWinetricksVerbs(
+            variant: variant, installedVerbs: installed, programURL: programURL
+        )
         var outcome = GameConfigVerbInstallOutcome(requested: pending)
         if installComponents, !pending.isEmpty {
             outcome = await Winetricks.installGameConfigVerbs(pending, for: bottle) { progress in
