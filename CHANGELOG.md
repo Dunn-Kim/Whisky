@@ -55,6 +55,8 @@ that branch only.
 - `scripts/assemble-runtime.sh`, which assembled the x86_64 runtime.
 - The GPU vendor setting and its picker. The GPU spoof sets only Mesa's
   version overrides, which name no vendor, so the choice changed nothing.
+- The startup check that only logged bottles with leftover processes, and the dependency
+  and process checks no troubleshooting flow used.
 
 #### Fixed
 - A migrated bottle keeps its own Desktop and Documents folders.
@@ -88,6 +90,25 @@ that branch only.
 - The Discord bridge is gone: its x86-64 relay cannot reach the macOS
   socket under FEX, so games never got through it. Whisky's own presence
   stays.
+- Each bottle of another Whisky is listed and copied once, and is not
+  offered again after it was migrated or while its copy is queued.
+- A migration checks again that the source app is closed before it copies,
+  needs room for the copy when the new bottle is on another disk, and leaves
+  no half-copied bottle behind when Whisky quits in the middle of it.
+- A bottle that is being moved, copied or exported refuses launches, and
+  Whisky asks before it quits.
+- Stop Bottle, moving and removing a bottle no longer freeze the window while
+  programs close. If the programs do not stop, nothing is changed.
+- A frame cap typed into a program's environment is kept, and a frame cap of
+  the wrong type in a settings file reads as uncapped instead of making the
+  bottle's settings load as defaults.
+- The process list refreshes again after a refresh failed.
+- Copying or exporting the console log no longer freezes the window on a
+  long log.
+- A failed Wine runtime install swaps back every part it replaced, so the
+  runtime is never half old and half new.
+- A `WINE_COMPATDB` value with a `;` followed by a combining mark is escaped.
+- Reading the bottle list no longer creates or rewrites the bottle registry.
 
 ### Added
 - A frame rate limit for a bottle and for a program (unlimited, match the
