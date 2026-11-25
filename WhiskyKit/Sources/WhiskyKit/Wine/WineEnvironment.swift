@@ -255,10 +255,11 @@ extension Wine {
             let fps = (overrides.frameRateLimit ?? bottleFrameRateLimit)
                 .resolved(displayRefreshRate: displayRefreshRate)
             if effectiveBackend == .dxmt {
-                // The cap is one entry of DXMT_CONFIG, so it is merged, not set: a
-                // DXMT_CONFIG from the program's environment keeps its other
-                // entries. 0 is DXMT's "no cap" and cancels the bottle's.
-                builder.merge("DXMT_CONFIG", "d3d11.preferredMaxFrameRate=\(fps ?? 0)", layer: .programUser)
+                // The cap is one entry of DXMT_CONFIG, so it is merged, not set,
+                // and under the program's own DXMT_CONFIG: its other entries stay
+                // and a cap it names wins. 0 is DXMT's "no cap" and cancels the
+                // bottle's.
+                builder.mergeUnder("DXMT_CONFIG", "d3d11.preferredMaxFrameRate=\(fps ?? 0)", layer: .programUser)
             }
         }
 

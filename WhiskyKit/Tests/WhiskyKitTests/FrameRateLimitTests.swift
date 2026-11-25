@@ -178,6 +178,18 @@ final class FrameRateLimitTests: XCTestCase {
         XCTAssertEqual(env["DXMT_CONFIG"], "d3d11.preferredMaxFrameRate=30;dxgi.customDeviceId=03f1")
     }
 
+    /// A cap typed into the program's own DXMT_CONFIG is the user's, and a
+    /// backend or cap override used to replace it with the bottle's.
+    func testProgramBackendOverrideKeepsATypedDXMTCap() {
+        var overrides = ProgramOverrides()
+        overrides.graphicsBackend = .dxmt
+        let env = programEnvironment(
+            bottleBackend: .dxmt, bottleLimit: .fps60, overrides: overrides,
+            programDXMTConfig: "d3d11.preferredMaxFrameRate=45"
+        )
+        XCTAssertEqual(env["DXMT_CONFIG"], "d3d11.preferredMaxFrameRate=45")
+    }
+
     func testProgramUnlimitedOnDXMTCancelsBottleCap() {
         var overrides = ProgramOverrides()
         overrides.frameRateLimit = .unlimited
