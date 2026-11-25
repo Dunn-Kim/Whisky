@@ -171,6 +171,13 @@ public struct EnvironmentBuilder: Sendable {
         layers[layer, default: [:]][key] = Self.mergeList(current, entries)
     }
 
+    /// Merges `entries` under what `layer` already holds for `key`, so the
+    /// entries already there win for a name both contain.
+    mutating func mergeUnder(_ key: String, _ entries: String, layer: EnvironmentLayer) {
+        let current = layers[layer]?[key] ?? nil
+        layers[layer, default: [:]][key] = Self.mergeList(entries, current ?? "")
+    }
+
     /// Joins two `name=value;...` lists, keeping first-seen order and letting
     /// `overlay` win for a name both contain.
     static func mergeList(_ base: String?, _ overlay: String) -> String {

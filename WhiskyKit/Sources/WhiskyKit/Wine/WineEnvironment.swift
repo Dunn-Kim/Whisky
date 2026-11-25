@@ -461,16 +461,22 @@ extension Wine {
                 ? recommendedBackend ?? GraphicsBackendResolver.resolve() : chosen
             let fps = (overrides.frameRateLimit ?? bottleFrameRateLimit)
                 .resolved(displayRefreshRate: displayRefreshRate)
-            builder.remove("DXVK_FRAME_RATE", layer: .programUser)
+            // A cap typed into the program's own environment is kept, the way
+            // the DXVK compile settings above keep the user's values.
+            if !programEnvironmentKeys.contains("DXVK_FRAME_RATE") {
+                builder.remove("DXVK_FRAME_RATE", layer: .programUser)
+            }
             if effectiveBackend == .dxmt {
-                // The cap is one entry of DXMT_CONFIG, so it is merged, not set: a
-                // DXMT_CONFIG from the program's environment keeps its other
-                // entries. 0 is DXMT's "no cap" and cancels the bottle's.
-                builder.merge("DXMT_CONFIG", "d3d11.preferredMaxFrameRate=\(fps ?? 0)", layer: .programUser)
+                // The cap is one entry of DXMT_CONFIG, so it is merged, not set,
+                // and under the program's own DXMT_CONFIG: its other entries stay
+                // and a cap it names wins. 0 is DXMT's "no cap" and cancels the
+                // bottle's.
+                builder.mergeUnder("DXMT_CONFIG", "d3d11.preferredMaxFrameRate=\(fps ?? 0)", layer: .programUser)
             } else {
                 builder.remove("DXMT_CONFIG", layer: .programUser)
                 if let fps {
-                    for (key, value) in effectiveBackend.frameRateLimitEnvironment(fps: fps) {
+                    for (key, value) in effectiveBackend.frameRateLimitEnvironment(fps: fps)
+                        where !programEnvironmentKeys.contains(key) {
                         builder.set(key, value, layer: .programUser)
                     }
                 }

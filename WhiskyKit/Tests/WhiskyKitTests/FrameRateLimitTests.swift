@@ -101,6 +101,7 @@ final class FrameRateLimitTests: XCTestCase {
         bottleLimit: FrameRateLimit,
         overrides: ProgramOverrides,
         programDXMTConfig: String? = nil,
+        programEnvironment: [String: String] = [:],
         displayRefreshRate: Int? = 144
     ) -> [String: String] {
         var settings = BottleSettings()
@@ -114,11 +115,14 @@ final class FrameRateLimitTests: XCTestCase {
         dllResolver.managed.append(contentsOf: managed)
         // The program's own environment lands in programUser before its overrides,
         // as in constructWineEnvironment.
-        if let programDXMTConfig {
-            builder.set("DXMT_CONFIG", programDXMTConfig, layer: .programUser)
+        var ownEnvironment = programEnvironment
+        ownEnvironment["DXMT_CONFIG"] = programDXMTConfig
+        for (key, value) in ownEnvironment {
+            builder.set(key, value, layer: .programUser)
         }
         Wine.applyProgramOverrides(
-            overrides, builder: &builder, dllResolver: &dllResolver,
+            overrides, programEnvironmentKeys: Set(ownEnvironment.keys),
+            builder: &builder, dllResolver: &dllResolver,
             bottleBackend: bottleBackend,
             bottleFrameRateLimit: bottleLimit,
             displayRefreshRate: displayRefreshRate
@@ -175,6 +179,28 @@ final class FrameRateLimitTests: XCTestCase {
             programDXMTConfig: "dxgi.customDeviceId=03f1"
         )
         XCTAssertEqual(env["DXMT_CONFIG"], "d3d11.preferredMaxFrameRate=30;dxgi.customDeviceId=03f1")
+    }
+
+    /// A cap typed into the program's own environment is the user's, and a
+    /// backend or cap override used to replace it with the bottle's.
+    func testProgramBackendOverrideKeepsATypedDXVKCap() {
+        var overrides = ProgramOverrides()
+        overrides.graphicsBackend = .dxvk
+        let env = programEnvironment(
+            bottleBackend: .dxmt, bottleLimit: .fps60, overrides: overrides,
+            programEnvironment: ["DXVK_FRAME_RATE": "50"]
+        )
+        XCTAssertEqual(env["DXVK_FRAME_RATE"], "50")
+    }
+
+    func testProgramBackendOverrideKeepsATypedDXMTCap() {
+        var overrides = ProgramOverrides()
+        overrides.graphicsBackend = .dxmt
+        let env = programEnvironment(
+            bottleBackend: .dxmt, bottleLimit: .fps60, overrides: overrides,
+            programDXMTConfig: "d3d11.preferredMaxFrameRate=45"
+        )
+        XCTAssertEqual(env["DXMT_CONFIG"], "d3d11.preferredMaxFrameRate=45")
     }
 
     func testProgramUnlimitedOnDXMTCancelsBottleCap() {
