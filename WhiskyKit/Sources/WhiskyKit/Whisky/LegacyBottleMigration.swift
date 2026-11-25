@@ -154,9 +154,12 @@ public extension LegacyBottleImport {
         for (file, filter) in [("user.reg", keepsUserKey), ("system.reg", keepsSystemKey)] {
             let sourceFile = source.appending(path: file)
             let destinationFile = destination.appending(path: file)
-            guard let (sourceText, _) = readRegistry(sourceFile),
-                  let (destinationText, encoding) = readRegistry(destinationFile)
-            else { continue }
+            guard let (sourceText, _) = readRegistry(sourceFile) else { continue }
+            // The new prefix always has both files once it is created; skipping a
+            // missing one would report a migration that carried no settings.
+            guard let (destinationText, encoding) = readRegistry(destinationFile) else {
+                throw CocoaError(.fileReadNoSuchFile, userInfo: [NSFilePathErrorKey: destinationFile.path])
+            }
             let spliced = spliceRegistry(source: sourceText, into: destinationText, keeping: filter)
             guard let data = spliced.data(using: encoding) else { continue }
             try data.write(to: destinationFile, options: .atomic)

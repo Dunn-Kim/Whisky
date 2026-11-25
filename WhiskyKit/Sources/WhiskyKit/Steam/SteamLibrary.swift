@@ -192,7 +192,7 @@ public enum SteamLibrary {
     /// `dosdevices/<letter>:` symlink for everything else.
     ///
     /// Returns `nil` when any component would escape the prefix.
-    static func mapWindowsPath(_ windowsPath: String, bottleURL: URL) -> URL? {
+    public static func mapWindowsPath(_ windowsPath: String, bottleURL: URL) -> URL? {
         let normalized = windowsPath.replacingOccurrences(of: "\\", with: "/")
         guard normalized.count >= 2 else { return nil }
 

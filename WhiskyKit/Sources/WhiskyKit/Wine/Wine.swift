@@ -1059,8 +1059,13 @@ public class Wine {
     /// because the process exits as soon as the delegate returns, so the
     /// asynchronous ``killBottle(bottle:)`` left every Wine process alive
     /// on quit whatever the kill-on-quit setting said.
+    ///
+    /// - Returns: Whether `wineserver -k` finished before `timeout`. A caller that
+    ///   rewrites the prefix's registry files next has to stop on `false`: a
+    ///   server still alive saves its own registry over them when it exits.
     @MainActor
-    public static func killBottleAndWait(bottle: Bottle, timeout: TimeInterval = 5) {
+    @discardableResult
+    public static func killBottleAndWait(bottle: Bottle, timeout: TimeInterval = 5) -> Bool {
         let process = Process()
         process.executableURL = wineserverBinary
         process.arguments = ["-k"]
@@ -1072,12 +1077,13 @@ public class Wine {
             try process.run()
         } catch {
             Logger.wineKit.error("Failed to kill bottle '\(bottle.settings.name)': \(error.localizedDescription)")
-            return
+            return false
         }
         let deadline = Date().addingTimeInterval(timeout)
         while process.isRunning, Date() < deadline {
             Thread.sleep(forTimeInterval: 0.05)
         }
+        return !process.isRunning
     }
 }
 

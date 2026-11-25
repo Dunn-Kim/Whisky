@@ -132,6 +132,25 @@ public enum LegacyBottleImport {
         return result
     }
 
+    /// Whether `url` is a bottle of one of `apps`: inside its container, or listed in
+    /// its bottle registry from a custom location. Such a bottle is copied with the
+    /// migration functions, never registered where it is.
+    public static func isSourceAppBottle(_ url: URL, apps: [SourceApp] = sourceApps) -> Bool {
+        // Compared as paths: a URL read from a plist and one built from a path
+        // can differ under `==` while naming the same folder.
+        func path(_ url: URL) -> String {
+            var path = url.standardizedFileURL.path(percentEncoded: false)
+            while path.count > 1, path.hasSuffix("/") {
+                path.removeLast()
+            }
+            return path
+        }
+        let target = path(url)
+        return apps.contains { app in
+            target.hasPrefix(path(app.container) + "/") || bottleURLs(in: app.container).map(path).contains(target)
+        }
+    }
+
     private static func bottleURLs(in container: URL) -> [URL] {
         var candidates: [URL] = []
 

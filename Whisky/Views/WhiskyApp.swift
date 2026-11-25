@@ -198,8 +198,14 @@ struct WhiskyApp: App {
                             if let url = panel.urls.first {
                                 // Task inherits main actor context from SwiftUI commands builder
                                 Task {
-                                    BottleVM.shared.bottlesList.paths.append(url)
-                                    BottleVM.shared.loadBottles()
+                                    guard let problem = BottleVM.shared.openBottle(at: url) else { return }
+                                    let alert = NSAlert()
+                                    alert.messageText = String(
+                                        localized: "bottle.open.error.title",
+                                        defaultValue: "The folder can't be added"
+                                    )
+                                    alert.informativeText = problem
+                                    alert.runModal()
                                 }
                             }
                         }

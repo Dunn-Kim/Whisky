@@ -263,8 +263,13 @@ extension Bottle {
 /// Bridges `BottleOperations` to the app's bottle list. The `loadBottles()`
 /// requirement is satisfied by the existing method on `BottleVM`.
 extension BottleVM: BottleRegistry {
+    /// Read from disk again on every get: WhiskyCmd may have changed the registry
+    /// since this app read it, and the set writes the whole list back.
     var bottlePaths: [URL] {
-        get { bottlesList.paths }
+        get {
+            refreshRegistry()
+            return bottlesList.paths
+        }
         set { bottlesList.paths = newValue }
     }
 

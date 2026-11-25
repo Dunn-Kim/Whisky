@@ -39,6 +39,9 @@ enum BottleCreationError: LocalizedError, Equatable {
     case locationUnsuitable(message: String)
     /// The app the bottle is copied from is running, so its files aren't consistent.
     case sourceAppRunning(app: String)
+    /// The new bottle's wineserver did not stop, so its registry can't be merged:
+    /// the server would save its own copy over the merge when it exits.
+    case newPrefixStillRunning
 
     var errorDescription: String? {
         switch self {
@@ -58,6 +61,13 @@ enum BottleCreationError: LocalizedError, Equatable {
             String(
                 localized: "bottle.migration.error.sourceRunning",
                 defaultValue: "\(app) or a program it started is running. Quit them, then try again."
+            )
+        case .newPrefixStillRunning:
+            String(
+                localized: "bottle.migration.error.prefixBusy",
+                defaultValue: """
+                The new bottle's Wine server didn't stop in time, so nothing was copied into it. Try again.
+                """
             )
         }
     }
@@ -134,6 +144,7 @@ final class BottleVM: ObservableObject {
     }
 
     func reimportOrphanedBottles() {
+        refreshRegistry()
         for orphan in orphanedBottles where !bottlesList.registerBottlePath(orphan.url) {
             bottleVMLogger.error(
                 "Failed to re-register orphaned bottle at \(orphan.url.path(percentEncoded: false), privacy: .public)"
@@ -266,8 +277,10 @@ final class BottleVM: ObservableObject {
 
             // The new prefix is arm64. The source's files are merged into it once its
             // wineserver has stopped and written the registry.
-            try await Wine.bootstrapPrefix(bottle: created)
-            Wine.killBottleAndWait(bottle: created, timeout: 30)
+            try await Wine.prepareBottlePrefix(bottle: created)
+            guard Wine.killBottleAndWait(bottle: created, timeout: 30) else {
+                throw BottleCreationError.newPrefixStillRunning
+            }
 
             try await Task.detached {
                 try LegacyBottleImport.mergeDriveC(
@@ -302,9 +315,52 @@ final class BottleVM: ObservableObject {
         // registerBottlePath verifies the entries file on disk actually
         // contains the new path; a silent save failure here used to make the
         // bottle vanish on the next launch with no explanation (issue #61).
+        refreshRegistry()
         guard bottlesList.registerBottlePath(request.newBottleDir) else {
             throw BottleCreationError.persistenceSaveFailed
         }
+    }
+
+    /// Reads the bottle registry from disk again before a change. WhiskyCmd may
+    /// have added or removed a bottle since this app read it, and every change
+    /// writes the whole list back, which used to drop what the CLI did.
+    func refreshRegistry() {
+        bottlesList = BottleData()
+    }
+
+    /// Registers a bottle folder picked with Open Bottle.
+    ///
+    /// A folder without readable bottle settings is refused rather than turned
+    /// into a bottle, and so is another Whisky's bottle: its x86_64 prefix is
+    /// copied by the migration sheet, never run here in place.
+    ///
+    /// - Returns: Why the folder was not added, or `nil` once it is.
+    func openBottle(at url: URL) -> String? {
+        let path = url.path(percentEncoded: false)
+        if LegacyBottleImport.isSourceAppBottle(url) {
+            return String(
+                localized: "bottle.open.error.otherApp",
+                defaultValue: """
+                \(path) belongs to another Whisky app. Copy it into a new bottle with \
+                Copy Bottles from Another Whisky… in the File menu.
+                """
+            )
+        }
+        guard (try? BottleData.existingBottleSettings(at: url)) != nil else {
+            return String(
+                localized: "bottle.open.error.notBottle",
+                defaultValue: "\(path) is not a Whisky bottle: it has no readable Metadata.plist."
+            )
+        }
+        refreshRegistry()
+        guard bottlesList.registerBottlePath(url) else {
+            return String(
+                localized: "bottle.open.error.saveFailed",
+                defaultValue: "Couldn't save the bottle list, so the bottle was not added."
+            )
+        }
+        loadBottles()
+        return nil
     }
 
     private func handleBottleCreationFailure(

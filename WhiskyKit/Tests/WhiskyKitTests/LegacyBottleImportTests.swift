@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 //
 //  LegacyBottleImportTests.swift
 //  WhiskyKitTests
@@ -90,6 +91,24 @@ final class LegacyBottleImportTests: XCTestCase {
         let found = LegacyBottleImport.importableBottles(apps: [rosetta], existingPaths: [])
         XCTAssertEqual(Set(found.map(\.url)), [shared, custom])
         XCTAssertEqual(found.count, 2)
+    }
+
+    func testRecognisesAnotherAppsBottleInsideOrOutsideItsContainer() throws {
+        let inside = try makeBottle("a", in: rosetta)
+        let custom = root.appending(path: "custom").standardizedFileURL
+        try FileManager.default.createDirectory(at: custom, withIntermediateDirectories: true)
+        try Data("<plist></plist>".utf8)
+            .write(to: custom.appending(path: "Metadata").appendingPathExtension("plist"))
+        struct Registry: Encodable { var paths: [URL] }
+        let encoder = PropertyListEncoder()
+        encoder.outputFormat = .xml
+        try encoder.encode(Registry(paths: [custom]))
+            .write(to: rosetta.container.appending(path: "BottleVM").appendingPathExtension("plist"))
+        let own = root.appending(path: "own").standardizedFileURL
+
+        XCTAssertTrue(LegacyBottleImport.isSourceAppBottle(inside, apps: [rosetta, original]))
+        XCTAssertTrue(LegacyBottleImport.isSourceAppBottle(custom, apps: [rosetta, original]))
+        XCTAssertFalse(LegacyBottleImport.isSourceAppBottle(own, apps: [rosetta, original]))
     }
 
     func testAlreadyMigratedSourceIsFilteredOut() throws {
@@ -396,5 +415,17 @@ final class LegacyBottleImportTests: XCTestCase {
             try Data(contentsOf: destination.appending(path: "system.reg")),
             Data("WINE REGISTRY Version 2\n".utf8)
         )
+    }
+
+    /// A new prefix without its registry means the migration would carry no settings.
+    func testSpliceRegistriesThrowsWithoutTheNewPrefixsRegistry() throws {
+        let source = root.appending(path: "src_missing")
+        let destination = root.appending(path: "dst_missing")
+        for dir in [source, destination] {
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        }
+        try Data("WINE REGISTRY Version 2\n".utf8).write(to: source.appending(path: "user.reg"))
+
+        XCTAssertThrowsError(try LegacyBottleImport.spliceRegistries(from: source, to: destination))
     }
 }

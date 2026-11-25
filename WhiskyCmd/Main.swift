@@ -121,6 +121,8 @@ extension Whisky {
                 bottle.settings.name = trimmed
                 bottle.settings.wineVersion = SemanticVersion(0, 0, 0)
 
+                // Read again so a bottle the app registered meanwhile is kept.
+                bottlesList = BottleData()
                 bottlesList.paths.append(bottleURL)
                 print("Created bottle \"\(trimmed)\". Its Wine prefix is set up when a program first runs in it.")
             } catch {
@@ -202,6 +204,9 @@ extension Whisky {
                 // Exits 1 (ExitCode.failure) with the reason on stderr.
                 throw DomainError("Couldn't delete \"\(name)\": \(error.localizedDescription)")
             }
+            // Read again: the delete can take minutes, and the app may have
+            // registered a bottle meanwhile that a stale list would drop.
+            bottlesList = BottleData()
             bottlesList.paths.removeAll(where: { $0 == bottleToRemove.url })
             GameRouting().removeRoutes(toBottle: bottleToRemove.url)
             print("Deleted \"\(name)\".")
@@ -294,7 +299,7 @@ extension Whisky {
                 throw DomainError("A bottle with that name doesn't exist.")
             }
 
-            let url = URL(fileURLWithPath: Self.resolveExecutablePath(path, in: bottle))
+            let url = try Self.existingExecutable(path, in: bottle)
             let program = Program(url: url, bottle: bottle)
 
             if command {
@@ -320,15 +325,23 @@ extension Whisky {
         /// (URL(fileURLWithPath:) will resolve relative paths against the CWD).
         @MainActor
         static func resolveExecutablePath(_ raw: String, in bottle: Bottle) -> String {
-            // Match drive-letter Windows paths like `C:\...` or `C:/...`
-            guard let driveMatch = raw.range(of: #"^([A-Za-z]):[\\/]"#, options: .regularExpression) else {
-                return raw
+            // A drive-letter Windows path (`C:\...`, `D:/...`) maps the way Wine
+            // maps it: C is the bottle's drive_c, other letters its dosdevices links.
+            guard raw.range(of: #"^[A-Za-z]:[\\/]"#, options: .regularExpression) != nil,
+                  let url = SteamLibrary.mapWindowsPath(raw, bottleURL: bottle.url)
+            else { return raw }
+            return url.path(percentEncoded: false)
+        }
+
+        /// The executable `raw` names in `bottle`, which must exist: a `Program`
+        /// writes a settings file for whatever path it is given.
+        @MainActor
+        static func existingExecutable(_ raw: String, in bottle: Bottle) throws -> URL {
+            let url = URL(fileURLWithPath: resolveExecutablePath(raw, in: bottle))
+            guard FileManager.default.fileExists(atPath: url.path(percentEncoded: false)) else {
+                throw DomainError("No file exists at \(url.path(percentEncoded: false)).")
             }
-            let drive = raw[raw.index(driveMatch.lowerBound, offsetBy: 0)].lowercased()
-            let rest = raw[driveMatch.upperBound...]
-                .replacingOccurrences(of: "\\", with: "/")
-            let prefix = bottle.url.appending(path: "drive_\(drive)")
-            return prefix.appending(path: rest).path(percentEncoded: false)
+            return url
         }
 
         /// Default run mode: launches the program and prints a deterministic confirmation line.
@@ -448,7 +461,7 @@ extension Whisky {
                 throw DomainError("A bottle with that name doesn't exist.")
             }
 
-            let url = URL(fileURLWithPath: exePath)
+            let url = try Run.existingExecutable(exePath, in: bottle)
             let program = Program(url: url, bottle: bottle)
 
             // Determine shortcut name: --name option or program name sans extension
@@ -469,16 +482,15 @@ extension Whisky {
 
             let appURL = outputDir.appending(path: "\(shortcutName).app")
 
-            // Check for existing shortcut
-            if FileManager.default.fileExists(atPath: appURL.path(percentEncoded: false)) {
-                if overwrite {
-                    try FileManager.default.removeItem(at: appURL)
-                } else {
-                    throw DomainError(
-                        "Shortcut already exists at \(appURL.path(percentEncoded: false)). "
-                            + "Use --overwrite to replace it."
-                    )
-                }
+            // Check for existing shortcut. Replacing it is left to the bundle
+            // creation, which deletes only an earlier shortcut and moves anything
+            // else to the Trash: on a case-insensitive disk `steam.app` is the
+            // native `Steam.app`.
+            if !overwrite, FileManager.default.fileExists(atPath: appURL.path(percentEncoded: false)) {
+                throw DomainError(
+                    "Shortcut already exists at \(appURL.path(percentEncoded: false)). "
+                        + "Use --overwrite to replace it."
+                )
             }
 
             // Generate the launch script and create the bundle with the program's icon
