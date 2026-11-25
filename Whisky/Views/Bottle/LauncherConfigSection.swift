@@ -228,15 +228,8 @@ extension LauncherConfigSection {
             Reports high-end GPU to pass launcher compatibility checks. \
             Fixes EA App black screen and "GPU not supported" errors.
             """)
-
-        if bottle.settings.gpuSpoofing {
-            Picker("GPU Vendor:", selection: $bottle.settings.gpuVendor) {
-                ForEach(GPUVendor.allCases, id: \.self) { vendor in
-                    Text(vendor.modelName).tag(vendor)
-                }
-            }
-            .help("NVIDIA (recommended) provides best compatibility across launchers")
-        }
+        // No vendor picker: the spoofing sets the same Mesa version overrides
+        // whatever the vendor (GPUDetection.spoofGPU).
     }
 
     @ViewBuilder

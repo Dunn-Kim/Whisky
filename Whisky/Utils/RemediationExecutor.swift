@@ -59,10 +59,16 @@ enum RemediationExecutor {
             // crash, and the resolver is the thing that knows what this
             // runtime can actually deliver. DiagnosticsView hides it on a
             // bottle that is already there.
-            let before = bottle.settings.graphicsBackend.rawValue
+            // Through the troubleshooter's fix, which moves the program's own
+            // backend override when it has one: that override wins at launch.
             let target = action.targetBackend ?? .recommended
-            bottle.settings.graphicsBackend = target
-            record(action, before: before, after: target.rawValue, bottle: bottle, programURL: programURL)
+            let program = programURL.map { url in
+                bottle.programs.first { $0.url == url } ?? Program(url: url, bottle: bottle)
+            }
+            let attempt = FixApplicator.apply(
+                fixId: "switch-backend", params: ["backend": target.rawValue], bottle: bottle, program: program
+            )
+            record(action, before: attempt.beforeValue, after: target.rawValue, bottle: bottle, programURL: programURL)
             onUpdate(String(format: String(localized: "remediation.applied"), action.title))
 
         case .installVerb:

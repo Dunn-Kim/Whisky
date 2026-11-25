@@ -239,7 +239,7 @@ public final class Program: ObservableObject, Equatable, Hashable, Identifiable 
     /// A legacy filename-keyed plist is read in place; migrating it to the
     /// identity-keyed name stays with the initializer, as does quarantining
     /// an unreadable plist (an unreadable plist reads as no overrides here).
-    nonisolated static func persistedOverrides(for url: URL, bottleURL: URL) -> ProgramOverrides? {
+    public nonisolated static func persistedOverrides(for url: URL, bottleURL: URL) -> ProgramOverrides? {
         let locations = settingsLocations(for: url, bottleURL: bottleURL, legacyName: url.lastPathComponent)
         let settingsURL = FileManager.default.fileExists(atPath: locations.identity.path(percentEncoded: false))
             ? locations.identity

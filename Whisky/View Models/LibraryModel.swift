@@ -340,8 +340,11 @@ extension LibraryModel {
     }
 
     /// Stops every poller. Called when the library leaves the screen.
+    ///
+    /// A bottle with a Play still waiting on its Steam client keeps going:
+    /// stopping it cancelled the launch, and the game never started.
     func stopTracking() {
-        for orchestrator in orchestrators.values {
+        for (url, orchestrator) in orchestrators where steamLaunching[url]?.isEmpty ?? true {
             orchestrator.stop()
         }
     }

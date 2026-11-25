@@ -109,10 +109,13 @@ extension RemediationAction {
     /// Whether applying this action to a bottle with `settings` would change
     /// anything. A backend switch to the backend the bottle already uses is a
     /// no-op and should not be offered.
-    public func wouldChange(_ settings: BottleSettings) -> Bool {
+    ///
+    /// - Parameter programBackend: The program's own backend override, which its
+    ///   launches use instead of the bottle's.
+    public func wouldChange(_ settings: BottleSettings, programBackend: GraphicsBackend? = nil) -> Bool {
         guard let targetBackend else {
             return true
         }
-        return settings.graphicsBackend != targetBackend
+        return (programBackend ?? settings.graphicsBackend) != targetBackend
     }
 }

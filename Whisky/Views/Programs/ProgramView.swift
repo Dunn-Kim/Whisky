@@ -76,7 +76,9 @@ struct ProgramView: View {
                 )
                 if let runId = selectedRunId,
                    let entry = findRunEntry(id: runId) {
+                    // A new identity per run, so its lines, follower and timer start over.
                     ConsoleLogView(runEntry: entry, bottle: program.bottle)
+                        .id(runId)
                 }
             }
         }

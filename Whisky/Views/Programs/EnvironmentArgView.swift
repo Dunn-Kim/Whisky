@@ -56,22 +56,20 @@ struct EnvironmentArgView: View {
                 KeyItem(
                     focus: _focus,
                     environmentKeys: $environmentKeys,
-                    key: key
+                    key: key,
+                    onEdit: save
                 )
             }
             .alternatingRowBackgrounds(.enabled)
-            .onAppear {
-                let keys = program.settings.environment.map { (key: String, value: String) in
-                    Key(key: key, value: value)
-                }
-                environmentKeys = keys.sorted(by: { $0.key < $1.key })
-            }
-            .onDisappear {
-                program.settings.environment.removeAll()
-                for key in environmentKeys where !key.key.isEmpty {
-                    program.settings.environment[key.key] = key.value
+            .onAppear(perform: load)
+            // A game configuration applied while the page is open changes the
+            // settings underneath; show them rather than save over them.
+            .onChange(of: program.settings.environment) {
+                if program.settings.environment != shownEnvironment {
+                    load()
                 }
             }
+            .onDisappear(perform: save)
         } header: {
             HStack {
                 Text("program.env").frame(maxWidth: .infinity, alignment: .leading)
@@ -126,6 +124,26 @@ struct EnvironmentArgView: View {
         }
     }
 
+    /// The variables as the list shows them, rows without a name left out.
+    private var shownEnvironment: [String: String] {
+        Dictionary(environmentKeys.filter { !$0.key.isEmpty }.map { ($0.key, $0.value) }) { _, last in last }
+    }
+
+    private func load() {
+        environmentKeys = program.settings.environment
+            .map { Key(key: $0.key, value: $0.value) }
+            .sorted { $0.key < $1.key }
+    }
+
+    /// Saves on every edit: Run on this page reads the settings, and saving
+    /// only on leaving launched without the variable just added.
+    private func save() {
+        let environment = shownEnvironment
+        if program.settings.environment != environment {
+            program.settings.environment = environment
+        }
+    }
+
     func createNewKey() {
         if let key = environmentKeys.first(where: { $0.key.isEmpty }) {
             focus = .row(id: key.id, section: .key)
@@ -143,6 +161,8 @@ struct KeyItem: View {
     @Binding var environmentKeys: [Key]
     @State var key: Key
     @State var hovered: Bool = false
+    /// Called after every change to this row, so the list saves it.
+    var onEdit: () -> Void = {}
 
     var body: some View {
         HStack {
@@ -153,6 +173,7 @@ struct KeyItem: View {
                 .focused($focus, equals: .row(id: key.id, section: .key))
                 .onChange(of: key.key) {
                     key.key = key.key.trimmingCharacters(in: .whitespacesAndNewlines)
+                    onEdit()
                 }
                 .onSubmit {
                     // Try to move on to value
@@ -163,8 +184,10 @@ struct KeyItem: View {
                 .labelsHidden()
                 .frame(maxHeight: .infinity)
                 .focused($focus, equals: .row(id: key.id, section: .value))
+                .onChange(of: key.value) { onEdit() }
             Button {
                 environmentKeys.removeAll(where: { $0.id == key.id })
+                onEdit()
             } label: {
                 Image(systemName: "xmark.circle.fill")
                     .help("environment.remove")

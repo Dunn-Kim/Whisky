@@ -40,14 +40,7 @@ struct ConsoleLogView: View {
     @State private var refreshTimer: Timer?
 
     /// Regex patterns that indicate WINEDEBUG output.
-    private static let wineDebugPatterns: [String] = [
-        "^[0-9a-f]{4}:",
-        "^wine:",
-        "^fixme:",
-        "^err:",
-        "^trace:",
-        "^warn:"
-    ]
+    private static let wineDebugPrefixes = ["wine:", "fixme:", "err:", "trace:", "warn:"]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -198,7 +191,12 @@ struct ConsoleLogView: View {
     }
 
     var filteredLines: [ConsoleLogLine] {
-        logLines.filter { line in
+        shown(logLines)
+    }
+
+    /// The lines of `lines` the channel toggles let through.
+    func shown(_ lines: [ConsoleLogLine]) -> [ConsoleLogLine] {
+        lines.filter { line in
             switch line.channel {
             case .output: showOutput
             case .stderr: showStderr
@@ -206,6 +204,11 @@ struct ConsoleLogView: View {
             }
         }
     }
+
+    /// How many lines the view keeps. A log at its 20 MiB cap holds about
+    /// 250,000, and every refresh filtered and diffed them all on the main thread.
+    /// Copy and export read the whole file.
+    private static let maxLines = 5_000
 
     // MARK: - Footer
 
@@ -312,7 +315,7 @@ extension ConsoleLogView {
             guard let content = String(data: chunk.data, encoding: .utf8) else {
                 throw CocoaError(.fileReadInapplicableStringEncoding)
             }
-            logLines = classifyLines(content)
+            logLines = classifyLines(content, keepingLast: Self.maxLines)
             logFollower = follower
         } catch {
             logLines = [ConsoleLogLine(
@@ -334,7 +337,10 @@ extension ConsoleLogView {
                 // with the newest output after it; read it again from the top.
                 loadLog()
             } else if !chunk.data.isEmpty, let newContent = String(data: chunk.data, encoding: .utf8) {
-                logLines.append(contentsOf: classifyLines(newContent))
+                logLines.append(contentsOf: classifyLines(newContent, keepingLast: Self.maxLines))
+                if logLines.count > Self.maxLines {
+                    logLines.removeFirst(logLines.count - Self.maxLines)
+                }
             }
         }
         // Read errors are ignored during live tailing; the next tick tries again.
@@ -348,10 +354,11 @@ extension ConsoleLogView {
         }
     }
 
-    func classifyLines(_ content: String) -> [ConsoleLogLine] {
+    func classifyLines(_ content: String, keepingLast limit: Int = .max) -> [ConsoleLogLine] {
         content
             .components(separatedBy: .newlines)
             .filter { !$0.isEmpty }
+            .suffix(limit)
             .map { line in
                 if isWineDebugLine(line) {
                     ConsoleLogLine(text: line, channel: .wineDebug)
@@ -363,10 +370,23 @@ extension ConsoleLogView {
             }
     }
 
+    /// A Wine debug line: a thread id (`002c:fixme:…`) or a channel prefix.
+    /// Checked without regular expressions, which cost six searches a line.
     func isWineDebugLine(_ line: String) -> Bool {
-        Self.wineDebugPatterns.contains { pattern in
-            line.range(of: pattern, options: .regularExpression) != nil
+        let bytes = line.utf8
+        let isThreadID = bytes.count > 4
+            && bytes.prefix(4).allSatisfy { (48 ... 57).contains($0) || (97 ... 102).contains($0) }
+            && bytes.dropFirst(4).first == UInt8(ascii: ":")
+        return isThreadID || Self.wineDebugPrefixes.contains { line.hasPrefix($0) }
+    }
+
+    /// The whole log, classified, for copy and export: the view keeps only its tail.
+    func allLogLines() -> [ConsoleLogLine] {
+        let logURL = Wine.logsFolder.appending(path: runEntry.logFileName)
+        guard let data = try? Data(contentsOf: logURL), let text = String(bytes: data, encoding: .utf8) else {
+            return logLines
         }
+        return classifyLines(text)
     }
 
     func isStderrLine(_ line: String) -> Bool {
@@ -375,7 +395,7 @@ extension ConsoleLogView {
     }
 
     func copyToClipboard() {
-        let text = filteredLines.map(\.text).joined(separator: "\n")
+        let text = shown(allLogLines()).map(\.text).joined(separator: "\n")
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(text, forType: .string)
     }
@@ -389,9 +409,10 @@ extension ConsoleLogView {
 
         if savePanel.runModal() == .OK, let url = savePanel.url {
             do {
-                var exportContent = filteredLines.map(\.text).joined(separator: "\n")
+                let lines = allLogLines()
+                var exportContent = shown(lines).map(\.text).joined(separator: "\n")
                 if runEntry.hasWineDebugOutput, !showWineDebug {
-                    let debugLines = logLines
+                    let debugLines = lines
                         .filter { $0.channel == .wineDebug }
                         .map(\.text)
                     if !debugLines.isEmpty {

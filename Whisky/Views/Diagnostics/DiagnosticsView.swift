@@ -66,7 +66,11 @@ struct DiagnosticsView: View {
         // A card whose change is already in place (a reset to Recommended on
         // a Recommended bottle) would apply as a silent no-op.
         return diagnosis.remediations(from: remediations).filter { action in
-            applyBottle.map { action.wouldChange($0.settings) } ?? true
+            guard let applyBottle else { return true }
+            let programBackend = applyProgramURL.flatMap {
+                Program.persistedOverrides(for: $0, bottleURL: applyBottle.url)?.graphicsBackend
+            }
+            return action.wouldChange(applyBottle.settings, programBackend: programBackend)
         }
     }
 
