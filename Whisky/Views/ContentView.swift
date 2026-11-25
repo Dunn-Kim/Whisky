@@ -235,9 +235,7 @@ struct ContentView: View {
                     if WhiskyWineInstaller.uninstall() {
                         showSetup = true
                     } else {
-                        let refusal = NSAlert()
-                        refusal.messageText = WhiskyWineInstallError.runtimeInUse.localizedDescription
-                        refusal.runModal()
+                        NSAlert.showRuntimeInUseRefusal()
                     }
                 }
             }

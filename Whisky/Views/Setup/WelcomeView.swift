@@ -190,9 +190,16 @@ struct InstallStatusView: View {
         }
         if !removed {
             // Nothing was deleted: a program still runs on the engine.
-            let refusal = NSAlert()
-            refusal.messageText = WhiskyWineInstallError.runtimeInUse.localizedDescription
-            refusal.runModal()
+            NSAlert.showRuntimeInUseRefusal()
         }
+    }
+}
+
+extension NSAlert {
+    /// Tells the user an uninstall removed nothing because a program still runs on the engine.
+    static func showRuntimeInUseRefusal() {
+        let refusal = NSAlert()
+        refusal.messageText = WhiskyWineInstallError.runtimeInUse.localizedDescription
+        refusal.runModal()
     }
 }
