@@ -180,7 +180,12 @@ final class BottleVM: ObservableObject {
         let newBottleDir: URL
     }
 
-    private func createBottleTask(request: BottleCreationRequest) async {
+    /// Creates a bottle and registers it. A `source` fills the new prefix with a copy of another
+    /// Whisky app's bottle; without one the prefix is initialised empty.
+    private func createBottleTask(
+        request: BottleCreationRequest,
+        source: LegacyBottleImport.DiscoveredBottle? = nil
+    ) async {
         var bottle: Bottle?
         do {
             // The Wine runtime is required to initialize the prefix; fail fast
@@ -188,6 +193,9 @@ final class BottleVM: ObservableObject {
             // failure from the wine invocation (issue #61).
             guard WhiskyWineInstaller.isWhiskyWineInstalled() else {
                 throw BottleCreationError.runtimeMissing
+            }
+            if let source, LegacyBottleImport.isRunning(source.app) {
+                throw BottleCreationError.sourceAppRunning(app: source.app.displayName)
             }
 
             // Pre-flight the chosen location before creating anything, so an
@@ -198,28 +206,24 @@ final class BottleVM: ObservableObject {
             }
 
             try createBottleDirectory(at: request.newBottleDir)
-            // Without a record, the first scan would leave its first install unpinned.
-            try? HandledShortcuts.startRecord(in: request.newBottleDir)
+            var imported: BottleSettings?
+            if let source {
+                imported = try await copySettings(of: source, to: request.newBottleDir)
+            } else {
+                // Without a record, the first scan would leave its first install unpinned.
+                try? HandledShortcuts.startRecord(in: request.newBottleDir)
+            }
 
             // Create bottle on main actor (since Bottle is @MainActor)
             let createdBottle = Bottle(bottleUrl: request.newBottleDir, inFlight: true)
             bottle = createdBottle
             bottles.append(createdBottle)
 
-            // Configure bottle settings (all on MainActor)
-            createdBottle.settings.windowsVersion = request.winVersion
-            createdBottle.settings.name = request.bottleName
-
-            // Wine operations are async and can run on background threads
-            try await Wine.changeWinVersion(bottle: createdBottle, win: request.winVersion)
-            let wineVer = try await Wine.wineVersion()
-            createdBottle.settings.wineVersion = SemanticVersion(wineVer) ?? SemanticVersion(0, 0, 0)
-
-            // Bootstrap host fonts so Unity titles render fallback glyphs correctly.
-            BottleFontBootstrap.copySystemFonts(toPrefix: createdBottle.url)
-
-            // Save settings
-            createdBottle.saveBottleSettings()
+            if let source, let imported {
+                try await fillPrefix(of: createdBottle, from: source, settings: imported)
+            } else {
+                try await initializePrefix(of: createdBottle, request: request)
+            }
 
             try persistBottleCreation(request: request)
             // Reload while the bottle is still in flight so the reload keeps
@@ -236,70 +240,76 @@ final class BottleVM: ObservableObject {
         }
     }
 
+    private func initializePrefix(of bottle: Bottle, request: BottleCreationRequest) async throws {
+        // Configure bottle settings (all on MainActor)
+        bottle.settings.windowsVersion = request.winVersion
+        bottle.settings.name = request.bottleName
+
+        // Wine operations are async and can run on background threads
+        try await Wine.changeWinVersion(bottle: bottle, win: request.winVersion)
+        let wineVer = try await Wine.wineVersion()
+        bottle.settings.wineVersion = SemanticVersion(wineVer) ?? SemanticVersion(0, 0, 0)
+
+        // Bootstrap host fonts so Unity titles render fallback glyphs correctly.
+        BottleFontBootstrap.copySystemFonts(toPrefix: bottle.url)
+
+        // Save settings
+        bottle.saveBottleSettings()
+    }
+
+    /// Copies the settings of `source` into the new bottle folder, before the bottle is opened.
+    private func copySettings(
+        of source: LegacyBottleImport.DiscoveredBottle,
+        to newBottleDir: URL
+    ) async throws -> BottleSettings {
+        let sourceURL = source.url
+        try await Task.detached {
+            try LegacyBottleImport.copySettings(from: sourceURL, to: newBottleDir)
+            try LegacyBottleImport.rewriteSettings(in: newBottleDir, from: sourceURL)
+        }.value
+        return try BottleSettings.decode(
+            from: newBottleDir.appending(path: "Metadata").appendingPathExtension("plist")
+        )
+    }
+
+    /// The new prefix is arm64. The source's files are merged into it once its
+    /// wineserver has stopped and written the registry.
+    private func fillPrefix(
+        of created: Bottle,
+        from source: LegacyBottleImport.DiscoveredBottle,
+        settings: BottleSettings
+    ) async throws {
+        let sourceURL = source.url
+        let newBottleDir = created.url
+        try await Wine.prepareBottlePrefix(bottle: created)
+        guard await Wine.stopBottle(bottle: created, timeout: 30) else {
+            throw BottleCreationError.newPrefixStillRunning
+        }
+
+        try await Task.detached {
+            try LegacyBottleImport.mergeDriveC(
+                from: sourceURL.appending(path: "drive_c"), to: newBottleDir.appending(path: "drive_c")
+            )
+            try LegacyBottleImport.spliceRegistries(from: sourceURL, to: newBottleDir)
+        }.value
+
+        // Creating the bottle dropped the pins whose programs weren't copied yet.
+        var restored = settings
+        restored.wineVersion = created.settings.wineVersion
+        created.settings = restored
+    }
+
     /// Copies bottles of other Whisky apps into new bottles, one after another.
     func migrateLegacyBottles(_ sources: [LegacyBottleImport.DiscoveredBottle]) async {
         for source in sources {
-            await migrateLegacyBottle(source)
-        }
-    }
-
-    /// Copies one bottle of another Whisky app into a new bottle of this app. The source is only read.
-    private func migrateLegacyBottle(_ source: LegacyBottleImport.DiscoveredBottle) async {
-        let newBottleDir = BottleData.defaultBottleDir.appending(path: UUID().uuidString)
-        let request = BottleCreationRequest(
-            bottleName: source.name,
-            winVersion: .win10,
-            bottleURL: BottleData.defaultBottleDir,
-            newBottleDir: newBottleDir
-        )
-        var bottle: Bottle?
-        do {
-            guard WhiskyWineInstaller.isWhiskyWineInstalled() else {
-                throw BottleCreationError.runtimeMissing
-            }
-            guard !LegacyBottleImport.isRunning(source.app) else {
-                throw BottleCreationError.sourceAppRunning(app: source.app.displayName)
-            }
-
-            try createBottleDirectory(at: newBottleDir)
-            let sourceURL = source.url
-            try await Task.detached {
-                try LegacyBottleImport.copySettings(from: sourceURL, to: newBottleDir)
-                try LegacyBottleImport.rewriteSettings(in: newBottleDir, from: sourceURL)
-            }.value
-            let settings = try BottleSettings.decode(
-                from: newBottleDir.appending(path: "Metadata").appendingPathExtension("plist")
+            // The source is only read.
+            let request = BottleCreationRequest(
+                bottleName: source.name,
+                winVersion: .win10,
+                bottleURL: BottleData.defaultBottleDir,
+                newBottleDir: BottleData.defaultBottleDir.appending(path: UUID().uuidString)
             )
-
-            let created = Bottle(bottleUrl: newBottleDir, inFlight: true)
-            bottle = created
-            bottles.append(created)
-
-            // The new prefix is arm64. The source's files are merged into it once its
-            // wineserver has stopped and written the registry.
-            try await Wine.prepareBottlePrefix(bottle: created)
-            guard await Wine.stopBottle(bottle: created, timeout: 30) else {
-                throw BottleCreationError.newPrefixStillRunning
-            }
-
-            try await Task.detached {
-                try LegacyBottleImport.mergeDriveC(
-                    from: sourceURL.appending(path: "drive_c"), to: newBottleDir.appending(path: "drive_c")
-                )
-                try LegacyBottleImport.spliceRegistries(from: sourceURL, to: newBottleDir)
-            }.value
-
-            // Creating the bottle dropped the pins whose programs weren't copied yet.
-            var restored = settings
-            restored.wineVersion = created.settings.wineVersion
-            created.settings = restored
-
-            try persistBottleCreation(request: request)
-            loadBottles()
-            created.isAvailable = true
-            created.inFlight = false
-        } catch {
-            handleBottleCreationFailure(error, request: request, bottle: bottle)
+            await createBottleTask(request: request, source: source)
         }
     }
 
