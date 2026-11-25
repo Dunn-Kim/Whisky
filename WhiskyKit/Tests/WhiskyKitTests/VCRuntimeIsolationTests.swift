@@ -108,6 +108,22 @@ final class VCRuntimeIsolationTests {
         #expect(try read("VC Runtime/x64/msvcp140.dll") == native(0x8664, tag: "new"))
     }
 
+    @Test("A native file goes back when the builtin cannot be copied in")
+    func rollsBackWhenBuiltinCopyFails() throws {
+        try builtins()
+        try write(native(0x8664), "drive_c/windows/system32/ucrtbase.dll")
+        // Present, so the file is a candidate, but unreadable, so the copy fails.
+        let builtin = libWine.appending(path: "aarch64-windows/ucrtbase.dll")
+        try FileManager.default.setAttributes([.posixPermissions: 0], ofItemAtPath: builtin.path)
+        defer { try? FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: builtin.path) }
+
+        let moved = VCRuntimeIsolation.isolate(prefix: prefix, runtimeLibWine: libWine)
+
+        #expect(moved.isEmpty)
+        #expect(try read("drive_c/windows/system32/ucrtbase.dll") == native(0x8664))
+        #expect(!FileManager.default.fileExists(atPath: prefix.appending(path: "VC Runtime/x64/ucrtbase.dll").path))
+    }
+
     // MARK: - placeForUnity
 
     private func game(machine: UInt16, unity: Bool = true) throws -> URL {
