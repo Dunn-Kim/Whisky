@@ -248,17 +248,16 @@ public struct GameConfigVariantSettings: Codable, Sendable, Equatable {
         self.shaderCacheEnabled = try container.decodeIfPresent(Bool.self, forKey: .shaderCacheEnabled)
         self.avxEnabled = try container.decodeIfPresent(Bool.self, forKey: .avxEnabled)
         self.sequoiaCompatMode = try container.decodeIfPresent(Bool.self, forKey: .sequoiaCompatMode)
-        // FrameRateLimit accepts either its integer raw value (60) or a readable
-        // string ("60", "unlimited", "matchDisplay"), since the database is
-        // hand-edited JSON. An unrecognised value decodes to nil — "do not
-        // change this setting" — rather than failing the whole entry.
+        // FrameRateLimit is a number of frames (60) or "unlimited" / "matchDisplay".
+        // An unrecognised value decodes to nil — "do not change this setting" —
+        // rather than failing the whole entry.
         if let raw = try? container.decodeIfPresent(Int.self, forKey: .frameRateLimit) {
             self.frameRateLimit = FrameRateLimit(rawValue: raw)
         } else if let name = try? container.decodeIfPresent(String.self, forKey: .frameRateLimit) {
             switch name {
             case "unlimited": self.frameRateLimit = .unlimited
-            case "matchDisplay", "match-display": self.frameRateLimit = .matchDisplay
-            default: self.frameRateLimit = Int(name).flatMap(FrameRateLimit.init(rawValue:))
+            case "matchDisplay": self.frameRateLimit = .matchDisplay
+            default: self.frameRateLimit = nil
             }
         } else {
             self.frameRateLimit = nil
