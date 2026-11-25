@@ -106,4 +106,10 @@ struct CompatdbRulesTests {
                 == "exe=*;\(wined3d)\nexe=Game.exe;dxgi=dxmt\nexe=x.exe;dxgi=default"
         )
     }
+
+    @Test("a separator followed by a combining mark is still escaped")
+    func escapesSeparatorBeforeCombiningMark() {
+        #expect(Wine.compatdbEscaped("a;\u{301}b") == "a%3B\u{301}b")
+        #expect(Wine.compatdbEscaped("a\r\nb") == "a%0D%0Ab")
+    }
 }

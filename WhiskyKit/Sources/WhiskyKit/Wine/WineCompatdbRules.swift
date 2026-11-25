@@ -86,13 +86,15 @@ extension Wine {
     /// A rule field's value with what would end the field, the rule or the
     /// value's name written as `%XX`, which the runtime decodes.
     static func compatdbEscaped(_ value: String) -> String {
+        // Scalars, not Characters: a combining mark after `;` would otherwise join it into one
+        // Character that no case matches.
         var result = ""
-        for character in value {
-            switch character {
-            case "%", ";", "=", "\n", "\r", "\r\n":
-                result += character.utf8.map { String(format: "%%%02X", $0) }.joined()
+        for scalar in value.unicodeScalars {
+            switch scalar {
+            case "%", ";", "=", "\n", "\r":
+                result += String(scalar).utf8.map { String(format: "%%%02X", $0) }.joined()
             default:
-                result.append(character)
+                result.unicodeScalars.append(scalar)
             }
         }
         return result
