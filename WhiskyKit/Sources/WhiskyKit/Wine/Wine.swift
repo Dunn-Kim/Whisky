@@ -317,6 +317,14 @@ public class Wine {
         onOutput: (@MainActor (ProcessOutput) -> Void)?,
         prepare: @MainActor () async throws -> PreparedLaunch
     ) async throws -> ProgramRunResult {
+        // A move, copy or export has the bottle's files in flight; a launch would write into them.
+        guard !bottle.inFlight else {
+            throw NSError(
+                domain: "com.franke.Whisky",
+                code: 2,
+                userInfo: [NSLocalizedDescriptionKey: String(localized: "bottle.error.busy")]
+            )
+        }
         // Note: Launcher detection and fix application happen before this method
         // is called: in Program.launchWithUserMode for a program, and via
         // LauncherFixes.detectAndApply in the app's run-a-file paths

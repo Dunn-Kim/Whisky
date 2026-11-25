@@ -61,6 +61,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         UserDefaults.standard.object(forKey: "killOnTerminate") as? Bool ?? true
     }
 
+    @MainActor
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        let bottleVM = BottleVM.shared
+        guard !bottleVM.queuedMigrations.isEmpty || bottleVM.bottles.contains(where: \.inFlight) else {
+            return .terminateNow
+        }
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = String(localized: "quit.busy.message")
+        alert.addButton(withTitle: String(localized: "button.cancel"))
+        alert.addButton(withTitle: String(localized: "menubar.quit"))
+        return alert.runModal() == .alertSecondButtonReturn ? .terminateNow : .terminateCancel
+    }
+
     func applicationWillTerminate(_ notification: Notification) {
         let globalKill = Self.killOnTerminate
 
