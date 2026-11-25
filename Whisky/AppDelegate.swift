@@ -49,14 +49,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         Task.detached {
             await TempFileTracker.shared.cleanupOldFiles(olderThan: 24 * 60 * 60)
         }
-
-        // Startup orphan process detection
-        // Probe each known bottle's wineserver to detect processes from previous sessions
-        Task {
-            // Wait for bottles to load (BottleVM needs time to initialize)
-            try? await Task.sleep(for: .seconds(2))
-            await self.sweepOrphanProcesses()
-        }
     }
 
     /// The "Terminate Wine processes when Whisky closes" setting.
@@ -166,22 +158,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             return url.path.contains("Xcode") || url.path.contains(expectedUrl.path)
         }
         return false
-    }
-
-    @MainActor
-    private func sweepOrphanProcesses() async {
-        for bottle in BottleVM.shared.bottles {
-            // The sweep runs 2 s after launch. Only a wineserver that no launch
-            // or helper of this app session accounts for is a leftover; one the
-            // user just started a program, batch file or winecfg in is not.
-            guard await Wine.runState(for: bottle) == .orphaned else { continue }
-
-            // Flagged, never killed: a game started from a shortcut or `whisky run`
-            // runs under a wineserver this session did not start, and the sidebar's
-            // stop button already offers to end a real leftover.
-            let bottleName = bottle.settings.name
-            logger.info("Detected orphan Wine processes in bottle '\(bottleName)' (flagged, not auto-cleaned)")
-        }
     }
 
     @MainActor
