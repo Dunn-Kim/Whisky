@@ -91390,28 +91390,6 @@
         }
       }
     },
-    "config.graphics.stopBottle.confirm.title" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Stop this bottle?"
-          }
-        },
-        "en-GB" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Stop this bottle?"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "이 Bottle을 중지할까요?"
-          }
-        }
-      }
-    },
     "config.graphics.tag.experimental" : {
       "extractionState" : "manual",
       "localizations" : {
