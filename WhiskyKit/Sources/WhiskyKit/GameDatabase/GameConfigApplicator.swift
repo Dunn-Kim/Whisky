@@ -144,6 +144,15 @@ public enum GameConfigApplicator {
         let environmentTargets = environmentTargets(entry: entry, bottle: bottle, programURL: programURL)
         snapshotEnvironment(variant.environmentVariables ?? [:], of: environmentTargets, into: &snapshot)
 
+        // Record the bottle settings this apply changes. An earlier snapshot without
+        // them is from before they were recorded, and its revert stays the old one.
+        if earlier == nil || earlier?.bottleChanges != nil {
+            let changes = snapshotBottleChanges(
+                variant: variant, entry: entry, bottle: bottle, targets: environmentTargets
+            )
+            snapshot.bottleChanges = earlier?.bottleChanges.map { changes.merged(over: $0) } ?? changes
+        }
+
         // 3. Apply variant settings to bottle
         applyVariantSettings(variant.settings, to: bottle)
 
@@ -169,12 +178,13 @@ public enum GameConfigApplicator {
 
     /// Reverts a bottle's settings to the state captured in the snapshot.
     ///
-    /// Decodes the snapshot's ``GameConfigSnapshot/bottleSettingsData`` and puts back
-    /// the settings an apply changes (backend, sync, shader cache, frame cap, DLL
-    /// overrides and stored game environments), then the program environment
-    /// variables in ``GameConfigSnapshot/programEnvironments``. Everything changed
-    /// since, such as pins or the bottle's name, stays. The `didSet` observers
-    /// handle automatic persistence.
+    /// Puts back the settings, DLL overrides and stored game environments the apply
+    /// changed (``GameConfigSnapshot/bottleChanges``), then the program environment
+    /// variables in ``GameConfigSnapshot/programEnvironments``. Everything else, such
+    /// as pins, the bottle's name or a DLL override added since, stays. A snapshot
+    /// from before the changes were recorded puts back the settings an apply can
+    /// change from ``GameConfigSnapshot/bottleSettingsData`` instead. The `didSet`
+    /// observers handle automatic persistence.
     ///
     /// - Parameters:
     ///   - bottle: The bottle whose settings will be restored.
@@ -187,8 +197,10 @@ public enum GameConfigApplicator {
         bottle: Bottle,
         snapshot: GameConfigSnapshot
     ) throws -> [String] {
-        // 1. Decode and restore bottle settings
-        if let settingsData = snapshot.bottleSettingsData {
+        // 1. Restore bottle settings
+        if let changes = snapshot.bottleChanges {
+            bottle.settings = changes.reverting(bottle.settings)
+        } else if let settingsData = snapshot.bottleSettingsData {
             let saved = try PropertyListDecoder().decode(BottleSettings.self, from: settingsData)
             var restored = bottle.settings
             restored.graphicsBackend = saved.graphicsBackend

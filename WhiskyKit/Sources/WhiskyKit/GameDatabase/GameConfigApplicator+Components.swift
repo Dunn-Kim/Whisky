@@ -61,7 +61,8 @@ extension GameConfigApplicator {
     /// replaces in each of `programs`, so a revert can put back just those.
     ///
     /// Programs are not recorded when the variant sets no variables, since the
-    /// apply leaves them unchanged.
+    /// apply leaves them unchanged. A program an earlier, unreverted apply
+    /// recorded keeps that record's previous values, the program's own.
     @MainActor
     static func snapshotEnvironment(
         _ variables: [String: String],
@@ -70,14 +71,40 @@ extension GameConfigApplicator {
     ) {
         guard !variables.isEmpty, !programs.isEmpty else { return }
         var records = snapshot.programEnvironments ?? [:]
-        // A record an earlier, unreverted apply made holds the program's own
-        // values; this apply's would hold that apply's instead.
-        for program in programs where records[program.url.absoluteString] == nil {
-            records[program.url.absoluteString] = GameConfigProgramEnvironment(
-                applying: variables, to: program.settings.environment
-            )
+        for program in programs {
+            let record = GameConfigProgramEnvironment(applying: variables, to: program.settings.environment)
+            let key = program.url.absoluteString
+            records[key] = records[key].map { record.merged(over: $0) } ?? record
         }
         snapshot.programEnvironments = records
+    }
+
+    /// The bottle settings applying `variant` changes, with their current values.
+    ///
+    /// `targets` are the programs the variant's environment variables go to; without
+    /// any, the variables are kept in the bottle settings under the entry.
+    @MainActor
+    static func snapshotBottleChanges(
+        variant: GameConfigVariant,
+        entry: GameDBEntry,
+        bottle: Bottle,
+        targets: [Program]
+    ) -> GameConfigBottleChanges {
+        let settings = bottle.settings
+        let variantSettings = variant.settings
+        var changes = GameConfigBottleChanges()
+        changes.graphicsBackend = variantSettings.graphicsBackend == nil ? nil : settings.graphicsBackend
+        changes.enhancedSync = variantSettings.enhancedSync == nil ? nil : settings.enhancedSync
+        changes.shaderCacheEnabled = variantSettings.shaderCacheEnabled == nil ? nil : settings.shaderCacheEnabled
+        changes.frameRateLimit = variantSettings.frameRateLimit == nil ? nil : settings.frameRateLimit
+        for override in variant.dllOverrides ?? [] {
+            let current = settings.dllOverrides.first { $0.dllName == override.dllName }
+            changes.dllOverrides[override.dllName] = .init(current)
+        }
+        if targets.isEmpty, !(variant.environmentVariables ?? [:]).isEmpty {
+            changes.environments[entry.id] = .init(settings.gameConfigEnvironments.first { $0.entryId == entry.id })
+        }
+        return changes
     }
 
     /// Makes a variant's environment variables part of every launch of the game.

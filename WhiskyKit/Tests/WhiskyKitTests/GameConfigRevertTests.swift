@@ -134,4 +134,68 @@ final class GameConfigRevertTests {
         #expect(record.previousValues == ["A": "1"])
         #expect(record.reverting(["A": "2", "B": "1", "C": "1"]) == ["A": "1", "C": "1"])
     }
+
+    private func makeVariant(
+        id: String,
+        settings: GameConfigVariantSettings = GameConfigVariantSettings(),
+        environment: [String: String]? = nil,
+        dllOverrides: [DLLOverrideEntry]? = nil
+    ) -> GameConfigVariant {
+        GameConfigVariant(
+            id: id, label: id, isDefault: false, settings: settings,
+            environmentVariables: environment, dllOverrides: dllOverrides
+        )
+    }
+
+    @Test("Reverting after two applies puts back each setting as it was before the first")
+    func revertAfterTwoApplies() throws {
+        let game = try makeProgram("Games/Test/TestGame.exe")
+        game.settings.environment = ["KEEP": "1"]
+        bottle.settings.dllOverrides = [DLLOverrideEntry(dllName: "d3d9", mode: .native)]
+        let first = makeVariant(
+            id: "a",
+            settings: GameConfigVariantSettings(graphicsBackend: .wined3d),
+            environment: ["X": "1"],
+            dllOverrides: [DLLOverrideEntry(dllName: "d3d9", mode: .builtin)]
+        )
+        let second = makeVariant(
+            id: "b",
+            settings: GameConfigVariantSettings(graphicsBackend: .dxmt, frameRateLimit: .fps30),
+            environment: ["X": "2", "Y": "1"],
+            dllOverrides: [
+                DLLOverrideEntry(dllName: "d3d9", mode: .disabled),
+                DLLOverrideEntry(dllName: "dxgi", mode: .native)
+            ]
+        )
+        _ = try GameConfigApplicator.apply(entry: makeEntry(variant: first), variant: first, to: bottle)
+        let snapshot = try GameConfigApplicator.apply(entry: makeEntry(variant: second), variant: second, to: bottle)
+        #expect(game.settings.environment == ["KEEP": "1", "X": "2", "Y": "1"])
+
+        _ = try GameConfigApplicator.revert(bottle: bottle, snapshot: snapshot)
+
+        #expect(game.settings.environment == ["KEEP": "1"])
+        #expect(bottle.settings.graphicsBackend == .recommended)
+        #expect(bottle.settings.frameRateLimit == .matchDisplay)
+        #expect(bottle.settings.dllOverrides == [DLLOverrideEntry(dllName: "d3d9", mode: .native)])
+    }
+
+    @Test("Revert leaves settings the apply did not set, and a DLL override added after it")
+    func revertKeepsLaterBottleEdits() throws {
+        let variant = makeVariant(
+            id: "a",
+            settings: GameConfigVariantSettings(graphicsBackend: .wined3d),
+            dllOverrides: [DLLOverrideEntry(dllName: "d3d9", mode: .builtin)]
+        )
+        let snapshot = try GameConfigApplicator.apply(
+            entry: makeEntry(variant: variant), variant: variant, to: bottle
+        )
+        bottle.settings.shaderCacheEnabled = false
+        bottle.settings.dllOverrides.append(DLLOverrideEntry(dllName: "winmm", mode: .native))
+
+        _ = try GameConfigApplicator.revert(bottle: bottle, snapshot: snapshot)
+
+        #expect(bottle.settings.graphicsBackend == .recommended)
+        #expect(!bottle.settings.shaderCacheEnabled)
+        #expect(bottle.settings.dllOverrides == [DLLOverrideEntry(dllName: "winmm", mode: .native)])
+    }
 }

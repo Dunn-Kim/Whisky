@@ -107,6 +107,22 @@ public struct GameConfigProgramEnvironment: Codable, Sendable, Equatable {
         )
     }
 
+    /// This record combined with `earlier`, the record of an apply not yet reverted.
+    ///
+    /// A variable `earlier` already recorded keeps its earlier previous value, so a revert
+    /// goes back to the program as it was before the first apply; the applied values are
+    /// the later ones, which is what the program holds now.
+    public func merged(over earlier: GameConfigProgramEnvironment) -> GameConfigProgramEnvironment {
+        var previous = earlier.previousValues
+        for key in appliedValues.keys where earlier.appliedValues[key] == nil {
+            previous[key] = previousValues[key]
+        }
+        return GameConfigProgramEnvironment(
+            appliedValues: earlier.appliedValues.merging(appliedValues) { _, new in new },
+            previousValues: previous
+        )
+    }
+
     /// `environment` with the applied variables put back as they were.
     ///
     /// A variable whose value has changed since the apply is left alone, so an

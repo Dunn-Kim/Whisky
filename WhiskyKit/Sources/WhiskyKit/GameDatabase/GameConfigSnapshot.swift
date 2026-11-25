@@ -61,6 +61,14 @@ public struct GameConfigSnapshot: Codable, Sendable, Equatable {
     /// program's settings as they are.
     public var programEnvironments: [String: GameConfigProgramEnvironment]?
 
+    /// The bottle settings the apply changed, with the values they had before it.
+    ///
+    /// A revert puts back only these, leaving the rest of the bottle's settings
+    /// as they are. `nil` in a snapshot written before this was recorded; a
+    /// revert then puts back the settings an apply can change from
+    /// ``bottleSettingsData``.
+    public var bottleChanges: GameConfigBottleChanges?
+
     /// Winetricks verbs installed during this apply (informational, non-reversible).
     ///
     /// These are recorded so the revert UI can note "Settings reverted;
@@ -85,6 +93,7 @@ public struct GameConfigSnapshot: Codable, Sendable, Equatable {
     ///   - bottleSettingsData: Serialized bottle settings from before apply.
     ///   - programSettingsData: Map of program URL to serialized settings.
     ///   - programEnvironments: Map of program URL to the environment variables the apply set.
+    ///   - bottleChanges: The bottle settings the apply changed, with their earlier values.
     ///   - installedVerbs: Winetricks verbs installed during this apply.
     ///   - appliedEntryId: The game database entry ID that was applied.
     ///   - appliedVariantId: The variant ID that was applied.
@@ -93,6 +102,7 @@ public struct GameConfigSnapshot: Codable, Sendable, Equatable {
         bottleSettingsData: Data? = nil,
         programSettingsData: [String: Data]? = nil,
         programEnvironments: [String: GameConfigProgramEnvironment]? = nil,
+        bottleChanges: GameConfigBottleChanges? = nil,
         installedVerbs: [String]? = nil,
         appliedEntryId: String,
         appliedVariantId: String,
@@ -101,6 +111,7 @@ public struct GameConfigSnapshot: Codable, Sendable, Equatable {
         self.bottleSettingsData = bottleSettingsData
         self.programSettingsData = programSettingsData
         self.programEnvironments = programEnvironments
+        self.bottleChanges = bottleChanges
         self.installedVerbs = installedVerbs
         self.appliedEntryId = appliedEntryId
         self.appliedVariantId = appliedVariantId
@@ -143,5 +154,73 @@ public struct GameConfigSnapshot: Codable, Sendable, Equatable {
     public static func delete(from bottleURL: URL) throws {
         let url = bottleURL.appending(path: snapshotFileName)
         try FileManager.default.removeItem(at: url)
+    }
+}
+
+/// The bottle settings an applied game configuration changed, with the values
+/// they had before, so a revert can undo exactly those.
+///
+/// Settings the apply did not touch are `nil` or absent, and a revert leaves
+/// them as they are.
+public struct GameConfigBottleChanges: Codable, Sendable, Equatable {
+    /// A value from before the apply; `value` is `nil` when there was none.
+    public struct Previous<Value: Codable & Sendable & Equatable>: Codable, Sendable, Equatable {
+        public var value: Value?
+
+        public init(_ value: Value?) {
+            self.value = value
+        }
+    }
+
+    public var graphicsBackend: GraphicsBackend?
+    public var enhancedSync: EnhancedSync?
+    public var shaderCacheEnabled: Bool?
+    public var frameRateLimit: FrameRateLimit?
+    /// The DLL override each DLL name had, keyed by DLL name.
+    public var dllOverrides: [String: Previous<DLLOverrideEntry>] = [:]
+    /// The ``GameConfigEnvironment`` each game entry had, keyed by entry ID.
+    public var environments: [String: Previous<GameConfigEnvironment>] = [:]
+
+    public init() {}
+
+    /// These changes combined with `earlier`, those of an apply not yet reverted.
+    /// Where both recorded a setting, the earlier previous value wins, so a
+    /// revert goes back to the bottle as it was before the first apply.
+    public func merged(over earlier: GameConfigBottleChanges) -> GameConfigBottleChanges {
+        var result = self
+        result.graphicsBackend = earlier.graphicsBackend ?? graphicsBackend
+        result.enhancedSync = earlier.enhancedSync ?? enhancedSync
+        result.shaderCacheEnabled = earlier.shaderCacheEnabled ?? shaderCacheEnabled
+        result.frameRateLimit = earlier.frameRateLimit ?? frameRateLimit
+        result.dllOverrides.merge(earlier.dllOverrides) { _, earlier in earlier }
+        result.environments.merge(earlier.environments) { _, earlier in earlier }
+        return result
+    }
+
+    /// `settings` with the recorded settings put back.
+    public func reverting(_ settings: BottleSettings) -> BottleSettings {
+        var result = settings
+        if let graphicsBackend { result.graphicsBackend = graphicsBackend }
+        if let enhancedSync { result.enhancedSync = enhancedSync }
+        if let shaderCacheEnabled { result.shaderCacheEnabled = shaderCacheEnabled }
+        if let frameRateLimit { result.frameRateLimit = frameRateLimit }
+        for (name, previous) in dllOverrides {
+            if let index = result.dllOverrides.firstIndex(where: { $0.dllName == name }) {
+                if let value = previous.value {
+                    result.dllOverrides[index] = value
+                } else {
+                    result.dllOverrides.remove(at: index)
+                }
+            } else if let value = previous.value {
+                result.dllOverrides.append(value)
+            }
+        }
+        for (entryId, previous) in environments {
+            result.gameConfigEnvironments.removeAll { $0.entryId == entryId }
+            if let value = previous.value {
+                result.gameConfigEnvironments.append(value)
+            }
+        }
+        return result
     }
 }
