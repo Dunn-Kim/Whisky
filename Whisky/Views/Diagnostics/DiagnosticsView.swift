@@ -47,6 +47,8 @@ struct DiagnosticsView: View {
     @State private var logFilterMode: LogFilterMode = .all
     @State private var isLogExpanded: Bool = false
     @State private var isOtherSuggestionsExpanded: Bool = false
+    /// The program's own backend override, read from disk on appear and after an apply, not on every render.
+    @State private var programBackend: GraphicsBackend?
 
     private var effectiveOnAction: ((RemediationAction) -> Void)? {
         if let onAction {
@@ -57,6 +59,7 @@ struct DiagnosticsView: View {
             RemediationExecutor.apply(action, to: applyBottle, programURL: applyProgramURL) { message in
                 withAnimation { applyFeedback = message }
             }
+            refreshProgramBackend()
         }
     }
 
@@ -67,9 +70,6 @@ struct DiagnosticsView: View {
         // a Recommended bottle) would apply as a silent no-op.
         return diagnosis.remediations(from: remediations).filter { action in
             guard let applyBottle else { return true }
-            let programBackend = applyProgramURL.flatMap {
-                Program.persistedOverrides(for: $0, bottleURL: applyBottle.url)?.graphicsBackend
-            }
             return action.wouldChange(applyBottle.settings, programBackend: programBackend)
         }
     }
@@ -88,6 +88,11 @@ struct DiagnosticsView: View {
             let confidence = confidenceTier(for: action, diagnosis: diagnosis)
             return confidence == .low
         }
+    }
+
+    private func refreshProgramBackend() {
+        guard let applyBottle, let applyProgramURL else { return }
+        programBackend = Program.persistedOverrides(for: applyProgramURL, bottleURL: applyBottle.url)?.graphicsBackend
     }
 
     var body: some View {
@@ -111,6 +116,7 @@ struct DiagnosticsView: View {
             }
             .padding(12)
         }
+        .onAppear(perform: refreshProgramBackend)
     }
 
     // MARK: - Split Layout (>= 700pt)
