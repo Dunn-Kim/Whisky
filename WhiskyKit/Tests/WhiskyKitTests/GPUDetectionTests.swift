@@ -63,29 +63,12 @@ final class GPUDetectionTests: XCTestCase {
         XCTAssertEqual(env["MESA_GLSL_VERSION_OVERRIDE"], "460")
     }
 
-    func testAppleSiliconSpoofing() {
-        let env = GPUDetection.spoofAppleSilicon()
-
-        // Should include Metal-specific settings
-        XCTAssertNotNil(env["MTL_SHADER_VALIDATION"])
-    }
-
     func testSpoofWithVendor() {
         let nvidiaEnv = GPUDetection.spoofWithVendor(.nvidia)
         let amdEnv = GPUDetection.spoofWithVendor(.amd)
 
         XCTAssertEqual(nvidiaEnv, GPUDetection.spoofGPU(vendor: .nvidia))
         XCTAssertEqual(amdEnv, GPUDetection.spoofGPU(vendor: .amd))
-    }
-
-    func testValidateSpoofingEnvironment() {
-        // Valid environment
-        var validEnv = GPUDetection.spoofGPU(vendor: .nvidia)
-        XCTAssertTrue(GPUDetection.validateSpoofingEnvironment(validEnv))
-
-        // Invalid environment (missing required keys)
-        validEnv.removeValue(forKey: "MESA_GL_VERSION_OVERRIDE")
-        XCTAssertFalse(GPUDetection.validateSpoofingEnvironment(validEnv))
     }
 
     func testAllVendorsHaveDeviceIDs() {

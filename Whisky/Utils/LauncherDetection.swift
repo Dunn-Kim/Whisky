@@ -138,36 +138,4 @@ enum LauncherDetection {
 
         return warnings
     }
-
-    /// Generates a user-friendly configuration summary for a launcher.
-    ///
-    /// - Parameters:
-    ///   - bottle: The bottle to summarize
-    ///   - launcher: The launcher type
-    /// - Returns: Multi-line string describing the current configuration
-    @MainActor
-    static func generateConfigSummary(for bottle: Bottle, launcher: LauncherType) -> String {
-        var summary = "Configuration for \(launcher.rawValue):\n\n"
-
-        summary += "Compatibility Mode: \(bottle.settings.launcherCompatibilityMode ? "✅ Enabled" : "❌ Disabled")\n"
-        summary += "Locale: \(bottle.settings.launcherLocale.pretty())\n"
-        let gpuStatus = bottle.settings.gpuSpoofing
-            ? "✅ Enabled (\(bottle.settings.gpuVendor.rawValue))"
-            : "❌ Disabled"
-        summary += "GPU Spoofing: \(gpuStatus)\n\n"
-
-        summary += "Fixes Applied:\n\(launcher.fixesDescription)\n\n"
-
-        let warnings = validateBottleForLauncher(bottle, launcher: launcher)
-        if !warnings.isEmpty {
-            summary += "⚠️ Warnings:\n"
-            for warning in warnings {
-                summary += "  \(warning.diagnosticMessage)\n"
-            }
-        } else {
-            summary += "✅ Configuration is optimal for this launcher\n"
-        }
-
-        return summary
-    }
 }

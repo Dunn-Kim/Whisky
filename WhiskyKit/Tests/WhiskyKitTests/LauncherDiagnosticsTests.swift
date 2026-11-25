@@ -212,25 +212,6 @@ final class LauncherDiagnosticsTests: XCTestCase {
 
     // MARK: - GPU Validation Tests
 
-    func testGPUSpoofingEnvironmentValidation() throws {
-        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        try FileManager.default.createDirectory(at: tempURL, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: tempURL) }
-
-        let bottle = Bottle(bottleUrl: tempURL, inFlight: false, isAvailable: true)
-        bottle.settings.launcherCompatibilityMode = true
-        bottle.settings.gpuSpoofing = true
-
-        var env: [String: String] = [:]
-        bottle.settings.environmentVariables(wineEnv: &env)
-
-        // Verify GPU spoofing environment is valid
-        XCTAssertTrue(
-            GPUDetection.validateSpoofingEnvironment(env),
-            "GPU spoofing environment should be valid"
-        )
-    }
-
     func testGPUSpoofingDisabled() throws {
         let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: tempURL, withIntermediateDirectories: true)

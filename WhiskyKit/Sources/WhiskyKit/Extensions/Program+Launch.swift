@@ -45,8 +45,7 @@ public extension Program {
 
     /// Prepares the bottle to run this program, then returns the command that runs it.
     ///
-    /// Where `generateTerminalCommand(args:)` only describes a launch, this first
-    /// prepares the bottle exactly as ``launch(args:onOutput:)`` does: a missing
+    /// This first prepares the bottle exactly as ``launch(args:onOutput:)`` does: a missing
     /// Wine prefix is created, the audio
     /// settings, any missing CJK font aliases and the launch's DLL overrides go
     /// into the prefix registry, and the graphics backend's files into the

@@ -88,16 +88,14 @@ public enum GPUVendor: String, Codable, CaseIterable, Sendable {
 /// ## Example
 ///
 /// ```swift
-/// // Apply default Apple Silicon GPU spoofing
-/// let env = GPUDetection.spoofAppleSilicon()
-/// // Returns environment variables reporting high-end NVIDIA GPU
+/// // Spoofing for a launcher's GPU check
+/// let env = GPUDetection.spoofWithVendor(.nvidia)
 /// ```
 ///
 /// ## Topics
 ///
 /// ### Spoofing Methods
 /// - ``spoofGPU(vendor:model:)``
-/// - ``spoofAppleSilicon()``
 /// - ``spoofWithVendor(_:)``
 ///
 /// ### Vendor Configuration
@@ -126,26 +124,6 @@ public enum GPUDetection {
         return env
     }
 
-    /// Returns GPU spoofing configuration optimized for Apple Silicon Macs.
-    ///
-    /// This is the recommended default for most users. Reports capabilities as
-    /// a high-end NVIDIA RTX 4090 GPU, which has excellent compatibility with
-    /// game launchers and passes all capability checks.
-    ///
-    /// - Returns: Environment variables configured for Apple Silicon compatibility
-    public static func spoofAppleSilicon() -> [String: String] {
-        var env = spoofGPU(vendor: .nvidia, model: "Apple M-series (as NVIDIA RTX 4090)")
-
-        // Additional Apple Silicon optimizations
-        env["MTL_HUD_ENABLED"] = "0" // Disable by default for spoofing
-        env["METAL_DEVICE_WRAPPER_TYPE"] = "1"
-
-        // Ensure Metal is properly initialized
-        env["MTL_SHADER_VALIDATION"] = "0"
-
-        return env
-    }
-
     /// Returns GPU spoofing for a specific vendor.
     ///
     /// Use this when you need to report a specific GPU vendor for compatibility
@@ -155,21 +133,5 @@ public enum GPUDetection {
     /// - Returns: Environment variables configured for the specified vendor
     public static func spoofWithVendor(_ vendor: GPUVendor) -> [String: String] {
         spoofGPU(vendor: vendor)
-    }
-
-    /// Validates that GPU spoofing environment is correctly configured.
-    ///
-    /// This method checks that the keys the bottle-level spoof always sets are
-    /// present.
-    ///
-    /// - Parameter environment: The environment dictionary to validate
-    /// - Returns: `true` if GPU spoofing is properly configured
-    public static func validateSpoofingEnvironment(_ environment: [String: String]) -> Bool {
-        let requiredKeys = [
-            "MESA_GL_VERSION_OVERRIDE",
-            "MESA_GLSL_VERSION_OVERRIDE"
-        ]
-
-        return requiredKeys.allSatisfy { environment[$0] != nil }
     }
 }
