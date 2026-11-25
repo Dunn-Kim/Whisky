@@ -765,12 +765,9 @@ struct ProgramOverrideSettingsView: View {
 
     /// The backend this program launches with and the DLL overrides it manages, chosen the way
     /// `Wine.runProgram` chooses them: the program's backend override wins over the bottle's, and
-    /// `.recommended` resolves against this executable, so a launcher gets DXVK's.
+    /// `.recommended` resolves through the program's steering, so a launcher or front end gets DXVK's.
     private var launchPreset: (backend: GraphicsBackend, entries: [DLLOverrideEntry]) {
-        let choice = program.settings.overrides?.graphicsBackend ?? bottle.settings.graphicsBackend
-        let backend = choice == .recommended
-            ? GraphicsBackendResolver.resolve(for: LauncherType.detect(from: program.url))
-            : choice
+        let backend = effectiveResolvedBackend
         let entries = DLLOverrideResolver.managedPreset(
             for: backend, builtinD3D12IsD3DMetal: GPTKImporter.isDeployed()
         )
