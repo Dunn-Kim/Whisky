@@ -47,12 +47,11 @@ enum RemediationExecutor {
     ) {
         switch action.actionType {
         case .changeSetting:
-            guard let change = applySetting(action, to: bottle) else {
-                onUpdate(String(localized: "remediation.unsupported"))
-                return
-            }
-            record(action, before: change.before, after: change.after, bottle: bottle, programURL: programURL)
-            onUpdate(String(format: String(localized: "remediation.applied"), action.title))
+            // No bundled remediation changes a setting on this build; a key path
+            // from elsewhere reports honestly instead of claiming success.
+            let keyPath = action.settingKeyPath ?? "nil"
+            logger.error("Unknown settingKeyPath \(keyPath, privacy: .public) for \(action.id, privacy: .public)")
+            onUpdate(String(localized: "remediation.unsupported"))
 
         case .switchBackend:
             // The bundled card resets to Recommended rather than to a named
@@ -135,21 +134,5 @@ enum RemediationExecutor {
             forProgramAt: programURL,
             inBottleAt: bottle.url
         )
-    }
-
-    /// Applies a `changeSetting` action and returns the setting's value
-    /// before and after, or `nil` when the action cannot be applied.
-    ///
-    /// The key paths are the vocabulary of `remediations.json`; a key path
-    /// this build does not know reports honestly instead of claiming success.
-    private static func applySetting(
-        _ action: RemediationAction,
-        to bottle: Bottle
-    ) -> (before: String, after: String)? {
-        let keyPath = action.settingKeyPath ?? "nil"
-        logger.error(
-            "Unknown settingKeyPath \(keyPath, privacy: .public) for \(action.id, privacy: .public)"
-        )
-        return nil
     }
 }

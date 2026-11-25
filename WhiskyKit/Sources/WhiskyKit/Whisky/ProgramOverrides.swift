@@ -127,7 +127,7 @@ public struct ProgramOverrides: Codable, Equatable, Sendable {
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.graphicsBackend = (try? container.decodeIfPresent(GraphicsBackend.self, forKey: .graphicsBackend)) ?? nil
+        self.graphicsBackend = (try? container.decodeIfPresent(GraphicsBackend.self, forKey: .graphicsBackend))
         // Int-raw enum: an unknown value falls back to inheriting the bottle.
         let rawLimit = try container.decodeIfPresent(Int.self, forKey: .frameRateLimit)
         self.frameRateLimit = rawLimit.flatMap(FrameRateLimit.init(rawValue:))

@@ -424,7 +424,7 @@ public enum FixApplicator { // swiftlint:disable:this type_body_length
                 logger.info("apply-launcher-fixes: no launcher detected for this program or bottle")
                 return FixAttempt(fixId: fixId, result: .failed)
             }
-            LauncherFixes.apply(to: bottle, launcher: launcher, force: true)
+            LauncherFixes.apply(to: bottle, launcher: launcher)
             return FixAttempt(
                 fixId: fixId,
                 beforeValue: nil,

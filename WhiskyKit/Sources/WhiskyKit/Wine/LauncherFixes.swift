@@ -34,7 +34,7 @@ import os.log
 ///   program is launched. It only *refines* a bottle whose compatibility mode
 ///   is already enabled, never touches manual mode, and short-circuits when the
 ///   detected launcher is already configured.
-/// - ``apply(to:launcher:force:)`` applies a launcher's profile directly,
+/// - ``apply(to:launcher:)`` applies a launcher's profile directly,
 ///   enabling compatibility mode if it is off. Callers own any mode gating
 ///   (the Steam orchestrator, for example, only calls it in auto mode).
 ///
@@ -103,13 +103,10 @@ public enum LauncherFixes {
     /// - Parameters:
     ///   - bottle: The bottle to configure
     ///   - launcher: The detected or manually selected launcher type
-    ///   - force: If `true`, overrides existing settings; if `false`, only applies if not already configured
     @MainActor
-    public static func apply(
-        to bottle: Bottle, launcher: LauncherType, force: Bool = false
-    ) {
+    public static func apply(to bottle: Bottle, launcher: LauncherType) {
         // Enable launcher compatibility mode
-        if !bottle.settings.launcherCompatibilityMode || force {
+        if !bottle.settings.launcherCompatibilityMode {
             bottle.settings.launcherCompatibilityMode = true
         }
 

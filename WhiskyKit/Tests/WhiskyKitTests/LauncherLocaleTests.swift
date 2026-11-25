@@ -118,7 +118,7 @@ struct LauncherLocaleTests {
 
             // Steam's orchestrator applies the fixes on every client start.
             LauncherFixes.apply(to: bottle, launcher: launcher)
-            LauncherFixes.apply(to: bottle, launcher: launcher, force: true)
+            LauncherFixes.apply(to: bottle, launcher: launcher)
 
             #expect(bottle.settings.launcherLocale == locale)
             let persisted = try BottleSettings.decode(from: bottleURL.appending(path: "Metadata.plist"))

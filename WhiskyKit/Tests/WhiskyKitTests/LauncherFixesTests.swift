@@ -172,15 +172,13 @@ final class LauncherFixesApplyTests: LauncherFixesTestCase {
     func testSteamProfileLeavesTheBackendAlone() {
         // The runtime picks its graphics layer itself: no launcher profile
         // switches the bottle's backend.
-        for force in [false, true] {
-            for backend in GraphicsBackend.allCases {
-                let bottle = makeBottle()
-                bottle.settings.graphicsBackend = backend
+        for backend in GraphicsBackend.allCases {
+            let bottle = makeBottle()
+            bottle.settings.graphicsBackend = backend
 
-                LauncherFixes.apply(to: bottle, launcher: .steam, force: force)
+            LauncherFixes.apply(to: bottle, launcher: .steam)
 
-                XCTAssertEqual(bottle.settings.graphicsBackend, backend, "\(backend) force: \(force)")
-            }
+            XCTAssertEqual(bottle.settings.graphicsBackend, backend, "\(backend)")
         }
     }
 

@@ -348,7 +348,7 @@ struct ProgramOverrideSettingsView: View {
     /// What Recommended does for a program whose window Chromium draws (#372).
     @ViewBuilder
     private var chromiumCaption: some View {
-        if let steering = backendSteering {
+        if let steering = program.backendSteering {
             switch effectiveBackendChoice {
             case .recommended:
                 // Nothing to explain where the games already run on WineD3D.
@@ -631,13 +631,6 @@ struct ProgramOverrideSettingsView: View {
         program.settings.overrides?.graphicsBackend != nil
     }
 
-    /// Why Recommended runs this program on WineD3D, if it does: a launcher, a
-    /// Chromium front end from the table, or an Electron or NW.js app. Read
-    /// from the program's scan, never from its files.
-    private var backendSteering: BackendSteering? {
-        program.backendSteering
-    }
-
     /// The backend this program's launches choose, before Recommended resolves.
     private var effectiveBackendChoice: GraphicsBackend {
         program.settings.overrides?.graphicsBackend ?? bottle.settings.graphicsBackend
@@ -654,13 +647,15 @@ struct ProgramOverrideSettingsView: View {
     /// for the program, so a launcher or front end reports WineD3D.
     private var resolvedOverriddenBackend: GraphicsBackend {
         let backend = program.settings.overrides?.graphicsBackend ?? .recommended
-        return backend == .recommended ? GraphicsBackendResolver.resolution(for: backendSteering).backend : backend
+        return backend == .recommended
+            ? GraphicsBackendResolver.resolution(for: program.backendSteering).backend
+            : backend
     }
 
     /// The bottle's backend, resolved for this program, for the inherited summary.
     private var resolvedBottleBackend: GraphicsBackend {
         bottle.settings.graphicsBackend == .recommended
-            ? GraphicsBackendResolver.resolution(for: backendSteering).backend
+            ? GraphicsBackendResolver.resolution(for: program.backendSteering).backend
             : bottle.settings.graphicsBackend
     }
 
