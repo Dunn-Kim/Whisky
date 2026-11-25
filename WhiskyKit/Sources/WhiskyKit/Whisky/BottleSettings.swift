@@ -184,6 +184,7 @@ public struct BottleSettings: Codable, Equatable {
         self.customDLLOverrides = []
     }
 
+    // swiftlint:disable:next function_body_length
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.fileVersion = try container.decodeIfPresent(SemanticVersion.self, forKey: .fileVersion) ?? Self
