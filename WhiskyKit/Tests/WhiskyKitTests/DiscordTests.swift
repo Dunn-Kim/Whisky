@@ -281,45 +281,6 @@ struct DiscordPresenceSocketTests {
     }
 }
 
-@Suite("Discord Bridge Tests")
-struct DiscordBridgeTests {
-    @Test("The relay ships with the build")
-    func executableIsBundled() throws {
-        let url = try #require(DiscordBridge.executableURL)
-        let size = try FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int
-
-        #expect(url.lastPathComponent == "WhiskyDiscordBridge.exe")
-        #expect((size ?? 0) > 0)
-    }
-
-    @Test("The relay is a 64-bit PE, matching the Wine the bottles run")
-    func executableIsPE64() throws {
-        let url = try #require(DiscordBridge.executableURL)
-        let contents = try Data(contentsOf: url)
-
-        #expect(contents.prefix(2) == Data("MZ".utf8))
-        let peOffset = Int(contents[0x3C]) | Int(contents[0x3D]) << 8
-        #expect(Data(contents[peOffset ..< (peOffset + 4)]) == Data([0x50, 0x45, 0x00, 0x00]))
-        // IMAGE_FILE_MACHINE_AMD64
-        #expect(contents[peOffset + 4] == 0x64 && contents[peOffset + 5] == 0x86)
-    }
-
-    @Test("Launching starts the relay detached, with the socket directory passed in")
-    func launchArguments() {
-        let executable = URL(fileURLWithPath: "/Applications/Whisky.app/Contents/bridge.exe")
-        let directory = URL(fileURLWithPath: "/var/folders/49/abc/T", isDirectory: true)
-
-        let arguments = DiscordBridge.launchArguments(executableURL: executable, socketDirectory: directory)
-
-        // The relay appends the socket name to whatever it is given, so the
-        // trailing separator a directory URL carries is what it wants.
-        #expect(arguments == [
-            "start", "/unix", "/Applications/Whisky.app/Contents/bridge.exe",
-            "--dir", "/var/folders/49/abc/T/"
-        ])
-    }
-}
-
 @Suite("Bottle Discord Config Tests")
 struct BottleDiscordConfigTests {
     @Test("Both switches are off until asked for")
@@ -327,7 +288,6 @@ struct BottleDiscordConfigTests {
         let settings = BottleSettings()
 
         #expect(settings.discordPresence == false)
-        #expect(settings.discordBridge == false)
     }
 
     @Test("Settings written before this feature existed still decode")
@@ -335,7 +295,6 @@ struct BottleDiscordConfigTests {
         let settings = try JSONDecoder().decode(BottleSettings.self, from: Data("{}".utf8))
 
         #expect(settings.discordPresence == false)
-        #expect(settings.discordBridge == false)
     }
 
     @Test("A malformed value falls back to off instead of failing the whole decode")
@@ -344,19 +303,17 @@ struct BottleDiscordConfigTests {
             BottleDiscordConfig.self, from: Data(#"{"presence":"yes","bridge":true}"#.utf8)
         )
 
+        // The `bridge` key earlier builds wrote is ignored, not an error.
         #expect(config.presence == false)
-        #expect(config.bridge == true)
     }
 
     @Test("Both switches survive a settings round trip")
     func roundTrip() throws {
         var settings = BottleSettings()
         settings.discordPresence = true
-        settings.discordBridge = true
 
         let decoded = try JSONDecoder().decode(BottleSettings.self, from: JSONEncoder().encode(settings))
 
         #expect(decoded.discordPresence == true)
-        #expect(decoded.discordBridge == true)
     }
 }

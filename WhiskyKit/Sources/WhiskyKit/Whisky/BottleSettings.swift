@@ -351,21 +351,10 @@ public struct BottleSettings: Codable, Equatable {
     /// Whether Whisky publishes the program this bottle launched to Discord.
     ///
     /// Announces every program, including the ones with no Discord support of
-    /// their own, but announces them as Whisky. Independent of
-    /// ``discordBridge``, which carries a game's own presence instead.
+    /// their own, but announces them as Whisky.
     public var discordPresence: Bool {
         get { discordConfig.presence }
         set { discordConfig.presence = newValue }
-    }
-
-    /// Whether games in this bottle may reach the host's Discord client.
-    ///
-    /// Serves the named pipe a Windows game expects and relays it to Discord,
-    /// so a game that publishes rich presence arrives with its own artwork and
-    /// state. A game that publishes nothing is unaffected.
-    public var discordBridge: Bool {
-        get { discordConfig.bridge }
-        set { discordConfig.bridge = newValue }
     }
 
     /// The cap on how many frames a game may present per second.

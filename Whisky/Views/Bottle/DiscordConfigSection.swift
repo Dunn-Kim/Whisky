@@ -39,15 +39,6 @@ struct DiscordConfigSection: View {
                 }
             }
             .disabled(!DiscordPresence.isAvailable)
-
-            Toggle(isOn: $bottle.settings.discordBridge) {
-                VStack(alignment: .leading) {
-                    Text("config.discord.bridge")
-                    Text("config.discord.bridge.info")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
         }
     }
 }

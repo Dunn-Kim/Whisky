@@ -42,10 +42,6 @@ let package = Package(
                 .process("Diagnostics/Resources/"),
                 .process("GameDatabase/Resources/"),
                 .process("Troubleshooting/Resources/"),
-                // Copied rather than processed: it is a PE binary built by
-                // scripts/discord-bridge, not something the resource pipeline
-                // should try to interpret.
-                .copy("Discord/Resources/WhiskyDiscordBridge.exe"),
                 // Carries `client-id.txt` when a build was given one. The file
                 // is gitignored, so a plain checkout copies an empty directory.
                 .copy("Discord/Local")

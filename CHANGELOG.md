@@ -78,6 +78,9 @@ that branch only.
 - Shortcuts whose path holds a quote and a combining mark can no longer run
   shell code, and Unicode `.lnk` targets are read.
 - A deeply nested Steam manifest no longer crashes the app.
+- The Discord bridge is gone: its x86-64 relay cannot reach the macOS
+  socket under FEX, so games never got through it. Whisky's own presence
+  stays.
 
 ### Added
 - A frame rate limit for a bottle and for a program (unlimited, match the

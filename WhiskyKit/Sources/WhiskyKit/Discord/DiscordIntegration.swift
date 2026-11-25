@@ -21,11 +21,9 @@ import os.log
 
 /// The single point where a launch meets Whisky's Discord support.
 ///
-/// Two independent features hang off this, both off by default and both per
-/// bottle: ``DiscordPresence`` publishes the program Whisky launched, and
-/// ``DiscordBridge`` lets a game publish its own. They are not alternatives:
-/// a bottle may run both, and Discord shows the game's own activity in
-/// preference to Whisky's when a game supplies one.
+/// ``DiscordPresence``, off by default and per bottle, publishes the program
+/// Whisky launched. There is no relay for a game's own presence: an x86-64 PE
+/// cannot make the macOS socket calls it needs under FEX.
 @MainActor
 public final class DiscordIntegration {
     public static let shared = DiscordIntegration()
@@ -46,10 +44,6 @@ public final class DiscordIntegration {
     /// Both halves are best-effort by construction: nothing here throws, and
     /// nothing here is awaited by the launch.
     public func programLaunching(_ url: URL, bottle: Bottle) {
-        if bottle.settings.discordBridge {
-            DiscordBridge.start(for: bottle)
-        }
-
         guard bottle.settings.discordPresence else { return }
         guard DiscordPresence.isAvailable else {
             Self.logger.info("Discord presence is enabled but no client id is configured")

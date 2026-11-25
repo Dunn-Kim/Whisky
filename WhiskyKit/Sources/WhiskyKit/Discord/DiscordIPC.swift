@@ -20,9 +20,7 @@ import Foundation
 
 /// Where the Discord client listens, and how a message is framed on the way in.
 ///
-/// Both halves of Whisky's Discord support build on this. ``DiscordPresence``
-/// connects to the socket and writes frames itself; ``DiscordBridge`` only needs
-/// ``socketDirectory``, which it hands to the in-bottle relay. The framing is
+/// ``DiscordPresence`` connects to the socket and writes frames itself. The framing is
 /// identical on Windows and macOS, a little-endian opcode and length then
 /// JSON, which is the reason that relay can be a byte pump rather than a
 /// protocol implementation.
