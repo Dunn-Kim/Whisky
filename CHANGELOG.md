@@ -30,8 +30,9 @@ that branch only.
   settings, user registry keys, fonts, and the bottle's own Desktop and
   Documents. It never writes to the source and refuses to run while the
   source app is open.
-- The graphics backend reaches the runtime as `WINE_COMPATDB` rules. Chromium
-  front ends and launchers run on WineD3D.
+- The graphics backend reaches the runtime as `WINE_COMPATDB` rules. Under
+  Recommended, Chromium front ends and launchers run on WineD3D; an
+  explicit bottle backend applies to them too.
 - FEX keeps its translated code in a `FEXCache` folder in Application
   Support, so later runs of a program skip most of the translation work.
 
@@ -55,6 +56,28 @@ that branch only.
 
 #### Fixed
 - A migrated bottle keeps its own Desktop and Documents folders.
+- Opening Whisky no longer ends a game started from a shortcut or
+  `whisky-native run`.
+- Open Bottle accepts only a folder with bottle settings, and sends another
+  Whisky's bottle to the migration sheet instead of running it in place.
+- The app and `whisky-native` no longer drop a bottle the other added.
+- `whisky-native shortcut --overwrite` no longer deletes an app with the
+  shortcut's name, and `run` finds programs on drives other than C.
+- Clear Shader Caches clears DXMT's cache, after asking, and Stop Bottle,
+  moving a running bottle and Reset Audio State ask before closing programs.
+- Installing or removing the Wine runtime refuses while a program runs on
+  it, and a failed install keeps the old runtime. Setup explains how to
+  install a runtime and refuses a feed without a checksum.
+- Commands printed by `whisky-native run --command` and Open in Terminal
+  keep each `WINE_COMPATDB` rule, so they use the bottle's backend.
+- Games a launcher on WineD3D starts keep the bottle's frame cap.
+- Applying a GameDB configuration no longer resets the bottle's backend,
+  and reverting one keeps changes made since.
+- winetricks runs with the bottle prepared for this runtime, skips its
+  update check, and stops on a checksum mismatch.
+- Shortcuts whose path holds a quote and a combining mark can no longer run
+  shell code, and Unicode `.lnk` targets are read.
+- A deeply nested Steam manifest no longer crashes the app.
 
 ### Added
 - A frame rate limit for a bottle and for a program (unlimited, match the
