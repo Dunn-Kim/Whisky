@@ -359,3 +359,22 @@ final class EnvironmentVariablesTests: XCTestCase {
         XCTAssertEqual(decoded.shaderCacheEnabled, false)
     }
 }
+
+extension BottleSettings {
+    /// The bottle-managed, launcher and input layers resolved into `wineEnv`, with the
+    /// bottle's DLL overrides composed. A test helper: launches go through
+    /// `Wine.constructWineEnvironment`, and nothing in the app used it.
+    func environmentVariables(wineEnv: inout [String: String]) {
+        var builder = EnvironmentBuilder()
+        populateBottleManagedLayer(builder: &builder)
+        populateLauncherManagedLayer(builder: &builder)
+        populateInputCompatibilityLayer(builder: &builder)
+        wineEnv.merge(builder.resolve().0) { _, new in new }
+
+        let resolver = DLLOverrideResolver(managed: [], bottleCustom: dllOverrides, programCustom: [])
+        let (overrides, _) = resolver.resolve()
+        if !overrides.isEmpty {
+            wineEnv["WINEDLLOVERRIDES"] = overrides
+        }
+    }
+}

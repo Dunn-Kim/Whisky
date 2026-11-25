@@ -765,8 +765,6 @@ public struct BottleSettings: Codable, Equatable {
 
     /// Populates the ``EnvironmentLayer/bottleManaged`` layer with settings-derived env vars.
     ///
-    /// This method replaces the direct dict mutation in the deprecated ``environmentVariables(wineEnv:)``.
-    ///
     /// - Parameters:
     ///   - builder: The environment builder to populate.
     public func populateBottleManagedLayer(
@@ -938,39 +936,6 @@ public struct BottleSettings: Codable, Equatable {
         // Audio settings are applied via Wine registry (WineAudioRegistry), not env vars.
         // This placeholder ensures the EnvironmentBuilder cascade has an audio integration
         // point for future audio-related environment variables.
-    }
-
-    // MARK: - Deprecated Environment Variable API
-
-    /// Populates a Wine environment dictionary based on these settings.
-    ///
-    /// - Parameter wineEnv: The environment dictionary to populate.
-    ///   Existing values may be modified or removed based on settings.
-    @available(*, deprecated, message: "Use EnvironmentBuilder layer populators instead")
-    public func environmentVariables(wineEnv: inout [String: String]) {
-        var builder = EnvironmentBuilder()
-
-        // Call layer populators
-        populateBottleManagedLayer(builder: &builder)
-        populateLauncherManagedLayer(builder: &builder)
-        populateInputCompatibilityLayer(builder: &builder)
-
-        // Resolve and merge
-        let (resolved, _) = builder.resolve()
-
-        // Merge resolved values into caller's dict (new values overwrite existing)
-        wineEnv.merge(resolved) { _, new in new }
-
-        // Compose WINEDLLOVERRIDES via DLLOverrideResolver
-        let resolver = DLLOverrideResolver(
-            managed: [],
-            bottleCustom: dllOverrides,
-            programCustom: []
-        )
-        let (overrideString, _) = resolver.resolve()
-        if !overrideString.isEmpty {
-            wineEnv["WINEDLLOVERRIDES"] = overrideString
-        }
     }
 }
 
