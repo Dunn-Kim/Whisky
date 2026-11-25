@@ -53,6 +53,8 @@ that branch only.
   runtime, including DXMT's.
 - The `esync` and `fsync` variables.
 - `scripts/assemble-runtime.sh`, which assembled the x86_64 runtime.
+- The GPU vendor setting and its picker. The GPU spoof sets only Mesa's
+  version overrides, which name no vendor, so the choice changed nothing.
 
 #### Fixed
 - A migrated bottle keeps its own Desktop and Documents folders.

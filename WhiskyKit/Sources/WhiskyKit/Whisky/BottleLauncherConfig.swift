@@ -72,9 +72,6 @@ public struct BottleLauncherConfig: Codable, Equatable {
     /// high-end NVIDIA GPU capabilities.
     var gpuSpoofing: Bool = true
 
-    /// GPU vendor to spoof when `gpuSpoofing` is enabled.
-    var gpuVendor: GPUVendor = .nvidia
-
     /// The last ``LauncherLocaleMigration`` this bottle has been through.
     ///
     /// A bottle created by this version starts at the current one, since no
@@ -91,7 +88,6 @@ public struct BottleLauncherConfig: Codable, Equatable {
         self.detectedLauncher = container.decodeLenientIfPresent(LauncherType.self, forKey: .detectedLauncher)
         self.launcherLocale = container.decodeLenientIfPresent(Locales.self, forKey: .launcherLocale) ?? .auto
         self.gpuSpoofing = try container.decodeIfPresent(Bool.self, forKey: .gpuSpoofing) ?? true
-        self.gpuVendor = container.decodeLenientIfPresent(GPUVendor.self, forKey: .gpuVendor) ?? .nvidia
         self.localeMigration = try container.decodeIfPresent(Int.self, forKey: .localeMigration) ?? 0
     }
 }

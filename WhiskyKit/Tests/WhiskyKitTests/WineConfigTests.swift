@@ -98,74 +98,6 @@ final class LauncherModeTests: XCTestCase {
     }
 }
 
-// MARK: - GPUVendor Tests
-
-final class GPUVendorTests: XCTestCase {
-    func testAllVendorsExist() {
-        let vendors: [GPUVendor] = [.nvidia, .amd, .intel]
-        XCTAssertEqual(vendors.count, 3)
-    }
-
-    func testGPUVendorHashable() {
-        var set = Set<GPUVendor>()
-        set.insert(.nvidia)
-        set.insert(.amd)
-        set.insert(.intel)
-
-        XCTAssertEqual(set.count, 3)
-    }
-
-    func testGPUVendorCodable() throws {
-        struct Container: Codable {
-            let vendor: GPUVendor
-        }
-
-        for vendor in [GPUVendor.nvidia, .amd, .intel] {
-            let original = Container(vendor: vendor)
-
-            let encoder = PropertyListEncoder()
-            encoder.outputFormat = .xml
-            let data = try encoder.encode(original)
-
-            let decoded = try PropertyListDecoder().decode(Container.self, from: data)
-            XCTAssertEqual(decoded.vendor, vendor)
-        }
-    }
-}
-
-// MARK: - GPUDetection Tests
-
-final class GPUDetectionSpoofingTests: XCTestCase {
-    func testSpoofWithNvidia() {
-        let env = GPUDetection.spoofWithVendor(.nvidia)
-
-        XCTAssertFalse(env.isEmpty, "NVIDIA spoofing should produce environment variables")
-    }
-
-    func testSpoofWithAMD() {
-        let env = GPUDetection.spoofWithVendor(.amd)
-
-        XCTAssertFalse(env.isEmpty, "AMD spoofing should produce environment variables")
-    }
-
-    func testSpoofWithIntel() {
-        let env = GPUDetection.spoofWithVendor(.intel)
-
-        XCTAssertFalse(env.isEmpty, "Intel spoofing should produce environment variables")
-    }
-
-    func testSpoofProducesStringDictionary() {
-        for vendor in [GPUVendor.nvidia, .amd, .intel] {
-            let env = GPUDetection.spoofWithVendor(vendor)
-
-            for (key, value) in env {
-                XCTAssertFalse(key.isEmpty, "Key should not be empty for vendor \(vendor)")
-                XCTAssertFalse(value.isEmpty, "Value should not be empty for vendor \(vendor)")
-            }
-        }
-    }
-}
-
 // MARK: - BottleLauncherConfig Detailed Tests
 
 final class BottleLauncherConfigDetailedTests: XCTestCase {
@@ -177,7 +109,6 @@ final class BottleLauncherConfigDetailedTests: XCTestCase {
         XCTAssertNil(config.detectedLauncher)
         XCTAssertEqual(config.launcherLocale, .auto)
         XCTAssertTrue(config.gpuSpoofing)
-        XCTAssertEqual(config.gpuVendor, .nvidia)
     }
 
     func testRoundTrip() throws {
@@ -187,7 +118,6 @@ final class BottleLauncherConfigDetailedTests: XCTestCase {
         original.detectedLauncher = .steam
         original.launcherLocale = .english
         original.gpuSpoofing = true
-        original.gpuVendor = .amd
 
         let encoder = PropertyListEncoder()
         encoder.outputFormat = .xml
@@ -200,7 +130,6 @@ final class BottleLauncherConfigDetailedTests: XCTestCase {
         XCTAssertEqual(decoded.detectedLauncher, .steam)
         XCTAssertEqual(decoded.launcherLocale, .english)
         XCTAssertTrue(decoded.gpuSpoofing)
-        XCTAssertEqual(decoded.gpuVendor, .amd)
     }
 }
 

@@ -28,7 +28,6 @@ final class BottleLauncherConfigTests: XCTestCase {
         XCTAssertNil(config.detectedLauncher)
         XCTAssertEqual(config.launcherLocale, .auto)
         XCTAssertTrue(config.gpuSpoofing)
-        XCTAssertEqual(config.gpuVendor, .nvidia)
     }
 
     func testLauncherConfigCodable() throws {
@@ -37,7 +36,6 @@ final class BottleLauncherConfigTests: XCTestCase {
         config.launcherMode = .manual
         config.detectedLauncher = .steam
         config.launcherLocale = .english
-        config.gpuVendor = .amd
 
         // Encode
         let encoder = PropertyListEncoder()
@@ -51,7 +49,6 @@ final class BottleLauncherConfigTests: XCTestCase {
         XCTAssertEqual(decoded.launcherMode, .manual)
         XCTAssertEqual(decoded.detectedLauncher, .steam)
         XCTAssertEqual(decoded.launcherLocale, .english)
-        XCTAssertEqual(decoded.gpuVendor, .amd)
     }
 
     func testLauncherModeEnum() {
@@ -73,7 +70,6 @@ final class BottleLauncherConfigTests: XCTestCase {
         XCTAssertEqual(settings.launcherMode, .auto)
         XCTAssertNil(settings.detectedLauncher)
         XCTAssertTrue(settings.gpuSpoofing)
-        XCTAssertEqual(settings.gpuVendor, .nvidia)
     }
 
     func testBottleSettingsLauncherConfigModification() {

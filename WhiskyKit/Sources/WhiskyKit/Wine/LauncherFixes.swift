@@ -125,7 +125,6 @@ public enum LauncherFixes {
         case .eaApp:
             // EA App needs GPU spoofing to pass checks
             bottle.settings.gpuSpoofing = true
-            bottle.settings.gpuVendor = .nvidia
 
         case .epicGames:
             bottle.settings.gpuSpoofing = true

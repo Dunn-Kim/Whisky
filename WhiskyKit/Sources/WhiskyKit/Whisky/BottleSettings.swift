@@ -537,14 +537,6 @@ public struct BottleSettings: Codable, Equatable {
         set { launcherConfig.gpuSpoofing = newValue }
     }
 
-    /// GPU vendor to spoof when GPU spoofing is enabled.
-    ///
-    /// NVIDIA (default) provides best compatibility across launchers.
-    public var gpuVendor: GPUVendor {
-        get { launcherConfig.gpuVendor }
-        set { launcherConfig.gpuVendor = newValue }
-    }
-
     /// The last ``LauncherLocaleMigration`` this bottle has been through.
     var launcherLocaleMigration: Int {
         get { launcherConfig.localeMigration }
@@ -860,7 +852,7 @@ public struct BottleSettings: Codable, Equatable {
 
         // Apply GPU spoofing if enabled
         if gpuSpoofing {
-            let gpuEnv = GPUDetection.spoofWithVendor(gpuVendor)
+            let gpuEnv = GPUDetection.spoofGPU()
             let launcherEnv = detectedLauncher?.environmentOverrides() ?? [:]
             // Don't override values already set by launcher preset (original behavior:
             // merge with "current.isEmpty ? new : current")

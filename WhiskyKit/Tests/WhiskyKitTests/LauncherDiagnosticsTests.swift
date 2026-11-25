@@ -139,7 +139,7 @@ final class LauncherDiagnosticsTests: XCTestCase {
         XCTAssertTrue(true, "Should not crash with nil launcher")
     }
 
-    func testDiagnosticsWithAllGPUVendors() throws {
+    func testGPUSpoofingEnabled() throws {
         let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: tempURL, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: tempURL) }
@@ -148,17 +148,11 @@ final class LauncherDiagnosticsTests: XCTestCase {
         bottle.settings.launcherCompatibilityMode = true
         bottle.settings.gpuSpoofing = true
 
-        // Test all GPU vendor configurations
-        for vendor in GPUVendor.allCases {
-            bottle.settings.gpuVendor = vendor
+        var env: [String: String] = [:]
+        bottle.settings.environmentVariables(wineEnv: &env)
 
-            var env: [String: String] = [:]
-            bottle.settings.environmentVariables(wineEnv: &env)
-
-            // Verify GPU spoofing is applied for each vendor
-            XCTAssertEqual(env["MESA_GL_VERSION_OVERRIDE"], "4.6", "Spoof should apply for \(vendor.rawValue)")
-            XCTAssertNil(env["GPU_VENDOR_ID"], "No shipped runtime reads GPU_VENDOR_ID")
-        }
+        XCTAssertEqual(env["MESA_GL_VERSION_OVERRIDE"], "4.6")
+        XCTAssertNil(env["GPU_VENDOR_ID"], "No shipped runtime reads GPU_VENDOR_ID")
     }
 
     // MARK: - Settings Persistence Tests
@@ -176,7 +170,6 @@ final class LauncherDiagnosticsTests: XCTestCase {
         bottle.settings.detectedLauncher = .rockstar
         bottle.settings.launcherLocale = .english
         bottle.settings.gpuSpoofing = true
-        bottle.settings.gpuVendor = .nvidia
 
         // Save settings
         bottle.saveBottleSettings()
@@ -190,7 +183,6 @@ final class LauncherDiagnosticsTests: XCTestCase {
         XCTAssertEqual(bottle2.settings.detectedLauncher, .rockstar)
         XCTAssertEqual(bottle2.settings.launcherLocale, .english)
         XCTAssertTrue(bottle2.settings.gpuSpoofing)
-        XCTAssertEqual(bottle2.settings.gpuVendor, .nvidia)
     }
 
     func testLauncherSettingsDefaultsAfterDecode() throws {
@@ -207,7 +199,6 @@ final class LauncherDiagnosticsTests: XCTestCase {
         XCTAssertNil(bottle.settings.detectedLauncher, "Should have no launcher detected")
         XCTAssertEqual(bottle.settings.launcherLocale, .auto, "Should default to auto locale")
         XCTAssertTrue(bottle.settings.gpuSpoofing, "Should default to enabled")
-        XCTAssertEqual(bottle.settings.gpuVendor, .nvidia, "Should default to NVIDIA")
     }
 
     // MARK: - GPU Validation Tests
@@ -368,7 +359,6 @@ final class LauncherDiagnosticsTests: XCTestCase {
         config.detectedLauncher = .steam
         config.launcherLocale = .english
         config.gpuSpoofing = true
-        config.gpuVendor = .amd
 
         // Encode
         let encoder = PropertyListEncoder()
@@ -384,28 +374,27 @@ final class LauncherDiagnosticsTests: XCTestCase {
         XCTAssertEqual(decoded.detectedLauncher, .steam)
         XCTAssertEqual(decoded.launcherLocale, .english)
         XCTAssertEqual(decoded.gpuSpoofing, true)
-        XCTAssertEqual(decoded.gpuVendor, .amd)
     }
 
-    /// Bottles saved before the network timeout setting was removed carry a
-    /// `networkTimeout` key; it must be ignored, not fail the decode.
+    /// Bottles saved before the network timeout and GPU vendor settings were
+    /// removed carry `networkTimeout` and `gpuVendor` keys; they must be
+    /// ignored, not fail the decode.
     func testLegacyNetworkTimeoutKeyStillDecodes() throws {
         var config = BottleLauncherConfig()
         config.compatibilityMode = true
         config.detectedLauncher = .steam
-        config.gpuVendor = .amd
 
         let data = try PropertyListEncoder().encode(config)
         var dictionary = try XCTUnwrap(
             PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any]
         )
         dictionary["networkTimeout"] = 90_000
+        dictionary["gpuVendor"] = "AMD"
         let legacy = try PropertyListSerialization.data(fromPropertyList: dictionary, format: .xml, options: 0)
 
         let decoded = try PropertyListDecoder().decode(BottleLauncherConfig.self, from: legacy)
         XCTAssertTrue(decoded.compatibilityMode)
         XCTAssertEqual(decoded.detectedLauncher, .steam)
-        XCTAssertEqual(decoded.gpuVendor, .amd)
     }
 
     /// The same legacy key inside a whole bottle's settings file decodes,

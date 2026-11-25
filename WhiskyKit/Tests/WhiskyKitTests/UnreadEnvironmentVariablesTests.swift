@@ -95,11 +95,9 @@ final class UnreadEnvironmentVariablesTests: XCTestCase {
     }
 
     func testGPUSpoofOmitsUnreadVariables() {
-        for vendor in GPUVendor.allCases {
-            let env = GPUDetection.spoofGPU(vendor: vendor, model: "Custom GPU")
-            for name in unreadVariables {
-                XCTAssertNil(env[name], "\(name) in \(vendor.rawValue) spoof")
-            }
+        let env = GPUDetection.spoofGPU()
+        for name in unreadVariables {
+            XCTAssertNil(env[name], "\(name) in the GPU spoof")
         }
     }
 

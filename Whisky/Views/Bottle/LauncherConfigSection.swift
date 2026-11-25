@@ -228,8 +228,8 @@ extension LauncherConfigSection {
             Reports high-end GPU to pass launcher compatibility checks. \
             Fixes EA App black screen and "GPU not supported" errors.
             """)
-        // No vendor picker: the spoofing sets the same Mesa version overrides
-        // whatever the vendor (GPUDetection.spoofGPU).
+        // No vendor picker: the spoofing sets only Mesa's version overrides,
+        // which name no vendor (GPUDetection.spoofGPU).
     }
 
     @ViewBuilder

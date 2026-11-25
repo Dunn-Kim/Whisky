@@ -20,22 +20,8 @@
 import XCTest
 
 final class GPUDetectionTests: XCTestCase {
-    func testNVIDIAVendorID() {
-        XCTAssertEqual(GPUVendor.nvidia.vendorID, "0x10DE")
-        XCTAssertEqual(GPUVendor.nvidia.modelName, "NVIDIA GeForce RTX 4090")
-    }
-
-    func testAMDVendorID() {
-        XCTAssertEqual(GPUVendor.amd.vendorID, "0x1002")
-        XCTAssertEqual(GPUVendor.amd.modelName, "AMD Radeon RX 6900 XT")
-    }
-
-    func testIntelVendorID() {
-        XCTAssertEqual(GPUVendor.intel.vendorID, "0x8086")
-    }
-
     func testGPUSpoofingOmitsUnreadVendorKeys() {
-        let env = GPUDetection.spoofGPU(vendor: .nvidia, model: "Custom GPU Name")
+        let env = GPUDetection.spoofGPU()
 
         // No shipped runtime reads any of these, so the spoof doesn't set them.
         XCTAssertNil(env["GPU_VENDOR_ID"])
@@ -46,7 +32,7 @@ final class GPUDetectionTests: XCTestCase {
     }
 
     func testGPUSpoofingOmitsUnreadFeatureLevelKeys() {
-        let env = GPUDetection.spoofGPU(vendor: .nvidia)
+        let env = GPUDetection.spoofGPU()
 
         // Wine and DXMT read none of these, so the spoof
         // doesn't set them.
@@ -56,31 +42,15 @@ final class GPUDetectionTests: XCTestCase {
     }
 
     func testGPUSpoofingIncludesOpenGLVersion() {
-        let env = GPUDetection.spoofGPU(vendor: .nvidia)
+        let env = GPUDetection.spoofGPU()
 
         // Should report OpenGL 4.6
         XCTAssertEqual(env["MESA_GL_VERSION_OVERRIDE"], "4.6")
         XCTAssertEqual(env["MESA_GLSL_VERSION_OVERRIDE"], "460")
     }
 
-    func testSpoofWithVendor() {
-        let nvidiaEnv = GPUDetection.spoofWithVendor(.nvidia)
-        let amdEnv = GPUDetection.spoofWithVendor(.amd)
-
-        XCTAssertEqual(nvidiaEnv, GPUDetection.spoofGPU(vendor: .nvidia))
-        XCTAssertEqual(amdEnv, GPUDetection.spoofGPU(vendor: .amd))
-    }
-
-    func testAllVendorsHaveDeviceIDs() {
-        for vendor in GPUVendor.allCases {
-            XCTAssertFalse(vendor.vendorID.isEmpty)
-            XCTAssertFalse(vendor.deviceID.isEmpty)
-            XCTAssertFalse(vendor.modelName.isEmpty)
-        }
-    }
-
     func testNoHardcodedVulkanICDPath() {
-        let env = GPUDetection.spoofGPU(vendor: .nvidia)
+        let env = GPUDetection.spoofGPU()
 
         // The old value pointed at /usr/local/share, which exists on no user
         // machine; the runtime carries its own MoltenVK configuration.

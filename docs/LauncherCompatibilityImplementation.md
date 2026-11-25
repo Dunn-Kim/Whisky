@@ -153,7 +153,6 @@ are read by no shipped runtime.
 - `detectedLauncher: LauncherType?` - Current launcher
 - `launcherLocale: Locales` - Locale override
 - `gpuSpoofing: Bool` - GPU spoofing enable
-- `gpuVendor: GPUVendor` - Vendor selection
 - `autoEnableDXVK: Bool` - Force DXVK in a bottle whose launcher requires it (Rockstar only)
 
 **Serialization:** Fully Codable with PropertyListEncoder

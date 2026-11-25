@@ -18,55 +18,6 @@
 
 import Foundation
 
-/// GPU vendor identifiers for compatibility reporting.
-///
-/// These vendors are used when spoofing GPU capabilities to help launchers
-/// pass compatibility checks that would otherwise fail on macOS.
-public enum GPUVendor: String, Codable, CaseIterable, Sendable {
-    /// NVIDIA Corporation (recommended for best compatibility)
-    case nvidia = "NVIDIA"
-    /// Advanced Micro Devices, Inc.
-    case amd = "AMD"
-    /// Intel Corporation
-    case intel = "Intel"
-
-    /// PCI vendor ID for this GPU manufacturer
-    public var vendorID: String {
-        switch self {
-        case .nvidia:
-            "0x10DE"
-        case .amd:
-            "0x1002"
-        case .intel:
-            "0x8086"
-        }
-    }
-
-    /// Representative device ID for spoofing
-    public var deviceID: String {
-        switch self {
-        case .nvidia:
-            "0x2684" // RTX 4090
-        case .amd:
-            "0x73FF" // RX 6900 XT
-        case .intel:
-            "0x9BC5" // UHD Graphics 730
-        }
-    }
-
-    /// Human-readable GPU model name
-    public var modelName: String {
-        switch self {
-        case .nvidia:
-            "NVIDIA GeForce RTX 4090"
-        case .amd:
-            "AMD Radeon RX 6900 XT"
-        case .intel:
-            "Intel UHD Graphics 730"
-        }
-    }
-}
-
 /// Utilities for GPU capability detection and spoofing.
 ///
 /// ## Overview
@@ -89,17 +40,8 @@ public enum GPUVendor: String, Codable, CaseIterable, Sendable {
 ///
 /// ```swift
 /// // Spoofing for a launcher's GPU check
-/// let env = GPUDetection.spoofWithVendor(.nvidia)
+/// let env = GPUDetection.spoofGPU()
 /// ```
-///
-/// ## Topics
-///
-/// ### Spoofing Methods
-/// - ``spoofGPU(vendor:model:)``
-/// - ``spoofWithVendor(_:)``
-///
-/// ### Vendor Configuration
-/// - ``GPUVendor``
 public enum GPUDetection {
     /// Configures environment to report specific GPU capabilities.
     ///
@@ -107,14 +49,11 @@ public enum GPUDetection {
     /// GPU features. Helps launchers pass compatibility checks that would otherwise
     /// fail due to incomplete Metal driver information.
     ///
-    /// The vendor and model do not change the result: only the two Mesa
-    /// version overrides are set.
+    /// Only the two Mesa version overrides are set. No shipped runtime reads
+    /// a vendor or device id variable, so there is no vendor to choose.
     ///
-    /// - Parameters:
-    ///   - vendor: The GPU vendor to spoof (NVIDIA, AMD, or Intel)
-    ///   - model: Optional custom model name override
     /// - Returns: Dictionary of environment variables for GPU spoofing
-    public static func spoofGPU(vendor: GPUVendor, model: String? = nil) -> [String: String] {
+    public static func spoofGPU() -> [String: String] {
         var env: [String: String] = [:]
 
         // OpenGL version reporting (4.6 is modern and well-supported)
@@ -122,16 +61,5 @@ public enum GPUDetection {
         env["MESA_GLSL_VERSION_OVERRIDE"] = "460"
 
         return env
-    }
-
-    /// Returns GPU spoofing for a specific vendor.
-    ///
-    /// Use this when you need to report a specific GPU vendor for compatibility
-    /// with games that have vendor-specific code paths.
-    ///
-    /// - Parameter vendor: The GPU vendor to emulate
-    /// - Returns: Environment variables configured for the specified vendor
-    public static func spoofWithVendor(_ vendor: GPUVendor) -> [String: String] {
-        spoofGPU(vendor: vendor)
     }
 }
