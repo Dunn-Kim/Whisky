@@ -278,7 +278,7 @@ final class BottleVM: ObservableObject {
             // The new prefix is arm64. The source's files are merged into it once its
             // wineserver has stopped and written the registry.
             try await Wine.prepareBottlePrefix(bottle: created)
-            guard Wine.killBottleAndWait(bottle: created, timeout: 30) else {
+            guard await Wine.stopBottle(bottle: created, timeout: 30) else {
                 throw BottleCreationError.newPrefixStillRunning
             }
 

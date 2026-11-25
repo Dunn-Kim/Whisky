@@ -21,6 +21,16 @@ import Foundation
 import os.log
 import WhiskyKit
 
+/// The bottle's Wine server did not stop in time, so its folder must not be moved or removed.
+struct BottleStopError: LocalizedError {
+    var errorDescription: String? {
+        String(
+            localized: "bottle.error.stillRunning",
+            defaultValue: "The bottle's programs did not stop in time, so nothing was changed. Try again."
+        )
+    }
+}
+
 /// MainActor-isolated cache for Wine usernames to avoid repeated filesystem scans.
 @MainActor
 private var wineUsernameCache: [URL: String] = [:]
@@ -211,10 +221,11 @@ extension Bottle {
     ///
     /// - Returns: `false` when the user cancels that prompt and nothing was
     ///   removed.
-    /// - Throws: The deletion's error, so the caller can tell the user.
+    /// - Throws: The deletion's error, or ``BottleStopError`` when the programs
+    ///   did not stop, so the caller can tell the user.
     @MainActor @discardableResult
     func remove(delete: Bool) async throws -> Bool {
-        guard await stopProcessesBeforeChange(
+        guard try await stopProcessesBeforeChange(
             message: String(localized: "bottle.remove.hasProcesses.message"),
             confirm: String(localized: "bottle.remove.hasProcesses.stopAndRemove")
         )
@@ -228,8 +239,10 @@ extension Bottle {
     /// changes its folder, and stops them on confirm.
     ///
     /// - Returns: `false` when programs run and the user cancels.
+    /// - Throws: ``BottleStopError`` when the programs did not stop, since
+    ///   the operation must not go ahead with a live Wine server.
     @MainActor
-    func stopProcessesBeforeChange(message: String, confirm: String) async -> Bool {
+    func stopProcessesBeforeChange(message: String, confirm: String) async throws -> Bool {
         let isRunning = await Wine.isWineserverRunning(for: self)
         guard isRunning || ProcessRegistry.shared.getProcessCount(for: self) > 0 else { return true }
 
@@ -241,7 +254,7 @@ extension Bottle {
         alert.addButton(withTitle: String(localized: "bottle.remove.hasProcesses.cancel"))
         guard alert.runModal() == .alertFirstButtonReturn else { return false }
 
-        Wine.killBottleAndWait(bottle: self)
+        guard await Wine.stopBottle(bottle: self) else { throw BottleStopError() }
         ProcessRegistry.shared.clearRegistry(for: url)
         return true
     }

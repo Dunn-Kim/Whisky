@@ -76,6 +76,7 @@ private let logger = Logger(subsystem: Bundle.whiskyBundleIdentifier, category: 
 /// ### Utilities
 /// - ``wineVersion()``
 /// - ``killBottle(bottle:)``
+/// - ``stopBottle(bottle:timeout:)``
 /// - ``generateRunCommand(at:bottle:args:environment:)``
 /// - ``generateTerminalEnvironmentCommand(bottle:)``
 public class Wine {
@@ -1070,19 +1071,9 @@ public class Wine {
         }
     }
 
-    /// Kills a bottle's wineserver and blocks until the kill command returns.
-    ///
-    /// For `applicationWillTerminate`: a `Task` queued there never runs
-    /// because the process exits as soon as the delegate returns, so the
-    /// asynchronous ``killBottle(bottle:)`` left every Wine process alive
-    /// on quit whatever the kill-on-quit setting said.
-    ///
-    /// - Returns: Whether `wineserver -k` finished before `timeout`. A caller that
-    ///   rewrites the prefix's registry files next has to stop on `false`: a
-    ///   server still alive saves its own registry over them when it exits.
+    /// Starts `wineserver -k` for a bottle, or `nil` when it cannot be started.
     @MainActor
-    @discardableResult
-    public static func killBottleAndWait(bottle: Bottle, timeout: TimeInterval = 5) -> Bool {
+    private static func startWineserverKill(bottle: Bottle) -> Process? {
         let process = Process()
         process.executableURL = wineserverBinary
         process.arguments = ["-k"]
@@ -1094,11 +1085,44 @@ public class Wine {
             try process.run()
         } catch {
             Logger.wineKit.error("Failed to kill bottle '\(bottle.settings.name)': \(error.localizedDescription)")
-            return false
+            return nil
         }
+        return process
+    }
+
+    /// Kills a bottle's wineserver and blocks until the kill command returns.
+    ///
+    /// For `applicationWillTerminate` only: a `Task` queued there never runs
+    /// because the process exits as soon as the delegate returns, so the
+    /// asynchronous ``killBottle(bottle:)`` left every Wine process alive
+    /// on quit whatever the kill-on-quit setting said. Anywhere else use
+    /// ``stopBottle(bottle:timeout:)``, which does not block the main actor.
+    ///
+    /// - Returns: Whether `wineserver -k` finished before `timeout`.
+    @MainActor
+    @discardableResult
+    public static func killBottleAndWait(bottle: Bottle, timeout: TimeInterval = 5) -> Bool {
+        guard let process = startWineserverKill(bottle: bottle) else { return false }
         let deadline = Date().addingTimeInterval(timeout)
         while process.isRunning, Date() < deadline {
             Thread.sleep(forTimeInterval: 0.05)
+        }
+        return !process.isRunning
+    }
+
+    /// Kills a bottle's wineserver and waits, without blocking the main actor, until the
+    /// kill command returns.
+    ///
+    /// - Returns: Whether `wineserver -k` finished before `timeout`. A caller that
+    ///   moves or removes the prefix, or rewrites its registry files, next has to stop
+    ///   on `false`: a server still alive keeps writing, and saves its own registry
+    ///   over a merge when it exits.
+    @MainActor
+    public static func stopBottle(bottle: Bottle, timeout: TimeInterval = 5) async -> Bool {
+        guard let process = startWineserverKill(bottle: bottle) else { return false }
+        let deadline = Date().addingTimeInterval(timeout)
+        while process.isRunning, Date() < deadline {
+            try? await Task.sleep(for: .milliseconds(50))
         }
         return !process.isRunning
     }

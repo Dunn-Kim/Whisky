@@ -482,10 +482,16 @@ extension WhiskyApp {
         ))
         alert.addButton(withTitle: String(localized: "button.removeAlert.cancel"))
         guard alert.runModal() == .alertFirstButtonReturn else { return }
-        for bottle in BottleVM.shared.bottles {
-            Wine.killBottleAndWait(bottle: bottle)
+        Task {
+            for bottle in BottleVM.shared.bottles {
+                // A server still alive keeps the cache open, so leave it alone.
+                guard await Wine.stopBottle(bottle: bottle) else {
+                    logger.error("Did not clear shader caches: '\(bottle.settings.name)' is still running")
+                    return
+                }
+            }
+            wipeShaderCaches()
         }
-        wipeShaderCaches()
     }
 
     static func wipeShaderCaches() {

@@ -171,20 +171,21 @@ struct BottleListEntry: View {
                             Task {
                                 // A program still running would keep writing to the old
                                 // path, which a move across disks deletes after copying.
-                                guard await bottle.stopProcessesBeforeChange(
-                                    message: String(
-                                        localized: "bottle.move.hasProcesses.message",
-                                        defaultValue: """
-                                        There are Wine processes running in this bottle. \
-                                        They will be stopped before the bottle is moved.
-                                        """
-                                    ),
-                                    confirm: String(
-                                        localized: "bottle.move.hasProcesses.stopAndMove", defaultValue: "Stop and Move"
-                                    )
-                                )
-                                else { return }
                                 do {
+                                    guard try await bottle.stopProcessesBeforeChange(
+                                        message: String(
+                                            localized: "bottle.move.hasProcesses.message",
+                                            defaultValue: """
+                                            There are Wine processes running in this bottle. \
+                                            They will be stopped before the bottle is moved.
+                                            """
+                                        ),
+                                        confirm: String(
+                                            localized: "bottle.move.hasProcesses.stopAndMove",
+                                            defaultValue: "Stop and Move"
+                                        )
+                                    )
+                                    else { return }
                                     try await bottle.move(destination: newBottePath)
                                     selected = newBottePath
                                 } catch {
