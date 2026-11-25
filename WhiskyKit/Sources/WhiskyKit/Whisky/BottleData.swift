@@ -172,7 +172,7 @@ public struct BottleData: Codable {
     /// slashes stripped and symlinks resolved, so directory-listing URLs
     /// (trailing slash, `/private/var`) match registered paths (`/var`, no
     /// slash) for the same directory.
-    private static func comparablePath(_ url: URL) -> String {
+    static func comparablePath(_ url: URL) -> String {
         // resolvingSymlinksInPath() appends a trailing slash for existing
         // directories, but only for URLs that have touched the filesystem;
         // URLs decoded from the registry plist keep whatever form was stored.

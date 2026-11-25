@@ -117,12 +117,17 @@ public enum LegacyBottleImport {
         apps: [SourceApp] = sourceApps,
         existingPaths: [URL]
     ) -> [DiscoveredBottle] {
-        let migrated = Set(existingPaths.compactMap { readOnlySettings(at: $0)?.migratedFrom?.standardizedFileURL })
-        var seen = Set<URL>()
+        let migrated = Set(
+            existingPaths.compactMap { readOnlySettings(at: $0)?.migratedFrom }.map(BottleData.comparablePath)
+        )
+        var seen = Set<String>()
         var result: [DiscoveredBottle] = []
         for app in apps {
             let found = bottleURLs(in: app.container)
-                .filter { !migrated.contains($0) && seen.insert($0).inserted }
+                .filter {
+                    let path = BottleData.comparablePath($0)
+                    return !migrated.contains(path) && seen.insert(path).inserted
+                }
                 .sorted { $0.lastPathComponent < $1.lastPathComponent }
             result += found.map { url in
                 DiscoveredBottle(url: url, name: readOnlySettings(at: url)?.name ?? url.lastPathComponent, app: app)
@@ -136,15 +141,7 @@ public enum LegacyBottleImport {
     /// its bottle registry from a custom location. Such a bottle is copied with the
     /// migration functions, never registered where it is.
     public static func isSourceAppBottle(_ url: URL, apps: [SourceApp] = sourceApps) -> Bool {
-        // Compared as paths: a URL read from a plist and one built from a path
-        // can differ under `==` while naming the same folder.
-        func path(_ url: URL) -> String {
-            var path = url.standardizedFileURL.path(percentEncoded: false)
-            while path.count > 1, path.hasSuffix("/") {
-                path.removeLast()
-            }
-            return path
-        }
+        let path = BottleData.comparablePath
         let target = path(url)
         return apps.contains { app in
             target.hasPrefix(path(app.container) + "/") || bottleURLs(in: app.container).map(path).contains(target)
@@ -170,8 +167,10 @@ public enum LegacyBottleImport {
             candidates.append(contentsOf: entries)
         }
 
-        var seen = Set<URL>()
-        return candidates.map(\.standardizedFileURL).filter { seen.insert($0).inserted && isBottle(at: $0) }
+        var seen = Set<String>()
+        return candidates.map(\.standardizedFileURL).filter {
+            seen.insert(BottleData.comparablePath($0)).inserted && isBottle(at: $0)
+        }
     }
 
     /// Reads a bottle's settings from its `Metadata.plist` **without writing anything**.

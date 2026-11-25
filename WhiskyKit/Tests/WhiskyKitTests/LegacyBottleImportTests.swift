@@ -111,6 +111,30 @@ final class LegacyBottleImportTests: XCTestCase {
         XCTAssertFalse(LegacyBottleImport.isSourceAppBottle(own, apps: [rosetta, original]))
     }
 
+    /// `BottleVM.plist` stores paths without a trailing slash; the directory scan returns them with one.
+    func testRegistryPathWithoutTrailingSlashIsListedOnceAndNotAfterMigration() throws {
+        let bottle = try makeBottle("a", in: rosetta)
+        let bare =
+            try XCTUnwrap(URL(string: "file:///" + bottle.path(percentEncoded: false).trimmingCharacters(in: ["/"])))
+        let withSlash = try XCTUnwrap(URL(string: bare.absoluteString + "/"))
+        struct Registry: Encodable { var paths: [URL] }
+        let encoder = PropertyListEncoder()
+        encoder.outputFormat = .xml
+        try encoder.encode(Registry(paths: [bare]))
+            .write(to: rosetta.container.appending(path: "BottleVM").appendingPathExtension("plist"))
+
+        XCTAssertEqual(LegacyBottleImport.importableBottles(apps: [rosetta], existingPaths: []).count, 1)
+
+        for source in [bare, withSlash] {
+            var settings = BottleSettings()
+            settings.migratedFrom = source
+            let mine = root.appending(path: "mine-\(UUID().uuidString)")
+            try FileManager.default.createDirectory(at: mine, withIntermediateDirectories: true)
+            try settings.encode(to: mine.appending(path: "Metadata").appendingPathExtension("plist"))
+            XCTAssertTrue(LegacyBottleImport.importableBottles(apps: [rosetta], existingPaths: [mine]).isEmpty)
+        }
+    }
+
     func testAlreadyMigratedSourceIsFilteredOut() throws {
         let migrated = try makeBottle("a", in: rosetta)
         let fresh = try makeBottle("b", in: rosetta)
