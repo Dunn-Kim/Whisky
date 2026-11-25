@@ -65,7 +65,6 @@ final class TroubleshootingFixLifecycleTests: XCTestCase {
     private func engineOnInstallStep() async -> TroubleshootingFlowEngine {
         let engine = makeEngine(scripted: [
             "winetricks.verb_check": .fail,
-            "dependency.check_missing": .pass,
             "game.config_available": .fail
         ])
         engine.selectCategory(.installDependencies)

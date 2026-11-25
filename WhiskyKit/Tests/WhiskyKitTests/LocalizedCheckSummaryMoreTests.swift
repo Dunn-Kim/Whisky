@@ -56,63 +56,6 @@ final class LocalizedCheckSummaryMoreTests: XCTestCase {
         )
     }
 
-    private func placeDLL(_ name: String, in folder: String) throws {
-        let directory = bottleURL.appending(path: "drive_c").appending(path: "windows").appending(path: folder)
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        try Data().write(to: directory.appending(path: name))
-    }
-
-    // MARK: - DependencyCheck
-
-    func testDependencyAllFoundCountsEveryCheckedDLL() async throws {
-        try placeDLL("d3dx9_43.dll", in: "system32")
-        try placeDLL("xinput1_3.dll", in: "syswow64")
-
-        let result = await DependencyCheck().run(params: ["dlls": "d3dx9_43.dll, xinput1_3.dll"], context: context())
-        let localized = try XCTUnwrap(DependencyCheck.localizedSummary(for: result))
-
-        XCTAssertEqual(result.outcome, .pass)
-        XCTAssertEqual(localized, "troubleshooting.check.dependency.allFound 2")
-        assertCatalogKey(localized)
-        XCTAssertEqual(result.summary, "All 2 DLL(s) found in prefix", "the exported summary stays English")
-    }
-
-    func testDependencyMissingCountsAndNamesOnlyTheMissingDLLs() async throws {
-        try placeDLL("d3dx9_43.dll", in: "system32")
-
-        let result = await DependencyCheck().run(
-            params: ["dlls": "d3dx9_43.dll,xinput1_3.dll, msvcp140.dll"],
-            context: context()
-        )
-        let localized = try XCTUnwrap(DependencyCheck.localizedSummary(for: result))
-
-        XCTAssertEqual(result.outcome, .fail)
-        XCTAssertEqual(localized, "troubleshooting.check.dependency.missing 2 xinput1_3.dll, msvcp140.dll")
-        assertCatalogKey(localized)
-        XCTAssertEqual(result.summary, "2 missing DLL(s): xinput1_3.dll, msvcp140.dll")
-    }
-
-    func testDependencyMissingListIgnoresBlankEntries() throws {
-        let result = CheckResult(outcome: .fail, evidence: ["missing": "a.dll, ,b.dll,"], summary: "")
-
-        XCTAssertEqual(
-            DependencyCheck.localizedSummary(for: result),
-            "troubleshooting.check.dependency.missing 2 a.dll, b.dll"
-        )
-    }
-
-    func testDependencyHasNoLocalizedSummaryWithoutItsEvidence() async {
-        let error = await DependencyCheck().run(params: [:], context: context())
-
-        XCTAssertEqual(error.outcome, .error)
-        XCTAssertNil(DependencyCheck.localizedSummary(for: error))
-        XCTAssertNil(DependencyCheck.localizedSummary(for: CheckResult(outcome: .pass, summary: "foreign")))
-        XCTAssertNil(DependencyCheck.localizedSummary(for: CheckResult(outcome: .fail, summary: "foreign")))
-        XCTAssertNil(DependencyCheck.localizedSummary(
-            for: CheckResult(outcome: .unknown, evidence: ["checked": "a.dll"], summary: "")
-        ))
-    }
-
     // MARK: - RegistryValueCheck
 
     private static let registryKey = #"HKCU\Software\Wine\Direct3D"#
@@ -228,43 +171,6 @@ final class LocalizedCheckSummaryMoreTests: XCTestCase {
         XCTAssertNil(WinetricksVerbCheck.localizedSummary(
             for: CheckResult(outcome: .fail, evidence: ["missing": ""], summary: "")
         ))
-    }
-
-    // MARK: - ProcessRunningCheck
-
-    @MainActor
-    func testProcessRunningCountsTheBottlesProcesses() async throws {
-        let bottle = Bottle(bottleUrl: bottleURL, inFlight: false, isAvailable: true)
-        let processes = [Process(), Process()]
-        for process in processes {
-            ProcessRegistry.shared.register(process: process, bottle: bottle, programName: "game.exe")
-        }
-        defer { ProcessRegistry.shared.clearRegistry(for: bottle.url) }
-
-        let result = await ProcessRunningCheck().run(params: [:], context: context())
-        let localized = try XCTUnwrap(ProcessRunningCheck.localizedSummary(for: result))
-
-        XCTAssertEqual(result.outcome, .pass)
-        XCTAssertEqual(localized, "troubleshooting.check.process.running 2")
-        assertCatalogKey(localized)
-    }
-
-    func testProcessRunningNone() async throws {
-        let result = await ProcessRunningCheck().run(params: [:], context: context())
-        let localized = try XCTUnwrap(ProcessRunningCheck.localizedSummary(for: result))
-
-        XCTAssertEqual(result.outcome, .fail)
-        XCTAssertEqual(localized, "troubleshooting.check.process.none")
-        assertCatalogKey(localized)
-        XCTAssertEqual(result.summary, "No Wine processes running for this bottle")
-    }
-
-    func testProcessRunningHasNoLocalizedSummaryWithoutACount() {
-        XCTAssertNil(ProcessRunningCheck.localizedSummary(
-            for: CheckResult(outcome: .pass, evidence: ["count": "many"], summary: "")
-        ))
-        XCTAssertNil(ProcessRunningCheck.localizedSummary(for: CheckResult(outcome: .pass, summary: "")))
-        XCTAssertNil(ProcessRunningCheck.localizedSummary(for: CheckResult(outcome: .error, summary: "")))
     }
 
     // MARK: - AudioTestCheck

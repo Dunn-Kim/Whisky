@@ -268,7 +268,6 @@ final class TroubleshootingFlowWiringTests: XCTestCase {
     func testAllVerbsInstalledMovesOnToTheGameConfigCheck() async {
         let engine = makeEngine(scripted: [
             "winetricks.verb_check": .alreadyConfigured,
-            "dependency.check_missing": .pass,
             "game.config_available": .fail
         ])
         engine.selectCategory(.installDependencies)
@@ -303,9 +302,7 @@ final class TroubleshootingFlowWiringTests: XCTestCase {
             (.battleNet, "fix_launcher_env")
         ]
         for (launcher, expectedNode) in expectations {
-            let engine = makeEngine(
-                scripted: ["process.running_check": .pass], launcherType: launcher?.rawValue
-            )
+            let engine = makeEngine(launcherType: launcher?.rawValue)
             engine.selectCategory(.launcherIssues)
             await waitUntil("\(String(describing: launcher)) routed") { engine.currentNode?.id == expectedNode }
         }
@@ -319,7 +316,7 @@ final class TroubleshootingFlowWiringTests: XCTestCase {
     }
 
     func testNetworkFlowTakesTheSteamPathOnlyForSteam() async {
-        let steam = makeEngine(scripted: ["process.running_check": .fail], launcherType: LauncherType.steam.rawValue)
+        let steam = makeEngine(launcherType: LauncherType.steam.rawValue)
         steam.selectCategory(.networkDownload)
         await waitUntil("Steam restart offered") { steam.currentNode?.id == "fix_restart_steam" }
 

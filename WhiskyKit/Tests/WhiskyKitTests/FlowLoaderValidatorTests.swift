@@ -98,8 +98,7 @@ final class FlowLoaderValidatorTests: XCTestCase {
             ([
                 CrashLogCheck(), GraphicsBackendCheck(),
                 AudioDriverCheck(), AudioDeviceCheck(), AudioTestCheck(),
-                DependencyCheck(), WinetricksVerbCheck(),
-                LauncherTypeCheck(), ProcessRunningCheck(),
+                WinetricksVerbCheck(), LauncherTypeCheck(),
                 EnvironmentCheck(), RegistryValueCheck(),
                 GameConfigAvailableCheck(), SettingValueCheck(), DiagnosticsEnhanceCheck()
             ] as [any TroubleshootingCheck]).map(\.checkId)

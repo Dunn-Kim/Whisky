@@ -195,13 +195,11 @@ extension StepCardView {
         AudioDriverCheck().checkId: AudioDriverCheck.localizedSummary(for:),
         AudioTestCheck().checkId: AudioTestCheck.localizedSummary(for:),
         CrashLogCheck().checkId: CrashLogCheck.localizedSummary(for:),
-        DependencyCheck().checkId: DependencyCheck.localizedSummary(for:),
         DiagnosticsEnhanceCheck().checkId: DiagnosticsEnhanceCheck.localizedSummary(for:),
         EnvironmentCheck().checkId: EnvironmentCheck.localizedSummary(for:),
         GameConfigAvailableCheck().checkId: GameConfigAvailableCheck.localizedSummary(for:),
         GraphicsBackendCheck().checkId: GraphicsBackendCheck.localizedSummary(for:),
         LauncherTypeCheck().checkId: LauncherTypeCheck.localizedSummary(for:),
-        ProcessRunningCheck().checkId: ProcessRunningCheck.localizedSummary(for:),
         RegistryValueCheck().checkId: RegistryValueCheck.localizedSummary(for:),
         SettingValueCheck().checkId: SettingValueCheck.localizedSummary(for:),
         WinetricksVerbCheck().checkId: WinetricksVerbCheck.localizedSummary(for:)

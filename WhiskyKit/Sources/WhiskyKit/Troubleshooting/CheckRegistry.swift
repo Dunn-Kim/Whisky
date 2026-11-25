@@ -130,13 +130,11 @@ public final class CheckRegistry: @unchecked Sendable {
         register(AudioDeviceCheck())
         register(AudioTestCheck())
 
-        // Dependency and winetricks
-        register(DependencyCheck())
+        // Winetricks
         register(WinetricksVerbCheck())
 
-        // Launcher and process
+        // Launcher
         register(LauncherTypeCheck())
-        register(ProcessRunningCheck())
 
         // Environment and registry
         register(EnvironmentCheck())

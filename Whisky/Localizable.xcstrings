@@ -75173,40 +75173,6 @@
         }
       }
     },
-    "troubleshooting.check.dependency.allFound %lld" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "All %lld DLL(s) found in prefix"
-          }
-        },
-        "en-GB" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "All %lld DLL(s) found in prefix"
-          }
-        }
-      }
-    },
-    "troubleshooting.check.dependency.missing %lld %@" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$lld missing DLL(s): %2$@"
-          }
-        },
-        "en-GB" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$lld missing DLL(s): %2$@"
-          }
-        }
-      }
-    },
     "troubleshooting.check.diagnostics.active %@" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -75441,40 +75407,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No launcher type detected"
-          }
-        }
-      }
-    },
-    "troubleshooting.check.process.none" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No Wine processes running for this bottle"
-          }
-        },
-        "en-GB" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No Wine processes running for this bottle"
-          }
-        }
-      }
-    },
-    "troubleshooting.check.process.running %lld" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld Wine process(es) running"
-          }
-        },
-        "en-GB" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld Wine process(es) running"
           }
         }
       }

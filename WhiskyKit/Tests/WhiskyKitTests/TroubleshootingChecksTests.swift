@@ -167,17 +167,6 @@ final class TroubleshootingChecksTests: XCTestCase {
         XCTAssertEqual(result.evidence["expected"], "epic")
     }
 
-    // MARK: - ProcessRunningCheck
-
-    func testProcessRunningCheckNoProcessesIsFail() async {
-        // The context's bottle URL is unique per test, so the shared process
-        // registry has no entries for it.
-        let result = await ProcessRunningCheck().run(params: [:], context: makeCheckContext())
-
-        XCTAssertEqual(result.outcome, .fail)
-        XCTAssertEqual(result.evidence["count"], "0")
-    }
-
     // MARK: - GameConfigAvailableCheck
 
     func testGameConfigCheckWithoutProgramIsUnknown() async {
