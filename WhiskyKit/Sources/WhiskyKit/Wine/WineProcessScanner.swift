@@ -49,6 +49,13 @@ public enum WineProcessScanner {
     /// bottles share one Wine distribution — so with several bottles active, a
     /// change in one triggers a harmless extra refresh in another.
     public static func runningWinePIDs() -> Set<pid_t>? {
+        runningPIDs(under: wineRootPrefix)
+    }
+
+    /// The PIDs of running processes other than a wineserver whose executable
+    /// lies under `root`, which ends in a separator, or `nil` when native
+    /// enumeration is unavailable.
+    static func runningPIDs(under root: String) -> Set<pid_t>? {
         let bytesNeeded = proc_listpids(UInt32(PROC_ALL_PIDS), 0, nil, 0)
         guard bytesNeeded > 0 else { return nil }
 
@@ -68,7 +75,7 @@ public enum WineProcessScanner {
             // 0 or negative: the process died mid-scan or is not inspectable; skip.
             guard length > 0 else { continue }
             let path = FileManager.default.string(withFileSystemRepresentation: pathBuffer, length: Int(length))
-            guard path.hasPrefix(wineRootPrefix), !path.hasSuffix("/wineserver") else { continue }
+            guard path.hasPrefix(root), !path.hasSuffix("/wineserver") else { continue }
             result.insert(pid)
         }
         return result
