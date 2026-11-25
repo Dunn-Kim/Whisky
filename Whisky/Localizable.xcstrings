@@ -2460,10 +2460,24 @@
       }
     },
     "Copy Bottles from Another Whisky" : {
-
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "다른 Whisky에서 Bottle 복사"
+          }
+        }
+      }
     },
     "Copy Bottles from Another Whisky…" : {
-
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "다른 Whisky에서 Bottle 복사…"
+          }
+        }
+      }
     },
     "Copy Report to Clipboard" : {
       "localizations" : {
@@ -2602,7 +2616,14 @@
       }
     },
     "Copy Selected" : {
-
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "선택한 Bottle 복사"
+          }
+        }
+      }
     },
     "Copy to Clipboard" : {
       "localizations" : {
@@ -7352,7 +7373,14 @@
 
     },
     "No bottles from another Whisky were found." : {
-
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "다른 Whisky의 Bottle을 찾지 못했습니다."
+          }
+        }
+      }
     },
     "NVIDIA (recommended) provides best compatibility across launchers" : {
       "localizations" : {
@@ -7969,7 +7997,14 @@
       }
     },
     "Quit %@ and the programs it started first: their files change while they run." : {
-
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "먼저 %@와(과) 그 앱이 실행한 프로그램을 종료하세요. 실행 중에는 파일이 바뀝니다."
+          }
+        }
+      }
     },
     "Raw Log Output" : {
 
@@ -9981,7 +10016,14 @@
 
     },
     "The selected bottles are copied into new bottles for this build. The originals stay untouched and keep working in the other app. Dependencies installed in the old bottle with winetricks aren't copied. Most programs need none on this engine, and the Microsoft Visual C++ runtime, if installed, is used only by Unity games." : {
-
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "선택한 Bottle을 이 빌드의 새 Bottle로 복사합니다. 원본은 그대로 남아 다른 앱에서 계속 동작합니다. 이전 Bottle에 winetricks로 설치한 구성 요소는 복사하지 않습니다. 이 엔진에서는 대부분의 프로그램에 필요 없으며, Microsoft Visual C++ 런타임은 설치되어 있으면 Unity 게임에서만 사용합니다."
+          }
+        }
+      }
     },
     "These bottles were created by the archived original Whisky app. Importing references them in place: your files aren't moved or copied, and the original app keeps working." : {
 
@@ -20770,6 +20812,28 @@
         }
       }
     },
+    "bottle.migration.error.prefixBusy" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The new bottle's Wine server didn't stop in time, so nothing was copied into it. Try again."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The new bottle's Wine server didn't stop in time, so nothing was copied into it. Try again."
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "새 Bottle의 Wine 서버가 제때 멈추지 않아 아무것도 복사하지 않았습니다. 다시 시도하세요."
+          }
+        }
+      }
+    },
     "bottle.migration.error.sourceRunning" : {
       "localizations" : {
         "en" : {
@@ -20782,6 +20846,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@ or a program it started is running. Quit them, then try again."
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 또는 그 앱이 실행한 프로그램이 실행 중입니다. 모두 종료한 뒤 다시 시도하세요."
           }
         }
       }
@@ -20798,6 +20868,138 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Bottle Move Failed"
+          }
+        }
+      }
+    },
+    "bottle.move.hasProcesses.message" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "There are Wine processes running in this bottle. They will be stopped before the bottle is moved."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "There are Wine processes running in this bottle. They will be stopped before the bottle is moved."
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이 Bottle에서 Wine 프로세스가 실행 중입니다. Bottle을 옮기기 전에 중지됩니다."
+          }
+        }
+      }
+    },
+    "bottle.move.hasProcesses.stopAndMove" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stop and Move"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stop and Move"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "중지 후 이동"
+          }
+        }
+      }
+    },
+    "bottle.open.error.notBottle" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ is not a Whisky bottle: it has no readable Metadata.plist."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ is not a Whisky bottle: it has no readable Metadata.plist."
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@은(는) Whisky Bottle이 아닙니다. 읽을 수 있는 Metadata.plist가 없습니다."
+          }
+        }
+      }
+    },
+    "bottle.open.error.otherApp" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ belongs to another Whisky app. Copy it into a new bottle with Copy Bottles from Another Whisky… in the File menu."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ belongs to another Whisky app. Copy it into a new bottle with Copy Bottles from Another Whisky… in the File menu."
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@은(는) 다른 Whisky 앱의 Bottle입니다. 파일 메뉴의 다른 Whisky에서 Bottle 복사…로 새 Bottle에 복사하세요."
+          }
+        }
+      }
+    },
+    "bottle.open.error.saveFailed" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't save the bottle list, so the bottle was not added."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't save the bottle list, so the bottle was not added."
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bottle 목록을 저장하지 못해 Bottle을 추가하지 않았습니다."
+          }
+        }
+      }
+    },
+    "bottle.open.error.title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The folder can't be added"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The folder can't be added"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "폴더를 추가할 수 없습니다"
           }
         }
       }
@@ -58875,6 +59077,12 @@
             "state" : "translated",
             "value" : "Runs the launcher on WineD3D so its Chromium window draws"
           }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chromium 창이 그려지도록 런처를 WineD3D에서 실행합니다"
+          }
         }
       }
     },
@@ -79803,6 +80011,50 @@
         }
       }
     },
+    "setup.whiskywine.error.noArm64Runtime" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No arm64 Wine runtime is published yet. Install one with scripts/install-arm64-runtime.sh, as the README describes."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No arm64 Wine runtime is published yet. Install one with scripts/install-arm64-runtime.sh, as the README describes."
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "아직 공개된 arm64 Wine 런타임이 없습니다. README 안내대로 scripts/install-arm64-runtime.sh로 설치하세요."
+          }
+        }
+      }
+    },
+    "setup.whiskywine.error.noChecksum" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The runtime feed gives no SHA-256 checksum, so the download can't be verified."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The runtime feed gives no SHA-256 checksum, so the download can't be verified."
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "런타임 피드에 SHA-256 체크섬이 없어 다운로드를 검증할 수 없습니다."
+          }
+        }
+      }
+    },
     "setup.whiskywine.error.noFileReceived" : {
       "localizations" : {
         "ar" : {
@@ -80095,6 +80347,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "已超出請求次數限制。請稍後再試。"
+          }
+        }
+      }
+    },
+    "setup.whiskywine.error.runtimeInUse" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A program still runs on the installed Wine engine. Quit it, then try again."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A program still runs on the installed Wine engine. Quit it, then try again."
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "설치된 Wine 엔진에서 아직 프로그램이 실행 중입니다. 종료한 뒤 다시 시도하세요."
           }
         }
       }
@@ -104255,6 +104529,50 @@
         }
       }
     },
+    "config.graphics.stopBottle.confirm.body" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This closes every program running in this bottle without saving."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This closes every program running in this bottle without saving."
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이 Bottle에서 실행 중인 모든 프로그램을 저장하지 않고 닫습니다."
+          }
+        }
+      }
+    },
+    "config.graphics.stopBottle.confirm.title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stop this bottle?"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stop this bottle?"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이 Bottle을 중지할까요?"
+          }
+        }
+      }
+    },
     "config.graphics.tag.compatible" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -114554,6 +114872,72 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "已啟用進階覆寫。在清除這些設定之前，簡易選擇器不會顯示。"
+          }
+        }
+      }
+    },
+    "wine.clearShaderCaches.confirm.body" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This closes every program running in your bottles, then deletes DXMT's shader cache. The Rosetta build of Whisky shares that cache, so its games rebuild their shaders too."
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This closes every program running in your bottles, then deletes DXMT's shader cache. The Rosetta build of Whisky shares that cache, so its games rebuild their shaders too."
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "모든 Bottle에서 실행 중인 프로그램을 닫은 뒤 DXMT의 셰이더 캐시를 지웁니다. Rosetta 빌드의 Whisky도 같은 캐시를 쓰므로 그쪽 게임도 셰이더를 다시 만듭니다."
+          }
+        }
+      }
+    },
+    "wine.clearShaderCaches.confirm.clear" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close Programs and Clear"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close Programs and Clear"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "프로그램 닫고 지우기"
+          }
+        }
+      }
+    },
+    "wine.clearShaderCaches.confirm.title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clear shader caches?"
+          }
+        },
+        "en-GB" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clear shader caches?"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "셰이더 캐시를 지울까요?"
           }
         }
       }
