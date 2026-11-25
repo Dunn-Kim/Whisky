@@ -24,10 +24,12 @@ extension Wine {
     /// a rule naming an executable beat `exe=*` whatever the line order.
     ///
     /// Lines, later replacing earlier ones for the same executable name: the
-    /// bottle's explicit backend as `exe=*`; the Chromium front ends of the
-    /// table and `steeredExecutables` on WineD3D; then each of `programBackends`.
+    /// bottle's explicit backend as `exe=*`; under a Recommended bottle, the
+    /// Chromium front ends of the table and `steeredExecutables` on WineD3D;
+    /// then each of `programBackends`. An explicit bottle backend applies to
+    /// Chromium-drawn programs too, as the Graphics section tells the user.
     /// Recommended adds no rule, except for a program under an explicit bottle
-    /// backend, where it means the recommended one.
+    /// backend, where it means the recommended one: WineD3D when it is steered.
     ///
     /// - Parameter userRules: Rules a user or a GameDB profile already set; kept after the app's.
     /// - Returns: The value, or `nil` when there are no rules at all.
@@ -71,15 +73,14 @@ extension Wine {
 
         add("*", fields(bottleBackend))
         let steered = ChromiumFrontEnd.all.flatMap { $0.executables + $0.helperExecutables } + steeredExecutables
-        for executable in steered {
-            add(executable, fields(.wined3d))
+        if bottleBackend == .recommended {
+            steered.forEach { add($0, fields(.wined3d)) }
         }
         for (executable, backend) in programBackends {
             if backend == .recommended {
-                guard bottleBackend != .recommended,
-                      !steered.contains(where: { $0.lowercased() == executable.lowercased() })
-                else { continue }
-                add(executable, fields(GraphicsBackendResolver.resolve()))
+                guard bottleBackend != .recommended else { continue }
+                let isSteered = steered.contains { $0.lowercased() == executable.lowercased() }
+                add(executable, fields(isSteered ? .wined3d : GraphicsBackendResolver.resolve()))
             } else {
                 add(executable, fields(backend))
             }

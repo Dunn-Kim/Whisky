@@ -40,10 +40,10 @@ struct CompatdbRulesTests {
         #expect(rules() == [frontEnd])
     }
 
-    @Test("An explicit bottle backend is an exe=* rule; Recommended adds none")
+    @Test("An explicit bottle backend is an exe=* rule that steers nothing; Recommended adds none")
     func bottleWide() {
-        #expect(rules(bottle: .dxmt) == ["exe=*;dxgi=dxmt", frontEnd])
-        #expect(rules(bottle: .wined3d) == ["exe=*;\(wined3d)", frontEnd])
+        #expect(rules(bottle: .dxmt) == ["exe=*;dxgi=dxmt"])
+        #expect(rules(bottle: .wined3d) == ["exe=*;\(wined3d)"])
     }
 
     @Test("Steered executables run on WineD3D by name, once each however the case")
@@ -58,7 +58,7 @@ struct CompatdbRulesTests {
             bottle: .wined3d, steered: ["Chat.exe"],
             programs: [("chat.exe", .dxmt), ("Game.exe", .dxmt)]
         )
-        #expect(lines == ["exe=*;\(wined3d)", frontEnd, "exe=chat.exe;dxgi=dxmt", "exe=Game.exe;dxgi=dxmt"])
+        #expect(lines == ["exe=*;\(wined3d)", "exe=chat.exe;dxgi=dxmt", "exe=Game.exe;dxgi=dxmt"])
     }
 
     @Test("A program set to Recommended means the recommended backend under an explicit bottle backend")
@@ -69,7 +69,7 @@ struct CompatdbRulesTests {
         #expect(rules(programs: programs) == [frontEnd])
         #expect(
             rules(bottle: .wined3d, steered: ["Chat.exe"], programs: programs)
-                == ["exe=*;\(wined3d)", frontEnd, "exe=Chat.exe;\(wined3d)", "exe=Game.exe;dxgi=dxmt"]
+                == ["exe=*;\(wined3d)", "exe=Game.exe;dxgi=dxmt", "exe=Chat.exe;\(wined3d)"]
         )
     }
 
@@ -95,7 +95,7 @@ struct CompatdbRulesTests {
         bottle.settings.graphicsBackend = .wined3d
 
         let plain = Wine.constructWineEnvironment(for: bottle)
-        #expect(plain["WINE_COMPATDB"] == "exe=*;\(wined3d)\n\(frontEnd)")
+        #expect(plain["WINE_COMPATDB"] == "exe=*;\(wined3d)")
 
         let withUser = Wine.constructWineEnvironment(
             for: bottle, environment: ["WINE_COMPATDB": "exe=x.exe;dxgi=default"],
@@ -103,7 +103,7 @@ struct CompatdbRulesTests {
         )
         #expect(
             withUser["WINE_COMPATDB"]
-                == "exe=*;\(wined3d)\n\(frontEnd)\nexe=Game.exe;dxgi=dxmt\nexe=x.exe;dxgi=default"
+                == "exe=*;\(wined3d)\nexe=Game.exe;dxgi=dxmt\nexe=x.exe;dxgi=default"
         )
     }
 }
