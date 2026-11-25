@@ -256,7 +256,10 @@ final class ProgramLaunchPreparationTests {
         #expect(command.contains("PROGRAM_SETTING='kept'"))
         #expect(command.contains(ShellQuoting.assignment("WINEDEBUG", WineDebugPreset.dllLoad.winedebugValue)))
         #expect(command.hasSuffix(
-            "env -u WINEDLLOVERRIDES \(Wine.wineBinary.esc) start /unix \(program.url.esc) -windowed"
+            ShellQuoting.commandLine([
+                "env", "-u", "WINEDLLOVERRIDES", Wine.wineBinary.path(percentEncoded: false),
+                "start", "/unix", program.url.path(percentEncoded: false), "-windowed"
+            ])
         ))
     }
 
@@ -297,8 +300,10 @@ final class ProgramLaunchPreparationTests {
         #expect(command.contains("MTL_HUD_ENABLED='1' "))
         #expect(!command.contains("WINEDLLOVERRIDES="))
         #expect(command.hasSuffix(
-            "env -u WINEDLLOVERRIDES \(Wine.wineBinary.esc) "
-                + #"start /unix /tmp/My\ Bottle/drive_c/Game.exe --name Player\ One"#
+            ShellQuoting.commandLine([
+                "env", "-u", "WINEDLLOVERRIDES", Wine.wineBinary.path(percentEncoded: false),
+                "start", "/unix", "/tmp/My Bottle/drive_c/Game.exe", "--name", "Player One"
+            ])
         ))
     }
 

@@ -124,7 +124,10 @@ final class ProgramPrefixBootstrapTests {
         let contents = try String(contentsOf: script, encoding: .utf8)
         #expect(contents.hasPrefix("#!/bin/bash\n"))
         #expect(contents.contains(
-            "env -u WINEDLLOVERRIDES \(Wine.wineBinary.esc) start /unix \(program.url.esc) -windowed"
+            ShellQuoting.commandLine([
+                "env", "-u", "WINEDLLOVERRIDES", Wine.wineBinary.path(percentEncoded: false),
+                "start", "/unix", program.url.path(percentEncoded: false), "-windowed"
+            ])
         ))
         let permissions = try FileManager.default.attributesOfItem(atPath: script.path)[.posixPermissions] as? Int
         #expect(permissions == 0o755)

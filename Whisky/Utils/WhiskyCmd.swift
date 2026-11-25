@@ -25,9 +25,10 @@ class WhiskyCmd {
         let whiskyCmdURL = Bundle.main.url(forResource: "WhiskyCmd", withExtension: nil)
 
         if let whiskyCmdURL {
-            // Use .esc to escape shell metacharacters and prevent command injection
+            // Quote the path so shell metacharacters in it cannot inject commands
+            let path = ShellQuoting.quoted(whiskyCmdURL.path(percentEncoded: false))
             let script = """
-            do shell script "ln -fs \(whiskyCmdURL.esc) /usr/local/bin/whisky-native" with administrator privileges
+            do shell script "ln -fs \(path) /usr/local/bin/whisky-native" with administrator privileges
             """
 
             var error: NSDictionary?

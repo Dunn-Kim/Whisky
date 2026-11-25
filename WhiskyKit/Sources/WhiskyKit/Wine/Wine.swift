@@ -767,7 +767,7 @@ public class Wine {
         if launch.environment["WINEDLLOVERRIDES"] == nil {
             words = ["env", "-u", "WINEDLLOVERRIDES"] + words
         }
-        return shellCommand(words.map(\.esc).joined(separator: " "), environment: launch.environment)
+        return shellCommand(ShellQuoting.commandLine(words), environment: launch.environment)
     }
 
     /// Prefixes `command` with an assignment for each environment variable.
@@ -776,8 +776,7 @@ public class Wine {
         for envVar in environment {
             if isValidEnvKey(envVar.key) {
                 // Keys are validated to be safe shell identifiers. Values are quoted,
-                // not `.esc`-escaped: `.esc` drops control characters, and the
-                // newlines between `WINE_COMPATDB` rules are part of the value.
+                // which keeps the newlines between `WINE_COMPATDB` rules.
                 wineCmd = "\(ShellQuoting.assignment(envVar.key, envVar.value)) " + wineCmd
             } else {
                 logger.debug("Skipping invalid environment key '\(envVar.key)' in generateRunCommand")
@@ -844,9 +843,7 @@ public class Wine {
         for (key, value) in environment.sorted(by: { $0.key < $1.key }) {
             if isValidEnvKey(key) {
                 // Keys are validated to be safe shell identifiers. Values are single-quoted,
-                // not `.esc`-escaped: `.esc` targets bare words, and inside double quotes the
-                // shell keeps most of its backslashes, so `d3d11=n,b;dxgi=n,b` came back as
-                // `d3d11\=n,b\;dxgi\=n,b`.
+                // so `d3d11=n,b;dxgi=n,b` reaches the shell unchanged.
                 cmd += "\nexport \(ShellQuoting.assignment(key, value))"
             } else {
                 logger.debug("Skipping invalid environment key '\(key)' in generateTerminalEnvironmentCommand")

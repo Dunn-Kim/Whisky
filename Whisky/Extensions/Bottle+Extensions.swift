@@ -73,10 +73,8 @@ extension Bottle {
         guard let whiskyCmdURL = Bundle.main.url(forResource: "WhiskyCmd", withExtension: nil) else { return }
 
         // Build a shell command that sources the WhiskyCmd environment.
-        // Single-quoted through ShellQuoting: `.esc` backslash-escapes spaces,
-        // and inside double quotes bash keeps those backslashes, so any bottle
-        // name with a space reached WhiskyCmd as `QA\ Smoke` and failed to
-        // resolve.
+        // Single-quoted through ShellQuoting, so a bottle name with a space reaches
+        // WhiskyCmd unchanged.
         let whiskyCmd = whiskyCmdURL.path(percentEncoded: false)
         let shellenv = ShellQuoting.commandLine([whiskyCmd, "shellenv", settings.name])
         let command = "eval \"$(\(shellenv))\""

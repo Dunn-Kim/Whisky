@@ -63,68 +63,6 @@ final class PathHandlingTests: XCTestCase {
         XCTAssertEqual(url.path(percentEncoded: false), path)
     }
 
-    // MARK: - Shell Escape (String.esc) with Path Characters
-
-    func testEscapePathWithSpaces() {
-        let path = "/path/to/My Game/game.exe"
-        let escaped = path.esc
-        XCTAssertEqual(escaped, "/path/to/My\\ Game/game.exe")
-    }
-
-    func testEscapePathWithParentheses() {
-        let path = "/path/to/My Game (x86)/game.exe"
-        let escaped = path.esc
-        XCTAssertTrue(escaped.contains("\\(x86\\)"), "Parentheses should be escaped")
-        XCTAssertTrue(escaped.contains("My\\ Game"), "Spaces should be escaped")
-    }
-
-    func testEscapePathWithApostrophe() {
-        let path = "/path/to/John's Game/game.exe"
-        let escaped = path.esc
-        XCTAssertTrue(escaped.contains("John\\'s"), "Apostrophe should be escaped")
-    }
-
-    func testEscapePathWithAmpersand() {
-        let path = "/path/to/Tom & Jerry/game.exe"
-        let escaped = path.esc
-        XCTAssertTrue(escaped.contains("\\&"), "Ampersand should be escaped")
-    }
-
-    func testEscapePathWithBrackets() {
-        let path = "/path/to/Game [Special]/game.exe"
-        let escaped = path.esc
-        XCTAssertTrue(escaped.contains("\\[Special\\]"), "Brackets should be escaped")
-    }
-
-    // MARK: - URL.esc Round-Trip
-
-    func testURLEscapeRoundTrip() {
-        // Verify that URL(fileURLWithPath:) -> .esc produces a valid shell-safe path
-        let originalPath = "/path/to/My Game (x86)/game.exe"
-        let url = URL(fileURLWithPath: originalPath)
-        let escaped = url.esc
-
-        // The escaped string should contain backslash-escaped special chars
-        XCTAssertTrue(escaped.contains("My\\ Game"), "Space in path should be escaped")
-        XCTAssertTrue(escaped.contains("\\(x86\\)"), "Parentheses should be escaped")
-
-        // Original path should be recoverable by removing backslash escapes
-        let unescaped = escaped.replacingOccurrences(of: "\\", with: "")
-        XCTAssertEqual(unescaped, originalPath)
-    }
-
-    func testURLEscapeRoundTripWithApostropheAndAmpersand() {
-        let originalPath = "/path/to/John's Tom & Jerry/game.exe"
-        let url = URL(fileURLWithPath: originalPath)
-        let escaped = url.esc
-
-        XCTAssertTrue(escaped.contains("\\'"), "Apostrophe should be escaped")
-        XCTAssertTrue(escaped.contains("\\&"), "Ampersand should be escaped")
-
-        let unescaped = escaped.replacingOccurrences(of: "\\", with: "")
-        XCTAssertEqual(unescaped, originalPath)
-    }
-
     // MARK: - Combined Special Characters
 
     func testPathWithAllSpecialCharacters() {
@@ -134,14 +72,6 @@ final class PathHandlingTests: XCTestCase {
 
         // URL preserves the path
         XCTAssertEqual(url.path(percentEncoded: false), path)
-
-        // Escaping handles all special characters
-        let escaped = url.esc
-        XCTAssertTrue(escaped.contains("My\\ Games"), "Spaces escaped")
-        XCTAssertTrue(escaped.contains("\\(2024\\)"), "Parentheses escaped")
-        XCTAssertTrue(escaped.contains("\\'s"), "Apostrophe escaped")
-        XCTAssertTrue(escaped.contains("\\[Best\\]"), "Brackets escaped")
-        XCTAssertTrue(escaped.contains("\\&"), "Ampersand escaped")
     }
 
     // MARK: - ShortcutCreator Bundle Creation

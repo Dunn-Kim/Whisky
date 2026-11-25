@@ -30,9 +30,7 @@ import Testing
 /// Serialized for the same reason as ``ShellQuotingTests``: each case waits on a real shell.
 @Suite("Terminal environment command", .serialized)
 struct TerminalEnvironmentCommandTests {
-    /// Characters a custom bottle path can carry. The old quoting kept the backslash `.esc`
-    /// puts before a space, `=`, `;` or `'`, and stripped it before `"`, `$`, a backtick or
-    /// another backslash; both groups are checked.
+    /// Characters a custom bottle path can carry: each must reach the shell unchanged.
     static let trickyCharacters: [Character] = [" ", "=", ";", "$", "`", "\"", "'", "\\"]
 
     /// Evaluates `output` the way `eval "$(WhiskyCmd shellenv <bottle>)"` does, then runs

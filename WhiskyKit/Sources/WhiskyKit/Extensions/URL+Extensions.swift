@@ -18,69 +18,7 @@
 
 import Foundation
 
-public extension String {
-    /// Escapes shell metacharacters and removes control characters for safe shell interpolation.
-    ///
-    /// This property returns a string safe for use in shell commands by:
-    /// 1. Removing control characters like newlines that could enable command injection through command chaining
-    /// 2. Escaping shell metacharacters with backslashes
-    ///
-    /// - Important: Control characters are stripped rather than escaped because
-    ///   backslash-escaped newlines in shell are treated as line continuations, which can enable command chaining
-    ///   instead of representing literal newlines.
-    var esc: String {
-        // First, remove control characters (newlines, tabs, carriage returns, etc.)
-        // These could be used for command injection if present in filenames or arguments
-        var str = self.filter { char in
-            // Allow only printable characters (ASCII 32-126) and extended Unicode
-            // Reject control characters (ASCII 0-31 and 127)
-            guard let ascii = char.asciiValue else {
-                // Non-ASCII characters (Unicode) are allowed
-                return true
-            }
-            return ascii >= 32 && ascii != 127
-        }
-
-        // Escape shell metacharacters
-        let metacharacters = [
-            "\\",
-            "\"",
-            "'",
-            " ",
-            "(",
-            ")",
-            "[",
-            "]",
-            "{",
-            "}",
-            "&",
-            "|",
-            ";",
-            "<",
-            ">",
-            "`",
-            "$",
-            "!",
-            "*",
-            "?",
-            "#",
-            "~",
-            "="
-        ]
-        // `.literal` compares code units: a metacharacter followed by a combining
-        // mark is one Character, which the default comparison does not match.
-        for char in metacharacters {
-            str = str.replacingOccurrences(of: char, with: "\\" + char, options: .literal)
-        }
-        return str
-    }
-}
-
 public extension URL {
-    var esc: String {
-        path.esc
-    }
-
     func prettyPath() -> String {
         var prettyPath = path(percentEncoded: false)
         prettyPath = prettyPath
