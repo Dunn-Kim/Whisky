@@ -151,6 +151,19 @@ public enum VCRuntimeIsolation {
         return unityNames.filter { VCRedistDetector.isNativePE(folder.appending(path: $0 + ".dll")) }
     }
 
+    /// ``placeForUnity(executable:store:)`` for each of a game's executables.
+    ///
+    /// - Returns: The DLL names placed beside each Unity executable, by executable file name.
+    ///   Executables that are not Unity games are left out.
+    public static func placeForUnity(executables: [URL], store: URL) -> [String: [String]] {
+        var placed: [String: [String]] = [:]
+        for executable in executables {
+            let names = placeForUnity(executable: executable, store: store)
+            if !names.isEmpty { placed[executable.lastPathComponent] = names }
+        }
+        return placed
+    }
+
     /// The `DllOverrides` value names a launch should delete: set A names
     /// (`name` or `*name`) whose data asks for the native copy, except those
     /// the bottle's own settings set.

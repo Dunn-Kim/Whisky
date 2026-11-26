@@ -60,6 +60,7 @@ extension SteamLauncher {
             overridesApplyToDescendants: true,
             descendantExecutables: gameExecutables(scanned: scan?.planExecutables ?? [], plan: plan),
             ownSettingsExecutables: scan?.ownSettingsExecutables ?? [],
+            gameExecutableURLs: scan?.planExecutables ?? [],
             steamAppID: appId
         )
     }

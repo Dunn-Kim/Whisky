@@ -290,6 +290,7 @@ public class Wine {
             overridesApplyToDescendants: overridesApplyToDescendants,
             descendantExecutables: descendantExecutables,
             ownSettingsExecutables: ownSettingsExecutables,
+            gameExecutableURLs: [],
             steamAppID: nil
         )
         return try await runProgram(at: url, bottle: bottle, request: request, onOutput: onOutput)
@@ -441,6 +442,7 @@ public class Wine {
         overridesApplyToDescendants: Bool = false,
         descendantExecutables: [String] = [],
         ownSettingsExecutables: [URL] = [],
+        gameExecutableURLs: [URL] = [],
         steamAppID: Int? = nil,
         overrideWriter: DLLOverrideWriter = { try await syncDLLOverrides(bottle: $0, scopes: $1) },
         importer: RegistryImporter = { try await importRegistry(document: $0, bottle: $1) },
@@ -454,6 +456,12 @@ public class Wine {
         let unityDLLs = VCRuntimeIsolation.placeForUnity(
             executable: url, store: VCRuntimeIsolation.store(prefix: bottle.url)
         )
+        // Likewise for the Unity games a launcher starts, such as the game `steam.exe -applaunch`
+        // runs: each gets its entry's `n,b`, since the launcher's own environment is not theirs.
+        let unityGames = overridesApplyToDescendants
+            ? VCRuntimeIsolation.placeForUnity(
+                executables: gameExecutableURLs, store: VCRuntimeIsolation.store(prefix: bottle.url)
+            ) : [:]
 
         // Font aliases first, before any setting is read: their import can take
         // a few seconds, and a setting changed during it would leave this launch
@@ -500,6 +508,7 @@ public class Wine {
             applyToDescendants: overridesApplyToDescendants,
             descendantExecutables: descendantExecutables,
             ownSettingsExecutables: ownSettingsExecutables,
+            unityGames: unityGames,
             writer: overrideWriter
         )
 

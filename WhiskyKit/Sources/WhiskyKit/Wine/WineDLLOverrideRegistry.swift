@@ -175,6 +175,9 @@ public extension Wine {
     ///   belong to when they apply to descendants.
     /// - Parameter ownSettingsExecutables: Descendants that keep their own
     ///   settings, written ahead of the descendants' overrides.
+    /// - Parameter unityGames: Descendant Unity games by executable name, with the
+    ///   VC++ DLLs placed beside them. Each one's entry adds `n,b` for them
+    ///   under the plan's own clauses.
     /// - Parameter writer: What performs the registry write.
     @MainActor
     static func applyDLLOverrides(
@@ -184,6 +187,7 @@ public extension Wine {
         applyToDescendants: Bool,
         descendantExecutables: [String] = [],
         ownSettingsExecutables: [URL] = [],
+        unityGames: [String: [String]] = [:],
         writer: DLLOverrideWriter = { try await syncDLLOverrides(bottle: $0, scopes: $1) }
     ) async throws {
         let bottleOverrides = constructWineEnvironment(for: bottle)["WINEDLLOVERRIDES"] ?? ""
@@ -235,6 +239,11 @@ public extension Wine {
         if let gamePlan {
             for (executable, own) in ownSettingsDLLOverrides(for: ownSettingsExecutables, bottle: bottle) {
                 scopes.add([executable], own)
+            }
+            for (executable, names) in unityGames.sorted(by: { $0.key < $1.key }) {
+                let planned = parseDLLOverrides(gamePlan)
+                let added = names.filter { planned[$0] == nil }.map { "\($0)=n,b" }
+                scopes.add([executable], ([gamePlan].filter { !$0.isEmpty } + added).joined(separator: ";"))
             }
             scopes.add(descendantExecutables, gamePlan)
         }

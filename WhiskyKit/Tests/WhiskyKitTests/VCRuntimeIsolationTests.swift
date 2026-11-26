@@ -248,4 +248,42 @@ final class VCRuntimeIsolationTests {
         let plain = try await launchOverrides(of: unity, bottle: bottle)
         #expect(plain?.contains("msvcp140") != true)
     }
+
+    // MARK: - Steam game launch
+
+    private func steamGameLaunch(_ exes: [URL], bottle: Bottle) async throws -> [(
+        scope: Wine.DLLOverrideScope,
+        overrides: String
+    )] {
+        let recorder = Recorder()
+        let steam = prefix.appending(path: "drive_c/Program Files (x86)/Steam/steam.exe")
+        try write(Data("MZ".utf8), "drive_c/Program Files (x86)/Steam/steam.exe")
+        _ = try await Wine.prepareProgramLaunch(
+            at: steam, args: ["-applaunch", "1"], bottle: bottle,
+            overridesApplyToDescendants: true, descendantExecutables: exes.map(\.lastPathComponent),
+            gameExecutableURLs: exes, steamAppID: 1,
+            overrideWriter: { _, scopes in recorder.scopes = scopes }, importer: { _, _ in }
+        )
+        return recorder.scopes
+    }
+
+    @Test("A Steam game's Unity executable gets the DLLs beside it and n,b in its own entry, another game none")
+    func steamUnityGame() async throws {
+        try populateStore()
+        let bottle = Bottle(bottleUrl: prefix)
+        let unity = try game(machine: 0x8664)
+        let scopes = try await steamGameLaunch([unity], bottle: bottle)
+        let overrides = try #require(scopes.first { $0.scope == .program("Game.exe") }?.overrides)
+        #expect(overrides.contains("msvcp140=n,b"))
+        #expect(overrides.contains("vcruntime140=n,b"))
+        #expect(FileManager.default
+            .fileExists(atPath: unity.deletingLastPathComponent().appending(path: "msvcp140.dll").path))
+
+        try FileManager.default.removeItem(at: unity.deletingLastPathComponent())
+        let plain = try game(machine: 0x8664, unity: false)
+        let plainScopes = try await steamGameLaunch([plain], bottle: bottle)
+        #expect(plainScopes.first { $0.scope == .program("Game.exe") }?.overrides.contains("msvcp140") != true)
+        #expect(!FileManager.default
+            .fileExists(atPath: plain.deletingLastPathComponent().appending(path: "msvcp140.dll").path))
+    }
 }
