@@ -286,4 +286,19 @@ final class VCRuntimeIsolationTests {
         #expect(!FileManager.default
             .fileExists(atPath: plain.deletingLastPathComponent().appending(path: "msvcp140.dll").path))
     }
+
+    @Test("Every steam.exe start prepares the bottle for Wine first, the VC++ isolation with it")
+    func steamStartsPrepareTheBottle() async throws {
+        // prepareBottleForWine isolates the VC++ files, then reconciles the profile: the profile link shows it ran.
+        let users = prefix.appending(path: "drive_c/users")
+        try FileManager.default.createDirectory(
+            at: users.appending(path: NSUserName()), withIntermediateDirectories: true
+        )
+        try write(Data("MZ".utf8), "drive_c/Program Files (x86)/Steam/steam.exe")
+        let steam = prefix.appending(path: "drive_c/Program Files (x86)/Steam/steam.exe")
+        _ = try await Wine.prepareProgramLaunch(
+            at: steam, args: ["-silent"], bottle: Bottle(bottleUrl: prefix), importer: { _, _ in }
+        )
+        #expect(FileManager.default.fileExists(atPath: users.appending(path: "crossover").path))
+    }
 }
