@@ -45,6 +45,12 @@ that branch only.
   Whisky moves them into the bottle's `VC Runtime` folder before each Wine
   start, because the runtime's own arm64 processes crash on Microsoft's x64
   `ucrtbase.dll`. Only Unity games use the Microsoft VC++ runtime, per game.
+- A Steam game that is a Unity game gets the stored VC++ DLLs next to its
+  executable when you press Play, with `n,b` set for that executable only.
+  Before, only a program Whisky started directly got them.
+- Every start of `steam.exe` from Whisky, the client the Steam game flow starts
+  included, moves native VC++ DLLs out of `system32` first. Whisky does not
+  watch Wine processes it did not start.
 
 #### Removed
 - Rosetta 2 support and the Rosetta AVX switch.
